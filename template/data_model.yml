@@ -1,0 +1,62 @@
+machine:
+  name: "machine1" # name of the machine
+  category: "machine_category1" # category of the machine
+  type: "machine_type1" # type of the machine
+  model: "machine_model1" # model of the machine
+  description: "machine_description1" # description of the machine
+data_model:
+  # The data model is a tree of objects, each object can be a Variable, Method, Directory or Include.
+  # The tree is rooted in a Directory object.
+  # Directories can contain other Directories, Variables, Methods or Includes.
+  # They are used to organize the machine data model.
+  # Variables are the leaves of the tree, they contain the actual data.
+  # Variables can be of two types: Variable or VariableObj.
+  # VariableObj are Variables objects that contain other Variables (i.e., properties).
+  # To avoid redundancy, VariableObj are included from other files with the !Include tag, defining the structure of the object.
+  # Methods are used to define remote procedures that can be requested to the machine. (i.e., services)
+  # The Include tag can also be used to include portions of the data model from other files.
+  - !Directory
+    name: "directory1"
+    description: "directory_description1"
+    children:
+      - !Variable
+        name: "variable1"
+        description: "variable_description1"
+        measure_domain: "variable_measure_domain1"
+        measure_unit: "variable_measure_unit1"
+        type: "variable_type1"
+        value: "variable_value1"
+      - !Directory
+        name: "directory2"
+        description: "directory_description2"
+        children:
+          - !Method
+            name: "method1"
+            description: "method_description1"
+            parameters:
+              - !Variable
+                name: "variable5"
+                description: "variable_description5"
+                measure_domain: "variable_measure_domain5"
+                measure_unit: "variable_measure_unit5"
+                type: "variable_type5"
+                value: "variable_value5"
+              - !Variable
+                name: "variable6"
+                description: "variable_description6"
+                measure_domain: "variable_measure_domain6"
+                measure_unit: "variable_measure_unit6"
+                type: "variable_type6"
+                value: "variable_value6"
+            return:
+              - !Variable
+                name: "variable7"
+                description: "variable_description7"
+                measure_domain: "variable_measure_domain7"
+                measure_unit: "variable_measure_unit7"
+                type: "variable_type7"
+                value: "variable_value7"
+      - !Include # VariableObj are include from other files to avoid redundancy
+        file: "template/variable_obj.yml" # path to the file containing the object
+        value: "{json-like initialization}" # json-like initialization of the object
+

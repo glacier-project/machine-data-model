@@ -1,0 +1,20 @@
+name: "variable2"
+description: "variable_description2"
+measure_domain: "variable_measure_domain2"
+measure_unit: "variable_measure_unit2"
+type: "variable_obj_type" # can be omitted probably, the type is inferred from the object
+properties:
+  - !Variable
+    name: "variable3"
+    description: "variable_description3"
+    measure_domain: "variable_measure_domain3"
+    measure_unit: "variable_measure_unit3"
+    type: "variable_type3"
+    value: "variable_value3"
+  - !Variable
+    name: "variable4"
+    description: "variable_description4"
+    measure_domain: "variable_measure_domain4"
+    measure_unit: "variable_measure_unit4"
+    type: "variable_type4"
+    value: "variable_value4"
