@@ -57,5 +57,3 @@ To set up the development environment, follow these steps:
 TODO
 Poetry? Pipenv? Conda?
 Measurement units
-
-

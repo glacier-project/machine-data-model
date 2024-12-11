@@ -433,7 +433,17 @@ files = [
     {file = "typing_extensions-4.12.2.tar.gz", hash = "sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8"},
 ]
 
+[[package]]
+name = "unitsnet-py"
+version = "0.1.135"
+description = "A better way to hold unit variables and easily convert to the destination unit"
+optional = false
+python-versions = "<4.0,>=3.8"
+files = [
+    {file = "unitsnet-py-0.1.135.tar.gz", hash = "sha256:c99f33a5ef26323a34d8c0ad7679b96b32df4714a7d6f0028567bc2cc2a72f39"},
+]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "328cdb7c859a1eafea07d8ea927963e87ada0485a12ecce0b2fb74dff0b9ee6e"
+content-hash = "211aec0431e4eef0df5d1c3cc5237ae8fb1d8087ff4570da89f53f8bb7a8450c"

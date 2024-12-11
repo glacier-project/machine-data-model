@@ -1,10 +1,11 @@
 import yaml
 
+
 def test_yaml_load():
     def construct_scalar(loader, node):
         return node.value
 
-    def construct_sequence(loader : yaml.FullLoader, node):
+    def construct_sequence(loader: yaml.FullLoader, node):
         seq = []
         for item in node.value:
             if isinstance(item, yaml.ScalarNode):
@@ -29,30 +30,38 @@ def test_yaml_load():
 
     def construct_include(loader, node):
         obj = construct_obj(loader, node)
-        value = obj["value"]
+        # value = obj["value"]
         # load another yaml file
         with open(obj["file"], "r") as ymlfile:
             obj = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-        # in the future we should set the initial value of the object/graph with the specified values
+        # in the future we should set the initial value of the object/graph with the
+        # specified values
         # obj.set_value(value)
         return obj
 
     # add custom tags for parsing
-    yaml.FullLoader.add_constructor("!Directory", lambda loader, node: construct_obj(loader, node))
-    yaml.FullLoader.add_constructor("!Variable",
-                                    lambda loader, node: construct_obj(loader, node))
-    yaml.FullLoader.add_constructor("!Method",
-                                    lambda loader, node: construct_obj(loader, node))
-    yaml.FullLoader.add_constructor("!Include",
-                                    lambda loader, node: construct_include(loader, node))
+    yaml.FullLoader.add_constructor(
+        "!Directory", lambda loader, node: construct_obj(loader, node)
+    )
+    yaml.FullLoader.add_constructor(
+        "!Variable", lambda loader, node: construct_obj(loader, node)
+    )
+    yaml.FullLoader.add_constructor(
+        "!Method", lambda loader, node: construct_obj(loader, node)
+    )
+    yaml.FullLoader.add_constructor(
+        "!Include", lambda loader, node: construct_include(loader, node)
+    )
 
     with open("template/data_model.yml", "r") as ymlfile:
         machine_data_model = yaml.load(ymlfile, Loader=yaml.FullLoader)
     print(machine_data_model)
 
+
 def main():
     test_yaml_load()
+
 
 if __name__ == "__main__":
     main()

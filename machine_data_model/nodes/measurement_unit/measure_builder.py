@@ -1,0 +1,111 @@
+import inspect
+from enum import Enum
+from typing import Union
+
+import unitsnet_py
+from unitsnet_py.abstract_unit import AbstractMeasure
+
+
+class NoneMeasureUnits(Enum):
+    NONE = 0
+
+
+class NoneMeasure(AbstractMeasure):
+    """
+    NoneMeasure represents a value with no unit.
+
+    Args:
+        value (float): The value.
+        from_unit (NoneMeasureUnits): The unit of the value, always
+            NoneMeasureUnits.NONE.
+    """
+
+    def __init__(
+        self, value: float, from_unit: NoneMeasureUnits = NoneMeasureUnits.NONE
+    ):
+        assert from_unit == NoneMeasureUnits.NONE
+        self._value = value
+
+    @property
+    def base_value(self) -> float:
+        return self._value
+
+    def to_string(
+        self,
+        unit: NoneMeasureUnits = NoneMeasureUnits.NONE,
+        fractional_digits: int = None,
+    ) -> str:
+        """
+        Format the NoneMeasure to a string.
+
+        Args:
+            unit (str): The unit to format the NoneMeasure. The only one available is
+                'NONE'.
+            fractional_digits (int, optional): The number of fractional digits to keep.
+
+        Returns:
+            str: The string format of the NoneMeasure.
+        """
+        assert unit == NoneMeasureUnits.NONE
+        if fractional_digits is not None:
+            return (
+                f"{super()._truncate_fraction_digits(self._value, fractional_digits)}"
+            )
+        return f"{self._value}"
+
+    def get_unit_abbreviation(
+        self, unit_abbreviation: NoneMeasureUnits = NoneMeasureUnits.NONE
+    ) -> str:
+        """
+        Get NoneMeasure unit abbreviation.
+        Note! the only available unit is 'NONE', so the method will always return an
+        empty string.
+        """
+        if unit_abbreviation == NoneMeasureUnits.NONE:
+            return ""
+        else:
+            raise ValueError("Invalid unit for NoneMeasure measure")
+
+
+class MeasureBuilder:
+    """
+    A MeasureBuilder class is a utility builder class used to create a measure object
+    from a value and a unit.
+    """
+
+    def __init__(self):
+        # explore the unitsnet_py package to store the measure object from the unit
+        self._measure_ctor = {}
+        units = inspect.getmembers(
+            unitsnet_py,
+            lambda member: inspect.isclass(member)
+            and member.__name__.endswith("Units"),
+        )
+        for unit in units:
+            unit_name = unit[0]
+            measure_name = unit_name.replace("Units", "")
+            measure = getattr(unitsnet_py, measure_name)
+            assert inspect.isclass(measure)
+            self._measure_ctor[unit[1]] = measure
+
+        # add the NoneMeasure unit
+        self._measure_ctor[NoneMeasureUnits] = NoneMeasure
+
+    def create_measure(self, value: float, unit: Union[str, Enum]) -> AbstractMeasure:
+        if isinstance(unit, str):
+            assert "." in unit
+            unit = unit.split(".")
+            unit_class = unit[0]
+            unit_name = unit[1]
+        elif isinstance(unit, Enum):
+            unit_class = unit.__class__.__name__
+            unit_name = unit.name
+        else:
+            raise ValueError("Invalid unit type")
+
+        if unit_class == "NoneMeasureUnits":
+            unit = NoneMeasureUnits
+        else:
+            unit = getattr(unitsnet_py, unit_class)
+        measure = self._measure_ctor[unit]
+        return measure(value=value, from_unit=unit[unit_name])
