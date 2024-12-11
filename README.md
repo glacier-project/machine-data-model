@@ -9,38 +9,27 @@ machines in the GLACIER platform.
 
 The data model is structured in a tree-like structure, where each node 
 represents one of the following:
-- Directory: a directory that contains other directories or variables;
-- Variable: a variable with a simple data type (e.g., string, integer, 
-  float, boolean) or a complex data type (e.g., object, list, dictionary);
+- Folder: a folder that contains other directories or variables;
+- Variable: a variable with a simple data type (string, numeric, boolean) or a 
+complex data type (object);
 - Method: a method that can be called to perform an action on the machine;
 
 Each node has the following attributes:
 - Id: a unique identifier for the node
 - Name: a human-readable name for the node
 - Description: a description of the node
-- Type: the type of the node (e.g., Directory, Method, boolean, intX)
 - Value: the initial value of the node (only for variables)
-- LowerBound: the lower bound of the node (only for numerical variables)
-- UpperBound: the upper bound of the node (only for numerical variables)
-- Children: the children of the node (only for directories)
-- Methods: the methods of the node (only for directories)
-- Properties: the properties of the node (only for variables of type object and dictionary)
+- LowerBound?: the lower bound of the node (only for numerical variables)
+- UpperBound?: the upper bound of the node (only for numerical variables)
+- Children: the children of the node (only for folders)
+- Methods: the methods of the node (only for folders)
+- Properties: the properties of the node (only for variables of type object)
 
 The supported interaction patterns are:
 - Read: read the value of a variable
 - Write: write the value of a variable
 - Call: call a method
 - Subscribe: subscribe to a variable to receive updates when its value changes
-
-The supported data types are:
-- boolean: a boolean value (true or false)
-- intX: a signed integer value with X bits
-- uintX: an unsigned integer value with X bits
-- floatX: a floating-point value with X bits
-- string: a string value
-- object: a complex data type that contains other variables
-- list: a list of values
-- dictionary: a dictionary of key-value pairs
 
 # Installation
 
@@ -54,6 +43,10 @@ TODO
 
 To set up the development environment, follow these steps:
 
-TODO
-Poetry? Pipenv? Conda?
-Measurement units
+1. Clone the repository
+2. execute `poetry install` to install the dependencies.
+
+## Development
+
+Before committing changes, make sure to run the tests with `poetry run pytest` 
+and format the code with `sh scripts/apply_cstyle.sh machine_data_model/`.
