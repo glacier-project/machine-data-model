@@ -31,6 +31,37 @@ The supported interaction patterns are:
 - Call: call a method
 - Subscribe: subscribe to a variable to receive updates when its value changes
 
+# TODO:
+- [ ] Implement the machine data model
+  - [x] Machine data model folder
+  - [x] Machine data model variable
+  - [x] Machine data model method
+  - [x] Machine data model object
+  - [ ] Machine data model 
+  - [ ] Machine data model builder
+- [ ] Implement callbacks for reading, writing and method call on the respective 
+  machine data model nodes
+  - [ ] Read callback
+  - [ ] Write callback
+  - [ ] Method call callback
+  - [ ] Subscription callback
+- [ ] Implement machine data model operations. Data model operations are 
+  operations performed on the machine data model nodes. They change the state
+  of the machine data model nodes and/or trigger the respective callbacks.
+  - [ ] Read of a machine data model variable
+  - [ ] Write of a machine data model variable
+  - [ ] Call of a machine data model method
+  - [ ] Subscribe to a machine data model variable
+- [ ] Implement the first version of the machine data model API (i.e., the 
+GLACIER v1 API)
+  - [ ] Get information about a machine data model node
+  - [ ] Read the value of a machine data model variable
+  - [ ] Write the value of a machine data model variable
+  - [ ] Call a machine data model method
+  - [ ] Subscribe to a machine data model variable
+  - [ ] Read, write, call and subscribe messages are translated into machine 
+    data model operations
+  
 # Installation
 
 TODO
