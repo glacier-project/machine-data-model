@@ -1,5 +1,4 @@
 from enum import Enum
-from machines import Machines
 
 class MessageTopology(Enum):
     REQUEST = 1
