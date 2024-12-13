@@ -91,15 +91,15 @@ class MeasureBuilder:
         # add the NoneMeasure unit
         self._measure_ctor[NoneMeasureUnits] = NoneMeasure
 
-    def create_measure(self, value: float, unit: Union[str, Enum]) -> AbstractMeasure:
-        if isinstance(unit, str):
+    def get_measure_unit(self, unit: Union[str, Enum]):
+        if isinstance(unit, Enum):
+            assert unit.__class__ in self._measure_ctor
+            return unit
+        elif isinstance(unit, str):
             assert "." in unit
             unit = unit.split(".")
             unit_class = unit[0]
             unit_name = unit[1]
-        elif isinstance(unit, Enum):
-            unit_class = unit.__class__.__name__
-            unit_name = unit.name
         else:
             raise ValueError("Invalid unit type")
 
@@ -107,5 +107,9 @@ class MeasureBuilder:
             unit = NoneMeasureUnits
         else:
             unit = getattr(unitsnet_py, unit_class)
-        measure = self._measure_ctor[unit]
-        return measure(value=value, from_unit=unit[unit_name])
+        return unit[unit_name]
+
+    def create_measure(self, value: float, unit: Union[str, Enum]) -> AbstractMeasure:
+        unit = self.get_measure_unit(unit)
+        measure = self._measure_ctor[unit.__class__]
+        return measure(value=value, from_unit=unit)

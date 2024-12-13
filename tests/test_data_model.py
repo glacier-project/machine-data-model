@@ -1,33 +1,54 @@
-from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.variable_node import (
-    BooleanVariableNode,
-    NumericalVariableNode,
-    StringVariableNode,
-)
+import random
+
+import pytest
+
+from machine_data_model.data_model import DataModel
+from tests import get_random_folder_node
 
 
+@pytest.mark.parametrize("root", [get_random_folder_node() for _ in range(3)])
 class TestDataModel:
 
-    def test_simple_data_model(self):
-        # Arrange
-        variable_1 = NumericalVariableNode(
-            name="variable_1", value=10, measure_unit="LengthUnits.Meter"
-        )
-        variable_2 = NumericalVariableNode(name="variable_2", value=20)
-        variable_3 = StringVariableNode(name="variable_3", value="String value")
-        variable_4 = BooleanVariableNode(name="variable_4", value=True)
+    def test_simple_data_model(self, root):
+        data_model = DataModel(name="dm", root=root)
 
-        folder = FolderNode(name="folder")
+        assert data_model.name == "dm"
+        assert data_model.root == root
 
-        # Act
-        folder.add_child(variable_1)
-        folder.add_child(variable_2)
-        folder.add_child(variable_3)
-        folder.add_child(variable_4)
-        print(folder)
+    def test_data_model_search_by_path(self, root):
+        data_model = DataModel(name="dm", root=root)
 
-        # Assert
-        assert variable_1 in folder.children.values()
-        assert variable_2 in folder.children.values()
-        assert variable_3 in folder.children.values()
-        assert variable_4 in folder.children.values()
+        root = data_model.root
+        child = random.choice(list(root.children.values()))
+
+        root_node = data_model.get_node_from_path(root.name)
+        node = data_model.get_node_from_path(f"{root.name}/{child.name}")
+
+        assert data_model.name == "dm"
+        assert root_node == root
+        assert node == child
+
+    def test_data_model_search_by_path_not_found(self, root):
+        data_model = DataModel(name="dm", root=root)
+
+        with pytest.raises(ValueError):
+            data_model.get_node_from_path("not_found")
+
+    def test_data_model_search_by_id(self, root):
+        data_model = DataModel(name="dm", root=root)
+
+        root = data_model.root
+        child = random.choice(list(root.children.values()))
+
+        root_node = data_model.get_node_from_id(root.id)
+        node = data_model.get_node_from_id(child.id)
+
+        assert data_model.name == "dm"
+        assert root_node == root
+        assert node == child
+
+    def test_data_model_search_by_id_not_found(self, root):
+        data_model = DataModel(name="dm", root=root)
+
+        with pytest.raises(ValueError):
+            data_model.get_node_from_id("not_found")

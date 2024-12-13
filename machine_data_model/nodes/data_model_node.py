@@ -1,7 +1,8 @@
 import uuid
+from abc import ABC, abstractmethod
 
 
-class DataModelNode:
+class DataModelNode(ABC):
     """
     Abstract class for a node in the machine data model.
 
@@ -27,3 +28,40 @@ class DataModelNode:
     @property
     def description(self):
         return self._description
+
+    # @abstractmethod
+    # def has_child(self, child_name: str) -> bool:
+    #     """
+    #     Check if the node has a child node with the specified name.
+    #     :param child_name: The name of the child node to check.
+    #     :return: True if the node has a child node with the specified name, False
+    #         otherwise.
+    #     """
+    #     pass
+
+    @abstractmethod
+    def __getitem__(self, child_name: str):
+        """
+        Get a child node from the node by name.
+        :param child_name: The name of the child node to get from the node.
+        :return: The child node with the specified name.
+        """
+        pass
+
+    @abstractmethod
+    def __contains__(self, child_name: str) -> bool:
+        """
+        Check if the node has a child node with the specified name.
+        :param child_name: The name of the child node to check.
+        :return: True if the node has a child node with the specified name, False
+            otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def __iter__(self):
+        """
+        Iterate over the children of the node.
+        :return: An iterator over the children of the node.
+        """
+        pass

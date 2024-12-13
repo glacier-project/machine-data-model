@@ -1,4 +1,6 @@
-from typing import Callable, List, Union
+from typing import Callable, List
+
+from typing_extensions import override
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import VariableNode
@@ -20,13 +22,15 @@ class MethodNode(DataModelNode):
             - name: The name of the method.
             - description: The description of the method.
             - parameters: A list of parameters of the method.
-            - return: A list of return values of the method.
+            - returns: A list of return values of the method.
             - callback: The function to be executed when the method is called.
         """
         super().__init__(**kwargs)
         self._parameters: List[VariableNode] = kwargs.get("parameters", [])
-        self._return: List[VariableNode] = kwargs.get("return", [])
-        self._callback: Union[Callable, None] = kwargs.get("callback", None)
+        self._returns: List[VariableNode] = kwargs.get("returns", [])
+        self._callback: Callable = kwargs.get("callback", lambda: None)
+        self._pre_call = lambda **kwargs: None
+        self._post_call = lambda res: None
 
     @property
     def parameters(self):
@@ -49,30 +53,79 @@ class MethodNode(DataModelNode):
         self._parameters.remove(parameter)
 
     @property
-    def return_values(self):
-        return self._return
+    def returns(self):
+        return self._returns
 
     def add_return_value(self, return_value):
         """
         Add a return value to the method.
         :param return_value: The return value to add to the method.
         """
-        self._return.append(return_value)
+        self._returns.append(return_value)
 
     def remove_return_value(self, return_value):
         """
         Remove a return value from the method.
         :param return_value: The return value to remove from the method.
         """
-        if return_value not in self._return:
+        if return_value not in self._returns:
             raise ValueError(
                 f"Return value '{return_value}' not found in method '{self.id}'"
             )
-        self._return.remove(return_value)
+        self._returns.remove(return_value)
 
     @property
     def callback(self):
         return self._callback
+
+    @callback.setter
+    def callback(self, callback):
+        self._callback = callback
+
+    @override
+    def __getitem__(self, node_name: str) -> VariableNode:
+        """
+        Get a parameter or return value of the method by name.
+        :param node_name: The name of the parameter or return value to get from the
+            method.
+        :return: The parameter or return value with the specified name.
+        """
+        for parameter in self._parameters:
+            if parameter.name == node_name:
+                return parameter
+        for return_value in self._returns:
+            if return_value.name == node_name:
+                return return_value
+        raise ValueError(
+            f"Node with name '{node_name}' not found in method '{self.id}'"
+        )
+
+    @override
+    def __contains__(self, node_name: str) -> bool:
+        """
+        Check if the method has a parameter or return value with the specified name.
+        :param node_name: The name of the parameter or return value to check.
+        :return: True if the method has a parameter or return value with the specified
+            name, False otherwise.
+        """
+        for parameter in self._parameters:
+            if parameter.name == node_name:
+                return True
+        for return_value in self._returns:
+            if return_value.name == node_name:
+                return True
+        return False
+
+    @override
+    def __iter__(self):
+        """
+        Iterate over the parameters and return values of the method.
+        :return: An iterator over the parameters and return values of the method.
+        """
+        for parameter in self._parameters:
+            yield parameter
+        for return_value in self._returns:
+            yield return_value
 
     def __call__(self, *args, **kwargs):
         """
@@ -94,7 +147,27 @@ class MethodNode(DataModelNode):
                 param_value = args[0]
                 args = args[1:]
             else:
-                param_value = parameter.read_value()
+                param_value = parameter._read_value()
             kwargs[parameter.name] = param_value
 
-        return self._callback(*args, **kwargs)
+        self._pre_call(**kwargs)
+        result = {}
+        res = self._callback(**kwargs)
+        res = res if isinstance(res, tuple) else (res,)
+        for index, return_value in enumerate(res):
+            result[self._returns[index].name] = return_value
+        assert len(result) == len(self._returns)
+        self._post_call(result)
+
+        return result
+
+    def __str__(self):
+        return (
+            f"MethodNode("
+            f"id={self.id}, "
+            f"name={self.name}, "
+            f"description={self.description})"
+        )
+
+    def __repr__(self):
+        return self.__str__()

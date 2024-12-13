@@ -1,3 +1,5 @@
+from typing_extensions import override
+
 from machine_data_model.nodes.data_model_node import DataModelNode
 
 
@@ -44,6 +46,44 @@ class FolderNode(DataModelNode):
             raise ValueError(
                 f"Child node with name '{child_name}' not found in folder '{self.name}'"
             )
+
+    def has_child(self, child_name: str) -> bool:
+        """
+        Check if the folder has a child node with the specified name.
+        :param child_name: The name of the child node to check.
+        :return: True if the folder has a child node with the specified name, False
+            otherwise.
+        """
+        return child_name in self._children
+
+    @override
+    def __getitem__(self, child_name: str):
+        """
+        Get a child node from the folder by name.
+        :param child_name: The name of the child node to get from the folder.
+        :return: The child node with the specified name.
+        """
+        return self._children[child_name]
+
+    @override
+    def __contains__(self, child_name: str) -> bool:
+        """
+        Check if the folder has a child node with the specified name.
+        :param child_name: The name of the child node to check.
+        :return: True if the folder has a child node with the specified name, False
+            otherwise.
+        """
+        return self.has_child(child_name)
+
+    @override
+    def __iter__(self):
+        """
+        Iterate over the children of the folder.
+        :return: An iterator over the children of the folder.
+        """
+        children = self._children
+        for child in children:
+            yield children[child]
 
     def __str__(self):
         return (

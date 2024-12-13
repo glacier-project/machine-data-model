@@ -1,7 +1,7 @@
 from abc import abstractmethod
-from enum import Enum
 from typing import Any, Dict
 
+from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
 
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -28,20 +28,63 @@ class VariableNode(DataModelNode):
             - description: The description of the variable.
         """
         super().__init__(**kwargs)
+        self._pre_read_value = lambda: None
+        self._post_read_value = lambda value: value
+        self._pre_update_value = lambda value: value
+        self._post_update_value = lambda value: True
+
+    def read(self) -> Any:
+        """
+        Get the value of the variable node.
+        :return: The value of the variable node.
+        """
+        self._pre_read_value()
+        value = self._read_value()
+        value = self._post_read_value(value)
+        return value
+
+    def update(self, value: Any) -> bool:
+        """
+        Update the value of the variable node.
+        :param value: The new value of the variable node.
+        :return: True if the value was updated successfully, False otherwise.
+        """
+        prev_value = self._read_value()
+        value = self._pre_update_value(value)
+        value = self._update_value(value)
+        # if validation fails, restore the previous value
+        if not self._post_update_value(value):
+            self._update_value(prev_value)
+            return False
+        return True
 
     @abstractmethod
-    def read_value(self) -> Any:
+    def _read_value(self) -> Any:
         """
         Get the value of the variable.
         """
         pass
 
     @abstractmethod
-    def update_value(self, value: Any):
+    def _update_value(self, value: Any):
         """
         Update the value of the variable.
         """
         pass
+
+    @override
+    def __getitem__(self, node_name: str):
+        raise NotImplementedError(
+            f"f{self.__class__.__name__} does not support child nodes"
+        )
+
+    @override
+    def __contains__(self, node_name: str):
+        return False
+
+    @override
+    def __iter__(self):
+        return iter([])
 
 
 class NumericalVariableNode(VariableNode):
@@ -64,28 +107,23 @@ class NumericalVariableNode(VariableNode):
             - value (float): The initial value of the numerical variable.
         """
         super().__init__(**kwargs)
-        self._measure_unit: Enum = kwargs.get("measure_unit", NoneMeasureUnits.NONE)
+        self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
+            kwargs.get("measure_unit", NoneMeasureUnits.NONE)
+        )
         self._value: AbstractMeasure = (
             NumericalVariableNode._measure_builder.create_measure(
                 kwargs.get("value", 0), self._measure_unit
             )
         )
 
-    def read_value(self) -> AbstractMeasure:
+    def _read_value(self) -> float:
         """
         Get the value of the numerical variable.
         :return: The value of the numerical variable.
         """
-        return self._value
-
-    def read_base_value(self) -> float:
-        """
-        Get the base value of the numerical variable.
-        :return: The base value of the numerical variable.
-        """
         return self._value.base_value
 
-    def update_value(self, value: float):
+    def _update_value(self, value: float):
         """
         Update the value of the numerical variable.
         :param value: The new value of the numerical variable.
@@ -124,20 +162,28 @@ class StringVariableNode(VariableNode):
         super().__init__(**kwargs)
         self._value: str = kwargs.get("value", "")
 
-    def read_value(self) -> str:
+    def _read_value(self) -> str:
         """
         Get the value of the string variable.
         :return: The value of the string variable.
         """
         return self._value
 
-    def update_value(self, value: str):
+    def _update_value(self, value: str):
         """
         Update the value of the string variable.
         :param value: The new value of the string variable.
         """
         assert isinstance(value, str)
         self._value = value
+
+    @override
+    def __getitem__(self, node_name: str):
+        raise NotImplementedError("StringVariableNode does not support child nodes")
+
+    @override
+    def __contains__(self, node_name: str):
+        return False
 
     def __str__(self):
         return (
@@ -168,20 +214,28 @@ class BooleanVariableNode(VariableNode):
         super().__init__(**kwargs)
         self._value: bool = kwargs.get("value", False)
 
-    def read_value(self) -> bool:
+    def _read_value(self) -> bool:
         """
         Get the value of the boolean variable.
         :return: The value of the boolean variable.
         """
         return self._value
 
-    def update_value(self, value: bool):
+    def _update_value(self, value: bool):
         """
         Update the value of the boolean variable.
         :param value: The new value of the boolean variable.
         """
         assert isinstance(value, bool)
         self._value = value
+
+    @override
+    def __getitem__(self, node_name: str):
+        raise NotImplementedError("BooleanVariableNode does not support child nodes")
+
+    @override
+    def __contains__(self, node_name: str):
+        return False
 
     def __str__(self):
         return (
@@ -213,7 +267,7 @@ class ObjectVariableNode(VariableNode):
         """
         super().__init__(**kwargs)
         self._properties: Dict[str, VariableNode] = kwargs.get("properties", {})
-        self.update_value(kwargs.get("value", {}))
+        self._update_value(kwargs.get("value", {}))
 
     def add_property(self, property_node: VariableNode):
         """
@@ -246,6 +300,25 @@ class ObjectVariableNode(VariableNode):
         """
         return self._properties[property_name]
 
+    def _read_value(self) -> Any:
+        """
+        Get the value of the object variable.
+        :return: The value of the object variable.
+        """
+        value = {}
+        for property_name, property_node in self._properties.items():
+            value[property_name] = property_node.read()
+        return value
+
+    def _update_value(self, value: Any):
+        """
+        Update the value of the object variable.
+        :param value: The new value of the object variable.
+        """
+        for property_name, property_value in value.items():
+            self._properties[property_name]._update_value(property_value)
+
+    @override
     def __getitem__(self, property_name: str) -> VariableNode:
         """
         Get a property of the object variable.
@@ -254,28 +327,28 @@ class ObjectVariableNode(VariableNode):
         """
         return self.get_property(property_name)
 
-    def read_value(self) -> Any:
+    @override
+    def __contains__(self, property_name: str) -> bool:
         """
-        Get the value of the object variable.
-        :return: The value of the object variable.
+        Check if the object variable has a property.
+        :param property_name: The name of the property to check.
+        :return: True if the object variable has the property, False otherwise.
         """
-        value = {}
-        for property_name, property_node in self._properties.items():
-            value[property_name] = property_node.read_value()
-        return value
+        return self.has_property(property_name)
 
-    def update_value(self, value: Any):
+    @override
+    def __iter__(self):
         """
-        Update the value of the object variable.
-        :param value: The new value of the object variable.
+        Iterate over the properties of the object variable.
+        :return: An iterator over the properties of the object variable.
         """
-        for property_name, property_value in value.items():
-            self._properties[property_name].update_value(property_value)
+        for property_node in self._properties.values():
+            yield property_node
 
     def __str__(self):
         return (
             f"ObjectVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={self.read_value()})"
+            f"description={self._description}, value={self._read_value()})"
         )
 
     def __repr__(self):
