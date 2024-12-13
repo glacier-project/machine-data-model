@@ -1,0 +1,72 @@
+import pytest
+import uuid
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
+from machine_data_model.protocols.glacier_v1.variable_message import VarOperation, VariableCall
+from machine_data_model.protocols.glacier_v1.method_message import MethodCall
+from machine_data_model.protocols.glacier_v1.Message import Message
+from machine_data_model.protocols.glacier_v1.enumeration_for_messages import MessageTopology
+from machine_data_model.builders.message_builder import MessageBuilder
+
+@pytest.mark.parametrize(
+    "sender, target",
+    [(f"sender_{i}", f"target_{i}") for i in range(3)],
+)
+class TestMessageBuilder:
+
+    def test_create_variable_message(self, sender, target):
+        builder = MessageBuilder()
+        variable_payload = VariableCall("varname1", VarOperation.READ, ["arg1", "arg2"])
+        message = (builder
+                   .set_sender(sender)
+                   .set_target(target)
+                   .set_variable_payload(variable_payload)
+                   .build())
+
+        assert message.sender == sender
+        assert message.target == target
+        assert message.payload == variable_payload
+        assert message.topology == MessageTopology.REQUEST
+        assert isinstance(message.uuid_code, uuid.UUID)
+
+    def test_create_method_message(self, sender, target):
+        builder = MessageBuilder()
+        method_payload = MethodCall("method1", ["arg1", "arg2"])
+        message = (builder
+                   .set_sender(sender)
+                   .set_target(target)
+                   .set_method_payload(method_payload)
+                   .build())
+
+        assert message.sender == sender
+        assert message.target == target
+        assert message.payload == method_payload
+        assert message.topology == MessageTopology.REQUEST
+        assert isinstance(message.uuid_code, uuid.UUID)
+
+    @pytest.mark.parametrize(
+        "custom_uuid",
+        [uuid.uuid4() for _ in range(3)],
+    )
+    def test_set_uuid_code(self, sender, target, custom_uuid):
+        builder = MessageBuilder()
+        message = (builder
+                   .set_sender(sender)
+                   .set_target(target)
+                   .set_uuid_code(custom_uuid)
+                   .set_method_payload(MethodCall("method2", ["arg3"]))
+                   .build())
+
+        assert message.uuid_code == custom_uuid
+
+    def test_set_topology(self, sender, target):
+        builder = MessageBuilder()
+        message = (builder
+                   .set_sender(sender)
+                   .set_target(target)
+                   .set_topology(MessageTopology.ACCEPTED)
+                   .set_method_payload(MethodCall("method3", ["arg4"]))
+                   .build())
+
+        assert message.topology == MessageTopology.ACCEPTED

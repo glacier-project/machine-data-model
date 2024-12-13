@@ -18,13 +18,9 @@
   "payload": {
     "type": "MethodCall",
     "value": {
-      "varname": {
+      "method": {
         "type": "str",
-        "value": "example_varname"
-      },
-      "operation": {
-        "type": "str",
-        "value": "example_operation"
+        "value": "example_method_name"
       },
       "args": {
         "type": "list",
