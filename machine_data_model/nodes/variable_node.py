@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Callable
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -71,6 +71,38 @@ class VariableNode(DataModelNode):
         Update the value of the variable.
         """
         pass
+
+    def set_pre_read_value_callback(self, callback: Callable[[], None]):
+        """
+        Set a callback to be executed before reading the value of the variable.
+        :param callback: The callback to be executed before reading the value of the
+        variable.
+        """
+        self._pre_read_value = callback
+
+    def set_post_read_value_callback(self, callback: Callable[[Any], Any]):
+        """
+        Set a callback to be executed after reading the value of the variable.
+        :param callback: The callback to be executed after reading the value of the
+        variable.
+        """
+        self._post_read_value = callback
+
+    def set_pre_update_value_callback(self, callback: Callable[[Any], Any]):
+        """
+        Set a callback to be executed before updating the value of the variable.
+        :param callback: The callback to be executed before updating the value of the
+        variable.
+        """
+        self._pre_update_value = callback
+
+    def set_post_update_value_callback(self, callback: Callable[[Any], bool]):
+        """
+        Set a callback to be executed after updating the value of the variable.
+        :param callback: The callback to be executed after updating the value of the
+        variable.
+        """
+        self._post_update_value = callback
 
     @override
     def __getitem__(self, node_name: str):
