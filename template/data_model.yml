@@ -60,4 +60,3 @@ root:
 #    - !Include # VariableObj are include from other files to avoid redundancy
 #      file: "template/variable_obj.yml" # path to the file containing the object
 #      value: "{json-like initialization}" # json-like initialization of the object
-

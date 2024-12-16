@@ -1,0 +1,57 @@
+name: Test and build
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+#  workflow_call:
+#    inputs:
+#      config:
+#        required: true
+#        type: string
+#    secrets:
+#      token:
+#        required: true
+#        type: string
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pre-commit/action@v3.0.1
+#  check-links:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: gaurav-nelson/github-action-markdown-link-check@v1
+#        name: Check links in markdown files
+#        with:
+#          use-quiet-mode: "yes"
+#          use-verbose-mode: "yes"
+  test:
+    needs: qa
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: ["3.10", "3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3.0.0
+        with:
+          poetry-version: "latest"
+      - name: Install dependencies
+        run: poetry install
+      - name: Run tests
+        run: poetry run pytest

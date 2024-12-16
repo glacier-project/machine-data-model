@@ -160,7 +160,7 @@ class DataModelBuilder:
             "tag:yaml.org,2002:MethodNode",
             lambda loader, node: self._construct_method_node(loader, node),
         )
-        with open(data_model_path, "r") as file:
+        with open(data_model_path) as file:
             data = yaml.load(file, Loader=yaml.FullLoader)
         data_model = DataModel(**data)
 

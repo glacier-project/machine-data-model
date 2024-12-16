@@ -1,5 +1,3 @@
-from typing import Union
-
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode
 
@@ -53,7 +51,7 @@ class DataModel:
     def root(self):
         return self._root
 
-    def _build_nodes_map(self, node: Union[FolderNode, ObjectVariableNode]):
+    def _build_nodes_map(self, node: FolderNode | ObjectVariableNode):
         """
         Build a map of nodes by id for fast access.
         :param node: The node to add to the map.

@@ -1,4 +1,4 @@
-from typing import Callable, List
+from collections.abc import Callable
 
 from typing_extensions import override
 
@@ -26,8 +26,8 @@ class MethodNode(DataModelNode):
             - callback: The function to be executed when the method is called.
         """
         super().__init__(**kwargs)
-        self._parameters: List[VariableNode] = kwargs.get("parameters", [])
-        self._returns: List[VariableNode] = kwargs.get("returns", [])
+        self._parameters: list[VariableNode] = kwargs.get("parameters", [])
+        self._returns: list[VariableNode] = kwargs.get("returns", [])
         self._callback: Callable = kwargs.get("callback", lambda: None)
         self._pre_call = lambda **kwargs: None
         self._post_call = lambda res: None
@@ -122,10 +122,8 @@ class MethodNode(DataModelNode):
         Iterate over the parameters and return values of the method.
         :return: An iterator over the parameters and return values of the method.
         """
-        for parameter in self._parameters:
-            yield parameter
-        for return_value in self._returns:
-            yield return_value
+        yield from self._parameters
+        yield from self._returns
 
     def __call__(self, *args, **kwargs):
         """

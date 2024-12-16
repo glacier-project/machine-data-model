@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class MessageTopology(Enum):
     REQUEST = 1
     SUCCESS = 2

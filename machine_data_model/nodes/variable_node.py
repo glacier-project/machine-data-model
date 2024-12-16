@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Any, Dict, Callable
+from collections.abc import Callable
+from typing import Any
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -298,7 +299,7 @@ class ObjectVariableNode(VariableNode):
             - value (dict[str,Any]): The initial value of the object variable.
         """
         super().__init__(**kwargs)
-        self._properties: Dict[str, VariableNode] = kwargs.get("properties", {})
+        self._properties: dict[str, VariableNode] = kwargs.get("properties", {})
         self._update_value(kwargs.get("value", {}))
 
     def add_property(self, property_node: VariableNode):
@@ -374,8 +375,7 @@ class ObjectVariableNode(VariableNode):
         Iterate over the properties of the object variable.
         :return: An iterator over the properties of the object variable.
         """
-        for property_node in self._properties.values():
-            yield property_node
+        yield from self._properties.values()
 
     def __str__(self):
         return (

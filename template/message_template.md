@@ -18,13 +18,13 @@ $message_type= {
     // The header of the message contains metadata about the message.
     "version": "1.0.0",
     // The version of the message format.
-    "namespace": "Variable", 
+    "namespace": "Variable",
     // E.g., Variable, Method, etc.
-    "name": "Read", 
+    "name": "Read",
     // This field specifies the type of message. This field in combination with
-    // the namespace field should uniquely identify the type of the message 
+    // the namespace field should uniquely identify the type of the message
     // contained in the body/payload.
-    // E.g., for a Request message, the name could be something like 
+    // E.g., for a Request message, the name could be something like
     // "Read", "Write", "Subscribe", etc.
   },
   "body": {

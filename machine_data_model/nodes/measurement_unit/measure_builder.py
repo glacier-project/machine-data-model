@@ -1,6 +1,5 @@
 import inspect
 from enum import Enum
-from typing import Union
 
 import unitsnet_py
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -91,7 +90,7 @@ class MeasureBuilder:
         # add the NoneMeasure unit
         self._measure_ctor[NoneMeasureUnits] = NoneMeasure
 
-    def get_measure_unit(self, unit: Union[str, Enum]):
+    def get_measure_unit(self, unit: str | Enum):
         if isinstance(unit, Enum):
             assert unit.__class__ in self._measure_ctor
             return unit
@@ -109,7 +108,7 @@ class MeasureBuilder:
             unit = getattr(unitsnet_py, unit_class)
         return unit[unit_name]
 
-    def create_measure(self, value: float, unit: Union[str, Enum]) -> AbstractMeasure:
+    def create_measure(self, value: float, unit: str | Enum) -> AbstractMeasure:
         unit = self.get_measure_unit(unit)
         measure = self._measure_ctor[unit.__class__]
         return measure(value=value, from_unit=unit)
