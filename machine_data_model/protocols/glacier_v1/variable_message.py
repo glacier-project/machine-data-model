@@ -15,10 +15,10 @@ class VariableCall:
     operation:VarOperation      
     args:list
    
-    @classmethod
+    @property
     def get_arg(self, index: int) -> List[Any]:
         return self.args[index]
-    @classmethod
+    @property
     def has_arg(self, arg: Any) -> bool:
         return arg in self.args
     @override
@@ -40,14 +40,14 @@ class VariableCall:
         return self.varname == other.varname and self.operation == other.operation and self.args == other.args
     def __call__(self, *args, **kwds):
         pass
-    @classmethod
+    @property
     def to_dict(self) -> dict:
         return {
             "varname": self.varname,
             "operation": self.operation.name,
             "args": self.args
         }
-    @classmethod
+    @property
     def from_dict(cls, data: dict) -> 'VariableCall':
         return cls(
             varname=data["varname"],

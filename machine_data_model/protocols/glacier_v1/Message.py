@@ -14,16 +14,16 @@ class Message:
     topology:MessageTopology 
     payload: Any
 
-    @classmethod
+    @property
     def get_payload(self):
         return self.payload
-    @classmethod
+    @property
     def get_uuid(self):
         return self.uuid_code
-    @classmethod
+    @property
     def get_topology(self):
         return self.topology
-    @classmethod
+    @property
     def to_dict(self) -> dict:
         return {
             "sender": self.sender,
@@ -32,7 +32,7 @@ class Message:
             "topology": self.topology.name,
             "payload": self.payload
         }
-    @classmethod
+    @property
     def from_dict(cls, data: dict) -> 'Message':
         return cls(
             sender=data["sender"],

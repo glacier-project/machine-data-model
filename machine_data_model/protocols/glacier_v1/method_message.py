@@ -8,10 +8,10 @@ class MethodCall:
     method: str
     args: List[Any]
     
-    @classmethod
+    @property
     def get_arg(self, index: int) -> List[Any]:
         return self.args[index]
-    @classmethod
+    @property
     def has_arg(self, arg: Any) -> bool:
         return arg in self.args
     @override
@@ -33,13 +33,13 @@ class MethodCall:
         return self.method == other.method and self.args == other.args
     def __call__(self, *args, **kwds):
         pass
-    @classmethod
+    @property
     def to_dict(self) -> dict:
         return {
             "method": self.method,
             "args": self.args
         }
-    @classmethod
+    @property
     def from_dict(cls, data: dict) -> 'MethodCall':
         return cls(
             method=data["method"],

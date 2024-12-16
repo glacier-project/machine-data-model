@@ -1,8 +1,5 @@
 import pytest
 import uuid
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 from machine_data_model.protocols.glacier_v1.variable_message import VarOperation, VariableCall
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.Message import Message
