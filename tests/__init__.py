@@ -3,6 +3,7 @@ import string
 
 from unitsnet_py.units.length import LengthUnits
 
+from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
 from machine_data_model.nodes.method_node import MethodNode
@@ -11,6 +12,7 @@ from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     ObjectVariableNode,
     StringVariableNode,
+    VariableNode,
 )
 
 NUM_TESTS = 3
@@ -27,7 +29,7 @@ def gen_random_string(length: int) -> str:
 
 
 def get_random_boolean_node(
-    var_name: str = None, var_description: str = None
+    var_name: str | None = None, var_description: str | None = None
 ) -> BooleanVariableNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
@@ -39,7 +41,7 @@ def get_random_boolean_node(
 
 
 def get_random_string_node(
-    var_name: str = None, var_description: str = None
+    var_name: str | None = None, var_description: str | None = None
 ) -> StringVariableNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
@@ -51,7 +53,7 @@ def get_random_string_node(
 
 
 def get_random_numerical_node(
-    var_name: str = None, var_description: str = None
+    var_name: str | None = None, var_description: str | None = None
 ) -> NumericalVariableNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
@@ -72,7 +74,9 @@ def get_random_numerical_node(
     )
 
 
-def get_random_object_node(var_name: str = None, var_description: str = None):
+def get_random_object_node(
+    var_name: str | None = None, var_description: str | None = None
+) -> ObjectVariableNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     if var_description is None:
@@ -83,11 +87,14 @@ def get_random_object_node(var_name: str = None, var_description: str = None):
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
     )
     for prop in properties:
+        assert isinstance(prop, VariableNode)
         object_node.add_property(prop)
     return object_node
 
 
-def get_random_folder_node(var_name: str = None, var_description: str = None):
+def get_random_folder_node(
+    var_name: str | None = None, var_description: str | None = None
+) -> FolderNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     if var_description is None:
@@ -102,7 +109,9 @@ def get_random_folder_node(var_name: str = None, var_description: str = None):
     return folder_node
 
 
-def get_random_method_node(var_name: str = None, var_description: str = None):
+def get_random_method_node(
+    var_name: str | None = None, var_description: str | None = None
+) -> MethodNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     if var_description is None:
@@ -117,13 +126,15 @@ def get_random_method_node(var_name: str = None, var_description: str = None):
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
     )
     for parameter in parameters:
+        assert isinstance(parameter, VariableNode)
         method_node.add_parameter(parameter)
     for ret in returns:
+        assert isinstance(ret, VariableNode)
         method_node.add_return_value(ret)
     return method_node
 
 
-def get_random_node(node_types: list = None):
+def get_random_node(node_types: list | None = None) -> DataModelNode:
     if node_types is None:
         node_types = [
             get_random_boolean_node,
@@ -136,23 +147,27 @@ def get_random_node(node_types: list = None):
     var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     var_description = gen_random_string(DEFAULT_DESCRIPTION_LENGTH)
     node_type = random.choice(node_types)
-    return node_type(var_name, var_description)
+    node = node_type(var_name, var_description)
+    assert isinstance(node, DataModelNode)
+    return node
 
 
-def get_random_simple_node():
+def get_random_simple_node() -> DataModelNode:
     return get_random_node(
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node]
     )
 
 
-def get_random_nodes(number: int, node_types: list = None):
+def get_random_nodes(
+    number: int, node_types: list | None = None
+) -> list[DataModelNode]:
     nodes = []
     for i in range(number):
         nodes.append(get_random_node(node_types))
     return nodes
 
 
-def get_random_simple_nodes(number: int):
+def get_random_simple_nodes(number: int) -> list[DataModelNode]:
     return get_random_nodes(
         number,
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node],

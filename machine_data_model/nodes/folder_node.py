@@ -1,3 +1,5 @@
+from typing import Iterator
+
 from typing_extensions import override
 
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -10,24 +12,28 @@ class FolderNode(DataModelNode):
     model in a hierarchical structure.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        children: dict[str, DataModelNode] | None = None,
+    ):
         """
         Initialize a new FolderNode instance.
-        :param kwargs: A dictionary containing the attributes of the folder node.
-        The dictionary may contain the following keys:
-            - id: The unique identifier of the folder.
-            - name: The name of the folder.
-            - description: The description of the folder.
-            - children: A dictionary of child nodes of the folder.
+        :param id: The unique identifier of the folder.
+        :param name: The name of the folder.
+        :param description: The description of the folder.
+        :param children: A dictionary of child nodes of the folder.
         """
-        super().__init__(**kwargs)
-        self._children = kwargs.get("children", {})
+        super().__init__(id=id, name=name, description=description)
+        self._children = {} if children is None else children
 
     @property
-    def children(self):
+    def children(self) -> dict[str, DataModelNode]:
         return self._children
 
-    def add_child(self, child: DataModelNode):
+    def add_child(self, child: DataModelNode) -> None:
         """
         Add a child node to the folder.
         :param child: The child node to add to the folder.
@@ -35,7 +41,7 @@ class FolderNode(DataModelNode):
         assert isinstance(child, DataModelNode)
         self._children[child.name] = child
 
-    def remove_child(self, child_name: str):
+    def remove_child(self, child_name: str) -> None:
         """
         Remove a child node from the folder.
         :param child_name: The name of the child node to remove from the folder.
@@ -57,7 +63,7 @@ class FolderNode(DataModelNode):
         return child_name in self._children
 
     @override
-    def __getitem__(self, child_name: str):
+    def __getitem__(self, child_name: str) -> DataModelNode:
         """
         Get a child node from the folder by name.
         :param child_name: The name of the child node to get from the folder.
@@ -76,7 +82,7 @@ class FolderNode(DataModelNode):
         return self.has_child(child_name)
 
     @override
-    def __iter__(self):
+    def __iter__(self) -> Iterator[DataModelNode]:
         """
         Iterate over the children of the folder.
         :return: An iterator over the children of the folder.
@@ -85,11 +91,11 @@ class FolderNode(DataModelNode):
         for child in children:
             yield children[child]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"FolderNode(id={self._id}, name={self._name}, "
             f"description={self._description}, children={self._children})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()

@@ -1,6 +1,7 @@
 import pytest
 
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.variable_node import VariableNode
 from tests import NUM_TESTS, gen_random_string, get_random_numerical_node
 
 
@@ -9,8 +10,9 @@ from tests import NUM_TESTS, gen_random_string, get_random_numerical_node
     [(gen_random_string(10), gen_random_string(20)) for _ in range(3)],
 )
 class TestMethodNode:
-
-    def test_method_node_creation(self, method_name, method_description):
+    def test_method_node_creation(
+        self, method_name: str, method_description: str
+    ) -> None:
         method = MethodNode(name=method_name, description=method_description)
 
         assert method.name == method_name
@@ -32,9 +34,13 @@ class TestMethodNode:
         ],
     )
     def test_method_node_call(
-        self, method_name, method_description, parameters, returns
-    ):
-        def callback(var_1, var_2):
+        self,
+        method_name: str,
+        method_description: str,
+        parameters: list[VariableNode],
+        returns: list[VariableNode],
+    ) -> None:
+        def callback(var_1: float, var_2: float) -> float:
             return var_1 + var_2
 
         method = MethodNode(
@@ -65,15 +71,19 @@ class TestMethodNode:
         ],
     )
     def test_method_node_call_post_init(
-        self, method_name, method_description, parameters, returns
-    ):
+        self,
+        method_name: str,
+        method_description: str,
+        parameters: list[VariableNode],
+        returns: list[VariableNode],
+    ) -> None:
         method = MethodNode(name=method_name, description=method_description)
         for param in parameters:
             method.add_parameter(param)
         for ret in returns:
             method.add_return_value(ret)
 
-        def callback(var_1, var_2):
+        def callback(var_1: float, var_2: float) -> float:
             return var_1 + var_2
 
         method._callback = callback

@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from collections.abc import Callable
-from typing import Any
+from enum import Enum
+from typing import Any, Iterator
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -9,6 +10,7 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.measurement_unit.measure_builder import (
     MeasureBuilder,
     NoneMeasureUnits,
+    get_measure_builder,
 )
 
 
@@ -19,7 +21,12 @@ class VariableNode(DataModelNode):
     current value of a machine data or parameter.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+    ):
         """
         Initialize a new VariableNode instance.
         :param kwargs: A dictionary containing the attributes of the variable node. The
@@ -28,11 +35,11 @@ class VariableNode(DataModelNode):
             - name: The name of the variable.
             - description: The description of the variable.
         """
-        super().__init__(**kwargs)
-        self._pre_read_value = lambda: None
-        self._post_read_value = lambda value: value
-        self._pre_update_value = lambda value: value
-        self._post_update_value = lambda value: True
+        super().__init__(id=id, name=name, description=description)
+        self._pre_read_value: Callable[[], None] = lambda: None
+        self._post_read_value: Callable[[Any], Any] = lambda value: value
+        self._pre_update_value: Callable[[Any], Any] = lambda value: value
+        self._post_update_value: Callable[[Any], bool] = lambda value: True
 
     def read(self) -> Any:
         """
@@ -67,13 +74,13 @@ class VariableNode(DataModelNode):
         pass
 
     @abstractmethod
-    def _update_value(self, value: Any):
+    def _update_value(self, value: Any) -> None:
         """
         Update the value of the variable.
         """
         pass
 
-    def set_pre_read_value_callback(self, callback: Callable[[], None]):
+    def set_pre_read_value_callback(self, callback: Callable[[], None]) -> None:
         """
         Set a callback to be executed before reading the value of the variable.
         :param callback: The callback to be executed before reading the value of the
@@ -81,7 +88,7 @@ class VariableNode(DataModelNode):
         """
         self._pre_read_value = callback
 
-    def set_post_read_value_callback(self, callback: Callable[[Any], Any]):
+    def set_post_read_value_callback(self, callback: Callable[..., Any]) -> None:
         """
         Set a callback to be executed after reading the value of the variable.
         :param callback: The callback to be executed after reading the value of the
@@ -89,7 +96,7 @@ class VariableNode(DataModelNode):
         """
         self._post_read_value = callback
 
-    def set_pre_update_value_callback(self, callback: Callable[[Any], Any]):
+    def set_pre_update_value_callback(self, callback: Callable[..., Any]) -> None:
         """
         Set a callback to be executed before updating the value of the variable.
         :param callback: The callback to be executed before updating the value of the
@@ -97,7 +104,7 @@ class VariableNode(DataModelNode):
         """
         self._pre_update_value = callback
 
-    def set_post_update_value_callback(self, callback: Callable[[Any], bool]):
+    def set_post_update_value_callback(self, callback: Callable[..., bool]) -> None:
         """
         Set a callback to be executed after updating the value of the variable.
         :param callback: The callback to be executed after updating the value of the
@@ -106,18 +113,19 @@ class VariableNode(DataModelNode):
         self._post_update_value = callback
 
     @override
-    def __getitem__(self, node_name: str):
+    def __getitem__(self, node_name: str) -> "VariableNode":
         raise NotImplementedError(
             f"f{self.__class__.__name__} does not support child nodes"
         )
 
     @override
-    def __contains__(self, node_name: str):
+    def __contains__(self, node_name: str) -> bool:
         return False
 
     @override
-    def __iter__(self):
-        return iter([])
+    def __iter__(self) -> Iterator["VariableNode"]:
+        for _ in []:
+            yield _
 
 
 class NumericalVariableNode(VariableNode):
@@ -126,26 +134,31 @@ class NumericalVariableNode(VariableNode):
     with a numerical value in the machine data model.
     """
 
-    _measure_builder = MeasureBuilder()
+    _measure_builder: MeasureBuilder = get_measure_builder()
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        measure_unit: Enum | str = NoneMeasureUnits.NONE,
+        value: float = 0,
+    ):
         """
         Initialize a new NumericalVariableNode instance.
-        :param kwargs: A dictionary containing the attributes of the numerical variable
-        node. The dictionary may contain the following keys:
-            - id (str): The unique identifier of the numerical variable.
-            - name (str): The name of the numerical variable.
-            - description (str): The description of the numerical variable.
-            - measure_unit (Enum): The measure unit of the numerical variable.
-            - value (float): The initial value of the numerical variable.
+        :param id: The unique identifier of the numerical variable.
+        :param name: The name of the numerical variable.
+        :param description: The description of the numerical variable.
+        :param measure_unit: The measure unit of the numerical variable.
+        :param value: The initial value of the numerical variable.
         """
-        super().__init__(**kwargs)
+        super().__init__(id=id, name=name, description=description)
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
-            kwargs.get("measure_unit", NoneMeasureUnits.NONE)
+            measure_unit
         )
         self._value: AbstractMeasure = (
             NumericalVariableNode._measure_builder.create_measure(
-                kwargs.get("value", 0), self._measure_unit
+                value, self._measure_unit
             )
         )
 
@@ -154,9 +167,9 @@ class NumericalVariableNode(VariableNode):
         Get the value of the numerical variable.
         :return: The value of the numerical variable.
         """
-        return self._value.base_value
+        return self._value.base_value  # type: ignore[no-any-return]
 
-    def _update_value(self, value: float):
+    def _update_value(self, value: float) -> None:
         """
         Update the value of the numerical variable.
         :param value: The new value of the numerical variable.
@@ -165,14 +178,14 @@ class NumericalVariableNode(VariableNode):
         """
         self._value = self._value.__class__(value, self._measure_unit)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"NumericalVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, measure_unit={self._measure_unit}, "
             f"value={self._value})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -182,18 +195,22 @@ class StringVariableNode(VariableNode):
     a string value in the machine data model.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        value: str = "",
+    ):
         """
         Initialize a new StringVariableNode instance.
-        :param kwargs: A dictionary containing the attributes of the string variable
-        node. The dictionary may contain the following keys:
-            - id (str): The unique identifier of the string variable.
-            - name (str): The name of the string variable.
-            - description (str): The description of the string variable.
-            - value (str): The initial value of the string variable.
+        :param id: The unique identifier of the string variable.
+        :param name: The name of the string variable.
+        :param description: The description of the string variable.
+        :param value: The initial value of the string variable.
         """
-        super().__init__(**kwargs)
-        self._value: str = kwargs.get("value", "")
+        super().__init__(id=id, name=name, description=description)
+        self._value: str = value
 
     def _read_value(self) -> str:
         """
@@ -202,7 +219,7 @@ class StringVariableNode(VariableNode):
         """
         return self._value
 
-    def _update_value(self, value: str):
+    def _update_value(self, value: str) -> None:
         """
         Update the value of the string variable.
         :param value: The new value of the string variable.
@@ -211,20 +228,20 @@ class StringVariableNode(VariableNode):
         self._value = value
 
     @override
-    def __getitem__(self, node_name: str):
+    def __getitem__(self, node_name: str) -> VariableNode:
         raise NotImplementedError("StringVariableNode does not support child nodes")
 
     @override
-    def __contains__(self, node_name: str):
+    def __contains__(self, node_name: str) -> bool:
         return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"StringVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, value={self._value})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -234,18 +251,22 @@ class BooleanVariableNode(VariableNode):
     a boolean value in the machine data model.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        value: bool = False,
+    ):
         """
         Initialize a new BooleanVariableNode instance.
-        :param kwargs: A dictionary containing the attributes of the boolean variable
-        node. The dictionary may contain the following keys:
-            - id (str): The unique identifier of the boolean variable.
-            - name (str): The name of the boolean variable.
-            - description (str): The description of the boolean variable.
-            - value (bool): The initial value of the boolean variable.
+        :param id: The unique identifier of the boolean variable.
+        :param name: The name of the boolean variable.
+        :param description: The description of the boolean variable.
+        :param value: The initial value of the boolean variable.
         """
-        super().__init__(**kwargs)
-        self._value: bool = kwargs.get("value", False)
+        super().__init__(id, name, description)
+        self._value: bool = value
 
     def _read_value(self) -> bool:
         """
@@ -254,7 +275,7 @@ class BooleanVariableNode(VariableNode):
         """
         return self._value
 
-    def _update_value(self, value: bool):
+    def _update_value(self, value: bool) -> None:
         """
         Update the value of the boolean variable.
         :param value: The new value of the boolean variable.
@@ -263,20 +284,20 @@ class BooleanVariableNode(VariableNode):
         self._value = value
 
     @override
-    def __getitem__(self, node_name: str):
+    def __getitem__(self, node_name: str) -> VariableNode:
         raise NotImplementedError("BooleanVariableNode does not support child nodes")
 
     @override
-    def __contains__(self, node_name: str):
+    def __contains__(self, node_name: str) -> bool:
         return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"BooleanVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, value={self._value})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -286,30 +307,37 @@ class ObjectVariableNode(VariableNode):
     an object value in the machine data model.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        properties: dict[str, VariableNode] | None = None,
+        value: dict[str, Any] | None = None,
+    ):
         """
         Initialize a new ObjectVariableNode instance.
-        :param kwargs: A dictionary containing the attributes of the object variable
-        node. The dictionary may contain the following keys:
-            - id (str): The unique identifier of the object variable.
-            - name (str): The name of the object variable.
-            - description (str): The description of the object variable.
-            - properties (dict[str,VariableNode]): The properties of the object
-            variable.
-            - value (dict[str,Any]): The initial value of the object variable.
+        :param id: The unique identifier of the object variable.
+        :param name: The name of the object variable.
+        :param description: The description of the object variable.
+        :param properties: The properties of the object variable.
+        :param value: The initial value of the object variable.
         """
-        super().__init__(**kwargs)
-        self._properties: dict[str, VariableNode] = kwargs.get("properties", {})
-        self._update_value(kwargs.get("value", {}))
+        super().__init__(id=id, name=name, description=description)
+        self._properties: dict[str, VariableNode] = (
+            properties if properties is not None else {}
+        )
+        if value is not None:
+            self._update_value(value)
 
-    def add_property(self, property_node: VariableNode):
+    def add_property(self, property_node: VariableNode) -> None:
         """
         Add a property to the object variable.
         :param property_node: The property node to add to the object variable.
         """
         self._properties[property_node.name] = property_node
 
-    def remove_property(self, property_name: str):
+    def remove_property(self, property_name: str) -> None:
         """
         Remove a property from the object variable.
         :param property_name: The name of the property to remove from the object
@@ -343,7 +371,7 @@ class ObjectVariableNode(VariableNode):
             value[property_name] = property_node.read()
         return value
 
-    def _update_value(self, value: Any):
+    def _update_value(self, value: dict) -> None:
         """
         Update the value of the object variable.
         :param value: The new value of the object variable.
@@ -370,18 +398,19 @@ class ObjectVariableNode(VariableNode):
         return self.has_property(property_name)
 
     @override
-    def __iter__(self):
+    def __iter__(self) -> Iterator[VariableNode]:
         """
         Iterate over the properties of the object variable.
         :return: An iterator over the properties of the object variable.
         """
-        yield from self._properties.values()
+        for property_node in self._properties.values():
+            yield property_node
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"ObjectVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, value={self._read_value()})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()

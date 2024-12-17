@@ -1,4 +1,5 @@
 import random
+from enum import Enum
 
 import pytest
 from unitsnet_py.units.length import LengthUnits
@@ -27,7 +28,9 @@ class TestVariableNode:
     }
 
     @pytest.mark.parametrize("var_value", [gen_random_string(10) for _ in range(3)])
-    def test_string_variable_node_creation(self, var_name, var_description, var_value):
+    def test_string_variable_node_creation(
+        self, var_name: str, var_description: str, var_value: str
+    ) -> None:
         str_var = StringVariableNode(
             name=var_name, description=var_description, value=var_value
         )
@@ -37,7 +40,9 @@ class TestVariableNode:
         assert str_var.read() == var_value
 
     @pytest.mark.parametrize("var_value", [gen_random_string(10) for _ in range(3)])
-    def test_string_variable_node_update(self, var_name, var_description, var_value):
+    def test_string_variable_node_update(
+        self, var_name: str, var_description: str, var_value: str
+    ) -> None:
         str_var = StringVariableNode(
             name=var_name, description=var_description, value=var_value
         )
@@ -49,7 +54,9 @@ class TestVariableNode:
         assert str_var.description == var_description
         assert str_var.read() == new_value
 
-    def test_boolean_variable_node_creation(self, var_name, var_description):
+    def test_boolean_variable_node_creation(
+        self, var_name: str, var_description: str
+    ) -> None:
         bool_var = BooleanVariableNode(
             name=var_name, description=var_description, value=True
         )
@@ -58,7 +65,9 @@ class TestVariableNode:
         assert bool_var.description == var_description
         assert bool_var.read()
 
-    def test_boolean_variable_node_update(self, var_name, var_description):
+    def test_boolean_variable_node_update(
+        self, var_name: str, var_description: str
+    ) -> None:
         bool_var = BooleanVariableNode(
             name=var_name, description=var_description, value=True
         )
@@ -82,8 +91,8 @@ class TestVariableNode:
         ],
     )
     def test_numeric_variable_node_creation(
-        self, var_name, var_description, var_value, unit
-    ):
+        self, var_name: str, var_description: str, var_value: float, unit: Enum | str
+    ) -> None:
         numeric_var = NumericalVariableNode(
             name=var_name,
             description=var_description,
@@ -108,8 +117,8 @@ class TestVariableNode:
         ],
     )
     def test_numeric_variable_node_update(
-        self, var_name, var_description, var_value, unit
-    ):
+        self, var_name: str, var_description: str, var_value: float, unit: Enum | str
+    ) -> None:
         numeric_var = NumericalVariableNode(
             name=var_name, description=var_description, value=-1, measure_unit=unit
         )
@@ -120,7 +129,9 @@ class TestVariableNode:
         assert numeric_var.description == var_description
         assert numeric_var.read() == var_value
 
-    def test_object_variable_node_creation(self, var_name, var_description):
+    def test_object_variable_node_creation(
+        self, var_name: str, var_description: str
+    ) -> None:
         properties = self.properties
         obj_var = ObjectVariableNode(
             name=var_name, description=var_description, properties=properties
@@ -136,7 +147,9 @@ class TestVariableNode:
             prop_val[key] = properties[key].read()
         assert obj_var.read() == prop_val
 
-    def test_object_variable_node_update(self, var_name, var_description):
+    def test_object_variable_node_update(
+        self, var_name: str, var_description: str
+    ) -> None:
         str_prop = StringVariableNode(name="b", description="b", value="c")
         obj_var = ObjectVariableNode(
             name=var_name, description=var_description, properties={"b": str_prop}

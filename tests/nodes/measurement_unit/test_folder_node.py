@@ -9,7 +9,6 @@ from tests import NUM_TESTS, gen_random_string, get_random_simple_node
     [(gen_random_string(10), gen_random_string(20)) for _ in range(3)],
 )
 class TestFolderNode:
-
     @pytest.mark.parametrize(
         "children",
         [
@@ -17,7 +16,9 @@ class TestFolderNode:
             for _ in range(NUM_TESTS)
         ],
     )
-    def test_folder_node_creation(self, folder_name, folder_description, children):
+    def test_folder_node_creation(
+        self, folder_name: str, folder_description: str, children: list[FolderNode]
+    ) -> None:
         folder = FolderNode(name=folder_name, description=folder_description)
 
         for child in children:
@@ -37,7 +38,9 @@ class TestFolderNode:
             for _ in range(NUM_TESTS)
         ],
     )
-    def test_folder_node_update(self, folder_name, folder_description, children):
+    def test_folder_node_update(
+        self, folder_name: str, folder_description: str, children: list[FolderNode]
+    ) -> None:
         folder = FolderNode(name=folder_name, description=folder_description)
 
         for child in children:

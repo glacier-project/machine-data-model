@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Any, Dict, Iterator
 
 from typing_extensions import override
 
@@ -13,37 +14,47 @@ class MethodNode(DataModelNode):
     on the machine data model.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        parameters: list[VariableNode] | None = None,
+        returns: list[VariableNode] | None = None,
+        callback: Callable[..., Any] | None = None,
+    ):
         """
         Initialize a new MethodNode instance.
-        :param kwargs: A dictionary containing the attributes of the method node. The
-        dictionary may contain the following keys:
-            - id: The unique identifier of the method.
-            - name: The name of the method.
-            - description: The description of the method.
-            - parameters: A list of parameters of the method.
-            - returns: A list of return values of the method.
-            - callback: The function to be executed when the method is called.
+        :param id: The unique identifier of the method.
+        :param name: The name of the method.
+        :param description: The description of the method.
+        :param parameters: A list of parameters of the method.
+        :param returns: A list of return values of the method.
+        :param callback: The function to be executed when the method is called.
         """
-        super().__init__(**kwargs)
-        self._parameters: list[VariableNode] = kwargs.get("parameters", [])
-        self._returns: list[VariableNode] = kwargs.get("returns", [])
-        self._callback: Callable = kwargs.get("callback", lambda: None)
-        self._pre_call = lambda **kwargs: None
-        self._post_call = lambda res: None
+        super().__init__(id=id, name=name, description=description)
+        self._parameters: list[VariableNode] = (
+            parameters if parameters is not None else []
+        )
+        self._returns: list[VariableNode] = returns if returns is not None else []
+        self._callback: Callable[..., Any] = (
+            callback if callback is not None else lambda: None
+        )
+        self._pre_call: Callable[..., None] = lambda **kwargs: None
+        self._post_call: Callable[..., None] = lambda res: None
 
     @property
-    def parameters(self):
+    def parameters(self) -> list[VariableNode]:
         return self._parameters
 
-    def add_parameter(self, parameter):
+    def add_parameter(self, parameter: VariableNode) -> None:
         """
         Add a parameter to the method.
         :param parameter: The parameter to add to the method.
         """
         self._parameters.append(parameter)
 
-    def remove_parameter(self, parameter):
+    def remove_parameter(self, parameter: VariableNode) -> None:
         """
         Remove a parameter from the method.
         :param parameter: The parameter to remove from the method.
@@ -53,17 +64,17 @@ class MethodNode(DataModelNode):
         self._parameters.remove(parameter)
 
     @property
-    def returns(self):
+    def returns(self) -> list[VariableNode]:
         return self._returns
 
-    def add_return_value(self, return_value):
+    def add_return_value(self, return_value: VariableNode) -> None:
         """
         Add a return value to the method.
         :param return_value: The return value to add to the method.
         """
         self._returns.append(return_value)
 
-    def remove_return_value(self, return_value):
+    def remove_return_value(self, return_value: VariableNode) -> None:
         """
         Remove a return value from the method.
         :param return_value: The return value to remove from the method.
@@ -75,11 +86,11 @@ class MethodNode(DataModelNode):
         self._returns.remove(return_value)
 
     @property
-    def callback(self):
+    def callback(self) -> Callable:
         return self._callback
 
     @callback.setter
-    def callback(self, callback):
+    def callback(self, callback: Callable) -> None:
         self._callback = callback
 
     @override
@@ -117,7 +128,7 @@ class MethodNode(DataModelNode):
         return False
 
     @override
-    def __iter__(self):
+    def __iter__(self) -> Iterator[VariableNode]:
         """
         Iterate over the parameters and return values of the method.
         :return: An iterator over the parameters and return values of the method.
@@ -125,7 +136,7 @@ class MethodNode(DataModelNode):
         yield from self._parameters
         yield from self._returns
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Dict:
         """
         Call the method with the specified arguments.
         :param args: The positional arguments of the method.
@@ -159,7 +170,7 @@ class MethodNode(DataModelNode):
 
         return result
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"MethodNode("
             f"id={self.id}, "
@@ -167,5 +178,5 @@ class MethodNode(DataModelNode):
             f"description={self.description})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()

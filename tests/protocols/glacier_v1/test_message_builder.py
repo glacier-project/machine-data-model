@@ -18,7 +18,6 @@ from machine_data_model.protocols.glacier_v1.variable_message import (
     [(f"sender_{i}", f"target_{i}") for i in range(3)],
 )
 class TestMessageBuilder:
-
     def test_create_variable_message(self, sender, target):
         builder = MessageBuilder()
         variable_payload = VariableCall("varname1", VarOperation.READ, ["arg1", "arg2"])

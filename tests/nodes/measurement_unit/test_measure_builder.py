@@ -1,4 +1,5 @@
 import random
+from enum import Enum
 
 import pytest
 from unitsnet_py import LengthUnits
@@ -13,7 +14,6 @@ from tests import NUM_TESTS
 
 
 class TestMeasureBuilder:
-
     @pytest.mark.parametrize(
         "value", [random.uniform(0, 1000) for i in range(NUM_TESTS)]
     )
@@ -21,7 +21,7 @@ class TestMeasureBuilder:
         "domain, unit",
         [(Length, LengthUnits.Meter), (NoneMeasure, NoneMeasureUnits.NONE)],
     )
-    def test_creation_from_enum(self, value, domain, unit):
+    def test_creation_from_enum(self, value: float, domain: Enum, unit: str) -> None:
         # Arrange
         measure_builder = MeasureBuilder()
 
@@ -30,7 +30,7 @@ class TestMeasureBuilder:
 
         # Assert
         assert measure_value.base_value == value
-        assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))
+        assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))  # type: ignore[attr-defined]
 
     @pytest.mark.parametrize(
         "value", [random.uniform(0, 1000) for i in range(NUM_TESTS)]
@@ -39,7 +39,7 @@ class TestMeasureBuilder:
         "domain, unit",
         [(Length, "LengthUnits.Meter"), (NoneMeasure, "NoneMeasureUnits.NONE")],
     )
-    def test_creation_from_str(self, value, domain, unit):
+    def test_creation_from_str(self, value: float, domain: Enum, unit: str) -> None:
         # Arrange
         measure_builder = MeasureBuilder()
 
@@ -48,4 +48,4 @@ class TestMeasureBuilder:
 
         # Assert
         assert measure_value.base_value == value
-        assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))
+        assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))  # type: ignore[attr-defined]

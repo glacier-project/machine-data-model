@@ -1,9 +1,9 @@
+from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode
 
 
 class DataModel:
-
     def __init__(
         self,
         name: str = "",
@@ -11,7 +11,7 @@ class DataModel:
         machine_type: str = "",
         machine_model: str = "",
         description: str = "",
-        root: FolderNode = None,
+        root: FolderNode | None = None,
     ):
         self._name = name
         self._machine_category = machine_category
@@ -24,34 +24,34 @@ class DataModel:
             else FolderNode(name="root", description="Root folder of the data model")
         )
         # hashmap for fast access to nodes by id
-        self._nodes = {}
+        self._nodes: dict[str, DataModelNode] = {}
         self._build_nodes_map(self._root)
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
-    def machine_category(self):
+    def machine_category(self) -> str:
         return self._machine_category
 
     @property
-    def machine_type(self):
+    def machine_type(self) -> str:
         return self._machine_type
 
     @property
-    def machine_model(self):
+    def machine_model(self) -> str:
         return self._machine_model
 
     @property
-    def description(self):
+    def description(self) -> str:
         return self._description
 
     @property
-    def root(self):
+    def root(self) -> FolderNode:
         return self._root
 
-    def _build_nodes_map(self, node: FolderNode | ObjectVariableNode):
+    def _build_nodes_map(self, node: FolderNode | ObjectVariableNode) -> None:
         """
         Build a map of nodes by id for fast access.
         :param node: The node to add to the map.
@@ -64,14 +64,14 @@ class DataModel:
             else:
                 self._nodes[child.id] = child
 
-    def get_node_from_path(self, path: str):
+    def get_node_from_path(self, path: str) -> DataModelNode:
         """
         Get a node from the data model by path.
         :param path: The path of the node to get from the data model.
         :return: The node with the specified path.
         """
 
-        current_node = self._root
+        current_node: DataModelNode = self._root
         if "/" not in path:
             if current_node.name == path:
                 return current_node
@@ -81,12 +81,18 @@ class DataModel:
         for part in path_parts:
             if part == "":
                 continue
-            if not current_node.has_child(part):
+            if isinstance(current_node, FolderNode) and not current_node.has_child(
+                part
+            ):
+                raise ValueError(f"Node with path '{path}' not found in data model")
+            if isinstance(
+                current_node, ObjectVariableNode
+            ) and not current_node.has_property(part):
                 raise ValueError(f"Node with path '{path}' not found in data model")
             current_node = current_node[part]
         return current_node
 
-    def get_node_from_id(self, node_id: str):
+    def get_node_from_id(self, node_id: str) -> DataModelNode:
         """
         Get a node from the data model by id.
         :param node_id: The id of the node to get from the data model.
@@ -99,7 +105,7 @@ class DataModel:
     # TODO: implement the methods needed to read, write, call the methods, and
     #       serialize/deserialize the data model
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"DataModel(name={self._name}, "
             f"machine_category={self._machine_category}, "
@@ -109,5 +115,5 @@ class DataModel:
             f"root={self._root})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()

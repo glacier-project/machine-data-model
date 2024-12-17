@@ -15,11 +15,22 @@ from machine_data_model.nodes.variable_node import (
 
 
 class DataModelBuilder:
+    """
+    A class to build a data model from a yaml file.
+    """
 
-    def __init__(self):
-        self.cache = {}
+    def __init__(self) -> None:
+        """ "
+        Initialize a new DataModelBuilder instance.
+        """
+        self.cache: dict[str, DataModel] = {}
 
-    def get_data_model(self, data_model_path: str):
+    def get_data_model(self, data_model_path: str) -> DataModel:
+        """
+        Get a data model from a yaml file.
+        :param data_model_path: The path to the yaml file containing the data model.
+        :return: The data model created from the yaml file.
+        """
         full_path = os.path.abspath(data_model_path)
 
         if full_path not in self.cache:
@@ -28,7 +39,9 @@ class DataModelBuilder:
 
         return self.cache[full_path]
 
-    def _construct_folder(self, loader, node):
+    def _construct_folder(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> FolderNode:
         """
         Construct a folder node from a yaml node.
         :param loader: The yaml loader.
@@ -44,7 +57,9 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_numerical_variable(self, loader, node):
+    def _construct_numerical_variable(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> NumericalVariableNode:
         """
         Construct a numerical variable node from a yaml node.
         :param loader: The yaml loader.
@@ -61,7 +76,9 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_string_variable(self, loader, node):
+    def _construct_string_variable(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> StringVariableNode:
         """
         Construct a string variable node from a yaml node.
         :param loader: The yaml loader.
@@ -77,7 +94,9 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_boolean_variable(self, loader, node):
+    def _construct_boolean_variable(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> BooleanVariableNode:
         """
         Construct a boolean variable node from a yaml node.
         :param loader: The yaml loader.
@@ -93,7 +112,9 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_object_variable(self, loader, node):
+    def _construct_object_variable(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> ObjectVariableNode:
         """
         Construct an object variable node from a yaml node.
         :param loader: The yaml loader.
@@ -110,7 +131,9 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_method_node(self, loader, node):
+    def _construct_method_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> MethodNode:
         """
         Construct a method node from a yaml node.
         :param loader: The yaml loader.
@@ -129,7 +152,7 @@ class DataModelBuilder:
             }
         )
 
-    def _create_data_model(self, data_model_path: str):
+    def _create_data_model(self, data_model_path: str) -> DataModel:
         """ "
         Create a data model from a yaml file.
         :param data_model_path: The path to the yaml file containing the data model.
