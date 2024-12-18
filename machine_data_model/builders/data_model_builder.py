@@ -71,7 +71,7 @@ class DataModelBuilder:
             **{
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
-                "unit": data.get("unit", NoneMeasureUnits.NONE),
+                "measure_unit": data.get("measure_unit", NoneMeasureUnits.NONE),
                 "value": data.get("value", 0),
             }
         )

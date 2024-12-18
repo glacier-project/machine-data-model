@@ -21,7 +21,7 @@ root:
     - !!NumericalVariableNode
       name: "n_variable1"
       description: "variable_description1"
-      measure_unit: "Length.Meter"
+      measure_unit: "LengthUnits.Meter"
       value: 20
     - !!FolderNode
       name: "folder2"
@@ -43,7 +43,7 @@ root:
             - !!NumericalVariableNode
               name: "variable7"
               description: "variable_description7"
-              measure_unit: "variable_measure_unit7"
+              measure_unit: "LengthUnits.Meter"
               value: 50 # remove?
     - !!ObjectVariableNode
       name: "o_variable2"
