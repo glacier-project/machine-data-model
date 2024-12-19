@@ -12,33 +12,24 @@ class VarOperation(Enum):
     UNSUBSCRIBE = 4
 
 
-@dataclass
+@dataclass(init = True)
 class VariableCall:
     varname: str
     operation: VarOperation
     args: list
 
-    @property
-    def get_arg(self, index: int) -> list[Any]:
-        return self.args[index]
-
-    @property
     def has_arg(self, arg: Any) -> bool:
         return arg in self.args
 
-    @override
     def __len__(self) -> int:
         return len(self.args)
 
-    @override
-    def __iter__(self):
+    def __iter__(self) -> Any:
         return iter(self.args)
 
-    @override
     def __getitem__(self, index: int) -> Any:
         return self.args[index]
 
-    @override
     def __contains__(self, arg: Any) -> bool:
         return arg in self.args
 
@@ -52,9 +43,6 @@ class VariableCall:
             and self.args == other.args
         )
 
-    def __call__(self, *args, **kwds):
-        pass
-
     @property
     def to_dict(self) -> dict:
         return {
@@ -63,15 +51,7 @@ class VariableCall:
             "args": self.args,
         }
 
-    @property
-    def from_dict(cls, data: dict) -> "VariableCall":
-        return cls(
-            varname=data["varname"],
-            operation=VarOperation[data["operation"]],
-            args=data["args"],
-        )
-
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"VariableCall("
             f"varname={self.varname}, "
@@ -79,5 +59,5 @@ class VariableCall:
             f"args={self.args})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()

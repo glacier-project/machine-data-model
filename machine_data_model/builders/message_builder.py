@@ -1,20 +1,21 @@
 import uuid
-
+from typing import Any
+from dataclasses import dataclass
 from machine_data_model.protocols.glacier_v1.enumeration_for_messages import (
-    MessageTopology,
+    MessageType,
 )
 from machine_data_model.protocols.glacier_v1.message import Message
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.variable_message import VariableCall
 
 
+@dataclass(init = True)
 class MessageBuilder:
-    def __init__(self):
-        self.sender = ""
-        self.target = ""
-        self.uuid_code = uuid.uuid4()
-        self.topology = MessageTopology.REQUEST
-        self.payload = None
+    sender = ""
+    target = ""
+    uuid_code = uuid.uuid4()
+    topology:MessageType = MessageType.REQUEST
+    payload:Any = None
 
     def set_sender(self, sender: str) -> "MessageBuilder":
         self.sender = sender
@@ -28,7 +29,7 @@ class MessageBuilder:
         self.uuid_code = uuid_code
         return self
 
-    def set_topology(self, topology: MessageTopology) -> "MessageBuilder":
+    def set_topology(self, topology: MessageType) -> "MessageBuilder":
         self.topology = topology
         return self
 

@@ -1,5 +1,5 @@
 from machine_data_model.protocols.glacier_v1.enumeration_for_messages import (
-    MessageTopology,
+    MessageType
 )
 from machine_data_model.protocols.glacier_v1.message import Message
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
@@ -9,18 +9,18 @@ from machine_data_model.protocols.glacier_v1.variable_message import (
 )
 
 
-def decript_message(message: Message, variable_list: list) -> list:
+def handle_message(message: Message, variable_list: list) -> list:
     topology = message.topology
     sem = False
-    if topology == MessageTopology.REQUEST:
+    if topology == MessageType.REQUEST:
         sem = True
-    payload = message.get_payload()
+    payload = message.payload
     result = None
 
     if isinstance(payload, VariableCall) and sem:
-        type = payload.get_operation()
+        type = payload.operation
         operation = 0
-        varname = payload.get_varname()
+        varname = payload.varname
         if varname in variable_list:
             match type:
                 case VarOperation.READ:
@@ -32,15 +32,15 @@ def decript_message(message: Message, variable_list: list) -> list:
                 case VarOperation.UNSUBSCRIBE:
                     operation = VarOperation.UNSUBSCRIBE.value
 
-            args = payload.get_args()
+            args = payload.args
             result = [operation, varname, args]
 
     elif isinstance(payload, MethodCall) and sem:
-        name = payload.get_method()
-        args = payload.get_args()
+        name = payload.method
+        args = payload.args
         result = [name, args]
 
     if result is None:
-        return None
+        return []
     else:
         return result

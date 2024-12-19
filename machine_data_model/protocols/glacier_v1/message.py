@@ -5,29 +5,21 @@ from typing import Any
 from typing_extensions import override
 
 from machine_data_model.protocols.glacier_v1.enumeration_for_messages import (
-    MessageTopology,
+    MessageType,
 )
 
 
-@dataclass(frozen=True)
+@dataclass(init = True)
 class Message:
     sender: str
     target: str
     uuid_code: uuid.UUID
-    topology: MessageTopology
+    topology: MessageType
     payload: Any
 
-    @property
-    def get_payload(self):
-        return self.payload
-
-    @property
-    def get_uuid(self):
-        return self.uuid_code
-
-    @property
-    def get_topology(self):
-        return self.topology
+    def set_uuid_code(self, code :uuid.UUID) -> bool:
+        self.uuid_code = code
+        return True
 
     @property
     def to_dict(self) -> dict:
@@ -39,29 +31,15 @@ class Message:
             "payload": self.payload,
         }
 
-    @property
-    def from_dict(cls, data: dict) -> "Message":
-        return cls(
-            sender=data["sender"],
-            target=data["target"],
-            uuid_code=uuid.UUID(data["uuid_code"]),
-            topology=MessageTopology[data["topology"]],
-            payload=data["payload"],
-        )
-
-    @override
     def __len__(self) -> int:
         return len(self.payload)
 
-    @override
-    def __iter__(self):
+    def __iter__(self) -> Any:
         return iter(self.payload)
 
-    @override
     def __getitem__(self, index: int) -> Any:
         return self.payload[index]
 
-    @override
     def __contains__(self, item: Any) -> bool:
         return item in self.payload
 
@@ -77,7 +55,7 @@ class Message:
             and self.payload == other.payload
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"Message("
             f"sender={self.sender}, "
@@ -87,5 +65,5 @@ class Message:
             f"payload={self.payload})"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()

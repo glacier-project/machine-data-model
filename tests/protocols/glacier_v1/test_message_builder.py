@@ -4,7 +4,7 @@ import pytest
 
 from machine_data_model.builders.message_builder import MessageBuilder
 from machine_data_model.protocols.glacier_v1.enumeration_for_messages import (
-    MessageTopology,
+    MessageType,
 )
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.variable_message import (
@@ -24,6 +24,7 @@ class TestMessageBuilder:
         message = (
             builder.set_sender(sender)
             .set_target(target)
+            .set_topology(MessageType.REQUEST)
             .set_variable_payload(variable_payload)
             .build()
         )
@@ -31,7 +32,7 @@ class TestMessageBuilder:
         assert message.sender == sender
         assert message.target == target
         assert message.payload == variable_payload
-        assert message.topology == MessageTopology.REQUEST
+        assert message.topology == MessageType.REQUEST
         assert isinstance(message.uuid_code, uuid.UUID)
 
     def test_create_method_message(self, sender, target):
@@ -40,6 +41,7 @@ class TestMessageBuilder:
         message = (
             builder.set_sender(sender)
             .set_target(target)
+            .set_topology(MessageType.REQUEST)
             .set_method_payload(method_payload)
             .build()
         )
@@ -47,7 +49,7 @@ class TestMessageBuilder:
         assert message.sender == sender
         assert message.target == target
         assert message.payload == method_payload
-        assert message.topology == MessageTopology.REQUEST
+        assert message.topology == MessageType.REQUEST
         assert isinstance(message.uuid_code, uuid.UUID)
 
     @pytest.mark.parametrize(
@@ -60,6 +62,7 @@ class TestMessageBuilder:
             builder.set_sender(sender)
             .set_target(target)
             .set_uuid_code(custom_uuid)
+            .set_topology(MessageType.ACCEPTED)
             .set_method_payload(MethodCall("method2", ["arg3"]))
             .build()
         )
@@ -71,9 +74,9 @@ class TestMessageBuilder:
         message = (
             builder.set_sender(sender)
             .set_target(target)
-            .set_topology(MessageTopology.ACCEPTED)
+            .set_topology(MessageType.ACCEPTED)
             .set_method_payload(MethodCall("method3", ["arg4"]))
             .build()
         )
 
-        assert message.topology == MessageTopology.ACCEPTED
+        assert message.topology == MessageType.ACCEPTED
