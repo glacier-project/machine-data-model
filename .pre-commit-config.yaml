@@ -1,4 +1,5 @@
 ---
+fail_fast: true
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -19,7 +20,7 @@ repos:
         exclude: (.vscode|.devcontainer)
       - id: no-commit-to-branch
         args:
-          # - --branch=dev
+#          - --branch=dev
           - --branch=main
 #  - repo: https://github.com/adrienverge/yamllint.git
 #    rev: v1.35.1
@@ -38,11 +39,3 @@ repos:
           - --fix
       - id: ruff-format
         files: ^((machine_data_model|script|tests)/.+)?[^/]+\.(py|pyi)$
-#  - repo: https://github.com/pre-commit/mirrors-mypy
-#    rev: v1.13.0
-#    hooks:
-#      - id: mypy
-#        args:
-#          - --explicit-package-bases
-#          - --install-types
-#          - --non-interactive

@@ -18,7 +18,7 @@ from machine_data_model.protocols.glacier_v1.variable_message import (
     [(f"sender_{i}", f"target_{i}") for i in range(3)],
 )
 class TestMessageBuilder:
-    def test_create_variable_message(self, sender:str, target:str) -> None:
+    def test_create_variable_message(self, sender: str, target: str) -> None:
         builder = MessageBuilder()
         variable_payload = VariableCall("varname1", VarOperation.READ, ["arg1", "arg2"])
         message = (
@@ -35,7 +35,7 @@ class TestMessageBuilder:
         assert message.topology == MessageType.REQUEST
         assert isinstance(message.uuid_code, uuid.UUID)
 
-    def test_create_method_message(self, sender:str, target:str) -> None:
+    def test_create_method_message(self, sender: str, target: str) -> None:
         builder = MessageBuilder()
         method_payload = MethodCall("method1", ["arg1", "arg2"])
         message = (
@@ -56,7 +56,9 @@ class TestMessageBuilder:
         "custom_uuid",
         [uuid.uuid4() for _ in range(3)],
     )
-    def test_set_uuid_code(self, sender:str, target:str, custom_uuid:uuid.UUID) -> None:
+    def test_set_uuid_code(
+        self, sender: str, target: str, custom_uuid: uuid.UUID
+    ) -> None:
         builder = MessageBuilder()
         message = (
             builder.set_sender(sender)
@@ -69,7 +71,7 @@ class TestMessageBuilder:
 
         assert message.uuid_code == custom_uuid
 
-    def test_set_topology(self, sender:str, target:str) -> None:
+    def test_set_topology(self, sender: str, target: str) -> None:
         builder = MessageBuilder()
         message = (
             builder.set_sender(sender)
