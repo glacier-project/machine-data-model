@@ -17,6 +17,7 @@ from machine_data_model.protocols.glacier_v1.variable_message import (
     "sender, target",
     [(f"sender_{i}", f"target_{i}") for i in range(3)],
 )
+
 class TestMessageBuilder:
     def test_create_variable_message(self, sender, target):
         builder = MessageBuilder()
