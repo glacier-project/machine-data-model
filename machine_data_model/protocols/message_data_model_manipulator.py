@@ -1,6 +1,4 @@
-from machine_data_model.protocols.glacier_v1.enumeration_for_messages import (
-    MessageType
-)
+from machine_data_model.protocols.glacier_v1.enumeration_for_messages import MessageType
 from machine_data_model.protocols.glacier_v1.message import Message
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.variable_message import (

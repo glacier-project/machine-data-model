@@ -12,7 +12,7 @@ class VarOperation(Enum):
     UNSUBSCRIBE = 4
 
 
-@dataclass(init = True)
+@dataclass(init=True)
 class VariableCall:
     varname: str
     operation: VarOperation

@@ -9,13 +9,13 @@ from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.variable_message import VariableCall
 
 
-@dataclass(init = False)
+@dataclass(init=False)
 class MessageBuilder:
-    sender:str
-    target:str
+    sender: str
+    target: str
     uuid_code = uuid.uuid4()
-    topology:MessageType
-    payload:Any
+    topology: MessageType
+    payload: Any
 
     def set_sender(self, sender: str) -> "MessageBuilder":
         self.sender = sender

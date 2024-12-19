@@ -4,7 +4,7 @@ from typing import Any
 from typing_extensions import override
 
 
-@dataclass(init = True)
+@dataclass(init=True)
 class MethodCall:
     method: str
     args: list[Any]

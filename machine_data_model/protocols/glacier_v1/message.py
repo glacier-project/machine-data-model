@@ -9,7 +9,7 @@ from machine_data_model.protocols.glacier_v1.enumeration_for_messages import (
 )
 
 
-@dataclass(init = True)
+@dataclass(init=True)
 class Message:
     sender: str
     target: str
@@ -17,7 +17,7 @@ class Message:
     topology: MessageType
     payload: Any
 
-    def set_uuid_code(self, code :uuid.UUID) -> bool:
+    def set_uuid_code(self, code: uuid.UUID) -> bool:
         self.uuid_code = code
         return True
 
