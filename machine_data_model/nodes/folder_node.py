@@ -58,7 +58,7 @@ class FolderNode(DataModelNode):
         Check if the folder has a child node with the specified name.
         :param child_name: The name of the child node to check.
         :return: True if the folder has a child node with the specified name, False
-            otherwise.
+        otherwise.
         """
         return child_name in self._children
 

@@ -22,15 +22,6 @@ repos:
         args:
 #          - --branch=dev
           - --branch=main
-#  - repo: https://github.com/adrienverge/yamllint.git
-#    rev: v1.35.1
-#    hooks:
-#      - id: yamllint
-  # -   repo: https://github.com/asottile/pyupgrade
-  #    rev: v3.19.0
-  #    hooks:
-  #    -   id: pyupgrade
-  #        args: [--py310-plus]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.3
     hooks:
