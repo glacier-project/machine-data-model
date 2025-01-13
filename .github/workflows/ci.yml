@@ -50,7 +50,7 @@ jobs:
       - name: Run image
         uses: abatilo/actions-poetry@v3.0.1
         with:
-          poetry-version: "latest"
+          poetry-version: "1.8.5"
       - name: Install dependencies
         run: poetry install --all-extras
 #      - name: Run tests
