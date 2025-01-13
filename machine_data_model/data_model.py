@@ -26,6 +26,7 @@ class DataModel:
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
         self._build_nodes_map(self._root)
+        # TODO: add message handler
 
     @property
     def name(self) -> str:

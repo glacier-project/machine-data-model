@@ -24,6 +24,8 @@ class DataModelBuilder:
         Initialize a new DataModelBuilder instance.
         """
         self.cache: dict[str, DataModel] = {}
+        # add custom constructor
+        self._add_yaml_constructors()
 
     def get_data_model(self, data_model_path: str) -> DataModel:
         """
@@ -158,7 +160,13 @@ class DataModelBuilder:
         :param data_model_path: The path to the yaml file containing the data model.
         :return: The data model.
         """
-        # add custom constructor
+        with open(data_model_path) as file:
+            data = yaml.load(file, Loader=yaml.FullLoader)
+        data_model = DataModel(**data)
+
+        return data_model
+
+    def _add_yaml_constructors(self) -> None:
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:FolderNode",
             lambda loader, node: self._construct_folder(loader, node),
@@ -183,8 +191,3 @@ class DataModelBuilder:
             "tag:yaml.org,2002:MethodNode",
             lambda loader, node: self._construct_method_node(loader, node),
         )
-        with open(data_model_path) as file:
-            data = yaml.load(file, Loader=yaml.FullLoader)
-        data_model = DataModel(**data)
-
-        return data_model
