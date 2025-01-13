@@ -1,4 +1,4 @@
-from machine_data_model.protocols.glacier_v1.enumeration_for_messages import MessageType
+from machine_data_model.protocols.glacier_v1.message import MessageType
 from machine_data_model.protocols.glacier_v1.message import Message
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.variable_message import (
@@ -24,8 +24,8 @@ class MessageHandler:
         result: list[Any] = []
         if not self.has_message():
             return result
-        topology = self.message.topology
-        if not (topology == MessageType.REQUEST):
+        type = self.message.type
+        if not (type == MessageType.REQUEST):
             return result
 
         payload = self.message.payload

@@ -3,10 +3,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from typing_extensions import override
+from enum import Enum
 
-from machine_data_model.protocols.glacier_v1.enumeration_for_messages import (
-    MessageType,
-)
+
+class MessageType(Enum):
+    REQUEST = 1
+    SUCCESS = 2
+    ERROR = 3
+    ACCEPTED = 4
 
 
 @dataclass(init=True)
@@ -14,7 +18,7 @@ class Message:
     sender: str
     target: str
     uuid_code: uuid.UUID
-    topology: MessageType
+    type: MessageType
     payload: Any
 
     def set_uuid_code(self, code: uuid.UUID) -> bool:
@@ -27,7 +31,7 @@ class Message:
             "sender": self.sender,
             "target": self.target,
             "uuid_code": uuid.UUID,
-            "topology": self.topology.name,
+            "type": self.type.name,
             "payload": self.payload,
         }
 
@@ -51,7 +55,7 @@ class Message:
             self.sender == other.sender
             and self.target == other.target
             and self.uuid_code == other.uuid_code
-            and self.topology == other.topology
+            and self.type == other.type
             and self.payload == other.payload
         )
 
@@ -61,7 +65,7 @@ class Message:
             f"sender={self.sender}, "
             f"target={self.target}, "
             f"uuid_code={self.uuid_code}, "
-            f"topology={self.topology}, "
+            f"type={self.type}, "
             f"payload={self.payload})"
         )
 
