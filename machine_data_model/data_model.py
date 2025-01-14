@@ -105,8 +105,6 @@ class DataModel:
             raise ValueError(f"Node with id '{node_id}' not found in data model")
         return self._nodes[node_id]
 
-    # TODO: implement the methods needed to read, write, call the methods, and
-    #       serialize/deserialize the data model
     def read_variable(self, variable_id: str) -> Any:
         """
         Read a variable from the data model by exploring the structure of the node that contains that variable.
@@ -115,7 +113,7 @@ class DataModel:
         """
         node = self.get_node_from_id(variable_id)
         if isinstance(node, VariableNode):
-            return node._read_value()
+            return node.read()
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def write_variable(self, variable_id: str, value: Any) -> bool:
@@ -127,7 +125,7 @@ class DataModel:
         """
         node = self.get_node_from_id(variable_id)
         if isinstance(node, VariableNode):
-            node._update_value(value)
+            node.update(value)
             return True
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
@@ -140,7 +138,7 @@ class DataModel:
         """
         node = self.get_node_from_id(method_id)
         if isinstance(node, MethodNode):
-            return node.callback(*args)
+            return node(*args)
         raise ValueError(f"Method '{method_id}' not found in data model")
 
     def serialize(self) -> dict:
