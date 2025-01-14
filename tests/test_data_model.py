@@ -9,7 +9,6 @@ from machine_data_model.nodes.method_node import MethodNode
 from tests import get_random_folder_node
 
 
-
 @pytest.mark.parametrize("root", [get_random_folder_node() for _ in range(3)])
 class TestDataModel:
     def test_simple_data_model(self, root: FolderNode) -> None:

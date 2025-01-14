@@ -4,6 +4,7 @@ from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
 
+
 class DataModel:
     def __init__(
         self,
