@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-
+from machine_data_model.protocols.glacier_v1.message import Payload
 from typing_extensions import override
 
 
@@ -13,10 +13,10 @@ class VarOperation(Enum):
 
 
 @dataclass(init=True)
-class VariableCall:
+class VariableCall(Payload):
     varname: str
     operation: VarOperation
-    args: list
+    args: Any
 
     def has_arg(self, arg: Any) -> bool:
         return arg in self.args

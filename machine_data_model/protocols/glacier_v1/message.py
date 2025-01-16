@@ -1,9 +1,8 @@
 import uuid
-from dataclasses import dataclass
 from typing import Any
-
-from typing_extensions import override
+from abc import ABC
 from enum import Enum
+from machine_data_model.protocols.protocol_mng import Message
 
 
 class MessageType(Enum):
@@ -13,13 +12,30 @@ class MessageType(Enum):
     ACCEPTED = 4
 
 
-@dataclass(init=True)
-class Message:
+class Payload(ABC):
+    pass
+
+
+class GlacierMessage_v1(Message):
     sender: str
     target: str
     uuid_code: uuid.UUID
     type: MessageType
     payload: Any
+
+    def __init__(
+        self,
+        sender: str,
+        target: str,
+        uuid_code: uuid.UUID,
+        type: MessageType,
+        payload: Payload,
+    ):
+        self.sender = sender
+        self.target = target
+        self.uuid_code = uuid_code
+        self.type = type
+        self.payload = payload
 
     def set_uuid_code(self, code: uuid.UUID) -> bool:
         self.uuid_code = code
@@ -47,9 +63,8 @@ class Message:
     def __contains__(self, item: Any) -> bool:
         return item in self.payload
 
-    @override
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Message):
+        if not isinstance(other, GlacierMessage_v1):
             return False
         return (
             self.sender == other.sender

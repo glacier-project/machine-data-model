@@ -1,5 +1,5 @@
 from machine_data_model.protocols.glacier_v1.message import MessageType
-from machine_data_model.protocols.glacier_v1.message import Message
+from machine_data_model.protocols.glacier_v1.message import GlacierMessage_v1
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.variable_message import (
     VariableCall,
@@ -9,12 +9,12 @@ from typing import Any
 
 
 class MessageHandler:
-    message: Message
+    message: GlacierMessage_v1
 
-    def set_message(self, mex: Message) -> None:
+    def set_message(self, mex: GlacierMessage_v1) -> None:
         self.message = mex
 
-    def get_message(self) -> Message:
+    def get_message(self) -> GlacierMessage_v1:
         return self.message
 
     def has_message(self) -> bool:

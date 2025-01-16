@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Any
-
 from typing_extensions import override
+from machine_data_model.protocols.glacier_v1.message import Payload
 
 
 @dataclass(init=True)
-class MethodCall:
+class MethodCall(Payload):
     method: str
     args: list[Any]
 

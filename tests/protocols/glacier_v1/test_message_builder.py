@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from machine_data_model.builders.message_builder import MessageBuilder
+from machine_data_model.builders.message_builder import GlacierMessageBuilder_v1
 from machine_data_model.protocols.glacier_v1.message import MessageType
 from machine_data_model.protocols.glacier_v1.method_message import MethodCall
 from machine_data_model.protocols.glacier_v1.variable_message import (
@@ -17,7 +17,7 @@ from machine_data_model.protocols.glacier_v1.variable_message import (
 )
 class TestMessageBuilder:
     def test_create_variable_message(self, sender: str, target: str) -> None:
-        builder = MessageBuilder()
+        builder = GlacierMessageBuilder_v1()
         variable_payload = VariableCall("varname1", VarOperation.READ, ["arg1", "arg2"])
         message = (
             builder.set_sender(sender)
@@ -34,7 +34,7 @@ class TestMessageBuilder:
         assert isinstance(message.uuid_code, uuid.UUID)
 
     def test_create_method_message(self, sender: str, target: str) -> None:
-        builder = MessageBuilder()
+        builder = GlacierMessageBuilder_v1()
         method_payload = MethodCall("method1", ["arg1", "arg2"])
         message = (
             builder.set_sender(sender)
@@ -57,7 +57,7 @@ class TestMessageBuilder:
     def test_set_uuid_code(
         self, sender: str, target: str, custom_uuid: uuid.UUID
     ) -> None:
-        builder = MessageBuilder()
+        builder = GlacierMessageBuilder_v1()
         message = (
             builder.set_sender(sender)
             .set_target(target)
@@ -70,7 +70,7 @@ class TestMessageBuilder:
         assert message.uuid_code == custom_uuid
 
     def test_set_type(self, sender: str, target: str) -> None:
-        builder = MessageBuilder()
+        builder = GlacierMessageBuilder_v1()
         message = (
             builder.set_sender(sender)
             .set_target(target)
