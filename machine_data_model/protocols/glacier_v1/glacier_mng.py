@@ -135,16 +135,10 @@ class GlacierProtocolMng(ProtocolMng):
         else:
             raise ValueError("Message is not of type GlacierMessage_v1")
 
-    """
     @override
     def create_response(self, msg: Message) -> Message:
         return msg
-    
-    @override
-    def parse_message(self, raw_msg: str) -> MessageGlacier_v1:
-        return None          
 
     @override
-    def subscribe_request(self, msg: MessageGlacier_v1) -> MessageGlacier_v1:
-        return msg    
-    """
+    def subscribe_request(self, msg: Message) -> Message:
+        return msg
