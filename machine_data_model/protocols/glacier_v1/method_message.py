@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 from typing import Any
-from typing_extensions import override
 from machine_data_model.protocols.glacier_v1.message import Payload
 
 
 @dataclass(init=True)
 class MethodCall(Payload):
     method: str
-    args: list[Any]
+    args: Any
 
     def has_arg(self, arg: Any) -> bool:
         return arg in self.args
@@ -24,7 +23,6 @@ class MethodCall(Payload):
     def __contains__(self, arg: Any) -> bool:
         return arg in self.args
 
-    @override
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, MethodCall):
             return False

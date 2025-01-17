@@ -1,5 +1,4 @@
 import uuid
-from typing import Any
 from abc import ABC
 from enum import Enum
 from machine_data_model.protocols.protocol_mng import Message
@@ -21,7 +20,7 @@ class GlacierMessage_v1(Message):
     target: str
     uuid_code: uuid.UUID
     type: MessageType
-    payload: Any
+    payload: Payload
 
     def __init__(
         self,
@@ -37,10 +36,6 @@ class GlacierMessage_v1(Message):
         self.type = type
         self.payload = payload
 
-    def set_uuid_code(self, code: uuid.UUID) -> bool:
-        self.uuid_code = code
-        return True
-
     @property
     def to_dict(self) -> dict:
         return {
@@ -50,29 +45,6 @@ class GlacierMessage_v1(Message):
             "type": self.type.name,
             "payload": self.payload,
         }
-
-    def __len__(self) -> int:
-        return len(self.payload)
-
-    def __iter__(self) -> Any:
-        return iter(self.payload)
-
-    def __getitem__(self, index: int) -> Any:
-        return self.payload[index]
-
-    def __contains__(self, item: Any) -> bool:
-        return item in self.payload
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, GlacierMessage_v1):
-            return False
-        return (
-            self.sender == other.sender
-            and self.target == other.target
-            and self.uuid_code == other.uuid_code
-            and self.type == other.type
-            and self.payload == other.payload
-        )
 
     def __str__(self) -> str:
         return (
