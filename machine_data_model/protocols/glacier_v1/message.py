@@ -9,6 +9,10 @@ class MessageType(Enum):
     SUCCESS = 2
     ERROR = 3
     ACCEPTED = 4
+    REJECTED = 5
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Payload(ABC):

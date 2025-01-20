@@ -105,21 +105,67 @@ class DataModel:
             raise ValueError(f"Node with id '{node_id}' not found in data model")
         return self._nodes[node_id]
 
-    def read_variable(self, variable_id: str) -> Any:
+    def get_node_from_name(self, name: str) -> DataModelNode:
+        """
+        Get a node from the data model by name.
+        :param name: The name of the node to get from the data model.
+        :return: The node with the specified name.
+        """
+        for node in self._nodes.values():
+            if node.name == name:
+                return node
+        raise ValueError(f"Node with name '{name}' not found in data model")
+
+    def read_variable_from_name(self, variable_id: str) -> Any:
         """
         Read a variable from the data model by exploring the structure of the node that contains that variable.
         :param variable_id: The name of the variable to read from the data model.
         :return: The value of the variable.
         """
-        node = self.get_node_from_id(variable_id)
+        node = self.get_node_from_name(variable_id)
         if isinstance(node, VariableNode):
             return node.read()
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
-    def write_variable(self, variable_id: str, value: Any) -> bool:
+    def write_variable_from_name(self, variable_id: str, value: Any) -> bool:
         """
         Write a variable to the data model by exploring the structure of the node that contains that variable.
         :param variable_id: The name of the variable to write to the data model.
+        :param value: The value to write to the variable.
+        :return: True if the variable was written successfully, False otherwise.
+        """
+        node = self.get_node_from_name(variable_id)
+        if isinstance(node, VariableNode):
+            node.update(value)
+            return True
+        raise ValueError(f"Variable '{variable_id}' not found in data model")
+
+    def call_method_from_name(self, method_name: str) -> Any:
+        """
+        Call a method from the data model by its name.
+        :param method_name: The name of the method to call from the data model.
+        :return: The return value of the method.
+        """
+        node = self.get_node_from_name(method_name)
+        if isinstance(node, MethodNode):
+            return node()
+        raise ValueError(f"Method '{method_name}' not found in data model")
+
+    def read_variable_from_id(self, variable_id: str) -> Any:
+        """
+        Read a variable from the data model by its id.
+        :param variable_id: The id of the variable to read from the data model.
+        :return: The value of the variable.
+        """
+        node = self.get_node_from_id(variable_id)
+        if isinstance(node, VariableNode):
+            return node.read()
+        raise ValueError(f"Variable with id '{variable_id}' not found in data model")
+
+    def write_variable_from_id(self, variable_id: str, value: Any) -> bool:
+        """
+        Write a variable to the data model by its id.
+        :param variable_id: The id of the variable to write to the data model.
         :param value: The value to write to the variable.
         :return: True if the variable was written successfully, False otherwise.
         """
@@ -127,19 +173,18 @@ class DataModel:
         if isinstance(node, VariableNode):
             node.update(value)
             return True
-        raise ValueError(f"Variable '{variable_id}' not found in data model")
+        raise ValueError(f"Variable with id '{variable_id}' not found in data model")
 
-    def call_method(self, method_id: str, *args: Any) -> Any:
+    def call_method_from_id(self, method_id: str) -> Any:
         """
-        Call a method from the data model by exploring the structure of the node that contains that method.
-        :param method_id: The name of the method to call from the data model.
-        :param args: The arguments to pass to the method.
+        Call a method from the data model by its id.
+        :param method_id: The id of the method to call from the data model.
         :return: The return value of the method.
         """
         node = self.get_node_from_id(method_id)
         if isinstance(node, MethodNode):
-            return node(*args)
-        raise ValueError(f"Method '{method_id}' not found in data model")
+            return node()
+        raise ValueError(f"Method with id '{method_id}' not found in data model")
 
     def serialize(self) -> dict:
         """

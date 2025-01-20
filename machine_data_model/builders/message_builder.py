@@ -66,15 +66,29 @@ class GlacierMessageBuilder_v1:
         return self
 
     def build(self) -> GlacierMessage_v1:
+        """
+        Build a GlacierMessage_v1 instance with the provided values.
+        This method ensures that all required fields (sender, target, type, and payload) are set.
+        If any of these fields are missing, a ValueError is raised. A new UUID is generated if
+        the uuid_code is not provided. After building the message, the builder is reset to its
+        initial state for reuse.
+        Returns:
+            GlacierMessage_v1: The constructed GlacierMessage_v1 instance.
+        Raises:
+            ValueError: If any of the required fields (sender, target, type, payload) are not set.
+        """
         if not self._sender or not self._target or not self._payload or not self._type:
             raise ValueError("Sender, target, type, and payload must be set")
 
         message = GlacierMessage_v1(
             sender=self._sender,
             target=self._target,
-            uuid_code=self._uuid_code or uuid.uuid4(),
+            uuid_code=self._uuid_code
+            or uuid.uuid4(),  # Generate a new UUID if not provided
             type=self._type,
             payload=self._payload,
         )
-        self._reset()  # Reset the builder for the next use
+
+        self._reset()
+
         return message

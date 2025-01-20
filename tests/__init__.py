@@ -15,7 +15,7 @@ from machine_data_model.nodes.variable_node import (
     VariableNode,
 )
 
-NUM_TESTS = 3
+NUM_TESTS = 8
 NUM_FOLDER_NODES = 3
 NUM_METHOD_PARAMS = 3
 NUM_METHOD_RETURNS = 2

@@ -4,7 +4,11 @@ import pytest
 
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
+    StringVariableNode,
+)
 from machine_data_model.nodes.method_node import MethodNode
 from tests import get_random_folder_node
 
@@ -66,7 +70,7 @@ class TestDataModel:
                 if not isinstance(node, MethodNode)
             ]
         )
-        value = data_model.read_variable(child.id)
+        value = data_model.read_variable_from_id(child.id)
         if isinstance(child, VariableNode):
             assert value == child.read()
 
@@ -84,24 +88,23 @@ class TestDataModel:
             child = random.choice(list_of_numerical_nodes)
 
             new_value = random.random()
-            data_model.write_variable(child.id, new_value)
+            data_model.write_variable_from_id(child.id, new_value)
 
-            assert data_model.read_variable(child.id) == new_value
+            assert data_model.read_variable_from_id(child.id) == new_value
 
     def test_call_method(self, root: FolderNode) -> None:
         def callback() -> str:
-            return "callback_result"
+            return "result"
 
-        method_nodes = [
-            node for node in root.children.values() if isinstance(node, MethodNode)
-        ]
-
-        if method_nodes != []:
-            method = random.choice(method_nodes)
-            method.callback = callback
-            data_model = DataModel(name="dm", root=root)
-            result = data_model.call_method(method.id)
-            assert result == "callback_result"
+        method = MethodNode(
+            name="method",
+            callback=callback,
+            returns=[StringVariableNode(name="return_value", value="")],
+        )
+        root.add_child(method)
+        data_model = DataModel(name="dm", root=root)
+        result = data_model.call_method_from_id(method.id)
+        assert result["return_value"] == "result"
 
     def test_deserialize_and_serialize_data_model(self, root: FolderNode) -> None:
         data_model = DataModel(name="dm", root=root)

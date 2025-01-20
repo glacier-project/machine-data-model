@@ -31,33 +31,35 @@ class GlacierProtocolMng(ProtocolMng):
         :param msg: The message to be handled.
         :return: A response message.
         """
-        if isinstance(msg, GlacierMessage_v1):
-            payload = msg.payload
-
-            if isinstance(payload, VariableCall):
-                operation: VarOperation = payload.operation
-                match operation:
-                    case VarOperation.READ:
-                        return self.read_request(msg)
-
-                    case VarOperation.WRITE:
-                        return self.write_request(msg)
-
-                    # TODO: Implement these cases
-                    # case VarOperation.SUBSCRIBE:
-                    #     return self.subscribe_request(msg)
-
-                    # case VarOperation.UNSUBSCRIBE:
-                    #     return self.unsubscribe_request(msg)
-
-                    case _:
-                        raise ValueError(f"Unsupported operation: {operation}")
-
-            elif isinstance(payload, MethodCall):
-                return self.method_call_request(msg)
-
-        else:
+        if not isinstance(msg, GlacierMessage_v1):
             raise ValueError("Message is not of type GlacierMessage_v1")
+
+        if msg.type == MessageType.ERROR:
+            raise ValueError("Invalid message type: ERROR")
+
+        payload = msg.payload
+        if isinstance(payload, VariableCall):
+            operation: VarOperation = payload.operation
+            match operation:
+                case VarOperation.READ:
+                    return self.read_request(msg)
+
+                case VarOperation.WRITE:
+                    return self.write_request(msg)
+
+                # TODO: Implement these cases
+                # case VarOperation.SUBSCRIBE:
+                #     return self.subscribe_request(msg)
+
+                # case VarOperation.UNSUBSCRIBE:
+                #     return self.unsubscribe_request(msg)
+
+                case _:
+                    raise ValueError(f"Unsupported operation: {operation}")
+
+        elif isinstance(payload, MethodCall):
+            return self.method_call_request(msg)
+
         # Add a return statement for all code paths
         return GlacierMessage_v1(
             sender=msg.target,
@@ -75,19 +77,21 @@ class GlacierProtocolMng(ProtocolMng):
         :param msg: The message containing the variable name to be read.
         :return: A message with the variable value.
         """
-        if isinstance(msg, GlacierMessage_v1) and isinstance(msg.payload, VariableCall):
-            varname = msg.payload.varname
-            value = self._data_model.read_variable(varname)
-            response = GlacierMessage_v1(
-                sender=msg.target,
-                target=msg.sender,
-                uuid_code=uuid.uuid4(),
-                type=MessageType.SUCCESS,
-                payload=VariableCall(varname, VarOperation.READ, args=value),
-            )
-            return response
-        else:
+        if not isinstance(msg, GlacierMessage_v1):
             raise ValueError("Message is not of type GlacierMessage_v1")
+
+        if not isinstance(msg.payload, VariableCall):
+            raise ValueError("Message payload is not of type VariableCall")
+        varname = msg.payload.varname
+        value = self._data_model.read_variable_from_name(varname)
+        response = GlacierMessage_v1(
+            sender=msg.target,
+            target=msg.sender,
+            uuid_code=uuid.uuid4(),
+            type=MessageType.SUCCESS,
+            payload=VariableCall(varname, VarOperation.READ, args=value),
+        )
+        return response
 
     @override
     def write_request(self, msg: Message) -> Message:
@@ -97,43 +101,46 @@ class GlacierProtocolMng(ProtocolMng):
         :param msg: The message containing the variable name and value to be written.
         :return: A message with the variable value.
         """
-        if isinstance(msg, GlacierMessage_v1) and isinstance(msg.payload, VariableCall):
-            value = msg.payload.args
-            varname = msg.payload.varname
-            self._data_model.write_variable(varname, value)
-            response = GlacierMessage_v1(
-                sender=msg.target,
-                target=msg.sender,
-                uuid_code=uuid.uuid4(),
-                type=MessageType.SUCCESS,
-                payload=VariableCall(varname, VarOperation.WRITE, args=value),
-            )
-            return response
-        else:
+        if not isinstance(msg, GlacierMessage_v1):
             raise ValueError("Message is not of type GlacierMessage_v1")
+
+        if not isinstance(msg.payload, VariableCall):
+            raise ValueError("Message payload is not of type VariableCall")
+        varname = msg.payload.varname
+        value = msg.payload.args
+        self._data_model.write_variable_from_name(varname, value)
+        response = GlacierMessage_v1(
+            sender=msg.target,
+            target=msg.sender,
+            uuid_code=uuid.uuid4(),
+            type=MessageType.SUCCESS,
+            payload=VariableCall(varname, VarOperation.WRITE, args=value),
+        )
+        return response
 
     @override
     def method_call_request(self, msg: Message) -> Message:
         """
         This method calls a method on the data model and returns a message with the
-        method name and arguments.
+        method name and results.
         :param msg: The message containing the method name and arguments.
         :return: A message with the method name and arguments.
         """
-        if isinstance(msg, GlacierMessage_v1) and isinstance(msg.payload, MethodCall):
-            method_name = msg.payload.method
-            args = msg.payload.args
-            self._data_model.call_method(method_name, args)
-            response = GlacierMessage_v1(
-                sender=msg.target,
-                target=msg.sender,
-                uuid_code=uuid.uuid4(),
-                type=MessageType.ACCEPTED,
-                payload=MethodCall(method_name, args),
-            )
-            return response
-        else:
+        if not isinstance(msg, GlacierMessage_v1):
             raise ValueError("Message is not of type GlacierMessage_v1")
+
+        if not isinstance(msg.payload, MethodCall):
+            raise ValueError("Message payload is not of type MethodCall")
+        method_name = msg.payload.method
+        result = self._data_model.call_method_from_name(method_name)
+        response = GlacierMessage_v1(
+            sender=msg.target,
+            target=msg.sender,
+            uuid_code=uuid.uuid4(),
+            type=MessageType.SUCCESS,
+            payload=MethodCall(method_name, result),
+        )
+        return response
 
     @override
     def create_response(self, msg: Message) -> Message:
@@ -142,3 +149,11 @@ class GlacierProtocolMng(ProtocolMng):
     @override
     def subscribe_request(self, msg: Message) -> Message:
         return msg
+
+    @override
+    def unsubscribe_request(self, msg: Message) -> Message:
+        return msg
+
+    @override
+    def parse_message(self, raw_msg: str) -> Message:
+        return Message()
