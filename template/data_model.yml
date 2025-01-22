@@ -41,7 +41,7 @@ root:
               value: false # update to default value?
           returns:
             - !!NumericalVariableNode
-              name: "variable7"
+              name: "n_variable7"
               description: "variable_description7"
               measure_unit: "LengthUnits.Meter"
               value: 50 # remove?
@@ -50,11 +50,11 @@ root:
       description: "variable_description2"
       properties:
         - !!StringVariableNode
-          name: "variable3"
+          name: "s_variable3"
           description: "variable_description3"
           value: "variable_value3"
         - !!StringVariableNode
-          name: "variable4"
+          name: "s_variable4"
           description: "variable_description4"
           value: "variable_value4"
 #    - !Include # VariableObj are include from other files to avoid redundancy

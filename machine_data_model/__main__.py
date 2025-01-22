@@ -1,4 +1,4 @@
-from machine_data_model.builders.data_model_builder import DataModelBuilder
+from machine_data_model.builder.data_model_builder import DataModelBuilder
 
 
 def main() -> None:

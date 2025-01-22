@@ -40,6 +40,7 @@ class VariableNode(DataModelNode):
         self._post_read_value: Callable[[Any], Any] = lambda value: value
         self._pre_update_value: Callable[[Any], Any] = lambda value: value
         self._post_update_value: Callable[[Any], bool] = lambda value: True
+        self._subscribers: list[str] = []
 
     def read(self) -> Any:
         """
@@ -65,6 +66,27 @@ class VariableNode(DataModelNode):
             self._update_value(prev_value)
             return False
         return True
+
+    def has_subscribers(self) -> bool:
+        """
+        Check if the variable node has subscribers.
+        :return: True if the variable node has subscribers, False otherwise.
+        """
+        return bool(self._subscribers)
+
+    def subscribe(self, subscriber_id: str) -> None:
+        """
+        Subscribe a subscriber to the variable node.
+        :param subscriber_id: The id of the subscriber to subscribe to the variable node.
+        """
+        self._subscribers.append(subscriber_id)
+
+    def unsubscribe(self, subscriber_id: str) -> None:
+        """
+        Unsubscribe a subscriber from the variable node.
+        :param subscriber_id: The id of the subscriber to unsubscribe from the variable node.
+        """
+        self._subscribers.remove(subscriber_id)
 
     @abstractmethod
     def _read_value(self) -> Any:

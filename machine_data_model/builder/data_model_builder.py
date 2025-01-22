@@ -143,16 +143,15 @@ class DataModelBuilder:
         :return: The constructed method node.
         """
         data = loader.construct_mapping(node, deep=True)
-        return MethodNode(
+        method = MethodNode(
             **{
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
-                "parameters": {
-                    param.name: param for param in data.get("parameters", [])
-                },
-                "returns": {ret.name: ret for ret in data.get("returns", [])},
+                "parameters": [param for param in data.get("parameters", [])],
+                "returns": [ret for ret in data.get("returns", [])],
             }
         )
+        return method
 
     def _create_data_model(self, data_model_path: str) -> DataModel:
         """ "

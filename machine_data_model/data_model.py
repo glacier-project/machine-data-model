@@ -27,8 +27,9 @@ class DataModel:
         )
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
-        self._build_nodes_map(self._root)
-        # TODO: add message handler
+        self._build_nodes_map(self._root, True)
+        # tmp for now a simple list should work
+        self._data_change: list[tuple[VariableNode, Any]] = []
 
     @property
     def name(self) -> str:
@@ -54,11 +55,17 @@ class DataModel:
     def root(self) -> FolderNode:
         return self._root
 
-    def _build_nodes_map(self, node: FolderNode | ObjectVariableNode) -> None:
+    def _build_nodes_map(
+        self, node: FolderNode | ObjectVariableNode, is_root: bool = False
+    ) -> None:
         """
         Build a map of nodes by id for fast access.
         :param node: The node to add to the map.
+        :param is_root: A flag to indicate if the node is the root node.
         """
+        if is_root:
+            del self._nodes
+            self._nodes = {}
         self._nodes[node.id] = node
         for child in node:
             # only folder and object nodes can have children
@@ -67,7 +74,7 @@ class DataModel:
             else:
                 self._nodes[child.id] = child
 
-    def get_node_from_path(self, path: str) -> DataModelNode:
+    def _get_node_from_path(self, path: str) -> DataModelNode | None:
         """
         Get a node from the data model by path.
         :param path: The path of the node to get from the data model.
@@ -75,10 +82,11 @@ class DataModel:
         """
 
         current_node: DataModelNode = self._root
+        path = path.lstrip("/")
         if "/" not in path:
             if current_node.name == path:
                 return current_node
-            raise ValueError(f"Node with path '{path}' not found in data model")
+            return None
 
         path_parts = path.split("/")[1:]
         for part in path_parts:
@@ -87,134 +95,110 @@ class DataModel:
             if isinstance(current_node, FolderNode) and not current_node.has_child(
                 part
             ):
-                raise ValueError(f"Node with path '{path}' not found in data model")
+                return None
             if isinstance(
                 current_node, ObjectVariableNode
             ) and not current_node.has_property(part):
-                raise ValueError(f"Node with path '{path}' not found in data model")
+                return None
             current_node = current_node[part]
         return current_node
 
-    def get_node_from_id(self, node_id: str) -> DataModelNode:
+    def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
         """
         Get a node from the data model by id.
         :param node_id: The id of the node to get from the data model.
         :return: The node with the specified id.
         """
         if node_id not in self._nodes:
-            raise ValueError(f"Node with id '{node_id}' not found in data model")
+            return None
         return self._nodes[node_id]
 
-    def get_node_from_name(self, name: str) -> DataModelNode:
+    def _add_data_change(self, node: VariableNode) -> None:
         """
-        Get a node from the data model by name.
-        :param name: The name of the node to get from the data model.
-        :return: The node with the specified name.
+        Add the data change to the list of data changes.
         """
-        for node in self._nodes.values():
-            if node.name == name:
-                return node
-        raise ValueError(f"Node with name '{name}' not found in data model")
+        if not node.has_subscribers():
+            return
+        self._data_change.append((node, node.read()))
 
-    def read_variable_from_name(self, variable_id: str) -> Any:
+    def get_data_change(self) -> list[tuple[VariableNode, Any]]:
+        """
+        Get the list of data changes.
+        """
+        return self._data_change
+
+    def clear_data_change(self) -> None:
+        """
+        Clear the list of data changes.
+        """
+        self._data_change = []
+
+    def add_child(self, parent_id: str, child: DataModelNode) -> bool:
+        """
+        Add a child node to a parent node in the data model.
+        """
+        parent_node = self.get_node(parent_id)
+        if not isinstance(parent_node, FolderNode):
+            return False
+        parent_node.add_child(child)
+        self._build_nodes_map(self._root, True)
+        return True
+
+    def remove_child(self, parent_id: str, child_id: str) -> bool:
+        """
+        Remove a child node from a parent node in the data model.
+        """
+        parent_node = self.get_node(parent_id)
+        if not isinstance(parent_node, FolderNode):
+            return False
+        parent_node.remove_child(child_id)
+        self._build_nodes_map(self._root, True)
+        return True
+
+    def get_node(self, node_id: str) -> DataModelNode | None:
+        """
+        Get a node from the data model by its id or path.
+        :param node_id: The id or path of the node to get from the data model.
+        :return: The node with the specified id or path.
+        """
+        if "/" not in node_id:
+            return self._get_node_from_id(node_id)
+        return self._get_node_from_path(node_id)
+
+    def read_variable(self, variable_id: str) -> Any:
         """
         Read a variable from the data model by exploring the structure of the node that contains that variable.
-        :param variable_id: The name of the variable to read from the data model.
+        :param variable_id: The id or the path of the variable to read from the data model.
         :return: The value of the variable.
         """
-        node = self.get_node_from_name(variable_id)
+        node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
             return node.read()
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
-    def write_variable_from_name(self, variable_id: str, value: Any) -> bool:
+    def write_variable(self, variable_id: str, value: Any) -> bool:
         """
         Write a variable to the data model by exploring the structure of the node that contains that variable.
-        :param variable_id: The name of the variable to write to the data model.
+        :param variable_id: The id or the path of the variable to write to the data model.
         :param value: The value to write to the variable.
         :return: True if the variable was written successfully, False otherwise.
         """
-        node = self.get_node_from_name(variable_id)
+        node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
             node.update(value)
             return True
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
-    def call_method_from_name(self, method_name: str) -> Any:
+    def call_method(self, method_id: str) -> Any:
         """
-        Call a method from the data model by its name.
-        :param method_name: The name of the method to call from the data model.
+        Executes a method from the data model by exploring the structure of the node that contains that method.
+        :param method_name: The id or the path of the method to call from the data model.
         :return: The return value of the method.
         """
-        node = self.get_node_from_name(method_name)
+        node = self.get_node(method_id)
         if isinstance(node, MethodNode):
             return node()
-        raise ValueError(f"Method '{method_name}' not found in data model")
-
-    def read_variable_from_id(self, variable_id: str) -> Any:
-        """
-        Read a variable from the data model by its id.
-        :param variable_id: The id of the variable to read from the data model.
-        :return: The value of the variable.
-        """
-        node = self.get_node_from_id(variable_id)
-        if isinstance(node, VariableNode):
-            return node.read()
-        raise ValueError(f"Variable with id '{variable_id}' not found in data model")
-
-    def write_variable_from_id(self, variable_id: str, value: Any) -> bool:
-        """
-        Write a variable to the data model by its id.
-        :param variable_id: The id of the variable to write to the data model.
-        :param value: The value to write to the variable.
-        :return: True if the variable was written successfully, False otherwise.
-        """
-        node = self.get_node_from_id(variable_id)
-        if isinstance(node, VariableNode):
-            node.update(value)
-            return True
-        raise ValueError(f"Variable with id '{variable_id}' not found in data model")
-
-    def call_method_from_id(self, method_id: str) -> Any:
-        """
-        Call a method from the data model by its id.
-        :param method_id: The id of the method to call from the data model.
-        :return: The return value of the method.
-        """
-        node = self.get_node_from_id(method_id)
-        if isinstance(node, MethodNode):
-            return node()
-        raise ValueError(f"Method with id '{method_id}' not found in data model")
-
-    def serialize(self) -> dict:
-        """
-        Serialize the data model to a dictionary.
-        :return: A dictionary representation of the data model.
-        """
-        return {
-            "name": self._name,
-            "machine_category": self._machine_category,
-            "machine_type": self._machine_type,
-            "machine_model": self._machine_model,
-            "description": self._description,
-            "root": self._root,
-        }
-
-    @staticmethod
-    def deserialize(data: dict) -> "DataModel":
-        """
-        Deserialize a dictionary to a data model.
-        :param data: The dictionary to deserialize to a data model.
-        :return: A data model instance.
-        """
-        return DataModel(
-            name=data["name"],
-            machine_category=data["machine_category"],
-            machine_type=data["machine_type"],
-            machine_model=data["machine_model"],
-            description=data["description"],
-            root=data["root"],
-        )
+        raise ValueError(f"Method '{method_id}' not found in data model")
 
     def __str__(self) -> str:
         return (

@@ -27,8 +27,8 @@ class TestDataModel:
         root = data_model.root
         child = random.choice(list(root.children.values()))
 
-        root_node = data_model.get_node_from_path(root.name)
-        node = data_model.get_node_from_path(f"{root.name}/{child.name}")
+        root_node = data_model.get_node(f"/{root.name}")
+        node = data_model.get_node(f"{root.name}/{child.name}")
 
         assert data_model.name == "dm"
         assert root_node == root
@@ -37,8 +37,8 @@ class TestDataModel:
     def test_data_model_search_by_path_not_found(self, root: FolderNode) -> None:
         data_model = DataModel(name="dm", root=root)
 
-        with pytest.raises(ValueError):
-            data_model.get_node_from_path("not_found")
+        node = data_model.get_node("not_found")
+        assert node is None
 
     def test_data_model_search_by_id(self, root: FolderNode) -> None:
         data_model = DataModel(name="dm", root=root)
@@ -46,8 +46,8 @@ class TestDataModel:
         root = data_model.root
         child = random.choice(list(root.children.values()))
 
-        root_node = data_model.get_node_from_id(root.id)
-        node = data_model.get_node_from_id(child.id)
+        root_node = data_model.get_node(root.id)
+        node = data_model.get_node(child.id)
 
         assert data_model.name == "dm"
         assert root_node == root
@@ -56,8 +56,8 @@ class TestDataModel:
     def test_data_model_search_by_id_not_found(self, root: FolderNode) -> None:
         data_model = DataModel(name="dm", root=root)
 
-        with pytest.raises(ValueError):
-            data_model.get_node_from_id("not_found")
+        node = data_model.get_node("not_found")
+        assert node is None
 
     def test_read_variable(self, root: FolderNode) -> None:
         data_model = DataModel(name="dm", root=root)
@@ -70,7 +70,7 @@ class TestDataModel:
                 if not isinstance(node, MethodNode)
             ]
         )
-        value = data_model.read_variable_from_id(child.id)
+        value = data_model.read_variable(child.id)
         if isinstance(child, VariableNode):
             assert value == child.read()
 
@@ -83,14 +83,13 @@ class TestDataModel:
             for node in root.children.values()
             if isinstance(node, NumericalVariableNode)
         ]
-        child = None
-        if list_of_numerical_nodes != []:
-            child = random.choice(list_of_numerical_nodes)
 
-            new_value = random.random()
-            data_model.write_variable_from_id(child.id, new_value)
+        child = random.choice(list_of_numerical_nodes)
 
-            assert data_model.read_variable_from_id(child.id) == new_value
+        new_value = random.random()
+        data_model.write_variable(child.id, new_value)
+
+        assert data_model.read_variable(child.id) == new_value
 
     def test_call_method(self, root: FolderNode) -> None:
         def callback() -> str:
@@ -103,18 +102,5 @@ class TestDataModel:
         )
         root.add_child(method)
         data_model = DataModel(name="dm", root=root)
-        result = data_model.call_method_from_id(method.id)
+        result = data_model.call_method(method.id)
         assert result["return_value"] == "result"
-
-    def test_deserialize_and_serialize_data_model(self, root: FolderNode) -> None:
-        data_model = DataModel(name="dm", root=root)
-
-        serialized_data_model = data_model.serialize()
-        deserialized_data_model = DataModel.deserialize(serialized_data_model)
-
-        assert deserialized_data_model.name == data_model.name
-        assert deserialized_data_model.machine_category == data_model.machine_category
-        assert deserialized_data_model.machine_type == data_model.machine_type
-        assert deserialized_data_model.machine_model == data_model.machine_model
-        assert deserialized_data_model.description == data_model.description
-        assert deserialized_data_model.root == data_model.root

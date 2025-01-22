@@ -100,10 +100,14 @@ def get_random_folder_node(
     if var_description is None:
         var_description = gen_random_string(DEFAULT_DESCRIPTION_LENGTH)
     folder_node = FolderNode(name=var_name, description=var_description)
-    children = get_random_nodes(
-        NUM_TESTS,
-        [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
-    )
+    children = [
+        f()
+        for f in [
+            get_random_boolean_node,
+            get_random_string_node,
+            get_random_numerical_node,
+        ]
+    ]
     for child in children:
         folder_node.add_child(child)
     return folder_node
