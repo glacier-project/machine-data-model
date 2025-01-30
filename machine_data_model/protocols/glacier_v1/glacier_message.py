@@ -1,6 +1,9 @@
 from machine_data_model.protocols.protocol_mng import Message
 from dataclasses import dataclass
-from machine_data_model.protocols.glacier_v1.glacier_header import GlacierHeader
+from machine_data_model.protocols.glacier_v1.glacier_header import (
+    GlacierHeader,
+    SpecialHeader,
+)
 from machine_data_model.protocols.glacier_v1.glacier_payload import Payload
 
 
@@ -11,3 +14,11 @@ class GlacierMessage(Message):
     identifier: str
     header: GlacierHeader
     payload: Payload
+
+
+@dataclass(init=True, slots=True)
+class GlacierSpecialMessage(Message):
+    sender: str
+    target: str
+    identifier: str
+    header: SpecialHeader

@@ -36,6 +36,10 @@ class MethodMsgName(MsgName):
     INVOKE = "INVOKE"
 
 
+class SpecialHeader(MsgName):
+    INIT_HANDSHAKE = "INIT_HANDSHAKE"
+
+
 @dataclass(init=True, slots=True)
 class GlacierHeader:
     """

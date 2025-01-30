@@ -93,6 +93,12 @@ class MethodNode(DataModelNode):
     def callback(self, callback: Callable) -> None:
         self._callback = callback
 
+    def pre_callback_set(self, callback: Callable) -> None:
+        self._pre_call = callback
+
+    def post_callback_set(self, callback: Callable) -> None:
+        self._post_call = callback
+
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
