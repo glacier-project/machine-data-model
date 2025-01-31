@@ -93,10 +93,20 @@ class MethodNode(DataModelNode):
     def callback(self, callback: Callable) -> None:
         self._callback = callback
 
-    def pre_callback_set(self, callback: Callable) -> None:
-        self._pre_call = callback
+    @property
+    def pre_callback(self) -> Callable:
+        return self._pre_call
 
-    def post_callback_set(self, callback: Callable) -> None:
+    @pre_callback.setter
+    def pre_callback(self, pre_callback: Callable) -> None:
+        self._pre_call = pre_callback
+
+    @property
+    def post_callback(self) -> Callable:
+        return self._post_call
+
+    @post_callback.setter
+    def post_callback(self, callback: Callable) -> None:
         self._post_call = callback
 
     @override
