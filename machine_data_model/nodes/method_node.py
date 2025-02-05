@@ -19,6 +19,7 @@ class MethodNode(DataModelNode):
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
+        durable: bool | None = None,
         parameters: list[VariableNode] | None = None,
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
@@ -33,6 +34,7 @@ class MethodNode(DataModelNode):
         :param callback: The function to be executed when the method is called.
         """
         super().__init__(id=id, name=name, description=description)
+        self._durable: bool = durable if durable is not None else False
         self._parameters: list[VariableNode] = (
             parameters if parameters is not None else []
         )
@@ -42,6 +44,14 @@ class MethodNode(DataModelNode):
         )
         self._pre_call: Callable[..., None] = lambda **kwargs: None
         self._post_call: Callable[..., None] = lambda res: None
+
+    @property
+    def durable(self) -> bool:
+        return self._durable
+
+    @durable.setter
+    def durable(self, durable: bool) -> None:
+        self._durable = durable
 
     @property
     def parameters(self) -> list[VariableNode]:
@@ -90,16 +100,16 @@ class MethodNode(DataModelNode):
         return self._callback
 
     @callback.setter
-    def callback(self, callback: Callable) -> None:
-        self._callback = callback
+    def callback(self, call: Callable) -> None:
+        self._callback = call
 
     @property
     def pre_callback(self) -> Callable:
         return self._pre_call
 
     @pre_callback.setter
-    def pre_callback(self, pre_callback: Callable) -> None:
-        self._pre_call = pre_callback
+    def pre_callback(self, pre_call: Callable) -> None:
+        self._pre_call = pre_call
 
     @property
     def post_callback(self) -> Callable:

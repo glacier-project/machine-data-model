@@ -1,22 +1,28 @@
 import pytest
-
+import random
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from tests import NUM_TESTS, gen_random_string, get_random_numerical_node
 
 
 @pytest.mark.parametrize(
-    "method_name, method_description",
-    [(gen_random_string(10), gen_random_string(20)) for _ in range(3)],
+    "method_name, method_description, durable",
+    [
+        (gen_random_string(10), gen_random_string(20), random.choice([True, False]))
+        for _ in range(3)
+    ],
 )
 class TestMethodNode:
     def test_method_node_creation(
-        self, method_name: str, method_description: str
+        self, method_name: str, method_description: str, durable: bool
     ) -> None:
-        method = MethodNode(name=method_name, description=method_description)
+        method = MethodNode(
+            name=method_name, description=method_description, durable=durable
+        )
 
         assert method.name == method_name
         assert method.description == method_description
+        assert method.durable == durable
         assert len(method.parameters) == 0
         assert len(method.returns) == 0
 
@@ -37,6 +43,7 @@ class TestMethodNode:
         self,
         method_name: str,
         method_description: str,
+        durable: bool,
         parameters: list[VariableNode],
         returns: list[VariableNode],
     ) -> None:
@@ -46,6 +53,7 @@ class TestMethodNode:
         method = MethodNode(
             name=method_name,
             description=method_description,
+            durable=durable,
             callback=callback,
             parameters=parameters,
             returns=returns,
@@ -55,6 +63,7 @@ class TestMethodNode:
 
         assert method.name == method_name
         assert method.description == method_description
+        assert method.durable == durable
         assert result[returns[0].name] == parameters[0].read() + parameters[1].read()
 
     @pytest.mark.parametrize(
@@ -74,10 +83,13 @@ class TestMethodNode:
         self,
         method_name: str,
         method_description: str,
+        durable: bool,
         parameters: list[VariableNode],
         returns: list[VariableNode],
     ) -> None:
-        method = MethodNode(name=method_name, description=method_description)
+        method = MethodNode(
+            name=method_name, description=method_description, durable=durable
+        )
         for param in parameters:
             method.add_parameter(param)
         for ret in returns:
@@ -92,4 +104,5 @@ class TestMethodNode:
 
         assert method.name == method_name
         assert method.description == method_description
+        assert method.durable == durable
         assert result[returns[0].name] == parameters[0].read() + parameters[1].read()
