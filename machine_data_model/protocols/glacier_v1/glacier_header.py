@@ -5,6 +5,7 @@ from enum import Enum
 class MsgType(str, Enum):
     REQUEST = "REQUEST"
     RESPONSE = "RESPONSE"
+    # TODO: event
     ERROR = "ERROR"
 
 
@@ -30,6 +31,7 @@ class VariableMsgName(MsgName):
     WRITE = "WRITE"
     SUBSCRIBE = "SUBSCRIBE"
     UNSUBSCRIBE = "UNSUBSCRIBE"
+    UPDATE = "UPDATE"
 
 
 class MethodMsgName(MsgName):

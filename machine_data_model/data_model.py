@@ -73,12 +73,13 @@ class DataModel:
             if isinstance(child, (FolderNode, ObjectVariableNode)):
                 self._build_nodes_map(child)
             elif isinstance(child, VariableNode):
-                child.set_post_update_value_callback(partial(self.post_update, child))
+                child.set_post_update_value_callback(partial(self._post_update, child))
                 self._nodes[child.id] = child
             else:
                 self._nodes[child.id] = child
 
-    def post_update(
+    # TODO: merge with add data change + no read -> use values
+    def _post_update(
         self, node: VariableNode, prev_value: Any, current_value: Any
     ) -> bool:
         self._add_data_change(node)

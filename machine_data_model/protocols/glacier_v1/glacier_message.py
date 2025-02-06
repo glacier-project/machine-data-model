@@ -16,6 +16,7 @@ class GlacierMessage(Message):
     payload: Payload
 
 
+# TODO: This is Glacier Message
 @dataclass(init=True, slots=True)
 class GlacierSpecialMessage(Message):
     sender: str

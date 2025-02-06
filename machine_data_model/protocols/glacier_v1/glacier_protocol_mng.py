@@ -1,5 +1,5 @@
 from typing import Callable
-
+from typing import Any
 from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
@@ -21,6 +21,7 @@ from machine_data_model.protocols.glacier_v1.glacier_payload import (
 )
 from machine_data_model.protocols.protocol_mng import ProtocolMng, Message
 from machine_data_model.protocols.glacier_v1.glacier_message import GlacierMessage
+from machine_data_model.protocols.glacier_v1.glacier_header import GlacierHeader
 import uuid
 
 
@@ -189,9 +190,37 @@ class GlacierProtocolMng(ProtocolMng):
             return _create_response_msg(msg)
         if msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
             variable_node.unsubscribe(msg.sender)
+            # TODO: Think about reading when SUBSCRIBING
+            msg.payload.value = variable_node.read()
+            return _create_response_msg(msg)
+        if msg.header.msg_name == VariableMsgName.UPDATE:
             return _create_response_msg(msg)
 
         return _create_response_msg(msg, _error_not_supported)
+
+    # TOD:generate update + abs class -> funct
+    def handle_update(
+        self, changes: list[tuple[VariableNode, Any]]
+    ) -> list[GlacierMessage]:
+        messages = []
+        for variable_node, value in changes:
+            sender = self._data_model.name
+            targets = variable_node.get_subscribers()
+            for target in targets:
+                msg = GlacierMessage(
+                    sender=sender,
+                    target=target,
+                    identifier=str(uuid.uuid4()),
+                    header=GlacierHeader(
+                        version=self._protocol_version,
+                        type=MsgType.RESPONSE,
+                        namespace=MsgNamespace.VARIABLE,
+                        msg_name=VariableMsgName.UPDATE,
+                    ),
+                    payload=VariablePayload(node=variable_node.name, value=value),
+                )
+                messages.append(msg)
+        return messages
 
     # def _handle_node_message(self, msg: GlacierMessage) -> GlacierMessage:
     #     """

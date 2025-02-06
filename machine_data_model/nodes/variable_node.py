@@ -74,6 +74,9 @@ class VariableNode(DataModelNode):
         """
         return bool(self._subscribers)
 
+    def get_subscribers(self) -> list[str]:
+        return self._subscribers
+
     def subscribe(self, subscriber_id: str) -> None:
         """
         Subscribe a subscriber to the variable node.
