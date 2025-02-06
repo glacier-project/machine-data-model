@@ -147,6 +147,7 @@ class DataModelBuilder:
             **{
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
+                "durable": data.get("durable", bool),
                 "parameters": [param for param in data.get("parameters", [])],
                 "returns": [ret for ret in data.get("returns", [])],
             }

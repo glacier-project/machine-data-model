@@ -29,12 +29,13 @@ class MethodNode(DataModelNode):
         :param id: The unique identifier of the method.
         :param name: The name of the method.
         :param description: The description of the method.
+        :param durable: A flag indicating if the method is durable.
         :param parameters: A list of parameters of the method.
         :param returns: A list of return values of the method.
         :param callback: The function to be executed when the method is called.
         """
         super().__init__(id=id, name=name, description=description)
-        self._durable: bool = durable if durable is not None else False
+        self._durable: bool = durable if isinstance(durable, bool) else False
         self._parameters: list[VariableNode] = (
             parameters if parameters is not None else []
         )
@@ -45,13 +46,8 @@ class MethodNode(DataModelNode):
         self._pre_call: Callable[..., None] = lambda **kwargs: None
         self._post_call: Callable[..., None] = lambda res: None
 
-    @property
-    def durable(self) -> bool:
+    def is_durable(self) -> bool:
         return self._durable
-
-    @durable.setter
-    def durable(self, durable: bool) -> None:
-        self._durable = durable
 
     @property
     def parameters(self) -> list[VariableNode]:
@@ -202,6 +198,7 @@ class MethodNode(DataModelNode):
             f"id={self.id}, "
             f"name={self.name}, "
             f"description={self.description})"
+            f"durable={self._durable}"
         )
 
     def __repr__(self) -> str:

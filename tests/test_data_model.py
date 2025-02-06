@@ -104,3 +104,19 @@ class TestDataModel:
         data_model = DataModel(name="dm", root=root)
         result = data_model.call_method(method.id)
         assert result["return_value"] == "result"
+
+    def test_subscribe(self, root: FolderNode) -> None:
+        data_model = DataModel(name="dm", root=root)
+        root = data_model.root
+        child = random.choice(
+            [
+                node
+                for node in root.children.values()
+                if isinstance(node, StringVariableNode)
+            ]
+        )
+        data_model.subscribe(child.id, "test")
+        child.update("Perfect!")
+        changes = data_model.get_data_change()
+        assert child.has_subscribers()
+        assert changes == [(child, "Perfect!")]

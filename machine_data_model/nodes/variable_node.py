@@ -62,7 +62,7 @@ class VariableNode(DataModelNode):
         value = self._pre_update_value(value)
         value = self._update_value(value)
         # if validation fails, restore the previous value
-        if not self._post_update_value(value):
+        if not self._post_update_value(self):
             self._update_value(prev_value)
             return False
         return True

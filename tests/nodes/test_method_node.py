@@ -22,7 +22,7 @@ class TestMethodNode:
 
         assert method.name == method_name
         assert method.description == method_description
-        assert method.durable == durable
+        assert method.is_durable() == durable
         assert len(method.parameters) == 0
         assert len(method.returns) == 0
 
@@ -63,7 +63,7 @@ class TestMethodNode:
 
         assert method.name == method_name
         assert method.description == method_description
-        assert method.durable == durable
+        assert method.is_durable() == durable
         assert result[returns[0].name] == parameters[0].read() + parameters[1].read()
 
     @pytest.mark.parametrize(
@@ -104,5 +104,5 @@ class TestMethodNode:
 
         assert method.name == method_name
         assert method.description == method_description
-        assert method.durable == durable
+        assert method.is_durable() == durable
         assert result[returns[0].name] == parameters[0].read() + parameters[1].read()

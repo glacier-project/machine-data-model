@@ -30,6 +30,7 @@ root:
         - !!MethodNode
           name: "method1"
           description: "method_description1"
+          durable: false
           parameters:
             - !!StringVariableNode
               name: "s_variable5"

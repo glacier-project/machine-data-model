@@ -71,8 +71,15 @@ class DataModel:
             # only folder and object nodes can have children
             if isinstance(child, (FolderNode, ObjectVariableNode)):
                 self._build_nodes_map(child)
+            elif isinstance(child, VariableNode):
+                child.set_post_update_value_callback(self.post_update)
+                self._nodes[child.id] = child
             else:
                 self._nodes[child.id] = child
+
+    def post_update(self, node: VariableNode) -> bool:
+        self._add_data_change(node)
+        return True
 
     def _get_node_from_path(self, path: str) -> DataModelNode | None:
         """
@@ -199,6 +206,20 @@ class DataModel:
         if isinstance(node, MethodNode):
             return node()
         raise ValueError(f"Method '{method_id}' not found in data model")
+
+    def subscribe(self, target_node: str, subscriber: str) -> bool:
+        node = self.get_node(target_node)
+        if isinstance(node, VariableNode):
+            node.subscribe(subscriber)
+            return True
+        raise ValueError(f"Variable Node '{target_node}' not found in data model")
+
+    def unsubscribe(self, target_node: str, unsubscriber: str) -> bool:
+        node = self.get_node(target_node)
+        if isinstance(node, VariableNode):
+            node.unsubscribe(unsubscriber)
+            return True
+        raise ValueError(f"Variable Node '{target_node}' not found in data model")
 
     def __str__(self) -> str:
         return (
