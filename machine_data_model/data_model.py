@@ -3,6 +3,7 @@ from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
+from functools import partial
 
 
 class DataModel:
@@ -72,12 +73,14 @@ class DataModel:
             if isinstance(child, (FolderNode, ObjectVariableNode)):
                 self._build_nodes_map(child)
             elif isinstance(child, VariableNode):
-                child.set_post_update_value_callback(self.post_update)
+                child.set_post_update_value_callback(partial(self.post_update, child))
                 self._nodes[child.id] = child
             else:
                 self._nodes[child.id] = child
 
-    def post_update(self, node: VariableNode) -> bool:
+    def post_update(
+        self, node: VariableNode, prev_value: Any, current_value: Any
+    ) -> bool:
         self._add_data_change(node)
         return True
 

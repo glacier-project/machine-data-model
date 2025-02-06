@@ -39,7 +39,7 @@ class VariableNode(DataModelNode):
         self._pre_read_value: Callable[[], None] = lambda: None
         self._post_read_value: Callable[[Any], Any] = lambda value: value
         self._pre_update_value: Callable[[Any], Any] = lambda value: value
-        self._post_update_value: Callable[[Any], bool] = lambda value: True
+        self._post_update_value: Callable[[Any, Any], bool] = lambda prev, curr: True
         self._subscribers: list[str] = []
 
     def read(self) -> Any:
@@ -62,7 +62,7 @@ class VariableNode(DataModelNode):
         value = self._pre_update_value(value)
         value = self._update_value(value)
         # if validation fails, restore the previous value
-        if not self._post_update_value(self):
+        if not self._post_update_value(prev_value, value):
             self._update_value(prev_value)
             return False
         return True
