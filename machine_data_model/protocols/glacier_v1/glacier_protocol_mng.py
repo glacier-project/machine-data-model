@@ -199,7 +199,7 @@ class GlacierProtocolMng(ProtocolMng):
         return _create_response_msg(msg, _error_not_supported)
 
     # TOD:generate update + abs class -> funct
-    def handle_update(
+    def generate_updateMsgs(
         self, changes: list[tuple[VariableNode, Any]]
     ) -> list[GlacierMessage]:
         messages = []
