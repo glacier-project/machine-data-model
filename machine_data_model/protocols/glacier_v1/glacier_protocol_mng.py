@@ -1,5 +1,4 @@
 from typing import Callable
-from typing import Any
 from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
@@ -199,9 +198,8 @@ class GlacierProtocolMng(ProtocolMng):
         return _create_response_msg(msg, _error_not_supported)
 
     # TOD:generate update + abs class -> funct
-    def generate_updateMsgs(
-        self, changes: list[tuple[VariableNode, Any]]
-    ) -> list[GlacierMessage]:
+    def generate_updateMsgs(self) -> list[GlacierMessage]:
+        changes = self._data_model.get_data_change()
         messages = []
         for variable_node, value in changes:
             sender = self._data_model.name
@@ -221,6 +219,9 @@ class GlacierProtocolMng(ProtocolMng):
                 )
                 messages.append(msg)
         return messages
+
+    def clear_update(self) -> None:
+        self._data_model.clear_data_change()
 
     # def _handle_node_message(self, msg: GlacierMessage) -> GlacierMessage:
     #     """
