@@ -6,27 +6,46 @@ from unitsnet_py.abstract_unit import AbstractMeasure
 
 
 class NoneMeasureUnits(Enum):
+    """
+    Enum for representing units for `NoneMeasure`.
+
+    :ivar NONE: The only available unit, representing no unit.
+    """
+
     NONE = 0
 
 
 class NoneMeasure(AbstractMeasure):
     """
-    NoneMeasure represents a value with no unit.
+    Represents a value with no unit.
 
-    Args:
-        value (float): The value.
-        from_unit (NoneMeasureUnits): The unit of the value, always
-            NoneMeasureUnits.NONE.
+    This class is used to represent a value that does not have any unit
+    associated with it. The unit of measurement is always `NONE`.
+
+    :param value: The value.
+    :param from_unit: The unit of the value, which is always `NONE`.
     """
 
     def __init__(
         self, value: float, from_unit: NoneMeasureUnits = NoneMeasureUnits.NONE
     ):
+        """
+        Initializes a `NoneMeasure` instance with a value and a unit.
+
+        :param value: The value of the `NoneMeasure`.
+        :param from_unit: The unit of the value. This is always `NONE`, and an assertion ensures it cannot be anything else.
+        """
         assert from_unit == NoneMeasureUnits.NONE
         self._value = value
 
     @property
     def base_value(self) -> float:
+        """
+        Returns the base value.
+
+        :return: The value with no unit.
+        """
+
         return self._value
 
     def to_string(
@@ -35,15 +54,15 @@ class NoneMeasure(AbstractMeasure):
         fractional_digits: int | None = None,
     ) -> str:
         """
-        Format the NoneMeasure to a string.
+        Format the `NoneMeasure` to a string.
 
-        Args:
-            unit (str): The unit to format the NoneMeasure. The only one available is
-                'NONE'.
-            fractional_digits (int, optional): The number of fractional digits to keep.
+        This method returns the string representation of the value. The unit is
+        always `NONE`, and an optional number of fractional digits can be
+        specified.
 
-        Returns:
-            str: The string format of the NoneMeasure.
+        :param unit: The unit to format the `NoneMeasure`. The only valid value is `NONE`.
+        :param fractional_digits: The number of fractional digits to keep. Optional.
+        :return: A string representation of the `NoneMeasure`.
         """
         assert unit == NoneMeasureUnits.NONE
         if fractional_digits is not None:
@@ -56,9 +75,13 @@ class NoneMeasure(AbstractMeasure):
         self, unit_abbreviation: NoneMeasureUnits = NoneMeasureUnits.NONE
     ) -> str:
         """
-        Get NoneMeasure unit abbreviation.
-        Note! the only available unit is 'NONE', so the method will always return an
-        empty string.
+        Get the abbreviation of the `NoneMeasure` unit.
+
+        This method returns an empty string since the only valid unit is `NONE`.
+
+        :param unit_abbreviation: The unit abbreviation. Must be `NONE`.
+        :raises ValueError: If the unit is not `NONE`.
+        :return: An empty string as `NoneMeasure` has no abbreviation.
         """
         if unit_abbreviation == NoneMeasureUnits.NONE:
             return ""
