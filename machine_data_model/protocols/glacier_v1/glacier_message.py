@@ -32,7 +32,7 @@ class GlacierSpecialMessage(Message):
     """
     This class is similar to GlacierMessage but uses a different header type,
     and has no Payload.
-    
+
     :ivar sender: The sender of the special message.
     :ivar target: The target of the special message.
     :ivar identifier: The unique identifier of the special message.
@@ -40,6 +40,7 @@ class GlacierSpecialMessage(Message):
 
     :todo: Might be that the TODO, up there, referse to the fact that this could be a GlacierMessage? With an header, that uses a specific type of MsgType, called HANDSHAKE, maybe.
     """
+
     sender: str
     target: str
     identifier: str

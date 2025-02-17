@@ -290,7 +290,7 @@ class GlacierProtocolMng(ProtocolMng):
         Generates response messages for updates to variables, notifying all subscribers.
 
         :return: A list of `GlacierMessage` objects representing the updates.
-        
+
         :todo: generate update + abs class -> funct
         """
         changes = self._data_model.get_data_change()
