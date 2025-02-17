@@ -28,6 +28,15 @@ def _create_response_msg(
     msg: GlacierMessage,
     payload_func: Callable[[Payload], Payload] = (lambda payload: payload),
 ) -> GlacierMessage:
+    """
+    Creates a response message based on an incoming `GlacierMessage`.
+
+    :param msg: The original `GlacierMessage` that will be used to create the response.
+    :param payload_func: A function that processes the payload of the original message to create the response's payload.
+
+    :return: A new `GlacierMessage` with the modified header and payload.
+    """
+
     msg.header.type = MsgType.RESPONSE
     payload = payload_func(msg.payload)
     return GlacierMessage(
@@ -40,6 +49,13 @@ def _create_response_msg(
 
 
 def _invalid_request(payload: Payload) -> ErrorPayload:
+    """
+    Creates an error response indicating an invalid request.
+
+    :param payload: The `Payload` object that contains the node information.
+
+    :return: An `ErrorPayload` containing the error details.
+    """
     return ErrorPayload(
         node=payload.node,
         error_code=ErrorCode.BAD_REQUEST,
@@ -48,6 +64,13 @@ def _invalid_request(payload: Payload) -> ErrorPayload:
 
 
 def _error_invalid_namespace(payload: Payload) -> ErrorPayload:
+    """
+    Creates an error response indicating an invalid namespace.
+
+    :param payload: The `Payload` object that contains the node information.
+
+    :return: An `ErrorPayload` containing the error details.
+    """
     return ErrorPayload(
         node=payload.node,
         error_code=ErrorCode.BAD_REQUEST,
@@ -56,6 +79,13 @@ def _error_invalid_namespace(payload: Payload) -> ErrorPayload:
 
 
 def _error_not_found(payload: Payload) -> ErrorPayload:
+    """
+    Creates an error response indicating that the node was not found.
+
+    :param payload: The `Payload` object that contains the node information.
+
+    :return: An `ErrorPayload` containing the error details.
+    """
     return ErrorPayload(
         node=payload.node,
         error_code=ErrorCode.NOT_FOUND,
@@ -64,6 +94,13 @@ def _error_not_found(payload: Payload) -> ErrorPayload:
 
 
 def _error_not_supported(payload: Payload) -> ErrorPayload:
+    """
+    Creates an error response indicating that the operation is not supported.
+
+    :param payload: The `Payload` object that contains the node information.
+
+    :return: An `ErrorPayload` containing the error details.
+    """
     return ErrorPayload(
         node=payload.node,
         error_code=ErrorCode.NOT_SUPPORTED,
@@ -72,6 +109,13 @@ def _error_not_supported(payload: Payload) -> ErrorPayload:
 
 
 def _error_bad_request(payload: Payload) -> ErrorPayload:
+    """
+    Creates an error response indicating a bad request.
+
+    :param payload: The `Payload` object that contains the node information.
+
+    :return: An `ErrorPayload` containing the error details.
+    """
     return ErrorPayload(
         node=payload.node,
         error_code=ErrorCode.BAD_REQUEST,
@@ -80,6 +124,13 @@ def _error_bad_request(payload: Payload) -> ErrorPayload:
 
 
 def _error_not_allowed(payload: Payload) -> ErrorPayload:
+    """
+    Creates an error response indicating that the operation is not allowed.
+
+    :param payload: The `Payload` object that contains the node information.
+
+    :return: An `ErrorPayload` containing the error details.
+    """
     return ErrorPayload(
         node=payload.node,
         error_code=ErrorCode.NOT_ALLOWED,
@@ -88,6 +139,13 @@ def _error_not_allowed(payload: Payload) -> ErrorPayload:
 
 
 def _error_version_not_supported(payload: Payload) -> ErrorPayload:
+    """
+    Creates an error response indicating that the requested version is not supported.
+
+    :param payload: The `Payload` object that contains the node information.
+
+    :return: An `ErrorPayload` containing the error details.
+    """
     return ErrorPayload(
         node=payload.node,
         error_code=ErrorCode.VERSION_NOT_SUPPORTED,
@@ -97,22 +155,38 @@ def _error_version_not_supported(payload: Payload) -> ErrorPayload:
 
 class GlacierProtocolMng(ProtocolMng):
     """
-    This class is responsible for handling messages encoded with the Glacier protocol
-    and updating the machine data model accordingly.
+    Manages messages encoded with the Glacier protocol and updates the machine
+    data model accordingly.
+
+    This class handles the reception, processing, and encoding of messages
+    according to the Glacier protocol.
+
+    It supports version checks, message validation, and routing messages to
+    appropriate handlers based on the namespace (VARIABLE, METHOD, etc.).
+
+    :ivar _protocol_version: The version of the Glacier protocol in use.
     """
 
     def __init__(self, data_model: DataModel):
+        """
+        Initializes the GlacierProtocolMng with the provided data model.
+
+        :param data_model: The machine data model to be updated based on received messages.
+        """
+
         super().__init__(data_model)
         self._protocol_version = (1, 0, 0)
 
     @override
     def handle_message(self, msg: Message) -> Message:
         """
-        This method handles a message encoded with the Glacier protocol and updates the
+        Handles a message encoded with the Glacier protocol and updates the
         machine data model accordingly.
+
         :param msg: The message to be handled.
-        :return: A response message.
+        :return: A response message based on the validation and handling of the input message.
         """
+
         if not isinstance(msg, GlacierMessage):
             raise ValueError("msg must be an instance of GlacierMessage")
 
@@ -141,16 +215,26 @@ class GlacierProtocolMng(ProtocolMng):
         return _create_response_msg(msg, _error_invalid_namespace)
 
     def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
+        """
+        Checks if the provided version is supported by the protocol.
+
+        :param version: The protocol version to be checked.
+        :return: True if the version is supported, otherwise False.
+        """
+
         return version == self._protocol_version
 
     def _handle_method_message(
         self, msg: GlacierMessage, method_node: MethodNode
     ) -> GlacierMessage:
         """
-        This method handles a message withing the METHOD namespace.
+        Handles a message within the METHOD namespace.
+
         :param msg: The message to be handled.
-        :return: A response message.
+        :param method_node: The method node to invoke.
+        :return: A response message based on the result of the method invocation.
         """
+
         assert msg.header.namespace == MsgNamespace.METHOD
 
         if not isinstance(msg.payload, MethodPayload):
@@ -167,10 +251,13 @@ class GlacierProtocolMng(ProtocolMng):
         self, msg: GlacierMessage, variable_node: VariableNode
     ) -> GlacierMessage:
         """
-        This method handles a message withing the VARIABLE namespace.
+        Handles a message within the VARIABLE namespace.
+
         :param msg: The message to be handled.
-        :return: A response message.
+        :param variable_node: The variable node to perform operations on.
+        :return: A response message based on the operation performed on the variable node.
         """
+
         assert msg.header.namespace == MsgNamespace.VARIABLE
 
         if not isinstance(msg.payload, VariablePayload):
@@ -199,6 +286,13 @@ class GlacierProtocolMng(ProtocolMng):
 
     # TOD:generate update + abs class -> funct
     def generate_updateMsgs(self) -> list[GlacierMessage]:
+        """
+        Generates response messages for updates to variables, notifying all subscribers.
+
+        :return: A list of `GlacierMessage` objects representing the updates.
+        
+        :todo: generate update + abs class -> funct
+        """
         changes = self._data_model.get_data_change()
         messages = []
         for variable_node, value in changes:
