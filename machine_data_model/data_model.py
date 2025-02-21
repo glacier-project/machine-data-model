@@ -3,7 +3,6 @@ from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
-from functools import partial
 
 
 class DataModel:
@@ -29,8 +28,6 @@ class DataModel:
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
         self._build_nodes_map(self._root, True)
-        # tmp for now a simple list should work
-        self._data_change: list[tuple[VariableNode, Any]] = []
 
     @property
     def name(self) -> str:
@@ -73,17 +70,9 @@ class DataModel:
             if isinstance(child, (FolderNode, ObjectVariableNode)):
                 self._build_nodes_map(child)
             elif isinstance(child, VariableNode):
-                child.set_post_update_value_callback(partial(self._post_update, child))
                 self._nodes[child.id] = child
             else:
                 self._nodes[child.id] = child
-
-    # TODO: merge with add data change + no read -> use values
-    def _post_update(
-        self, node: VariableNode, prev_value: Any, current_value: Any
-    ) -> bool:
-        self._add_data_change(node)
-        return True
 
     def _get_node_from_path(self, path: str) -> DataModelNode | None:
         """
@@ -123,26 +112,6 @@ class DataModel:
         if node_id not in self._nodes:
             return None
         return self._nodes[node_id]
-
-    def _add_data_change(self, node: VariableNode) -> None:
-        """
-        Add the data change to the list of data changes.
-        """
-        if not node.has_subscribers():
-            return
-        self._data_change.append((node, node.read()))
-
-    def get_data_change(self) -> list[tuple[VariableNode, Any]]:
-        """
-        Get the list of data changes.
-        """
-        return self._data_change
-
-    def clear_data_change(self) -> None:
-        """
-        Clear the list of data changes.
-        """
-        self._data_change = []
 
     def add_child(self, parent_id: str, child: DataModelNode) -> bool:
         """

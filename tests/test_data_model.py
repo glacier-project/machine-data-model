@@ -2,6 +2,8 @@ import random
 
 import pytest
 
+from typing import Any
+
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import (
@@ -106,8 +108,21 @@ class TestDataModel:
         assert result["return_value"] == "result"
 
     def test_subscribe(self, root: FolderNode) -> None:
+        # Tracks the list of changes.
+        changes = []
+
+        # Setup callback to handle subscriber notifications.
+        def update_message_callback(
+            subscriber: str, node: VariableNode, value: Any
+        ) -> None:
+            # For this test, we'll append the notification data to 'changes' (or
+            # any tracking list).
+            changes.append((subscriber, node, value))
+
+        # Create the data model and set up the root node.
         data_model = DataModel(name="dm", root=root)
         root = data_model.root
+        # Randomly select a child node of type StringVariableNode from the root.
         child = random.choice(
             [
                 node
@@ -115,8 +130,18 @@ class TestDataModel:
                 if isinstance(node, StringVariableNode)
             ]
         )
-        data_model.subscribe(child.id, "test")
+        # Subscribe a "A" subscriber to the child node.
+        data_model.subscribe(child.id, "A")
+        # Subscribe a "B" subscriber to the child node.
+        data_model.subscribe(child.id, "B")
+        # Set the subscription callback (callback will handle the actual message
+        # creation and storage).
+        child.set_subscription_callback(update_message_callback)
+        # Perform an update on the child node, triggering the deferred notify
+        # mechanism.
         child.update("Perfect!")
-        changes = data_model.get_data_change()
+        # Assert that the child node has subscribers.
         assert child.has_subscribers()
-        assert changes == [(child, "Perfect!")]
+        # Assert that the changes list contains the expected value.
+        assert ("A", child, "Perfect!") in changes
+        assert ("B", child, "Perfect!") in changes

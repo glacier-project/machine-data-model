@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any, List
 from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
@@ -175,6 +175,7 @@ class GlacierProtocolMng(ProtocolMng):
         """
 
         super().__init__(data_model)
+        self._update_messages: List[GlacierMessage] = []
         self._protocol_version = (1, 0, 0)
 
     @override
@@ -272,7 +273,11 @@ class GlacierProtocolMng(ProtocolMng):
                 return _create_response_msg(msg)
             return _create_response_msg(msg, _error_not_allowed)
         if msg.header.msg_name == VariableMsgName.SUBSCRIBE:
+            # Add the sender as a subscriber to the variable node.
             variable_node.subscribe(msg.sender)
+            # Set the subscription callback to handle updates and send messages.
+            variable_node.set_subscription_callback(self._add_update_message_callback)
+            # Return a response message confirming the subscription.
             return _create_response_msg(msg)
         if msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
             variable_node.unsubscribe(msg.sender)
@@ -284,38 +289,45 @@ class GlacierProtocolMng(ProtocolMng):
 
         return _create_response_msg(msg, _error_not_supported)
 
-    # TOD:generate update + abs class -> funct
-    def generate_updateMsgs(self) -> list[GlacierMessage]:
+    def get_update_messages(self) -> List[GlacierMessage]:
         """
-        Generates response messages for updates to variables, notifying all subscribers.
+        Returns the list of update messages.
 
         :return: A list of `GlacierMessage` objects representing the updates.
-
-        :todo: generate update + abs class -> funct
         """
-        changes = self._data_model.get_data_change()
-        messages = []
-        for variable_node, value in changes:
-            sender = self._data_model.name
-            targets = variable_node.get_subscribers()
-            for target in targets:
-                msg = GlacierMessage(
-                    sender=sender,
-                    target=target,
-                    identifier=str(uuid.uuid4()),
-                    header=GlacierHeader(
-                        version=self._protocol_version,
-                        type=MsgType.RESPONSE,
-                        namespace=MsgNamespace.VARIABLE,
-                        msg_name=VariableMsgName.UPDATE,
-                    ),
-                    payload=VariablePayload(node=variable_node.name, value=value),
-                )
-                messages.append(msg)
-        return messages
+        return self._update_messages
 
-    def clear_update(self) -> None:
-        self._data_model.clear_data_change()
+    def clear_update_messages(self) -> None:
+        """
+        Clears the list of update messages.
+        """
+        self._update_messages.clear()
+
+    def _add_update_message_callback(
+        self, subscriber: str, node: VariableNode, value: Any
+    ) -> None:
+        """
+        Handle the update and create the corresponding GlacierMessage.
+
+        This method is called when an update to a variable occurs. It constructs
+        a `GlacierMessage` with the relevant details, including the sender,
+        target, and payload, and appends it to the list of update messages.
+        """
+        # Construct GlacierMessage.
+        self._update_messages.append(
+            GlacierMessage(
+                sender=self._data_model.name,
+                target=subscriber,
+                identifier=str(uuid.uuid4()),
+                header=GlacierHeader(
+                    version=self._protocol_version,
+                    type=MsgType.RESPONSE,
+                    namespace=MsgNamespace.VARIABLE,
+                    msg_name=VariableMsgName.UPDATE,
+                ),
+                payload=VariablePayload(node=node.name, value=value),
+            )
+        )
 
     # def _handle_node_message(self, msg: GlacierMessage) -> GlacierMessage:
     #     """

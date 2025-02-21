@@ -53,8 +53,6 @@ class VariableNode(DataModelNode):
         self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
             lambda subscriber, node, value: None
         )
-        # History of values for deferred notifications.
-        self._value_history_for_deferred_notify: list[Any] = []
 
     def read(self) -> Any:
         """
@@ -91,13 +89,8 @@ class VariableNode(DataModelNode):
             self._update_value(prev_value)
             return False
 
-        # Notify subscribers if the update was successful. DISABLED for now, it
-        # seems that the notification happens at specific intervals, inside the
-        # models, like every 1 second.
-        # self.notify_subscribers()
-
-        # Add the updated value to the deferred notifications list
-        self._value_history_for_deferred_notify.append(value)
+        # Notify subscribers if the update was successful.
+        self.notify_subscribers()
 
         # Return True if the value was successfully updated and validated.
         return True
@@ -154,20 +147,6 @@ class VariableNode(DataModelNode):
         # Pass the value to the callback.
         for subscriber in self._subscribers:
             self._subscription_callback(subscriber, self, value)
-
-    def notify_subscribers_deferred(self) -> None:
-        """
-        Notify all subscribers about an update or change using the deferred
-        notifications list. This method sends all accumulated updates at once.
-        """
-        for value in self._value_history_for_deferred_notify:
-            for subscriber in self._subscribers:
-                # Pass the subscriber ID, the node (self), and the value to the
-                # callback.
-                self._subscription_callback(subscriber, self, value)
-
-        # After processing all deferred notifications, clear the list.
-        self._value_history_for_deferred_notify.clear()
 
     @abstractmethod
     def _read_value(self) -> Any:
