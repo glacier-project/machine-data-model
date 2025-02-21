@@ -19,6 +19,12 @@ class VariableNode(DataModelNode):
     A VariableNode class is a node that represents an instance of a variable in the
     machine data model. Variables of the machine data model are used to store the
     current value of a machine data or parameter.
+
+    :ivar _subscribers: A list of subscribers to the variable.
+    :ivar _pre_read_value: A callback function executed before reading the value.
+    :ivar _post_read_value: A callback function executed after reading the value.
+    :ivar _pre_update_value: A callback function executed before updating the value.
+    :ivar _post_update_value: A callback function executed after updating the value.
     """
 
     def __init__(
@@ -28,12 +34,11 @@ class VariableNode(DataModelNode):
         description: str | None = None,
     ):
         """
-        Initialize a new VariableNode instance.
-        :param kwargs: A dictionary containing the attributes of the variable node. The
-        dictionary may contain the following keys:
-            - id: The unique identifier of the variable.
-            - name: The name of the variable.
-            - description: The description of the variable.
+        Initializes a new VariableNode instance.
+
+        :param id: The unique identifier of the variable.
+        :param name: The name of the variable.
+        :param description: The description of the variable.
         """
         super().__init__(id=id, name=name, description=description)
         self._pre_read_value: Callable[[], None] = lambda: None
@@ -45,6 +50,7 @@ class VariableNode(DataModelNode):
     def read(self) -> Any:
         """
         Get the value of the variable node.
+
         :return: The value of the variable node.
         """
         self._pre_read_value()
@@ -55,6 +61,7 @@ class VariableNode(DataModelNode):
     def update(self, value: Any) -> bool:
         """
         Update the value of the variable node.
+
         :param value: The new value of the variable node.
         :return: True if the value was updated successfully, False otherwise.
         """
@@ -70,24 +77,32 @@ class VariableNode(DataModelNode):
     def has_subscribers(self) -> bool:
         """
         Check if the variable node has subscribers.
+
         :return: True if the variable node has subscribers, False otherwise.
         """
         return bool(self._subscribers)
 
     def get_subscribers(self) -> list[str]:
+        """
+        Get the list of subscribers for the variable node.
+
+        :return: A list of subscriber IDs.
+        """
         return self._subscribers
 
     def subscribe(self, subscriber_id: str) -> None:
         """
         Subscribe a subscriber to the variable node.
-        :param subscriber_id: The id of the subscriber to subscribe to the variable node.
+
+        :param subscriber_id: The ID of the subscriber.
         """
         self._subscribers.append(subscriber_id)
 
     def unsubscribe(self, subscriber_id: str) -> None:
         """
         Unsubscribe a subscriber from the variable node.
-        :param subscriber_id: The id of the subscriber to unsubscribe from the variable node.
+
+        :param subscriber_id: The ID of the subscriber.
         """
         self._subscribers.remove(subscriber_id)
 
@@ -107,56 +122,76 @@ class VariableNode(DataModelNode):
 
     def set_pre_read_value_callback(self, callback: Callable[[], None]) -> None:
         """
-        Set a callback to be executed before reading the value of the variable.
-        :param callback: The callback to be executed before reading the value of the
-        variable.
+        Set a callback to be executed before reading the value.
+
+        :param callback: The callback function.
         """
         self._pre_read_value = callback
 
     def set_post_read_value_callback(self, callback: Callable[..., Any]) -> None:
         """
-        Set a callback to be executed after reading the value of the variable.
-        :param callback: The callback to be executed after reading the value of the
-        variable.
+        Set a callback to be executed after reading the value.
+
+        :param callback: The callback function.
         """
         self._post_read_value = callback
 
     def set_pre_update_value_callback(self, callback: Callable[..., Any]) -> None:
         """
-        Set a callback to be executed before updating the value of the variable.
-        :param callback: The callback to be executed before updating the value of the
-        variable.
+        Set a callback to be executed before updating the value.
+
+        :param callback: The callback function.
         """
         self._pre_update_value = callback
 
     def set_post_update_value_callback(self, callback: Callable[..., bool]) -> None:
         """
-        Set a callback to be executed after updating the value of the variable.
-        :param callback: The callback to be executed after updating the value of the
-        variable.
+        Set a callback to be executed after updating the value.
+
+        :param callback: The callback function.
         """
         self._post_update_value = callback
 
     @override
     def __getitem__(self, node_name: str) -> "VariableNode":
+        """
+        Raises an exception because child nodes are not supported.
+
+        :param node_name: The name of the node to retrieve.
+        :raises NotImplementedError: Always raised, as child nodes are not supported.
+        """
         raise NotImplementedError(
-            f"f{self.__class__.__name__} does not support child nodes"
+            f"{self.__class__.__name__} does not support child nodes"
         )
 
     @override
     def __contains__(self, node_name: str) -> bool:
+        """
+        Always returns False, as this node does not have child nodes.
+
+        :param node_name: The name of the node to check.
+        :return: False, as child nodes are not supported.
+        """
         return False
 
     @override
     def __iter__(self) -> Iterator["VariableNode"]:
+        """
+        Returns an empty iterator, as this node does not have child nodes.
+
+        :return: An empty iterator.
+        """
         for _ in []:
             yield _
 
 
 class NumericalVariableNode(VariableNode):
     """
-    A NumericalVariableNode class is a node that represents an instance of a variable
-    with a numerical value in the machine data model.
+    Represents an instance of a numerical variable in the machine data model.
+
+    :ivar _measure_builder: A builder for creating measure objects.
+    :ivar _measure_unit: The measure unit of the numerical variable.
+    :ivar _value: The value of the numerical variable, represented as an AbstractMeasure.
     """
 
     _measure_builder: MeasureBuilder = get_measure_builder()
@@ -170,7 +205,8 @@ class NumericalVariableNode(VariableNode):
         value: float = 0,
     ):
         """
-        Initialize a new NumericalVariableNode instance.
+        Initializes a new NumericalVariableNode instance.
+
         :param id: The unique identifier of the numerical variable.
         :param name: The name of the numerical variable.
         :param description: The description of the numerical variable.
@@ -190,6 +226,7 @@ class NumericalVariableNode(VariableNode):
     def _read_value(self) -> float:
         """
         Get the value of the numerical variable.
+
         :return: The value of the numerical variable.
         """
         return self._value.base_value  # type: ignore[no-any-return]
@@ -197,13 +234,17 @@ class NumericalVariableNode(VariableNode):
     def _update_value(self, value: float) -> None:
         """
         Update the value of the numerical variable.
+
         :param value: The new value of the numerical variable.
-        :param unit: The unit of the new value. If not specified, the unit of the
-        variable is used.
         """
         self._value = self._value.__class__(value, self._measure_unit)
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the NumericalVariableNode.
+
+        :return: A string describing the NumericalVariableNode.
+        """
         return (
             f"NumericalVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, measure_unit={self._measure_unit}, "
@@ -211,13 +252,19 @@ class NumericalVariableNode(VariableNode):
         )
 
     def __repr__(self) -> str:
+        """
+        Returns the string representation of the NumericalVariableNode for debugging.
+
+        :return: The string representation of the NumericalVariableNode.
+        """
         return self.__str__()
 
 
 class StringVariableNode(VariableNode):
     """
-    A StringVariableNode class is a node that represents an instance of a variable with
-    a string value in the machine data model.
+    Represents an instance of a string variable in the machine data model.
+
+    :ivar _value: The value of the string variable.
     """
 
     def __init__(
@@ -228,7 +275,8 @@ class StringVariableNode(VariableNode):
         value: str = "",
     ):
         """
-        Initialize a new StringVariableNode instance.
+        Initializes a new StringVariableNode instance.
+
         :param id: The unique identifier of the string variable.
         :param name: The name of the string variable.
         :param description: The description of the string variable.
@@ -240,6 +288,7 @@ class StringVariableNode(VariableNode):
     def _read_value(self) -> str:
         """
         Get the value of the string variable.
+
         :return: The value of the string variable.
         """
         return self._value
@@ -247,6 +296,7 @@ class StringVariableNode(VariableNode):
     def _update_value(self, value: str) -> None:
         """
         Update the value of the string variable.
+
         :param value: The new value of the string variable.
         """
         assert isinstance(value, str)
@@ -254,26 +304,49 @@ class StringVariableNode(VariableNode):
 
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
+        """
+        Raises a NotImplementedError, as StringVariableNode does not support child nodes.
+
+        :param node_name: The name of the node to retrieve.
+        :raises NotImplementedError: Always raised.
+        """
         raise NotImplementedError("StringVariableNode does not support child nodes")
 
     @override
     def __contains__(self, node_name: str) -> bool:
+        """
+        Always returns False, as StringVariableNode does not support child nodes.
+
+        :param node_name: The name of the node to check.
+        :return: False, as child nodes are not supported.
+        """
         return False
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the StringVariableNode.
+
+        :return: A string describing the StringVariableNode.
+        """
         return (
             f"StringVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, value={self._value})"
         )
 
     def __repr__(self) -> str:
+        """
+        Returns the string representation of the StringVariableNode for debugging.
+
+        :return: The string representation of the StringVariableNode.
+        """
         return self.__str__()
 
 
 class BooleanVariableNode(VariableNode):
     """
-    A BooleanVariableNode class is a node that represents an instance of a variable with
-    a boolean value in the machine data model.
+    Represents an instance of a boolean variable in the machine data model.
+
+    :ivar _value: The value of the boolean variable.
     """
 
     def __init__(
@@ -284,7 +357,8 @@ class BooleanVariableNode(VariableNode):
         value: bool = False,
     ):
         """
-        Initialize a new BooleanVariableNode instance.
+        Initializes a new BooleanVariableNode instance.
+
         :param id: The unique identifier of the boolean variable.
         :param name: The name of the boolean variable.
         :param description: The description of the boolean variable.
@@ -296,6 +370,7 @@ class BooleanVariableNode(VariableNode):
     def _read_value(self) -> bool:
         """
         Get the value of the boolean variable.
+
         :return: The value of the boolean variable.
         """
         return self._value
@@ -303,6 +378,7 @@ class BooleanVariableNode(VariableNode):
     def _update_value(self, value: bool) -> None:
         """
         Update the value of the boolean variable.
+
         :param value: The new value of the boolean variable.
         """
         assert isinstance(value, bool)
@@ -310,26 +386,49 @@ class BooleanVariableNode(VariableNode):
 
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
+        """
+        Raises NotImplementedError as BooleanVariableNode does not support child nodes.
+
+        :param node_name: The name of the node.
+        :raises NotImplementedError: Always raised.
+        """
         raise NotImplementedError("BooleanVariableNode does not support child nodes")
 
     @override
     def __contains__(self, node_name: str) -> bool:
+        """
+        Always returns False, as BooleanVariableNode does not support child nodes.
+
+        :param node_name: The name of the node.
+        :return: False, as this node does not support child nodes.
+        """
         return False
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the BooleanVariableNode.
+
+        :return: A string describing the BooleanVariableNode.
+        """
         return (
             f"BooleanVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, value={self._value})"
         )
 
     def __repr__(self) -> str:
+        """
+        Returns the string representation of the BooleanVariableNode for debugging.
+
+        :return: The string representation of the BooleanVariableNode.
+        """
         return self.__str__()
 
 
 class ObjectVariableNode(VariableNode):
     """
-    An ObjectVariableNode class is a node that represents an instance of a variable with
-    an object value in the machine data model.
+    Represents an instance of an object variable in the machine data model.
+
+    :ivar _properties: A dictionary of properties of the object variable.
     """
 
     def __init__(
@@ -341,7 +440,8 @@ class ObjectVariableNode(VariableNode):
         value: dict[str, Any] | None = None,
     ):
         """
-        Initialize a new ObjectVariableNode instance.
+        Initializes a new ObjectVariableNode instance.
+
         :param id: The unique identifier of the object variable.
         :param name: The name of the object variable.
         :param description: The description of the object variable.
@@ -358,37 +458,41 @@ class ObjectVariableNode(VariableNode):
     def add_property(self, property_node: VariableNode) -> None:
         """
         Add a property to the object variable.
-        :param property_node: The property node to add to the object variable.
+
+        :param property_node: The property node to add.
         """
         self._properties[property_node.name] = property_node
 
     def remove_property(self, property_name: str) -> None:
         """
         Remove a property from the object variable.
-        :param property_name: The name of the property to remove from the object
-        variable.
+
+        :param property_name: The name of the property to remove.
         """
         del self._properties[property_name]
 
     def has_property(self, property_name: str) -> bool:
         """
         Check if the object variable has a property.
+
         :param property_name: The name of the property to check.
-        :return: True if the object variable has the property, False otherwise.
+        :return: True if the property exists, False otherwise.
         """
         return property_name in self._properties
 
     def get_property(self, property_name: str) -> VariableNode:
         """
         Get a property of the object variable.
+
         :param property_name: The name of the property to get.
-        :return: The property of the object variable.
+        :return: The property node.
         """
         return self._properties[property_name]
 
     def _read_value(self) -> Any:
         """
         Get the value of the object variable.
+
         :return: The value of the object variable.
         """
         value = {}
@@ -399,6 +503,7 @@ class ObjectVariableNode(VariableNode):
     def _update_value(self, value: dict) -> None:
         """
         Update the value of the object variable.
+
         :param value: The new value of the object variable.
         """
         for property_name, property_value in value.items():
@@ -408,8 +513,9 @@ class ObjectVariableNode(VariableNode):
     def __getitem__(self, property_name: str) -> VariableNode:
         """
         Get a property of the object variable.
+
         :param property_name: The name of the property to get.
-        :return: The property of the object variable.
+        :return: The property node.
         """
         return self.get_property(property_name)
 
@@ -417,8 +523,9 @@ class ObjectVariableNode(VariableNode):
     def __contains__(self, property_name: str) -> bool:
         """
         Check if the object variable has a property.
+
         :param property_name: The name of the property to check.
-        :return: True if the object variable has the property, False otherwise.
+        :return: True if the property exists, False otherwise.
         """
         return self.has_property(property_name)
 
@@ -426,16 +533,27 @@ class ObjectVariableNode(VariableNode):
     def __iter__(self) -> Iterator[VariableNode]:
         """
         Iterate over the properties of the object variable.
+
         :return: An iterator over the properties of the object variable.
         """
         for property_node in self._properties.values():
             yield property_node
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the ObjectVariableNode.
+
+        :return: A string describing the ObjectVariableNode.
+        """
         return (
             f"ObjectVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, value={self._read_value()})"
         )
 
     def __repr__(self) -> str:
+        """
+        Returns the string representation of the ObjectVariableNode for debugging.
+
+        :return: The string representation of the ObjectVariableNode.
+        """
         return self.__str__()

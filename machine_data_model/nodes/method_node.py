@@ -12,6 +12,13 @@ class MethodNode(DataModelNode):
     A MethodNode class is a node that represents a method in the machine data model.
     Methods of the machine data model are used to declare functions that can be executed
     on the machine data model.
+
+    :ivar _durable: Indicates if the method is durable.
+    :ivar _parameters: A list of parameters for the method.
+    :ivar _returns: A list of return values for the method.
+    :ivar _callback: The function to execute when the method is called.
+    :ivar _pre_call: The function to run before the method is called.
+    :ivar _post_call: The function to run after the method is called.
     """
 
     def __init__(
@@ -26,13 +33,14 @@ class MethodNode(DataModelNode):
     ):
         """
         Initialize a new MethodNode instance.
+
         :param id: The unique identifier of the method.
         :param name: The name of the method.
         :param description: The description of the method.
         :param durable: A flag indicating if the method is durable.
-        :param parameters: A list of parameters of the method.
-        :param returns: A list of return values of the method.
-        :param callback: The function to be executed when the method is called.
+        :param parameters: A list of parameters for the method.
+        :param returns: A list of return values for the method.
+        :param callback: The function to execute when the method is called.
         """
         super().__init__(id=id, name=name, description=description)
         self._durable: bool = durable if isinstance(durable, bool) else False
@@ -47,15 +55,26 @@ class MethodNode(DataModelNode):
         self._post_call: Callable[..., None] = lambda res: None
 
     def is_durable(self) -> bool:
+        """
+        Returns whether the method is durable.
+
+        :return: True if the method is durable, False otherwise.
+        """
         return self._durable
 
     @property
     def parameters(self) -> list[VariableNode]:
+        """
+        Returns the list of parameters for the method.
+
+        :return: A list of `VariableNode` instances representing the method's parameters.
+        """
         return self._parameters
 
     def add_parameter(self, parameter: VariableNode) -> None:
         """
         Add a parameter to the method.
+
         :param parameter: The parameter to add to the method.
         """
         self._parameters.append(parameter)
@@ -63,6 +82,7 @@ class MethodNode(DataModelNode):
     def remove_parameter(self, parameter: VariableNode) -> None:
         """
         Remove a parameter from the method.
+
         :param parameter: The parameter to remove from the method.
         """
         if parameter not in self._parameters:
@@ -71,11 +91,17 @@ class MethodNode(DataModelNode):
 
     @property
     def returns(self) -> list[VariableNode]:
+        """
+        Returns the list of return values for the method.
+
+        :return: A list of `VariableNode` instances representing the method's return values.
+        """
         return self._returns
 
     def add_return_value(self, return_value: VariableNode) -> None:
         """
         Add a return value to the method.
+
         :param return_value: The return value to add to the method.
         """
         self._returns.append(return_value)
@@ -83,6 +109,7 @@ class MethodNode(DataModelNode):
     def remove_return_value(self, return_value: VariableNode) -> None:
         """
         Remove a return value from the method.
+
         :param return_value: The return value to remove from the method.
         """
         if return_value not in self._returns:
@@ -93,34 +120,64 @@ class MethodNode(DataModelNode):
 
     @property
     def callback(self) -> Callable:
+        """
+        Gets the callback function for the method.
+
+        :return: The callback function.
+        """
         return self._callback
 
     @callback.setter
     def callback(self, call: Callable) -> None:
+        """
+        Sets the callback function for the method.
+
+        :param call: The callback function to set.
+        """
         self._callback = call
 
     @property
     def pre_callback(self) -> Callable:
+        """
+        Gets the pre-call function for the method.
+
+        :return: The pre-call function.
+        """
         return self._pre_call
 
     @pre_callback.setter
     def pre_callback(self, pre_call: Callable) -> None:
+        """
+        Sets the pre-call function for the method.
+
+        :param pre_call: The pre-call function to set.
+        """
         self._pre_call = pre_call
 
     @property
     def post_callback(self) -> Callable:
+        """
+        Gets the post-call function for the method.
+
+        :return: The post-call function.
+        """
         return self._post_call
 
     @post_callback.setter
     def post_callback(self, callback: Callable) -> None:
+        """
+        Sets the post-call function for the method.
+
+        :param callback: The post-call function to set.
+        """
         self._post_call = callback
 
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
         Get a parameter or return value of the method by name.
-        :param node_name: The name of the parameter or return value to get from the
-            method.
+
+        :param node_name: The name of the parameter or return value to get from the method.
         :return: The parameter or return value with the specified name.
         """
         for parameter in self._parameters:
@@ -137,9 +194,9 @@ class MethodNode(DataModelNode):
     def __contains__(self, node_name: str) -> bool:
         """
         Check if the method has a parameter or return value with the specified name.
+
         :param node_name: The name of the parameter or return value to check.
-        :return: True if the method has a parameter or return value with the specified
-            name, False otherwise.
+        :return: True if the method has a parameter or return value with the specified name, False otherwise.
         """
         for parameter in self._parameters:
             if parameter.name == node_name:
@@ -153,6 +210,7 @@ class MethodNode(DataModelNode):
     def __iter__(self) -> Iterator[VariableNode]:
         """
         Iterate over the parameters and return values of the method.
+
         :return: An iterator over the parameters and return values of the method.
         """
         yield from self._parameters
@@ -161,6 +219,7 @@ class MethodNode(DataModelNode):
     def __call__(self, *args: Any, **kwargs: Any) -> Dict:
         """
         Call the method with the specified arguments.
+
         :param args: The positional arguments of the method.
         :param kwargs: The keyword arguments of the method.
         :return: The return values of the method.
@@ -193,6 +252,11 @@ class MethodNode(DataModelNode):
         return result
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the MethodNode.
+
+        :return: A string describing the MethodNode.
+        """
         return (
             f"MethodNode("
             f"id={self.id}, "
@@ -202,4 +266,9 @@ class MethodNode(DataModelNode):
         )
 
     def __repr__(self) -> str:
+        """
+        Returns a string representation of the MethodNode.
+
+        :return: The string representation of the MethodNode (same as `__str__`).
+        """
         return self.__str__()
