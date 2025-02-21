@@ -88,8 +88,10 @@ class VariableNode(DataModelNode):
             # Restore previous value if validation fails.
             self._update_value(prev_value)
             return False
-        # Notify subscribers if the update was successful.
-        self.notify_subscribers()
+        # Notify subscribers if the update was successful. DISABLED for now, it
+        # seems that the notification happens at specific intervals, inside the
+        # models, like every 1 second.
+        # self.notify_subscribers()
         # Return True if the value was successfully updated and validated.
         return True
 
