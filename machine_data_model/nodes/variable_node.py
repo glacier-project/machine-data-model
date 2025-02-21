@@ -20,11 +20,12 @@ class VariableNode(DataModelNode):
     machine data model. Variables of the machine data model are used to store the
     current value of a machine data or parameter.
 
-    :ivar _subscribers: A list of subscribers to the variable.
     :ivar _pre_read_value: A callback function executed before reading the value.
     :ivar _post_read_value: A callback function executed after reading the value.
     :ivar _pre_update_value: A callback function executed before updating the value.
     :ivar _post_update_value: A callback function executed after updating the value.
+    :ivar _subscribers: A list of subscribers to the variable.
+    :ivar _subscription_callback: A callback function that is executed to notify subscribers when an event occurs.
     """
 
     def __init__(
@@ -41,11 +42,17 @@ class VariableNode(DataModelNode):
         :param description: The description of the variable.
         """
         super().__init__(id=id, name=name, description=description)
+        # Read callbacks.
         self._pre_read_value: Callable[[], None] = lambda: None
         self._post_read_value: Callable[[Any], Any] = lambda value: value
+        # Update callbacks.
         self._pre_update_value: Callable[[Any], Any] = lambda value: value
         self._post_update_value: Callable[[Any, Any], bool] = lambda prev, curr: True
+        # List of subscribers and related callbacks.
         self._subscribers: list[str] = []
+        self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
+            lambda subscriber, node, value: None
+        )
 
     def read(self) -> Any:
         """
@@ -53,9 +60,13 @@ class VariableNode(DataModelNode):
 
         :return: The value of the variable node.
         """
+        # Execute the pre-read callback.
         self._pre_read_value()
+        # Read the actual value (method to be implemented in subclasses).
         value = self._read_value()
+        # Execute the post-read callback and return the value.
         value = self._post_read_value(value)
+        # Return the read value.
         return value
 
     def update(self, value: Any) -> bool:
@@ -65,13 +76,21 @@ class VariableNode(DataModelNode):
         :param value: The new value of the variable node.
         :return: True if the value was updated successfully, False otherwise.
         """
+        # Read the current value of the variable before the update.
         prev_value = self._read_value()
+        # Apply the pre-update callback to the new value.
         value = self._pre_update_value(value)
+        # Update the value of the variable with the new value.
         value = self._update_value(value)
-        # if validation fails, restore the previous value
+        # If validation fails (post-update), restore the previous value and
+        # return False.
         if not self._post_update_value(prev_value, value):
+            # Restore previous value if validation fails.
             self._update_value(prev_value)
             return False
+        # Notify subscribers if the update was successful.
+        self.notify_subscribers()
+        # Return True if the value was successfully updated and validated.
         return True
 
     def has_subscribers(self) -> bool:
@@ -105,6 +124,27 @@ class VariableNode(DataModelNode):
         :param subscriber_id: The ID of the subscriber.
         """
         self._subscribers.remove(subscriber_id)
+
+    def set_subscription_callback(
+        self, callback: Callable[[str, "VariableNode", Any], None]
+    ) -> None:
+        """
+        Set a callback to be executed when notifying subscribers.
+
+        :param callback: The callback to be executed when notifying subscribers.
+        """
+        self._subscription_callback = callback
+
+    def notify_subscribers(self) -> None:
+        """
+        Notify all subscribed entities about an update or change. This will
+        execute the subscription callback for each subscriber.
+        """
+        # Get the current value of the node.
+        value = self._read_value()
+        # Pass the value to the callback.
+        for subscriber in self._subscribers:
+            self._subscription_callback(subscriber, self, value)
 
     @abstractmethod
     def _read_value(self) -> Any:

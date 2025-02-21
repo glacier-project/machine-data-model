@@ -9,12 +9,14 @@ machines in the GLACIER platform.
 
 The data model is structured in a tree-like structure, where each node
 represents one of the following:
+
 - Folder: a folder that contains other directories or variables;
 - Variable: a variable with a simple data type (string, numeric, boolean) or a
 complex data type (object);
 - Method: a method that can be called to perform an action on the machine;
 
 Each node has the following attributes:
+
 - Id: a unique identifier for the node
 - Name: a human-readable name for the node
 - Description: a description of the node
@@ -26,25 +28,31 @@ Each node has the following attributes:
 - Properties: the properties of the node (only for variables of type object)
 
 The supported interaction patterns are:
+
 - Read: read the value of a variable
 - Write: write the value of a variable
 - Call: call a method
 - Subscribe: subscribe to a variable to receive updates when its value changes
 
-# TODO:
-- [x] Implement the machine data model
+## TODOs
+
+- [x] Implement the machine data model:
   - [x] Machine data model folder
   - [x] Machine data model variable
   - [x] Machine data model method
   - [x] Machine data model object
   - [x] Machine data model
   - [x] Machine data model builder
-- [ ] Implement callbacks for reading, writing and method call on the respective
-  machine data model nodes
-  - [ ] Read callback
-  - [ ] Write callback
-  - [ ] Method call callback
-  - [ ] Subscription callback
+- [x] Implement callbacks for reading, writing and method call on the respective
+  machine data model nodes:
+  - [x] Read callback
+    - [x] Pre-read callback
+    - [x] Post-read callback
+  - [x] Update callback
+    - [x] Pre-update callback
+    - [x] Post-update callback
+  - [x] Method call callback
+  - [x] Subscription callback
 - [ ] Implement machine data model operations. Data model operations are
   operations performed on the machine data model nodes. They change the state
   of the machine data model nodes and/or trigger the respective callbacks.
