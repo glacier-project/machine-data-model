@@ -15,11 +15,8 @@ Machine data models can be connected to real or simulated machines, sensors, and
    This project is under active development.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 6
    :caption: Contents:
-
-   ...
-   autoapi/index
 
 Indices and tables
 ==================
