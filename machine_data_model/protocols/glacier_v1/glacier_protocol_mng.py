@@ -9,6 +9,7 @@ from machine_data_model.protocols.glacier_v1.glacier_header import (
     MsgNamespace,
     VariableMsgName,
     MethodMsgName,
+    ProtocolMsgName,
 )
 from machine_data_model.protocols.glacier_v1.glacier_payload import (
     ErrorPayload,
@@ -17,6 +18,7 @@ from machine_data_model.protocols.glacier_v1.glacier_payload import (
     Payload,
     MethodPayload,
     VariablePayload,
+    ProtocolPayload,
 )
 from machine_data_model.protocols.protocol_mng import ProtocolMng, Message
 from machine_data_model.protocols.glacier_v1.glacier_message import GlacierMessage
@@ -192,27 +194,34 @@ class GlacierProtocolMng(ProtocolMng):
             raise ValueError("msg must be an instance of GlacierMessage")
 
         header = msg.header
+
         if not self._is_version_supported(header.version):
             return _create_response_msg(msg, _error_version_not_supported)
+
         if header.type != MsgType.REQUEST:
             return _create_response_msg(msg, _invalid_request)
+
+        # Handle PROTOCOL messages separately.
+        if header.namespace == MsgNamespace.PROTOCOL:
+            return self._handle_protocol_message(msg)
 
         node = self._data_model.get_node(msg.payload.node)
         if node is None:
             return _create_response_msg(msg, _error_not_found)
 
-        # if header.namespace == MsgNamespace.NODE:
-        #     return self._handle_node_message(msg)
+        # Handle VARIABLE messages.
         if header.namespace == MsgNamespace.VARIABLE:
             if not isinstance(node, VariableNode):
                 return _create_response_msg(msg, _error_not_supported)
             return self._handle_variable_message(msg, node)
+
+        # Handle METHOD messages.
         if header.namespace == MsgNamespace.METHOD:
             if not isinstance(node, MethodNode):
                 return _create_response_msg(msg, _error_not_supported)
             return self._handle_method_message(msg, node)
 
-        # return invalid namespace
+        # Return invalid namespace.
         return _create_response_msg(msg, _error_invalid_namespace)
 
     def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
@@ -286,6 +295,45 @@ class GlacierProtocolMng(ProtocolMng):
             return _create_response_msg(msg)
         if msg.header.msg_name == VariableMsgName.UPDATE:
             return _create_response_msg(msg)
+
+        return _create_response_msg(msg, _error_not_supported)
+
+    def _handle_protocol_message(self, msg: GlacierMessage) -> GlacierMessage:
+        """
+        Handles protocol-related messages such as REGISTER and UNREGISTER.
+
+        :param msg: The protocol message to handle.
+        :return: A response message.
+        """
+        if msg.header.msg_name == ProtocolMsgName.REGISTER:
+            # Acknowledge registration.
+            return GlacierMessage(
+                sender=msg.target,
+                target=msg.sender,
+                identifier=str(uuid.uuid4()),
+                header=GlacierHeader(
+                    version=self._protocol_version,
+                    type=MsgType.RESPONSE,
+                    namespace=MsgNamespace.PROTOCOL,
+                    msg_name=ProtocolMsgName.REGISTER,
+                ),
+                payload=ProtocolPayload(),
+            )
+
+        if msg.header.msg_name == ProtocolMsgName.UNREGISTER:
+            # Acknowledge unregistration.
+            return GlacierMessage(
+                sender=msg.target,
+                target=msg.sender,
+                identifier=str(uuid.uuid4()),
+                header=GlacierHeader(
+                    version=self._protocol_version,
+                    type=MsgType.RESPONSE,
+                    namespace=MsgNamespace.PROTOCOL,
+                    msg_name=ProtocolMsgName.UNREGISTER,
+                ),
+                payload=ProtocolPayload(),
+            )
 
         return _create_response_msg(msg, _error_not_supported)
 

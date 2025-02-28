@@ -23,11 +23,13 @@ from machine_data_model.protocols.glacier_v1.glacier_header import (
     MsgNamespace,
     VariableMsgName,
     MethodMsgName,
+    ProtocolMsgName,
 )
 from machine_data_model.protocols.glacier_v1.glacier_message import GlacierMessage
 from machine_data_model.protocols.glacier_v1.glacier_payload import (
     VariablePayload,
     MethodPayload,
+    ProtocolPayload,
 )
 
 
@@ -182,18 +184,39 @@ class TestGlacierProtocolMng:
         assert len(response.payload.ret) == 1
         assert response.payload.ret["out_var"] == param_value
 
-    #
-    # def test_handle_invalid_message_type(
-    #     self, manager: GlacierProtocolMng, sender: str, target: str
-    # ) -> None:
-    #     msg = GlacierMessage_v1(
-    #         sender=sender,
-    #         target=target,
-    #         uuid_code=uuid.uuid4(),
-    #         type=MessageType.ERROR,
-    #         payload=VariableCall(
-    #             varname="n_variable1", operation=VarOperation.READ, args=None
-    #         ),
-    #     )
-    #     with pytest.raises(ValueError, match="Invalid message type: ERROR"):
-    #         manager.handle_message(msg)
+    def test_handle_protocol_register(
+        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+    ) -> None:
+        """
+        Test handling a PROTOCOL REGISTER request.
+        """
+
+        # Create the PROTOCOL REGISTER request message
+        msg = GlacierMessage(
+            sender=sender,
+            target="bus",
+            identifier=str(uuid.uuid4()),
+            header=GlacierHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.PROTOCOL,
+                msg_name=ProtocolMsgName.REGISTER,
+            ),
+            payload=ProtocolPayload(),
+        )
+
+        # Send the message to the protocol manager
+        response = manager.handle_message(msg)
+
+        # Validate response properties
+        assert isinstance(response, GlacierMessage)
+        # Response goes back to sender
+        assert response.target == sender
+        # Response comes from the target
+        assert response.sender == "bus"
+        # Should be a response
+        assert response.header.type == MsgType.RESPONSE
+        # Still in PROTOCOL
+        assert response.header.namespace == MsgNamespace.PROTOCOL
+        # Acknowledge registration
+        assert response.header.msg_name == ProtocolMsgName.REGISTER

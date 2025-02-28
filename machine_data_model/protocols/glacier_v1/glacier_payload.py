@@ -51,6 +51,18 @@ class MethodPayload(Payload):
     ret: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(init=True, slots=True)
+class ProtocolPayload(Payload):
+    """
+    Represents the payload of a protocol-related message.
+
+    This class extends Payload and includes attributes that are need to handle
+    protocol-related messages.
+
+    :cvar node: The node associated with the message payload (inherited).
+    """
+
+
 class ErrorCode(int, Enum):
     """
     Enum for error codes used in the Glacier protocol.
