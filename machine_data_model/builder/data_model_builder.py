@@ -227,7 +227,7 @@ class DataModelBuilder:
         return WaitConditionNode(
             variable_node=data.get("variable", ""),
             op=get_condition_operator(data.get("operator", "")),
-            lhs=data.get("lhs", ""),
+            rhs=data.get("rhs", ""),
         )
 
     def _get_call_method_node(

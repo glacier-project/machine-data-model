@@ -125,6 +125,8 @@ class VariableNode(DataModelNode):
 
         :param subscriber_id: The ID of the subscriber.
         """
+        if subscriber_id not in self._subscribers:
+            return
         self._subscribers.remove(subscriber_id)
 
     def set_subscription_callback(

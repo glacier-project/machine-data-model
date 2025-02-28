@@ -1,5 +1,6 @@
 import random
 import string
+from typing import Any
 
 from unitsnet_py.units.length import LengthUnits
 
@@ -113,14 +114,41 @@ def get_random_folder_node(
     return folder_node
 
 
+def get_default_args(method_node: MethodNode) -> tuple:
+    return tuple(param.read() for param in method_node.parameters)
+
+
+def get_default_kwargs(method_node: MethodNode) -> dict:
+    return {param.name: param.read() for param in method_node.parameters}
+
+
+def get_dummy_method_node(
+    var_name: str | None = None,
+    var_description: str | None = None,
+    method_types: list[type] | None = None,
+) -> MethodNode:
+    method_node = get_random_method_node(var_name, var_description, method_types)
+
+    def method_callback(**kwargs: dict[str, Any]) -> tuple:
+        return tuple(param.read() for param in method_node.returns)
+
+    method_node.callback = method_callback
+    return method_node
+
+
 def get_random_method_node(
-    var_name: str | None = None, var_description: str | None = None
+    var_name: str | None = None,
+    var_description: str | None = None,
+    method_types: list[type] | None = None,
 ) -> MethodNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     if var_description is None:
         var_description = gen_random_string(DEFAULT_DESCRIPTION_LENGTH)
-    method_node: MethodNode = random.choice([MethodNode, AsyncMethodNode])(
+    if method_types is None:
+        method_types = [MethodNode, AsyncMethodNode]
+
+    method_node: MethodNode = random.choice(method_types)(
         name=var_name, description=var_description
     )
     parameters = get_random_nodes(

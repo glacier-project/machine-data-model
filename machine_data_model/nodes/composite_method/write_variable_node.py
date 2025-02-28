@@ -31,7 +31,7 @@ class WriteVariableNode(ControlFlowNode):
         :param value: The value to write to the variable. It can be a constant value or reference to a variable in the scope.
         """
         super().__init__(variable_node, successors)
-        self.value = value
+        self._value = value
 
     def execute(self, scope: ControlFlowScope) -> bool:
         """
@@ -41,6 +41,6 @@ class WriteVariableNode(ControlFlowNode):
         :return: Returns always True.
         """
         assert isinstance(self._ref_node, VariableNode)
-        value = resolve_value(self.value, scope)
+        value = resolve_value(self._value, scope)
         self._ref_node.update(value)
         return True

@@ -45,7 +45,7 @@ class WaitConditionNode(ControlFlowNode):
     def __init__(
         self,
         variable_node: str,
-        lhs: Any,
+        rhs: Any,
         op: WaitConditionOperator,
         successors: list["ControlFlowNode"] | None = None,
     ):
@@ -53,11 +53,11 @@ class WaitConditionNode(ControlFlowNode):
         Initialize a new WaitConditionNode instance.
 
         :param variable_node: The identifier of the variable node in the machine data model.
-        :param lhs: The left-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
+        :param rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
         :param op: The comparison operator.
         """
         super().__init__(variable_node, successors)
-        self._lhs = lhs
+        self._rhs = rhs
         self._op = op
 
     def execute(self, scope: ControlFlowScope) -> bool:
@@ -69,8 +69,8 @@ class WaitConditionNode(ControlFlowNode):
         :return: True if the condition is met, otherwise False.
         """
         assert isinstance(self._ref_node, VariableNode)
-        lhs = resolve_value(self._lhs, scope)
-        rhs = self._ref_node.read()
+        rhs = resolve_value(self._rhs, scope)
+        lhs = self._ref_node.read()
         if self._op == WaitConditionOperator.EQ:
             res = lhs == rhs
         elif self._op == WaitConditionOperator.NE:

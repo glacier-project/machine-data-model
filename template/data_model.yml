@@ -108,7 +108,7 @@ root:
             - !!WaitConditionNode
               variable: "folder1/n_variable2"
               operator: ">"
-              lhs: 10
+              rhs: 10
     - !!ObjectVariableNode
       name: "o_variable2"
       description: "variable_description2"
