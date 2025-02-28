@@ -1,11 +1,28 @@
 import os
+from collections.abc import Callable
 
 import yaml
 
 from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.composite_method.call_method_node import CallMethodNode
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
+from machine_data_model.nodes.composite_method.control_flow import ControlFlow
+from machine_data_model.nodes.composite_method.control_flow_node import ControlFlowNode
+from machine_data_model.nodes.composite_method.read_variable_node import (
+    ReadVariableNode,
+)
+from machine_data_model.nodes.composite_method.wait_condition_node import (
+    WaitConditionNode,
+    get_condition_operator,
+)
+from machine_data_model.nodes.composite_method.write_variable_node import (
+    WriteVariableNode,
+)
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
@@ -36,12 +53,12 @@ class DataModelBuilder:
         full_path = os.path.abspath(data_model_path)
 
         if full_path not in self.cache:
-            data_model = self._create_data_model(full_path)
+            data_model = self._get_data_model(full_path)
             self.cache[full_path] = data_model
 
         return self.cache[full_path]
 
-    def _construct_folder(
+    def _get_folder(
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> FolderNode:
         """
@@ -59,7 +76,7 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_numerical_variable(
+    def _get_numerical_variable(
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> NumericalVariableNode:
         """
@@ -78,7 +95,7 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_string_variable(
+    def _get_string_variable(
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> StringVariableNode:
         """
@@ -96,7 +113,7 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_boolean_variable(
+    def _get_boolean_variable(
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> BooleanVariableNode:
         """
@@ -114,7 +131,7 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_object_variable(
+    def _get_object_variable(
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> ObjectVariableNode:
         """
@@ -133,8 +150,11 @@ class DataModelBuilder:
             }
         )
 
-    def _construct_method_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    def _get_method_node(
+        self,
+        loader: yaml.FullLoader,
+        node: yaml.MappingNode,
+        ctor: Callable[..., MethodNode] = MethodNode,
     ) -> MethodNode:
         """
         Construct a method node from a yaml node.
@@ -143,18 +163,109 @@ class DataModelBuilder:
         :return: The constructed method node.
         """
         data = loader.construct_mapping(node, deep=True)
-        method = MethodNode(
+        method = ctor(
             **{
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
-                "durable": data.get("durable", bool),
                 "parameters": [param for param in data.get("parameters", [])],
                 "returns": [ret for ret in data.get("returns", [])],
             }
         )
         return method
 
-    def _create_data_model(self, data_model_path: str) -> DataModel:
+    def _get_async_method_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> MethodNode:
+        """
+        Construct an async method node from a yaml node.
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The constructed async method node.
+        """
+        return self._get_method_node(loader, node, AsyncMethodNode)
+
+    def _get_read_variable_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> ControlFlowNode:
+        """
+        Construct a read variable node from a yaml node.
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The constructed read variable node.
+        """
+        data = loader.construct_mapping(node, deep=True)
+        return ReadVariableNode(
+            variable_node=data.get("variable", ""),
+            store_as=data.get("store_as", ""),
+        )
+
+    def _get_write_variable_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> ControlFlowNode:
+        """ "
+        Construct a write variable node from a yaml node.
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The constructed write variable node.
+        """
+        data = loader.construct_mapping(node, deep=True)
+        return WriteVariableNode(
+            variable_node=data.get("variable", ""),
+            value=data.get("value", ""),
+        )
+
+    def _get_wait_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> ControlFlowNode:
+        """
+        Construct a wait condition node from a yaml node.
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The constructed wait condition node.
+        """
+        data = loader.construct_mapping(node, deep=True)
+        return WaitConditionNode(
+            variable_node=data.get("variable", ""),
+            op=get_condition_operator(data.get("operator", "")),
+            lhs=data.get("lhs", ""),
+        )
+
+    def _get_call_method_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> ControlFlowNode:
+        """
+        Construct a call method node from a yaml node.
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The constructed call method node.
+        """
+        data = loader.construct_mapping(node, deep=True)
+        return CallMethodNode(
+            method_node=data.get("method", ""),
+            args=data.get("args", []),
+            kwargs=data.get("kwargs", {}),
+        )
+
+    def _get_composite_method_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> MethodNode:
+        """
+        Construct a composite method node from a yaml node.
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The constructed composite method node.
+        """
+        data = loader.construct_mapping(node, deep=True)
+        method = CompositeMethodNode(
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            parameters=[param for param in data.get("parameters", [])],
+            returns=[ret for ret in data.get("returns", [])],
+            cfg=ControlFlow(data.get("cfg", [])),
+        )
+        return method
+
+    def _get_data_model(self, data_model_path: str) -> DataModel:
         """ "
         Create a data model from a yaml file.
         :param data_model_path: The path to the yaml file containing the data model.
@@ -169,25 +280,49 @@ class DataModelBuilder:
     def _add_yaml_constructors(self) -> None:
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:FolderNode",
-            lambda loader, node: self._construct_folder(loader, node),
+            self._get_folder,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:NumericalVariableNode",
-            lambda loader, node: self._construct_numerical_variable(loader, node),
+            self._get_numerical_variable,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:StringVariableNode",
-            lambda loader, node: self._construct_string_variable(loader, node),
+            self._get_string_variable,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:BooleanVariableNode",
-            lambda loader, node: self._construct_boolean_variable(loader, node),
+            self._get_boolean_variable,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:ObjectVariableNode",
-            lambda loader, node: self._construct_object_variable(loader, node),
+            self._get_object_variable,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:MethodNode",
-            lambda loader, node: self._construct_method_node(loader, node),
+            self._get_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:AsyncMethodNode",
+            self._get_async_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:CompositeMethodNode",
+            self._get_composite_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:ReadVariableNode",
+            self._get_read_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:WriteVariableNode",
+            self._get_write_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:WaitConditionNode",
+            self._get_wait_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:CallMethodNode",
+            self._get_call_method_node,
         )

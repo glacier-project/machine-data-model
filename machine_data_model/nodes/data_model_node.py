@@ -1,6 +1,6 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator
+from typing import Iterator, Mapping, Sequence
 
 
 class DataModelNode(ABC):
@@ -33,6 +33,7 @@ class DataModelNode(ABC):
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str = "" if name is None else name
         self._description = "" if description is None else description
+        self.parent: DataModelNode | None = None
 
     @property
     def id(self) -> str:
@@ -44,6 +45,16 @@ class DataModelNode(ABC):
         return self._id
 
     @property
+    def qualified_name(self) -> str:
+        """
+        Gets the qualified name of the node.
+
+        :return: The qualified name of the node.
+        """
+        p_qualified_name = self.parent.qualified_name if self.parent else ""
+        return f"{p_qualified_name}/{self.name}"
+
+    @property
     def name(self) -> str:
         """
         Gets the name of the node.
@@ -51,6 +62,10 @@ class DataModelNode(ABC):
         :return: The name of the node.
         """
         return self._name
+
+    ## Git commit
+    # Introduce composite method nodes to the machine data model. Composite method nodes
+    # are used to implement the logic of a run-time method in the machine data model.
 
     @property
     def description(self) -> str:
@@ -60,6 +75,21 @@ class DataModelNode(ABC):
         :return: The description of the node.
         """
         return self._description
+
+    def set_parent(
+        self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]
+    ) -> None:
+        """
+        Set this node as the parent of the child nodes.
+
+        :param child_nodes: The child nodes to set the parent for.
+        """
+        if isinstance(child_nodes, dict):
+            child_nodes = list(child_nodes.values())
+
+        assert isinstance(child_nodes, list)
+        for child in child_nodes:
+            child.parent = self
 
     @abstractmethod
     def __getitem__(self, child_name: str) -> "DataModelNode":
