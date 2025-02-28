@@ -27,11 +27,13 @@ class MsgNamespace(str, Enum):
     :cvar NODE: Node-related messages.
     :cvar VARIABLE: Variable-related messages.
     :cvar METHOD: Method-related messages.
+    :cvar PROTOCOL: Protocol-related messages.
     """
 
     NODE = "NODE"
     VARIABLE = "VARIABLE"
     METHOD = "METHOD"
+    PROTOCOL = "PROTOCOL"
 
 
 class MsgName(str, Enum):
@@ -82,14 +84,16 @@ class MethodMsgName(MsgName):
     INVOKE = "INVOKE"
 
 
-class SpecialHeader(MsgName):
+class ProtocolMsgName(MsgName):
     """
-    Enum for special headers.
+    Enum for protocol-related message names.
 
-    :cvar INIT_HANDSHAKE: Initialization handshake.
+    :cvar REGISTER: Registers the machine to the bus.
+    :cvar UNREGISTER: Unregisters the machine to the bus.
     """
 
-    INIT_HANDSHAKE = "INIT_HANDSHAKE"
+    REGISTER = "REGISTER"
+    UNREGISTER = "UNREGISTER"
 
 
 @dataclass(init=True, slots=True)
