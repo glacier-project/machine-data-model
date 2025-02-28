@@ -6,7 +6,7 @@ from unitsnet_py.units.length import LengthUnits
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
@@ -120,7 +120,9 @@ def get_random_method_node(
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     if var_description is None:
         var_description = gen_random_string(DEFAULT_DESCRIPTION_LENGTH)
-    method_node = MethodNode(name=var_name, description=var_description)
+    method_node: MethodNode = random.choice([MethodNode, AsyncMethodNode])(
+        name=var_name, description=var_description
+    )
     parameters = get_random_nodes(
         NUM_METHOD_PARAMS,
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
