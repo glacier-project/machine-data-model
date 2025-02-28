@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -100,9 +101,44 @@ class GlacierHeader:
     :cvar version: The version of the protocol, represented as a tuple of integers (major, minor, patch).
     :cvar namespace: The namespace to which the message belongs (e.g., NODE, VARIABLE, METHOD).
     :cvar msg_name: The specific name of the message that describes its purpose or action (e.g., GET_INFO, READ).
+    :cvar timestamp: The timestamp when the message was created.
     """
 
     type: MsgType
     version: tuple[int, int, int]
     namespace: MsgNamespace
     msg_name: MsgName
+    timestamp: datetime = datetime.now(timezone.utc)
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the GlacierHeader.
+
+        The format will be:
+            Type: REQUEST, Version: 1.0.0, Namespace: VARIABLE, Message Name: READ, Timestamp: 2023-02-28T14:20:00+00:00
+        """
+        return (
+            f"Type: {self.type}, "
+            f"Version: {'.'.join(map(str, self.version))}, "
+            f"Namespace: {self.namespace}, "
+            f"Message Name: {self.msg_name}, "
+            f"Timestamp: {self.timestamp.isoformat()}"
+        )
+
+    def __repr__(self) -> str:
+        """
+        Returns an official string representation of the GlacierHeader.
+
+        The format will be:
+            GlacierHeader(type='REQUEST', version=(1, 0, 0), namespace='VARIABLE',
+                msg_name='READ',
+                timestamp=datetime.datetime(2023, 2, 28, 14, 20, 0, 123456, tzinfo=datetime.timezone.utc)
+            )
+        """
+        return (
+            f"GlacierHeader(type={self.type!r}, "
+            f"version={self.version!r}, "
+            f"namespace={self.namespace!r}, "
+            f"msg_name={self.msg_name!r}, "
+            f"timestamp={self.timestamp!r})"
+        )
