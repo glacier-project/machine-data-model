@@ -62,6 +62,8 @@ class ProtocolPayload(Payload):
     :cvar node: The node associated with the message payload (inherited).
     """
 
+    pass
+
 
 class ErrorCode(int, Enum):
     """
