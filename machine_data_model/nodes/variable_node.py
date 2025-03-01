@@ -125,6 +125,8 @@ class VariableNode(DataModelNode):
 
         :param subscriber_id: The ID of the subscriber.
         """
+        if subscriber_id not in self._subscribers:
+            return
         self._subscribers.remove(subscriber_id)
 
     def set_subscription_callback(
@@ -494,6 +496,7 @@ class ObjectVariableNode(VariableNode):
         self._properties: dict[str, VariableNode] = (
             properties if properties is not None else {}
         )
+        self.set_parent(self._properties)
         if value is not None:
             self._update_value(value)
 
@@ -504,6 +507,7 @@ class ObjectVariableNode(VariableNode):
         :param property_node: The property node to add.
         """
         self._properties[property_node.name] = property_node
+        property_node.parent = self
 
     def remove_property(self, property_name: str) -> None:
         """
@@ -511,7 +515,9 @@ class ObjectVariableNode(VariableNode):
 
         :param property_name: The name of the property to remove.
         """
+        prop = self._properties[property_name]
         del self._properties[property_name]
+        prop.parent = None
 
     def has_property(self, property_name: str) -> bool:
         """

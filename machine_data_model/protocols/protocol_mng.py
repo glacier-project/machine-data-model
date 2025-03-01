@@ -1,6 +1,12 @@
 from abc import ABC, abstractmethod
+
+from typing_extensions import Any
+
 from machine_data_model.data_model import DataModel
 from dataclasses import dataclass
+
+from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.variable_node import VariableNode
 
 
 @dataclass(init=True, slots=True)
@@ -28,6 +34,19 @@ class ProtocolMng(ABC):
         """
 
         self._data_model = data_model
+        data_model.traverse(data_model.root, self._set_variable_callback)
+
+    def _set_variable_callback(self, node: DataModelNode) -> None:
+        """
+        Set the callback function for notifying the protocol manager of variable updates.
+
+        :param node: The node to set the callback for.
+        :return: The node with the callback set.
+        """
+        if not isinstance(node, VariableNode):
+            return
+
+        node.set_subscription_callback(self._update_variable_callback)
 
     @abstractmethod
     def handle_message(self, msg: Message) -> Message:
@@ -49,7 +68,21 @@ class ProtocolMng(ABC):
         """
         return self._data_model
 
-    # This class should be responsible for parsing the msgs and calling the
-    # respective methods on the machine data model to handle the messages.
-    # Note that the protocol manager is responsible for parsing the messages and
-    # creating the correct response messages.
+    @abstractmethod
+    def _update_variable_callback(
+        self, subscriber: str, node: VariableNode, value: Any
+    ) -> None:
+        """
+        Handle the update and create the corresponding Message.
+
+        This method is called when an update to a variable occurs. It constructs
+        a `GlacierMessage` with the relevant details, including the sender,
+        target, and payload, and appends it to the list of update messages.
+        """
+        pass
+
+    @abstractmethod
+    def resume_composite_method(
+        self, subscriber: str, node: VariableNode, value: Any
+    ) -> None:
+        pass

@@ -1,3 +1,8 @@
+from collections.abc import Callable
+
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
 from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
@@ -27,7 +32,7 @@ class DataModel:
         )
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
-        self._build_nodes_map(self._root, True)
+        self._register_nodes(self._root)
 
     @property
     def name(self) -> str:
@@ -53,26 +58,53 @@ class DataModel:
     def root(self) -> FolderNode:
         return self._root
 
-    def _build_nodes_map(
-        self, node: FolderNode | ObjectVariableNode, is_root: bool = False
+    def _register_node(self, node: DataModelNode) -> None:
+        """
+        Register a node in the data model for id-based access.
+        :param node: The node to register in the data model.
+        """
+        self._nodes[node.id] = node
+
+    def _resolve_composite_method_nodes(self, node: DataModelNode) -> None:
+        if not isinstance(node, CompositeMethodNode):
+            return
+
+        for cf_node in node.cfg.nodes():
+            ref_node = self.get_node(cf_node.node)
+            assert ref_node
+            cf_node.set_ref_node(ref_node)
+        return
+
+    def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
+        """
+        Register all nodes in the data model for id-based access.
+        :param node: The node to register in the data model.
+        """
+        del self._nodes
+        self._nodes = {}
+
+        def _f_(n: DataModelNode) -> None:
+            self._register_node(n)
+            self._resolve_composite_method_nodes(n)
+
+        self.traverse(node, _f_)
+
+    def traverse(
+        self,
+        node: FolderNode | ObjectVariableNode,
+        function: Callable[[DataModelNode], None],
     ) -> None:
         """
-        Build a map of nodes by id for fast access.
-        :param node: The node to add to the map.
-        :param is_root: A flag to indicate if the node is the root node.
+        Traverse the data model and apply a function to each node.
+        :param node: The node to start the traversal from.
+        :param function: The function to apply to each node.
         """
-        if is_root:
-            del self._nodes
-            self._nodes = {}
-        self._nodes[node.id] = node
+        function(node)
         for child in node:
-            # only folder and object nodes can have children
             if isinstance(child, (FolderNode, ObjectVariableNode)):
-                self._build_nodes_map(child)
-            elif isinstance(child, VariableNode):
-                self._nodes[child.id] = child
+                self.traverse(child, function)
             else:
-                self._nodes[child.id] = child
+                function(child)
 
     def _get_node_from_path(self, path: str) -> DataModelNode | None:
         """
@@ -121,7 +153,6 @@ class DataModel:
         if not isinstance(parent_node, FolderNode):
             return False
         parent_node.add_child(child)
-        self._build_nodes_map(self._root, True)
         return True
 
     def remove_child(self, parent_id: str, child_id: str) -> bool:
@@ -132,7 +163,6 @@ class DataModel:
         if not isinstance(parent_node, FolderNode):
             return False
         parent_node.remove_child(child_id)
-        self._build_nodes_map(self._root, True)
         return True
 
     def get_node(self, node_id: str) -> DataModelNode | None:

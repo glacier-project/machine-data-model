@@ -98,4 +98,4 @@ In addition, the GitHub Actions can be tested locally with [act]
 Additional scripts are available in the `scripts` folder.
 
 **Note**: All the commits must pass a set of pre-commit checks. To manually run
-the checks, execute `poetry pre-commit run --all-files`.
+the checks, execute `poetry run pre-commit run --all-files`.
