@@ -49,7 +49,7 @@ class MethodNode(DataModelNode):
         self.set_parent(self._returns)
 
         self._callback: Callable[..., Any] = (
-            callback if callback is not None else lambda: None
+            callback if callback is not None else lambda **kwargs: None
         )
         self._pre_call: Callable[..., None] = lambda **kwargs: None
         self._post_call: Callable[..., None] = lambda res: None

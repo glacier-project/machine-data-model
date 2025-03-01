@@ -22,7 +22,7 @@ root:
       name: "n_variable1"
       description: "variable_description1"
       measure_unit: "LengthUnits.Meter"
-      value: 20
+      value: 5
     - !!NumericalVariableNode
       name: "n_variable2"
       description: "variable_description1"

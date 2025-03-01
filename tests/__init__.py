@@ -1,6 +1,7 @@
 import random
 import string
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Sequence
 
 from unitsnet_py.units.length import LengthUnits
 
@@ -125,9 +126,13 @@ def get_default_kwargs(method_node: MethodNode) -> dict:
 def get_dummy_method_node(
     var_name: str | None = None,
     var_description: str | None = None,
-    method_types: list[type] | None = None,
+    parameters: Sequence[VariableNode] | None = None,
+    returns: Sequence[VariableNode] | None = None,
+    method_types: list[Callable[..., MethodNode]] | None = None,
 ) -> MethodNode:
-    method_node = get_random_method_node(var_name, var_description, method_types)
+    method_node = get_random_method_node(
+        var_name, var_description, parameters, returns, method_types
+    )
 
     def method_callback(**kwargs: dict[str, Any]) -> tuple:
         return tuple(param.read() for param in method_node.returns)
@@ -139,30 +144,47 @@ def get_dummy_method_node(
 def get_random_method_node(
     var_name: str | None = None,
     var_description: str | None = None,
-    method_types: list[type] | None = None,
+    parameters: Sequence[VariableNode] | None = None,
+    returns: Sequence[VariableNode] | None = None,
+    method_types: list[Callable[..., MethodNode]] | None = None,
 ) -> MethodNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     if var_description is None:
         var_description = gen_random_string(DEFAULT_DESCRIPTION_LENGTH)
+    if parameters is None:
+        p = get_random_nodes(
+            NUM_METHOD_PARAMS,
+            [
+                get_random_boolean_node,
+                get_random_string_node,
+                get_random_numerical_node,
+            ],
+        )
+    else:
+        p = parameters
+    if returns is None:
+        r = get_random_nodes(
+            NUM_METHOD_RETURNS,
+            [
+                get_random_boolean_node,
+                get_random_string_node,
+                get_random_numerical_node,
+            ],
+        )
+    else:
+        r = returns
     if method_types is None:
         method_types = [MethodNode, AsyncMethodNode]
 
     method_node: MethodNode = random.choice(method_types)(
         name=var_name, description=var_description
     )
-    parameters = get_random_nodes(
-        NUM_METHOD_PARAMS,
-        [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
-    )
-    returns = get_random_nodes(
-        NUM_METHOD_RETURNS,
-        [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
-    )
-    for parameter in parameters:
+
+    for parameter in p:
         assert isinstance(parameter, VariableNode)
         method_node.add_parameter(parameter)
-    for ret in returns:
+    for ret in r:
         assert isinstance(ret, VariableNode)
         method_node.add_return_value(ret)
     return method_node
@@ -194,14 +216,14 @@ def get_random_simple_node() -> DataModelNode:
 
 def get_random_nodes(
     number: int, node_types: list | None = None
-) -> list[DataModelNode]:
+) -> Sequence[DataModelNode]:
     nodes = []
     for i in range(number):
         nodes.append(get_random_node(node_types))
     return nodes
 
 
-def get_random_simple_nodes(number: int) -> list[DataModelNode]:
+def get_random_simple_nodes(number: int) -> Sequence[DataModelNode]:
     return get_random_nodes(
         number,
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node],

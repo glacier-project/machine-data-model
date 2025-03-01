@@ -57,6 +57,14 @@ class ControlFlowNode(ABC):
         assert ref_node.name == self.node.split("/")[-1]
         self._ref_node = ref_node
 
+    def get_ref_node(self) -> DataModelNode | None:
+        """
+        Get the reference to the node in the machine data model.
+
+        :return: The reference to the node in the machine data model.
+        """
+        return self._ref_node
+
     @abstractmethod
     def execute(self, scope: ControlFlowScope) -> bool:
         """
