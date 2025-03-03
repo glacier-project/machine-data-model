@@ -22,7 +22,7 @@ class VariablePayload(GlacierPayload):
     """
     Represents the payload of a variable-related message.
 
-    This class extends Payload and includes the value associated with the
+    This class extends the base payload and includes the value associated with the
     variable message.
 
     :cvar node: The node associated with the message payload (inherited).
@@ -37,7 +37,7 @@ class MethodPayload(GlacierPayload):
     """
     Represents the payload of a method-related message.
 
-    This class extends Payload and includes arguments, keyword arguments, and
+    This class extends the base payload and includes arguments, keyword arguments, and
     return values for method invocations.
 
     :cvar node: The node associated with the message payload (inherited).
@@ -56,7 +56,7 @@ class ProtocolPayload(GlacierPayload):
     """
     Represents the payload of a protocol-related message.
 
-    This class extends Payload and includes attributes that are need to handle
+    This class extends the base payload and includes attributes that are need to handle
     protocol-related messages.
 
     :cvar node: The node associated with the message payload (inherited).
@@ -114,7 +114,7 @@ class ErrorPayload(GlacierPayload):
     """
     Represents the payload of an error message in the Glacier protocol.
 
-    This class extends Payload and includes error-related information.
+    This class extends the base payload and includes error-related information.
 
     :cvar node: The node associated with the message payload (inherited).
     :cvar error_code: The error code associated with the error message.
