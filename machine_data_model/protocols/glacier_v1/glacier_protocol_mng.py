@@ -60,7 +60,7 @@ def _invalid_request(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating an invalid request.
 
-    :param payload: The `Payload` object that contains the node information.
+    :param payload: The payload that contains the node information.
 
     :return: An `ErrorPayload` containing the error details.
     """
@@ -75,7 +75,7 @@ def _error_invalid_namespace(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating an invalid namespace.
 
-    :param payload: The `Payload` object that contains the node information.
+    :param payload: The payload that contains the node information.
 
     :return: An `ErrorPayload` containing the error details.
     """
@@ -90,7 +90,7 @@ def _error_not_found(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the node was not found.
 
-    :param payload: The `Payload` object that contains the node information.
+    :param payload: The payload that contains the node information.
 
     :return: An `ErrorPayload` containing the error details.
     """
@@ -105,7 +105,7 @@ def _error_not_supported(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the operation is not supported.
 
-    :param payload: The `Payload` object that contains the node information.
+    :param payload: The payload that contains the node information.
 
     :return: An `ErrorPayload` containing the error details.
     """
@@ -120,7 +120,7 @@ def _error_bad_request(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating a bad request.
 
-    :param payload: The `Payload` object that contains the node information.
+    :param payload: The payload that contains the node information.
 
     :return: An `ErrorPayload` containing the error details.
     """
@@ -135,7 +135,7 @@ def _error_not_allowed(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the operation is not allowed.
 
-    :param payload: The `Payload` object that contains the node information.
+    :param payload: The payload that contains the node information.
 
     :return: An `ErrorPayload` containing the error details.
     """
@@ -150,7 +150,7 @@ def _error_version_not_supported(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the requested version is not supported.
 
-    :param payload: The `Payload` object that contains the node information.
+    :param payload: The payload that contains the node information.
 
     :return: An `ErrorPayload` containing the error details.
     """
