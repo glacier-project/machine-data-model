@@ -31,6 +31,7 @@ class FolderNode(DataModelNode):
         """
         super().__init__(id=id, name=name, description=description)
         self._children = {} if children is None else children
+        self.set_parent(self._children)
 
     @property
     def children(self) -> dict[str, DataModelNode]:
@@ -49,6 +50,7 @@ class FolderNode(DataModelNode):
         """
         assert isinstance(child, DataModelNode)
         self._children[child.name] = child
+        child.parent = self
 
     def remove_child(self, child_name: str) -> None:
         """
@@ -57,7 +59,9 @@ class FolderNode(DataModelNode):
         :param child_name: The name of the child node to remove from the folder.
         """
         if child_name in self._children:
+            child = self._children[child_name]
             del self._children[child_name]
+            child.parent = None
         else:
             raise ValueError(
                 f"Child node with name '{child_name}' not found in folder '{self.name}'"

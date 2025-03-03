@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any, Dict, Iterator
+from typing import Any, Iterator
 
 from typing_extensions import override
 
@@ -9,11 +9,10 @@ from machine_data_model.nodes.variable_node import VariableNode
 
 class MethodNode(DataModelNode):
     """
-    A MethodNode class is a node that represents a method in the machine data model.
+    A MethodNode class is a node that represents a synchronous method in the machine data model.
     Methods of the machine data model are used to declare functions that can be executed
     on the machine data model.
 
-    :ivar _durable: Indicates if the method is durable.
     :ivar _parameters: A list of parameters for the method.
     :ivar _returns: A list of return values for the method.
     :ivar _callback: The function to execute when the method is called.
@@ -26,7 +25,6 @@ class MethodNode(DataModelNode):
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
-        durable: bool | None = None,
         parameters: list[VariableNode] | None = None,
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
@@ -37,30 +35,24 @@ class MethodNode(DataModelNode):
         :param id: The unique identifier of the method.
         :param name: The name of the method.
         :param description: The description of the method.
-        :param durable: A flag indicating if the method is durable.
         :param parameters: A list of parameters for the method.
         :param returns: A list of return values for the method.
         :param callback: The function to execute when the method is called.
         """
         super().__init__(id=id, name=name, description=description)
-        self._durable: bool = durable if isinstance(durable, bool) else False
         self._parameters: list[VariableNode] = (
             parameters if parameters is not None else []
         )
         self._returns: list[VariableNode] = returns if returns is not None else []
+
+        self.set_parent(self._parameters)
+        self.set_parent(self._returns)
+
         self._callback: Callable[..., Any] = (
-            callback if callback is not None else lambda: None
+            callback if callback is not None else lambda **kwargs: None
         )
         self._pre_call: Callable[..., None] = lambda **kwargs: None
         self._post_call: Callable[..., None] = lambda res: None
-
-    def is_durable(self) -> bool:
-        """
-        Returns whether the method is durable.
-
-        :return: True if the method is durable, False otherwise.
-        """
-        return self._durable
 
     @property
     def parameters(self) -> list[VariableNode]:
@@ -78,6 +70,7 @@ class MethodNode(DataModelNode):
         :param parameter: The parameter to add to the method.
         """
         self._parameters.append(parameter)
+        parameter.parent = self
 
     def remove_parameter(self, parameter: VariableNode) -> None:
         """
@@ -88,6 +81,7 @@ class MethodNode(DataModelNode):
         if parameter not in self._parameters:
             raise ValueError(f"Parameter '{parameter}' not found in method '{self.id}'")
         self._parameters.remove(parameter)
+        parameter.parent = None
 
     @property
     def returns(self) -> list[VariableNode]:
@@ -105,6 +99,7 @@ class MethodNode(DataModelNode):
         :param return_value: The return value to add to the method.
         """
         self._returns.append(return_value)
+        return_value.parent = self
 
     def remove_return_value(self, return_value: VariableNode) -> None:
         """
@@ -117,6 +112,7 @@ class MethodNode(DataModelNode):
                 f"Return value '{return_value}' not found in method '{self.id}'"
             )
         self._returns.remove(return_value)
+        return_value.parent = None
 
     @property
     def callback(self) -> Callable:
@@ -172,6 +168,14 @@ class MethodNode(DataModelNode):
         """
         self._post_call = callback
 
+    def is_async(self) -> bool:
+        """
+        Returns always False for synchronous methods.
+
+        :return: False
+        """
+        return False
+
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
@@ -216,7 +220,7 @@ class MethodNode(DataModelNode):
         yield from self._parameters
         yield from self._returns
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Dict:
+    def __call__(self, *args: list[Any], **kwargs: dict[str, Any]) -> dict[str, Any]:
         """
         Call the method with the specified arguments.
 
@@ -227,29 +231,41 @@ class MethodNode(DataModelNode):
         if self._callback is None:
             raise ValueError(f"Method '{self.id}' has no callback function")
 
+        kwargs = self._resolve_arguments(*args, **kwargs)
+
+        self._pre_call(**kwargs)
+        ret_c = self._callback(**kwargs)
+        ret = self._build_return_dict(ret_c)
+
+        self._post_call(ret)
+
+        return ret
+
+    def _resolve_arguments(
+        self, *args: list[Any], **kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
         kwargs = {**kwargs}
 
         for parameter in self._parameters:
             if parameter.name in kwargs:
                 continue
             # add the first args to the kwargs
+            param_value: Any
             if args:
                 param_value = args[0]
                 args = args[1:]
             else:
-                param_value = parameter._read_value()
+                param_value = parameter.read()
             kwargs[parameter.name] = param_value
+        return kwargs
 
-        self._pre_call(**kwargs)
-        result = {}
-        res = self._callback(**kwargs)
-        res = res if isinstance(res, tuple) else (res,)
-        for index, return_value in enumerate(res):
-            result[self._returns[index].name] = return_value
-        assert len(result) == len(self._returns)
-        self._post_call(result)
-
-        return result
+    def _build_return_dict(self, ret: Any) -> dict[str, Any]:
+        ret_dict = {}
+        ret = ret if isinstance(ret, tuple) else (ret,)
+        for index, return_value in enumerate(ret):
+            ret_dict[self._returns[index].name] = return_value
+        assert len(ret_dict) == len(self._returns)
+        return ret_dict
 
     def __str__(self) -> str:
         """
@@ -262,7 +278,6 @@ class MethodNode(DataModelNode):
             f"id={self.id}, "
             f"name={self.name}, "
             f"description={self.description})"
-            f"durable={self._durable}"
         )
 
     def __repr__(self) -> str:
@@ -272,3 +287,58 @@ class MethodNode(DataModelNode):
         :return: The string representation of the MethodNode (same as `__str__`).
         """
         return self.__str__()
+
+
+class AsyncMethodNode(MethodNode):
+    """
+    An AsyncMethodNode class is a node that represents an asynchronous method in the
+    machine data model. Asynchronous methods of the machine data model are used to
+    declare functions whose return values are not immediately available. Instead,
+    the result is obtained asynchronously, typically through variable monitoring or
+    event-based mechanisms.
+
+    :ivar _parameters: A list of parameters for the method.
+    :ivar _returns: A list of return values for the method.
+    :ivar _callback: The function to execute when the method is called.
+    :ivar _pre_call: The function to run before the method is called.
+    :ivar _post_call: The function to run after the method is called.
+    """
+
+    def __init__(
+        self,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        parameters: list[VariableNode] | None = None,
+        returns: list[VariableNode] | None = None,
+        callback: Callable[..., Any] | None = None,
+    ):
+        """
+        Initialize a new AsyncMethodNode instance.
+
+        :param id: The unique identifier of the method.
+        :param name: The name of the method.
+        :param description: The description of the method.
+        :param parameters: A list of parameters for the method.
+        :param returns: A list of return values for the method.
+        :param callback: The function to execute when the method is called.
+        """
+        super().__init__(
+            id=id,
+            name=name,
+            description=description,
+            parameters=parameters,
+            returns=returns,
+            callback=callback,
+        )
+
+    def is_async(self) -> bool:
+        """
+        Returns always True for asynchronous methods.
+
+        :return: True
+        """
+        return True
+
+    def __str__(self) -> str:
+        return f"AsyncMethodNode(id={self.id}, name={self.name}, description={self.description})"

@@ -22,7 +22,12 @@ root:
       name: "n_variable1"
       description: "variable_description1"
       measure_unit: "LengthUnits.Meter"
-      value: 20
+      value: 5
+    - !!NumericalVariableNode
+      name: "n_variable2"
+      description: "variable_description1"
+      measure_unit: "LengthUnits.Meter"
+      value: 30
     - !!FolderNode
       name: "folder2"
       description: "folder_description2"
@@ -46,6 +51,64 @@ root:
               description: "variable_description7"
               measure_unit: "LengthUnits.Meter"
               value: 50 # remove?
+        - !!AsyncMethodNode
+          name: "async_method1"
+          description: "method_description1"
+          durable: false
+          parameters:
+            - !!StringVariableNode
+              name: "s_variable8"
+              description: "variable_description5"
+              value: "variable_value5" # update to default value?
+            - !!BooleanVariableNode
+              name: "b_variable9"
+              description: "variable_description6"
+              value: false # update to default value?
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable10"
+              description: "variable_description7"
+              measure_unit: "LengthUnits.Meter"
+              value: 50 # remove?
+        - !!CompositeMethodNode
+          name: "composite_method1"
+          description: "method_description1"
+          durable: false
+          parameters:
+            - !!StringVariableNode
+              name: "s_variable11"
+              description: "variable_description5"
+              value: "variable_value5" # update to default value?
+            - !!BooleanVariableNode
+              name: "b_variable12"
+              description: "variable_description6"
+              value: false # update to default value?
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable13"
+              description: "variable_description7"
+              measure_unit: "LengthUnits.Meter"
+              value: 50 # remove?
+          cfg:
+            - !!ReadVariableNode
+              variable: "folder1/n_variable1"
+              store_as: "my_var"
+            - !!WriteVariableNode
+              variable: "folder1/n_variable2"
+              value: "$my_var"
+            - !!ReadVariableNode
+              variable: "folder1/n_variable2"
+              store_as: "n_variable13"
+            - !!CallMethodNode
+              method: "folder1/folder2/async_method1"
+              args:
+                - false
+              kwargs:
+                s_variable8: "variable_value5"
+            - !!WaitConditionNode
+              variable: "folder1/n_variable2"
+              operator: ">"
+              rhs: 10
     - !!ObjectVariableNode
       name: "o_variable2"
       description: "variable_description2"

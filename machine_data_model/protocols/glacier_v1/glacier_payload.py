@@ -4,7 +4,7 @@ from enum import Enum
 
 
 @dataclass(init=True, slots=True)
-class Payload:
+class GlacierPayload:
     """
     Abstract base class for the payload of a message in the Glacier protocol.
 
@@ -18,7 +18,7 @@ class Payload:
 
 
 @dataclass(init=True, slots=True)
-class VariablePayload(Payload):
+class VariablePayload(GlacierPayload):
     """
     Represents the payload of a variable-related message.
 
@@ -33,7 +33,7 @@ class VariablePayload(Payload):
 
 
 @dataclass(init=True, slots=True)
-class MethodPayload(Payload):
+class MethodPayload(GlacierPayload):
     """
     Represents the payload of a method-related message.
 
@@ -52,7 +52,7 @@ class MethodPayload(Payload):
 
 
 @dataclass(init=True, slots=True)
-class ProtocolPayload(Payload):
+class ProtocolPayload(GlacierPayload):
     """
     Represents the payload of a protocol-related message.
 
@@ -110,7 +110,7 @@ class ErrorMessages(str, Enum):
 
 
 @dataclass(init=True, slots=True)
-class ErrorPayload(Payload):
+class ErrorPayload(GlacierPayload):
     """
     Represents the payload of an error message in the Glacier protocol.
 

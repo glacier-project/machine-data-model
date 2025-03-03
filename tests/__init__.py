@@ -1,12 +1,14 @@
 import random
 import string
+from collections.abc import Callable
+from typing import Any, Sequence
 
 from unitsnet_py.units.length import LengthUnits
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
@@ -113,26 +115,76 @@ def get_random_folder_node(
     return folder_node
 
 
+def get_default_args(method_node: MethodNode) -> tuple:
+    return tuple(param.read() for param in method_node.parameters)
+
+
+def get_default_kwargs(method_node: MethodNode) -> dict:
+    return {param.name: param.read() for param in method_node.parameters}
+
+
+def get_dummy_method_node(
+    var_name: str | None = None,
+    var_description: str | None = None,
+    parameters: Sequence[VariableNode] | None = None,
+    returns: Sequence[VariableNode] | None = None,
+    method_types: list[Callable[..., MethodNode]] | None = None,
+) -> MethodNode:
+    method_node = get_random_method_node(
+        var_name, var_description, parameters, returns, method_types
+    )
+
+    def method_callback(**kwargs: dict[str, Any]) -> tuple:
+        return tuple(param.read() for param in method_node.returns)
+
+    method_node.callback = method_callback
+    return method_node
+
+
 def get_random_method_node(
-    var_name: str | None = None, var_description: str | None = None
+    var_name: str | None = None,
+    var_description: str | None = None,
+    parameters: Sequence[VariableNode] | None = None,
+    returns: Sequence[VariableNode] | None = None,
+    method_types: list[Callable[..., MethodNode]] | None = None,
 ) -> MethodNode:
     if var_name is None:
         var_name = gen_random_string(DEFAULT_NAME_LENGTH)
     if var_description is None:
         var_description = gen_random_string(DEFAULT_DESCRIPTION_LENGTH)
-    method_node = MethodNode(name=var_name, description=var_description)
-    parameters = get_random_nodes(
-        NUM_METHOD_PARAMS,
-        [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
+    if parameters is None:
+        p = get_random_nodes(
+            NUM_METHOD_PARAMS,
+            [
+                get_random_boolean_node,
+                get_random_string_node,
+                get_random_numerical_node,
+            ],
+        )
+    else:
+        p = parameters
+    if returns is None:
+        r = get_random_nodes(
+            NUM_METHOD_RETURNS,
+            [
+                get_random_boolean_node,
+                get_random_string_node,
+                get_random_numerical_node,
+            ],
+        )
+    else:
+        r = returns
+    if method_types is None:
+        method_types = [MethodNode, AsyncMethodNode]
+
+    method_node: MethodNode = random.choice(method_types)(
+        name=var_name, description=var_description
     )
-    returns = get_random_nodes(
-        NUM_METHOD_RETURNS,
-        [get_random_boolean_node, get_random_string_node, get_random_numerical_node],
-    )
-    for parameter in parameters:
+
+    for parameter in p:
         assert isinstance(parameter, VariableNode)
         method_node.add_parameter(parameter)
-    for ret in returns:
+    for ret in r:
         assert isinstance(ret, VariableNode)
         method_node.add_return_value(ret)
     return method_node
@@ -164,14 +216,14 @@ def get_random_simple_node() -> DataModelNode:
 
 def get_random_nodes(
     number: int, node_types: list | None = None
-) -> list[DataModelNode]:
+) -> Sequence[DataModelNode]:
     nodes = []
     for i in range(number):
         nodes.append(get_random_node(node_types))
     return nodes
 
 
-def get_random_simple_nodes(number: int) -> list[DataModelNode]:
+def get_random_simple_nodes(number: int) -> Sequence[DataModelNode]:
     return get_random_nodes(
         number,
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node],

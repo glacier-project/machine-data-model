@@ -82,6 +82,8 @@ class MethodMsgName(MsgName):
     """
 
     INVOKE = "INVOKE"
+    STARTED = "STARTED"
+    COMPLETED = "COMPLETED"
 
 
 class ProtocolMsgName(MsgName):

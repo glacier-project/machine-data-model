@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from machine_data_model.data_model import DataModel
 from machine_data_model.builder.data_model_builder import DataModelBuilder
+from machine_data_model.nodes.composite_method.composite_method_node import SCOPE_ID
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import (
@@ -183,6 +184,36 @@ class TestGlacierProtocolMng:
         assert isinstance(response.payload, MethodPayload)
         assert len(response.payload.ret) == 1
         assert response.payload.ret["out_var"] == param_value
+
+    def test_handle_composite_msg_request(
+        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+    ) -> None:
+        wait_node = manager.get_data_model().get_node("/folder1/n_variable2")
+        msg = GlacierMessage(
+            sender=sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            header=GlacierHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE,
+            ),
+            payload=MethodPayload(node="/folder1/folder2/composite_method1"),
+        )
+
+        response = manager.handle_message(msg)
+
+        assert isinstance(response, GlacierMessage)
+        assert isinstance(response.payload, MethodPayload)
+        assert SCOPE_ID in response.payload.ret
+        assert isinstance(wait_node, VariableNode)
+        assert not manager.get_update_messages()
+
+        # update the waiting variable
+        wait_node.update(30)
+
+        assert manager.get_update_messages()
 
     def test_handle_protocol_register(
         self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str

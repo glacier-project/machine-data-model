@@ -2,6 +2,10 @@ from typing import Callable, Any, List
 from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    SCOPE_ID,
+    CompositeMethodNode,
+)
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.glacier_v1.glacier_header import (
@@ -15,7 +19,7 @@ from machine_data_model.protocols.glacier_v1.glacier_payload import (
     ErrorPayload,
     ErrorMessages,
     ErrorCode,
-    Payload,
+    GlacierPayload,
     MethodPayload,
     VariablePayload,
     ProtocolPayload,
@@ -28,7 +32,9 @@ import uuid
 
 def _create_response_msg(
     msg: GlacierMessage,
-    payload_func: Callable[[Payload], Payload] = (lambda payload: payload),
+    payload_func: Callable[[GlacierPayload], GlacierPayload] = (
+        lambda payload: payload
+    ),
 ) -> GlacierMessage:
     """
     Creates a response message based on an incoming `GlacierMessage`.
@@ -50,7 +56,7 @@ def _create_response_msg(
     )
 
 
-def _invalid_request(payload: Payload) -> ErrorPayload:
+def _invalid_request(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating an invalid request.
 
@@ -65,7 +71,7 @@ def _invalid_request(payload: Payload) -> ErrorPayload:
     )
 
 
-def _error_invalid_namespace(payload: Payload) -> ErrorPayload:
+def _error_invalid_namespace(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating an invalid namespace.
 
@@ -80,7 +86,7 @@ def _error_invalid_namespace(payload: Payload) -> ErrorPayload:
     )
 
 
-def _error_not_found(payload: Payload) -> ErrorPayload:
+def _error_not_found(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the node was not found.
 
@@ -95,7 +101,7 @@ def _error_not_found(payload: Payload) -> ErrorPayload:
     )
 
 
-def _error_not_supported(payload: Payload) -> ErrorPayload:
+def _error_not_supported(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the operation is not supported.
 
@@ -110,7 +116,7 @@ def _error_not_supported(payload: Payload) -> ErrorPayload:
     )
 
 
-def _error_bad_request(payload: Payload) -> ErrorPayload:
+def _error_bad_request(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating a bad request.
 
@@ -125,7 +131,7 @@ def _error_bad_request(payload: Payload) -> ErrorPayload:
     )
 
 
-def _error_not_allowed(payload: Payload) -> ErrorPayload:
+def _error_not_allowed(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the operation is not allowed.
 
@@ -140,7 +146,7 @@ def _error_not_allowed(payload: Payload) -> ErrorPayload:
     )
 
 
-def _error_version_not_supported(payload: Payload) -> ErrorPayload:
+def _error_version_not_supported(payload: GlacierPayload) -> ErrorPayload:
     """
     Creates an error response indicating that the requested version is not supported.
 
@@ -178,7 +184,13 @@ class GlacierProtocolMng(ProtocolMng):
 
         super().__init__(data_model)
         self._update_messages: List[GlacierMessage] = []
+        self._running_methods: dict[
+            str, tuple[CompositeMethodNode, GlacierMessage]
+        ] = {}
         self._protocol_version = (1, 0, 0)
+
+        # # Set the subscription callback to handle updates and send messages.
+        # variable_node.set_subscription_callback(self._update_variable_callback)
 
     @override
     def handle_message(self, msg: Message) -> Message:
@@ -251,11 +263,43 @@ class GlacierProtocolMng(ProtocolMng):
             return _create_response_msg(msg, _error_bad_request)
 
         if msg.header.msg_name == MethodMsgName.INVOKE:
-            result = method_node(*msg.payload.args, **msg.payload.kwargs)
-            msg.payload.ret = result
-            return _create_response_msg(msg)
+            return self._invoke_method(
+                msg, method_node, msg.payload.args, msg.payload.kwargs
+            )
 
         return _create_response_msg(msg, _error_not_supported)
+
+    def _invoke_method(
+        self,
+        msg: GlacierMessage,
+        method_node: MethodNode,
+        args: list[Any],
+        kwargs: dict[str, Any],
+    ) -> GlacierMessage:
+        """
+        Invokes the provided method node with the specified arguments.
+
+        :param msg: The message to be handled.
+        :param method_node: The method node to be invoked.
+        :param args: The positional arguments of the method.
+        :param kwargs: The keyword arguments of the method.
+        :return: The return value of the method invocation.
+        """
+
+        ret = method_node(*args, **kwargs)
+        if SCOPE_ID in ret:
+            scope_id = ret[SCOPE_ID]
+            assert isinstance(scope_id, str)
+            assert isinstance(method_node, CompositeMethodNode)
+            self._running_methods[scope_id] = (method_node, msg)
+            # here we should return the accepted message
+            msg.header.msg_name = MethodMsgName.STARTED
+        else:
+            msg.header.msg_name = MethodMsgName.COMPLETED
+
+        assert isinstance(msg.payload, MethodPayload)
+        msg.payload.ret = ret
+        return _create_response_msg(msg)
 
     def _handle_variable_message(
         self, msg: GlacierMessage, variable_node: VariableNode
@@ -284,8 +328,6 @@ class GlacierProtocolMng(ProtocolMng):
         if msg.header.msg_name == VariableMsgName.SUBSCRIBE:
             # Add the sender as a subscriber to the variable node.
             variable_node.subscribe(msg.sender)
-            # Set the subscription callback to handle updates and send messages.
-            variable_node.set_subscription_callback(self._add_update_message_callback)
             # Return a response message confirming the subscription.
             return _create_response_msg(msg)
         if msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
@@ -351,7 +393,25 @@ class GlacierProtocolMng(ProtocolMng):
         """
         self._update_messages.clear()
 
-    def _add_update_message_callback(
+    def resume_composite_method(
+        self, subscriber: str, node: VariableNode, value: Any
+    ) -> None:
+        scope_id = subscriber
+        cm, msg = self._running_methods[scope_id]
+        ret = cm.resume_execution(scope_id)
+        if not cm.is_terminated(scope_id):
+            return
+
+        # append response message
+        cm.delete_scope(scope_id)
+        del self._running_methods[scope_id]
+        # append response message
+        msg.header.msg_name = MethodMsgName.COMPLETED
+        assert isinstance(msg.payload, MethodPayload)
+        msg.payload.ret = ret
+        self._update_messages.append(_create_response_msg(msg))
+
+    def _update_variable_callback(
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
         """
@@ -361,7 +421,11 @@ class GlacierProtocolMng(ProtocolMng):
         a `GlacierMessage` with the relevant details, including the sender,
         target, and payload, and appends it to the list of update messages.
         """
-        # Construct GlacierMessage.
+
+        if subscriber in self._running_methods:
+            return self.resume_composite_method(subscriber, node, value)
+
+        # append update message
         self._update_messages.append(
             GlacierMessage(
                 sender=self._data_model.name,
