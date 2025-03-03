@@ -117,21 +117,24 @@ class GlacierHeader:
     timestamp: datetime = datetime.now(timezone.utc)
 
     def matches(
-        self, _type: MsgType, _namespace: MsgNamespace, _msg_name: MsgName
+        self,
+        _type: MsgType = None,
+        _namespace: MsgNamespace = None,
+        _msg_name: MsgName = None,
     ) -> bool:
         """
         Checks if the header matches the given type, namespace, and message name.
 
-        :param _type: The expected message type (e.g., REQUEST, RESPONSE).
-        :param _namespace: The expected namespace (e.g., VARIABLE, METHOD, PROTOCOL).
-        :param _msg_name: The expected message name (e.g., REGISTER, READ, WRITE).
-        :return: True if the header matches the given parameters, False otherwise.
+        :param _type: The expected message type (e.g., REQUEST, RESPONSE). If None, it is ignored.
+        :param _namespace: The expected namespace (e.g., VARIABLE, METHOD, PROTOCOL). If None, it is ignored.
+        :param _msg_name: The expected message name (e.g., REGISTER, READ, WRITE). If None, it is ignored.
+        :return: True if the header matches all provided parameters, False otherwise.
         """
 
         return (
-            self.type == _type
-            and self.namespace == _namespace
-            and self.msg_name == _msg_name
+            (_type is None or self.type == _type)
+            and (_namespace is None or self.namespace == _namespace)
+            and (_msg_name is None or self.msg_name == _msg_name)
         )
 
     def __str__(self) -> str:
