@@ -27,11 +27,13 @@ class MsgNamespace(str, Enum):
     :cvar NODE: Node-related messages.
     :cvar VARIABLE: Variable-related messages.
     :cvar METHOD: Method-related messages.
+    :cvar PROTOCOL: Protocol-related messages.
     """
 
     NODE = "NODE"
     VARIABLE = "VARIABLE"
     METHOD = "METHOD"
+    PROTOCOL = "PROTOCOL"
 
 
 class MsgName(str, Enum):
@@ -84,14 +86,16 @@ class MethodMsgName(MsgName):
     COMPLETED = "COMPLETED"
 
 
-class SpecialHeader(MsgName):
+class ProtocolMsgName(MsgName):
     """
-    Enum for special headers.
+    Enum for protocol-related message names.
 
-    :cvar INIT_HANDSHAKE: Initialization handshake.
+    :cvar REGISTER: Registers the machine to the bus.
+    :cvar UNREGISTER: Unregisters the machine to the bus.
     """
 
-    INIT_HANDSHAKE = "INIT_HANDSHAKE"
+    REGISTER = "REGISTER"
+    UNREGISTER = "UNREGISTER"
 
 
 @dataclass(init=True, slots=True)
@@ -111,6 +115,24 @@ class GlacierHeader:
     namespace: MsgNamespace
     msg_name: MsgName
     timestamp: datetime = datetime.now(timezone.utc)
+
+    def matches(
+        self, _type: MsgType, _namespace: MsgNamespace, _msg_name: MsgName
+    ) -> bool:
+        """
+        Checks if the header matches the given type, namespace, and message name.
+
+        :param _type: The expected message type (e.g., REQUEST, RESPONSE).
+        :param _namespace: The expected namespace (e.g., VARIABLE, METHOD, PROTOCOL).
+        :param _msg_name: The expected message name (e.g., REGISTER, READ, WRITE).
+        :return: True if the header matches the given parameters, False otherwise.
+        """
+
+        return (
+            self.type == _type
+            and self.namespace == _namespace
+            and self.msg_name == _msg_name
+        )
 
     def __str__(self) -> str:
         """
