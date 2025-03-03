@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Optional
 
 
 class MsgType(str, Enum):
@@ -118,9 +119,9 @@ class GlacierHeader:
 
     def matches(
         self,
-        _type: MsgType = None,
-        _namespace: MsgNamespace = None,
-        _msg_name: MsgName = None,
+        _type: Optional[MsgType] = None,
+        _namespace: Optional[MsgNamespace] = None,
+        _msg_name: Optional[MsgName] = None,
     ) -> bool:
         """
         Checks if the header matches the given type, namespace, and message name.
