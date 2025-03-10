@@ -322,7 +322,7 @@ class GlacierProtocolMng(ProtocolMng):
             msg.payload.value = value
             return _create_response_msg(msg)
         if msg.header.msg_name == VariableMsgName.WRITE:
-            if variable_node.update(msg.payload.value):
+            if variable_node.write(msg.payload.value):
                 return _create_response_msg(msg)
             return _create_response_msg(msg, _error_not_allowed)
         if msg.header.msg_name == VariableMsgName.SUBSCRIBE:

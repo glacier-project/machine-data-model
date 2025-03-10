@@ -42,5 +42,5 @@ class WriteVariableNode(ControlFlowNode):
         """
         assert isinstance(self._ref_node, VariableNode)
         value = resolve_value(self._value, scope)
-        self._ref_node.update(value)
+        self._ref_node.write(value)
         return True

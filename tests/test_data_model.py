@@ -139,7 +139,7 @@ class TestDataModel:
         child.set_subscription_callback(update_message_callback)
         # Perform an update on the child node, triggering the deferred notify
         # mechanism.
-        child.update("Perfect!")
+        child.write("Perfect!")
         # Assert that the child node has subscribers.
         assert child.has_subscribers()
         # Assert that the changes list contains the expected value.

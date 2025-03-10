@@ -65,7 +65,7 @@ class ControlFlowScope:
 
     def set_pc(self, pc: int) -> None:
         """
-        Update the program counter of the scope.
+        Write the program counter of the scope.
 
         :param pc: The new program counter of the scope.
         """
