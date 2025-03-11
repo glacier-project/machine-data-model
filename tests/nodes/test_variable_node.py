@@ -166,3 +166,25 @@ class TestVariableNode:
         assert not obj_var.has_property("b")
         assert obj_var.has_property("a")
         assert obj_var.get_property("a") == num_var
+
+    def test_object_variable_node_subscribe(
+        self, var_name: str, var_description: str
+    ) -> None:
+        str_prop = StringVariableNode(name="b", description="b", value="c")
+        obj_var = ObjectVariableNode(
+            name=var_name, description=var_description, properties={"b": str_prop}
+        )
+
+        num_var = NumericalVariableNode(
+            name="a", description="b", value=-1, measure_unit=LengthUnits.Meter
+        )
+        obj_var.add_property(num_var)
+
+        subscriber = "test"
+        obj_var.subscribe(subscriber)
+        num_var.update(10)
+
+        assert obj_var.name == var_name
+        assert obj_var.description == var_description
+        assert obj_var.has_property("a")
+        assert obj_var.value["a"] == 10

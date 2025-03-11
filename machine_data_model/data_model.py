@@ -103,7 +103,10 @@ class DataModel:
         """
         function(node)
         for child in node:
-            if isinstance(child, (FolderNode, ObjectVariableNode)):
+            if isinstance(child, FolderNode):
+                self.traverse(child, function)
+            elif isinstance(child, ObjectVariableNode):
+                function(child)
                 self.traverse(child, function)
             else:
                 function(child)

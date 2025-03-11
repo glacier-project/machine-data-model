@@ -14,6 +14,7 @@ from machine_data_model.nodes.variable_node import (
     StringVariableNode,
     BooleanVariableNode,
     VariableNode,
+    ObjectVariableNode,
 )
 from machine_data_model.protocols.glacier_v1.glacier_protocol_mng import (
     GlacierProtocolMng,
@@ -134,6 +135,39 @@ class TestGlacierProtocolMng:
         assert response.payload.value == manager.get_data_model().read_variable(
             var_name
         )
+
+    def test_handle_variable_subscribe(
+        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+    ) -> None:
+        var_name = "folder1/o_variable2"
+        node = manager.get_data_model().get_node(var_name)
+        assert isinstance(node, ObjectVariableNode)
+        value = get_value(node)
+        msg = GlacierMessage(
+            sender=sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            header=GlacierHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE,
+            ),
+            payload=VariablePayload(node=var_name, value=value),
+        )
+        manager.handle_message(msg)
+        node["s_variable3"].update("Hello")
+        node["s_variable4"].update("Confirm")
+        update_messages = manager.get_update_messages()
+        assert isinstance(update_messages, list)
+        update = update_messages.pop(0)
+        assert isinstance(update.payload, VariablePayload)
+        assert isinstance(update.payload.value, dict)
+        assert update.payload.value["s_variable3"] == "Hello"
+        update = update_messages.pop(0)
+        assert isinstance(update.payload, VariablePayload)
+        assert isinstance(update.payload.value, dict)
+        assert update.payload.value["s_variable4"] == "Confirm"
 
     def test_handle_method_call_request(
         self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
