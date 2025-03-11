@@ -37,6 +37,12 @@ class CallMethodNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: Returns always True.
         """
+        if (
+            not isinstance(self._ref_node, AsyncMethodNode)
+            and self.resolve_callback is not None
+        ):
+            node_path = resolve_value(self.node, scope)
+            self._ref_node = self.resolve_callback(node_path)
         assert isinstance(self._ref_node, AsyncMethodNode)
         method = self._ref_node
         # resolve variables in the scope

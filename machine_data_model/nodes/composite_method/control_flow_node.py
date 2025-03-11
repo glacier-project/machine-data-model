@@ -1,6 +1,6 @@
 from typing import Any
 from abc import ABC, abstractmethod
-
+from collections.abc import Callable
 from machine_data_model.nodes.composite_method.control_flow_scope import (
     ControlFlowScope,
 )
@@ -39,6 +39,7 @@ class ControlFlowNode(ABC):
         self.node = node
         self._ref_node: DataModelNode | None = None
         self._successors = [] if successors is None else successors
+        self.resolve_callback: Callable[[str], DataModelNode | None] | None = None
 
     def get_successors(self) -> list["ControlFlowNode"]:
         """

@@ -18,6 +18,10 @@ root:
   name: "folder1"
   description: "folder_description1"
   children:
+    - !!BooleanVariableNode
+      name: "boolean"
+      description: ""
+      value: False
     - !!NumericalVariableNode
       name: "n_variable1"
       description: "variable_description1"
@@ -35,7 +39,6 @@ root:
         - !!MethodNode
           name: "method1"
           description: "method_description1"
-          durable: false
           parameters:
             - !!StringVariableNode
               name: "s_variable5"
@@ -44,7 +47,7 @@ root:
             - !!BooleanVariableNode
               name: "b_variable6"
               description: "variable_description6"
-              value: false # update to default value?
+              value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable7"
@@ -54,7 +57,6 @@ root:
         - !!AsyncMethodNode
           name: "async_method1"
           description: "method_description1"
-          durable: false
           parameters:
             - !!StringVariableNode
               name: "s_variable8"
@@ -63,7 +65,7 @@ root:
             - !!BooleanVariableNode
               name: "b_variable9"
               description: "variable_description6"
-              value: false # update to default value?
+              value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable10"
@@ -73,7 +75,6 @@ root:
         - !!CompositeMethodNode
           name: "composite_method1"
           description: "method_description1"
-          durable: false
           parameters:
             - !!StringVariableNode
               name: "s_variable11"
@@ -82,7 +83,7 @@ root:
             - !!BooleanVariableNode
               name: "b_variable12"
               description: "variable_description6"
-              value: false # update to default value?
+              value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable13"
@@ -102,13 +103,38 @@ root:
             - !!CallMethodNode
               method: "folder1/folder2/async_method1"
               args:
-                - false
+                - False
               kwargs:
                 s_variable8: "variable_value5"
             - !!WaitConditionNode
               variable: "folder1/n_variable2"
               operator: ">"
               rhs: 10
+        - !!CompositeMethodNode
+          name: "comp_test"
+          description: "method"
+          parameters:
+            - !!BooleanVariableNode
+              name: "var_in"
+              description: "variable_description6"
+              value: True # update to default value?
+            - !!StringVariableNode
+              name: "node_path"
+              description: ""
+              value: "default"
+          returns:
+            - !!BooleanVariableNode
+              name: "var_out"
+              description: "variable_description7"
+              value: True # remove?s
+          cfg:
+            - !!WaitConditionNode
+              variable: $node_path
+              operator: "=="
+              rhs: $var_in
+            - !!ReadVariableNode
+              variable: $node_path
+              store_as: "var_out"
     - !!ObjectVariableNode
       name: "o_variable2"
       description: "variable_description2"

@@ -68,6 +68,13 @@ class WaitConditionNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: True if the condition is met, otherwise False.
         """
+        if (
+            not isinstance(self._ref_node, VariableNode)
+            and self.resolve_callback is not None
+        ):
+            node_path = resolve_value(self.node, scope)
+            self._ref_node = self.resolve_callback(node_path)
+
         assert isinstance(self._ref_node, VariableNode)
         rhs = resolve_value(self._rhs, scope)
         lhs = self._ref_node.read()

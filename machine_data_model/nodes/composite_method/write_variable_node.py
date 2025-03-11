@@ -40,6 +40,12 @@ class WriteVariableNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: Returns always True.
         """
+        if (
+            not isinstance(self._ref_node, VariableNode)
+            and self.resolve_callback is not None
+        ):
+            node_path = resolve_value(self.node, scope)
+            self._ref_node = self.resolve_callback(node_path)
         assert isinstance(self._ref_node, VariableNode)
         value = resolve_value(self._value, scope)
         self._ref_node.update(value)

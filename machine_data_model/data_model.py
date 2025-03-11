@@ -71,8 +71,10 @@ class DataModel:
 
         for cf_node in node.cfg.nodes():
             ref_node = self.get_node(cf_node.node)
-            assert ref_node
-            cf_node.set_ref_node(ref_node)
+            if isinstance(ref_node, DataModelNode):
+                cf_node.set_ref_node(ref_node)
+            else:
+                cf_node.resolve_callback = self.get_node
         return
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
