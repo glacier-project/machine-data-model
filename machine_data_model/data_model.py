@@ -195,7 +195,7 @@ class DataModel:
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
-            node.update(value)
+            node.write(value)
             return True
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 

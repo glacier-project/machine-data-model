@@ -211,7 +211,7 @@ class TestGlacierProtocolMng:
         assert not manager.get_update_messages()
 
         # update the waiting variable
-        wait_node.update(30)
+        wait_node.write(30)
 
         assert manager.get_update_messages()
 
