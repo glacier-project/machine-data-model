@@ -170,7 +170,7 @@ class TestDataModel:
         composite_node = r["comp_test"]
         assert isinstance(composite_node, CompositeMethodNode)
         args: list[Any] = [True, "folder1/boolean"]
-
+        assert isinstance(composite_node, CompositeMethodNode)
         ret = composite_node(*args)
 
         assert ret["@scope_id"]

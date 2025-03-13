@@ -53,7 +53,6 @@ class VariableNode(DataModelNode):
         self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
             lambda subscriber, node, value: None
         )
-        self._property_callback: Callable[[str, Any], None] = lambda node, value: None
 
     def read(self) -> Any:
         """
@@ -140,14 +139,6 @@ class VariableNode(DataModelNode):
         """
         self._subscription_callback = callback
 
-    def set_property_callback(self, callback: Callable[[str, Any], None]) -> None:
-        """
-        Set a callback to be executed when object variable node has an update.
-
-        :param callback: The callback to be executed
-        """
-        self._property_callback = callback
-
     def notify_subscribers(self) -> None:
         """
         Notify all subscribed entities about an update or change. This will
@@ -156,7 +147,8 @@ class VariableNode(DataModelNode):
         # Get the current value of the node.
         value = self._read_value()
         # Pass the value to the callback.
-        self._property_callback(self.name, value)
+        if isinstance(self.parent, VariableNode):
+            self.parent.notify_subscribers()
         for subscriber in self._subscribers:
             self._subscription_callback(subscriber, self, value)
 
@@ -499,25 +491,13 @@ class ObjectVariableNode(VariableNode):
         :param name: The name of the object variable.
         :param description: The description of the object variable.
         :param properties: The properties of the object variable.
-        :param value: The initial value of the object variable.
         """
         super().__init__(id=id, name=name, description=description)
         self._properties: dict[str, VariableNode] = (
             properties if properties is not None else {}
         )
         self.value: dict[str, Any] = self._read_value()
-        self._read_value()
-        self._set_property_callback()
         self.set_parent(self._properties)
-
-    def _set_property_callback(self) -> None:
-        for key in self._properties:
-            self._properties[key].set_property_callback(self._object_property_callback)
-
-    def _object_property_callback(self, node: str, value: Any) -> None:
-        assert isinstance(self.value, dict)
-        self.value[node] = value
-        self.notify_subscribers()
 
     def add_property(self, property_node: VariableNode) -> None:
         """
@@ -527,7 +507,6 @@ class ObjectVariableNode(VariableNode):
         """
         self._properties[property_node.name] = property_node
         property_node.parent = self
-        property_node.set_property_callback(self._object_property_callback)
 
     def remove_property(self, property_name: str) -> None:
         """
@@ -566,6 +545,7 @@ class ObjectVariableNode(VariableNode):
         value = {}
         for property_name, property_node in self._properties.items():
             value[property_name] = property_node.read()
+        self.value = value
         return value
 
     def _update_value(self, value: dict) -> None:
