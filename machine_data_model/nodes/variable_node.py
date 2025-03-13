@@ -544,7 +544,8 @@ class ObjectVariableNode(VariableNode):
         """
         value = {}
         for property_name, property_node in self._properties.items():
-            value[property_name] = property_node.read()
+            if isinstance(property_node, VariableNode):
+                value[property_name] = property_node.read()
         self.value = value
         return value
 
