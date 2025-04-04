@@ -1,0 +1,30 @@
+name: "control_quality" # name of the machine
+description: "A simple quality control machine" # description of the machine
+root:
+  !!FolderNode
+  name: "control_quality"
+  description: "Root folder of the control quality machine"
+  children:
+    - !!FolderNode
+      name: "statistics"
+      description: "Statistics folder"
+      children:
+        - !!NumericalVariableNode
+            name: "#checks"
+            description: "Total number of checks"
+            value: 0
+        - !!NumericalVariableNode
+            name: "failures"
+            description: "Number of failed checks"
+            value: 0
+        - !!AsyncMethodNode
+          name: "check_quality"
+          description: "Check the quality of a product"
+          parameters:
+            - !!StringVariableNode
+              name: "product_info"
+              description: "Information about the product"
+          returns:
+            - !!BooleanVariableNode
+              name: "result"
+              description: "Result of the quality check"
