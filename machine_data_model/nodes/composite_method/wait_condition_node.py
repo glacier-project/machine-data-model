@@ -94,7 +94,8 @@ class WaitConditionNode(ControlFlowNode):
             raise ValueError(f"Invalid operator: {self._op}")
 
         if not res:
-            self._ref_node.subscribe(scope.id())
+            if scope.id() not in self._ref_node.get_subscribers():
+                self._ref_node.subscribe(scope.id())
             return False
 
         self._ref_node.unsubscribe(scope.id())

@@ -135,6 +135,25 @@ root:
             - !!ReadVariableNode
               variable: $node_path
               store_as: "var_out"
+        - !!CompositeMethodNode
+          name: "simple_composite_method"
+          description: ""
+          cfg:
+            - !!WriteVariableNode
+              variable: "folder1/n_variable1"
+              value: 18
+            - !!WaitConditionNode
+              variable: "folder1/n_variable1"
+              operator: "=="
+              rhs: 17
+            - !!ReadVariableNode
+              variable: "folder1/boolean"
+              store_as: "var_out"
+          returns:
+            - !!BooleanVariableNode
+              name: "var_out"
+              description: "variable_description7"
+              value: True # remove?s
     - !!ObjectVariableNode
       name: "o_variable2"
       description: "variable_description2"

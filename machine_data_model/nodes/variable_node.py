@@ -117,6 +117,8 @@ class VariableNode(DataModelNode):
 
         :param subscriber_id: The ID of the subscriber.
         """
+        if subscriber_id in self._subscribers:
+            return
         self._subscribers.append(subscriber_id)
 
     def unsubscribe(self, subscriber_id: str) -> None:
