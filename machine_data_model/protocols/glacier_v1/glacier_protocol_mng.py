@@ -205,39 +205,37 @@ class GlacierProtocolMng(ProtocolMng):
 
         if not isinstance(msg, GlacierMessage):
             raise ValueError("msg must be an instance of GlacierMessage")
-
+        msg = copy.deepcopy(msg)
         header = msg.header
 
         if not self._is_version_supported(header.version):
-            return _create_response_msg(
-                copy.deepcopy(msg), _error_version_not_supported
-            )
+            return _create_response_msg(msg, _error_version_not_supported)
 
         if header.type != MsgType.REQUEST:
-            return _create_response_msg(copy.deepcopy(msg), _invalid_request)
+            return _create_response_msg(msg, _invalid_request)
 
         # Handle PROTOCOL messages separately.
         if header.namespace == MsgNamespace.PROTOCOL:
-            return self._handle_protocol_message(copy.deepcopy(msg))
+            return self._handle_protocol_message(msg)
 
-        node = self._data_model.get_node(copy.deepcopy(msg).payload.node)
+        node = self._data_model.get_node(msg.payload.node)
         if node is None:
-            return _create_response_msg(copy.deepcopy(msg), _error_not_found)
+            return _create_response_msg(msg, _error_not_found)
 
         # Handle VARIABLE messages.
         if header.namespace == MsgNamespace.VARIABLE:
             if not isinstance(node, VariableNode):
-                return _create_response_msg(copy.deepcopy(msg), _error_not_supported)
-            return self._handle_variable_message(copy.deepcopy(msg), node)
+                return _create_response_msg(msg, _error_not_supported)
+            return self._handle_variable_message(msg, node)
 
         # Handle METHOD messages.
         if header.namespace == MsgNamespace.METHOD:
             if not isinstance(node, MethodNode):
-                return _create_response_msg(copy.deepcopy(msg), _error_not_supported)
-            return self._handle_method_message(copy.deepcopy(msg), node)
+                return _create_response_msg(msg, _error_not_supported)
+            return self._handle_method_message(msg, node)
 
         # Return invalid namespace.
-        return _create_response_msg(copy.deepcopy(msg), _error_invalid_namespace)
+        return _create_response_msg(msg, _error_invalid_namespace)
 
     def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
         """
