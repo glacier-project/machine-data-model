@@ -32,6 +32,7 @@ from machine_data_model.protocols.glacier_v1.glacier_payload import (
     VariablePayload,
     MethodPayload,
     ProtocolPayload,
+    ErrorPayload,
 )
 
 
@@ -135,6 +136,51 @@ class TestGlacierProtocolMng:
         assert response.payload.value == manager.get_data_model().read_variable(
             var_name
         )
+
+    def test_handle_multiple_write_request(
+        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+    ) -> None:
+        write_list = [
+            GlacierMessage(
+                sender=sender,
+                target=target,
+                identifier=str(uuid.uuid4()),
+                header=GlacierHeader(
+                    type=MsgType.REQUEST,
+                    version=(1, 0, 0),
+                    namespace=MsgNamespace.VARIABLE,
+                    msg_name=VariableMsgName.WRITE,
+                ),
+                payload=VariablePayload(node="folder1/boolean", value=True),
+            ),
+            GlacierMessage(
+                sender=sender,
+                target=target,
+                identifier=str(uuid.uuid4()),
+                header=GlacierHeader(
+                    type=MsgType.REQUEST,
+                    version=(1, 0, 0),
+                    namespace=MsgNamespace.VARIABLE,
+                    msg_name=VariableMsgName.WRITE,
+                ),
+                payload=VariablePayload(node="folder1/boolean", value=False),
+            ),
+        ]
+        node = manager.get_data_model().get_node("folder1/boolean")
+        assert isinstance(node, BooleanVariableNode)
+        for i in range(0, 11):
+            mex = write_list[0]
+            assert mex.header.type == MsgType.REQUEST
+            res = manager.handle_message(mex)
+            node.update(True)
+            assert isinstance(res, GlacierMessage)
+            assert not isinstance(res.payload, ErrorPayload)
+            mex = write_list[1]
+            assert mex.header.type == MsgType.REQUEST
+            res = manager.handle_message(mex)
+            node.update(False)
+            assert isinstance(res, GlacierMessage)
+            assert not isinstance(res.payload, ErrorPayload)
 
     def test_handle_variable_subscribe(
         self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
