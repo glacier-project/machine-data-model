@@ -18,7 +18,7 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
 from tests import get_random_folder_node
 
 
-def get_data_model() -> DataModel:
+def get_template_data_model() -> DataModel:
     # Construct the absolute path from the data_model.yml file
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, "../template/data_model.yml")
@@ -162,7 +162,7 @@ class TestDataModel:
         assert ("B", child, "Perfect!") in changes
 
     def test_runtime_resolution_of_nodes(self, root: FolderNode) -> None:
-        data_model = get_data_model()
+        data_model = get_template_data_model()
         # scope = ControlFlowScope(str("test"))
         assert isinstance(data_model, DataModel)
         r = data_model.get_node("folder1/folder2")

@@ -33,6 +33,70 @@ root:
       measure_unit: "LengthUnits.Meter"
       value: 30
     - !!FolderNode
+      name: "folder3"
+      description: "folder_description3"
+      children:
+        - !!CompositeMethodNode
+          name: "dynamic_read"
+          description: "dynamic_read_description"
+          parameters:
+            - !!StringVariableNode
+              name: "node_path"
+              value: "folder1/n_variable1"
+          returns:
+            - !!NumericalVariableNode
+              name: "var_value"
+              measure_unit: "LengthUnits.Meter"
+          cfg:
+            - !!ReadVariableNode
+              variable: "$node_path"
+              store_as: "var_value"
+        - !!CompositeMethodNode
+          name: "dynamic_write"
+          description: "dynamic_write_description"
+          parameters:
+            - !!StringVariableNode
+              name: "node_path"
+              value: "folder1/n_variable1"
+            - !!NumericalVariableNode
+              name: "var_value"
+              measure_unit: "LengthUnits.Meter"
+              value: 25
+          cfg:
+            - !!WriteVariableNode
+              variable: "$node_path"
+              value: "$var_value"
+        - !!CompositeMethodNode
+          name: "dynamic_call"
+          description: "dynamic_call_description"
+          parameters:
+            - !!StringVariableNode
+              name: "method_path"
+              value: "folder1/folder2/async_method1"
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable10"
+              measure_unit: "LengthUnits.Meter"
+          cfg:
+            - !!CallMethodNode
+              method: "$method_path"
+        - !!CompositeMethodNode
+          name: "dynamic_wait"
+          description: "dynamic_wait_description"
+          parameters:
+            - !!StringVariableNode
+              name: "variable_path"
+              value: "folder1/n_variable1"
+            - !!NumericalVariableNode
+              name: "value"
+              measure_unit: "LengthUnits.Meter"
+              value: 20
+          cfg:
+            - !!WaitConditionNode
+              variable: "$variable_path"
+              operator: "!="
+              rhs: "$value"
+    - !!FolderNode
       name: "folder2"
       description: "folder_description2"
       children:

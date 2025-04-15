@@ -30,7 +30,7 @@ Each node has the following attributes:
 
 ### Variable Nodes
 
-StringVariableNode, NumericalVariableNode, BooleanVariableNode and ObjectVariableNode are all class that extend VariableNode class and they enhance it by declaring the variable type. 
+StringVariableNode, NumericalVariableNode, BooleanVariableNode and ObjectVariableNode are all class that extend VariableNode class and they enhance it by declaring the variable type.
 ObjectVariableNode is similar to a folder node, but it can just contain VariableNode types. Sons of this node notifies the father whenever they get a value update.
 
 
@@ -41,7 +41,7 @@ We developed 3 different kind of MethodNodes:
 - AsyncMethodNode: it returns immediately when invoked. New users shall implement a callback and pass it to the node attribute.
 - MethodNode: it shall be enhanced in the Frost Platform with Lingua Franca code with callback assignemnt and timely behavior if necessary.
 - CompositeMethodNode: it shall be used for complex tasks. Despite it is a MethodNode, it can perform several operations declared in the control flow graph. It can write variables, read their value, wait for a particular condition and call other AsyncMethodNode.
- 
+
 
 ### Operations
 
