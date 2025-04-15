@@ -172,13 +172,13 @@ class TestGlacierProtocolMng:
             mex = write_list[0]
             assert mex.header.type == MsgType.REQUEST
             res = manager.handle_message(mex)
-            node.update(True)
+            node.write(True)
             assert isinstance(res, GlacierMessage)
             assert not isinstance(res.payload, ErrorPayload)
             mex = write_list[1]
             assert mex.header.type == MsgType.REQUEST
             res = manager.handle_message(mex)
-            node.update(False)
+            node.write(False)
             assert isinstance(res, GlacierMessage)
             assert not isinstance(res.payload, ErrorPayload)
 
@@ -202,8 +202,8 @@ class TestGlacierProtocolMng:
             payload=VariablePayload(node=var_name, value=value),
         )
         manager.handle_message(msg)
-        node["s_variable3"].update("Hello")
-        node["s_variable4"].update("Confirm")
+        node["s_variable3"].write("Hello")
+        node["s_variable4"].write("Confirm")
         update_messages = manager.get_update_messages()
         assert isinstance(update_messages, list)
         update = update_messages.pop(0)

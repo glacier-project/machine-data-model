@@ -22,8 +22,8 @@ class VariableNode(DataModelNode):
 
     :ivar _pre_read_value: A callback function executed before reading the value.
     :ivar _post_read_value: A callback function executed after reading the value.
-    :ivar _pre_write_value: A callback function executed before updating the value.
-    :ivar _post_write_value: A callback function executed after updating the value.
+    :ivar _pre_update_value: A callback function executed before updating the value.
+    :ivar _post_update_value: A callback function executed after updating the value.
     :ivar _subscribers: A list of subscribers to the variable.
     :ivar _subscription_callback: A callback function that is executed to notify subscribers when an event occurs.
     """
@@ -45,9 +45,9 @@ class VariableNode(DataModelNode):
         # Read callbacks.
         self._pre_read_value: Callable[[], None] = lambda: None
         self._post_read_value: Callable[[Any], Any] = lambda value: value
-        # Write callbacks.
-        self._pre_write_value: Callable[[Any], Any] = lambda value: value
-        self._post_write_value: Callable[[Any, Any], bool] = lambda prev, curr: True
+        # Update callbacks.
+        self._pre_update_value: Callable[[Any], Any] = lambda value: value
+        self._post_update_value: Callable[[Any, Any], bool] = lambda prev, curr: True
         # List of subscribers and related callbacks.
         self._subscribers: list[str] = []
         self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
@@ -71,28 +71,28 @@ class VariableNode(DataModelNode):
 
     def write(self, value: Any) -> bool:
         """
-        Write the value of the variable node.
+        Update the value of the variable node.
 
         :param value: The new value of the variable node.
-        :return: True if the value was written successfully, False otherwise.
+        :return: True if the value was updated successfully, False otherwise.
         """
-        # Read the current value of the variable before the write operation.
+        # Read the current value of the variable before the update.
         prev_value = self._read_value()
-        # Apply the pre-write callback to the new value.
-        value = self._pre_write_value(value)
-        # Write the value of the variable with the new value.
-        value = self._write_value(value)
-        # If validation fails (post-write), restore the previous value and
+        # Apply the pre-update callback to the new value.
+        value = self._pre_update_value(value)
+        # Update the value of the variable with the new value.
+        value = self._update_value(value)
+        # If validation fails (post-update), restore the previous value and
         # return False.
-        if not self._post_write_value(prev_value, value):
+        if not self._post_update_value(prev_value, value):
             # Restore previous value if validation fails.
-            self._write_value(prev_value)
+            self._update_value(prev_value)
             return False
 
-        # Notify subscribers if the write was successful.
+        # Notify subscribers if the update was successful.
         self.notify_subscribers()
 
-        # Return True if the value was successfully written and validated.
+        # Return True if the value was successfully updated and validated.
         return True
 
     @property
@@ -154,7 +154,7 @@ class VariableNode(DataModelNode):
 
     def notify_subscribers(self) -> None:
         """
-        Notify all subscribed entities about an write or change. This will
+        Notify all subscribed entities about an update or change. This will
         execute the subscription callback for each subscriber.
         """
         # Get the current value of the node.
@@ -173,9 +173,9 @@ class VariableNode(DataModelNode):
         pass
 
     @abstractmethod
-    def _write_value(self, value: Any) -> None:
+    def _update_value(self, value: Any) -> None:
         """
-        Write the value of the variable.
+        Update the value of the variable.
         """
         pass
 
@@ -195,21 +195,21 @@ class VariableNode(DataModelNode):
         """
         self._post_read_value = callback
 
-    def set_pre_write_value_callback(self, callback: Callable[..., Any]) -> None:
+    def set_pre_update_value_callback(self, callback: Callable[..., Any]) -> None:
         """
         Set a callback to be executed before updating the value.
 
         :param callback: The callback function.
         """
-        self._pre_write_value = callback
+        self._pre_update_value = callback
 
-    def set_post_write_value_callback(self, callback: Callable[..., bool]) -> None:
+    def set_post_update_value_callback(self, callback: Callable[..., bool]) -> None:
         """
         Set a callback to be executed after updating the value.
 
         :param callback: The callback function.
         """
-        self._post_write_value = callback
+        self._post_update_value = callback
 
     @override
     def __getitem__(self, node_name: str) -> "VariableNode":
@@ -290,9 +290,9 @@ class NumericalVariableNode(VariableNode):
         """
         return self._value.base_value  # type: ignore[no-any-return]
 
-    def _write_value(self, value: float) -> None:
+    def _update_value(self, value: float) -> None:
         """
-        Write the value of the numerical variable.
+        Update the value of the numerical variable.
 
         :param value: The new value of the numerical variable.
         """
@@ -352,9 +352,9 @@ class StringVariableNode(VariableNode):
         """
         return self._value
 
-    def _write_value(self, value: str) -> None:
+    def _update_value(self, value: str) -> None:
         """
-        Write the value of the string variable.
+        Update the value of the string variable.
 
         :param value: The new value of the string variable.
         """
@@ -434,9 +434,9 @@ class BooleanVariableNode(VariableNode):
         """
         return self._value
 
-    def _write_value(self, value: bool) -> None:
+    def _update_value(self, value: bool) -> None:
         """
-        Write the value of the boolean variable.
+        Update the value of the boolean variable.
 
         :param value: The new value of the boolean variable.
         """
@@ -559,17 +559,16 @@ class ObjectVariableNode(VariableNode):
         for property_name, property_node in self._properties.items():
             if isinstance(property_node, VariableNode):
                 value[property_name] = property_node.read()
-        self.value = value
         return value
 
-    def _write_value(self, value: dict) -> None:
+    def _update_value(self, value: dict) -> None:
         """
-        Write the value of the object variable.
+        Update the value of the object variable.
 
         :param value: The new value of the object variable.
         """
         for property_name, property_value in value.items():
-            self._properties[property_name]._write_value(property_value)
+            self._properties[property_name]._update_value(property_value)
 
     def subscribe(self, subscriber_id: str) -> None:
         """

@@ -79,7 +79,7 @@ class TestCompositeMethod:
         while node_val == new_val:
             new_val = random.randint(0, 100)
 
-        wait_node.update(new_val)
+        wait_node.write(new_val)
         ret = c_method.resume_execution(scope_id)
 
         assert len(wait_node.get_subscribers()) == 0

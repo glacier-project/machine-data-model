@@ -182,7 +182,7 @@ class TestVariableNode:
 
         subscriber = "test"
         obj_var.subscribe(subscriber)
-        num_var.update(10)
+        num_var.write(10)
 
         assert obj_var.name == var_name
         assert obj_var.description == var_description
