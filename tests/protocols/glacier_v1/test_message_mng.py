@@ -16,19 +16,19 @@ from machine_data_model.nodes.variable_node import (
     VariableNode,
     ObjectVariableNode,
 )
-from machine_data_model.protocols.glacier_v1.glacier_protocol_mng import (
-    GlacierProtocolMng,
+from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
+    FrostProtocolMng,
 )
-from machine_data_model.protocols.glacier_v1.glacier_header import (
-    GlacierHeader,
+from machine_data_model.protocols.frost_v1.frost_header import (
+    FrostHeader,
     MsgType,
     MsgNamespace,
     VariableMsgName,
     MethodMsgName,
     ProtocolMsgName,
 )
-from machine_data_model.protocols.glacier_v1.glacier_message import GlacierMessage
-from machine_data_model.protocols.glacier_v1.glacier_payload import (
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
     MethodPayload,
     ProtocolPayload,
@@ -50,8 +50,8 @@ def data_model() -> DataModel:
 
 
 @pytest.fixture
-def manager(data_model: DataModel) -> GlacierProtocolMng:
-    return GlacierProtocolMng(data_model)
+def manager(data_model: DataModel) -> FrostProtocolMng:
+    return FrostProtocolMng(data_model)
 
 
 def get_value(data_model_node: DataModelNode) -> Any:
@@ -79,13 +79,13 @@ def get_value(data_model_node: DataModelNode) -> Any:
 )
 class TestGlacierProtocolMng:
     def test_handle_variable_read_request(
-        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
-        msg = GlacierMessage(
+        msg = FrostMessage(
             sender=sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            header=GlacierHeader(
+            header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
@@ -94,12 +94,12 @@ class TestGlacierProtocolMng:
             payload=VariablePayload(node=var_name),
         )
 
-        response = manager.handle_message(msg)
+        response = manager.handle_request(msg)
 
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         assert response.target == sender
         assert response.sender == target
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         assert response.header.type == MsgType.RESPONSE
         assert isinstance(response.payload, VariablePayload)
         assert response.payload.value == manager.get_data_model().read_variable(
@@ -107,16 +107,16 @@ class TestGlacierProtocolMng:
         )
 
     def test_handle_variable_write_request(
-        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
         node = manager.get_data_model().get_node(var_name)
         assert isinstance(node, VariableNode)
         value = get_value(node)
-        msg = GlacierMessage(
+        msg = FrostMessage(
             sender=sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            header=GlacierHeader(
+            header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
@@ -125,12 +125,12 @@ class TestGlacierProtocolMng:
             payload=VariablePayload(node=var_name, value=value),
         )
 
-        response = manager.handle_message(msg)
+        response = manager.handle_request(msg)
 
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         assert response.target == sender
         assert response.sender == target
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         assert response.header.type == MsgType.RESPONSE
         assert isinstance(response.payload, VariablePayload)
         assert response.payload.value == manager.get_data_model().read_variable(
@@ -138,14 +138,14 @@ class TestGlacierProtocolMng:
         )
 
     def test_handle_multiple_write_request(
-        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
         write_list = [
-            GlacierMessage(
+            FrostMessage(
                 sender=sender,
                 target=target,
                 identifier=str(uuid.uuid4()),
-                header=GlacierHeader(
+                header=FrostHeader(
                     type=MsgType.REQUEST,
                     version=(1, 0, 0),
                     namespace=MsgNamespace.VARIABLE,
@@ -153,11 +153,11 @@ class TestGlacierProtocolMng:
                 ),
                 payload=VariablePayload(node="folder1/boolean", value=True),
             ),
-            GlacierMessage(
+            FrostMessage(
                 sender=sender,
                 target=target,
                 identifier=str(uuid.uuid4()),
-                header=GlacierHeader(
+                header=FrostHeader(
                     type=MsgType.REQUEST,
                     version=(1, 0, 0),
                     namespace=MsgNamespace.VARIABLE,
@@ -171,29 +171,29 @@ class TestGlacierProtocolMng:
         for i in range(0, 11):
             mex = write_list[0]
             assert mex.header.type == MsgType.REQUEST
-            res = manager.handle_message(mex)
+            res = manager.handle_request(mex)
             node.write(True)
-            assert isinstance(res, GlacierMessage)
+            assert isinstance(res, FrostMessage)
             assert not isinstance(res.payload, ErrorPayload)
             mex = write_list[1]
             assert mex.header.type == MsgType.REQUEST
-            res = manager.handle_message(mex)
+            res = manager.handle_request(mex)
             node.write(False)
-            assert isinstance(res, GlacierMessage)
+            assert isinstance(res, FrostMessage)
             assert not isinstance(res.payload, ErrorPayload)
 
     def test_handle_variable_subscribe(
-        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
         var_name = "folder1/o_variable2"
         node = manager.get_data_model().get_node(var_name)
         assert isinstance(node, ObjectVariableNode)
         value = get_value(node)
-        msg = GlacierMessage(
+        msg = FrostMessage(
             sender=sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            header=GlacierHeader(
+            header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
@@ -201,7 +201,7 @@ class TestGlacierProtocolMng:
             ),
             payload=VariablePayload(node=var_name, value=value),
         )
-        manager.handle_message(msg)
+        manager.handle_request(msg)
         node["s_variable3"].write("Hello")
         node["s_variable4"].write("Confirm")
         update_messages = manager.get_update_messages()
@@ -216,17 +216,17 @@ class TestGlacierProtocolMng:
         assert update.payload.value["s_variable4"] == "Confirm"
 
     def test_handle_method_call_request(
-        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
         node = manager.get_data_model().get_node(var_name)
         method_name = "method2"
         assert isinstance(node, VariableNode)
         param_value = get_value(node)
-        msg = GlacierMessage(
+        msg = FrostMessage(
             sender=sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            header=GlacierHeader(
+            header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.METHOD,
@@ -254,26 +254,26 @@ class TestGlacierProtocolMng:
 
         manager.get_data_model().add_child("/folder1", method_node)
 
-        response = manager.handle_message(msg)
+        response = manager.handle_request(msg)
 
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         assert response.target == sender
         assert response.sender == target
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         assert response.header.type == MsgType.RESPONSE
         assert isinstance(response.payload, MethodPayload)
         assert len(response.payload.ret) == 1
         assert response.payload.ret["out_var"] == param_value
 
     def test_handle_composite_msg_request(
-        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
         wait_node = manager.get_data_model().get_node("/folder1/n_variable2")
-        msg = GlacierMessage(
+        msg = FrostMessage(
             sender=sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            header=GlacierHeader(
+            header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.METHOD,
@@ -282,9 +282,9 @@ class TestGlacierProtocolMng:
             payload=MethodPayload(node="/folder1/folder2/composite_method1"),
         )
 
-        response = manager.handle_message(msg)
+        response = manager.handle_request(msg)
 
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         assert isinstance(response.payload, MethodPayload)
         assert SCOPE_ID in response.payload.ret
         assert isinstance(wait_node, VariableNode)
@@ -296,18 +296,18 @@ class TestGlacierProtocolMng:
         assert manager.get_update_messages()
 
     def test_handle_protocol_register(
-        self, manager: GlacierProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
         """
         Test handling a PROTOCOL REGISTER request.
         """
 
         # Create the PROTOCOL REGISTER request message
-        msg = GlacierMessage(
+        msg = FrostMessage(
             sender=sender,
             target="bus",
             identifier=str(uuid.uuid4()),
-            header=GlacierHeader(
+            header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.PROTOCOL,
@@ -317,10 +317,10 @@ class TestGlacierProtocolMng:
         )
 
         # Send the message to the protocol manager
-        response = manager.handle_message(msg)
+        response = manager.handle_request(msg)
 
         # Validate response properties
-        assert isinstance(response, GlacierMessage)
+        assert isinstance(response, FrostMessage)
         # Response goes back to sender
         assert response.target == sender
         # Response comes from the target

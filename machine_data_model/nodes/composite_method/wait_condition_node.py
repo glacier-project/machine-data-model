@@ -68,16 +68,11 @@ class WaitConditionNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: True if the condition is met, otherwise False.
         """
-        if (
-            not isinstance(self._ref_node, VariableNode)
-            and self.resolve_callback is not None
-        ):
-            node_path = resolve_value(self.node, scope)
-            self._ref_node = self.resolve_callback(node_path)
+        ref_variable = self._get_ref_node(scope)
+        assert isinstance(ref_variable, VariableNode)
 
-        assert isinstance(self._ref_node, VariableNode)
         rhs = resolve_value(self._rhs, scope)
-        lhs = self._ref_node.read()
+        lhs = ref_variable.read()
         if self._op == WaitConditionOperator.EQ:
             res = lhs == rhs
         elif self._op == WaitConditionOperator.NE:
@@ -94,9 +89,9 @@ class WaitConditionNode(ControlFlowNode):
             raise ValueError(f"Invalid operator: {self._op}")
 
         if not res:
-            if scope.id() not in self._ref_node.get_subscribers():
-                self._ref_node.subscribe(scope.id())
+            if scope.id() not in ref_variable.get_subscribers():
+                ref_variable.subscribe(scope.id())
             return False
 
-        self._ref_node.unsubscribe(scope.id())
+        ref_variable.unsubscribe(scope.id())
         return True

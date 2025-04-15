@@ -4,9 +4,9 @@ from enum import Enum
 
 
 @dataclass(init=True, slots=True)
-class GlacierPayload:
+class FrostPayload:
     """
-    Abstract base class for the payload of a message in the Glacier protocol.
+    Abstract base class for the payload of a message in the Frost protocol.
 
     This class holds the general structure for the payload, which can be
     extended for different types of messages.
@@ -18,7 +18,7 @@ class GlacierPayload:
 
 
 @dataclass(init=True, slots=True)
-class VariablePayload(GlacierPayload):
+class VariablePayload(FrostPayload):
     """
     Represents the payload of a variable-related message.
 
@@ -33,7 +33,7 @@ class VariablePayload(GlacierPayload):
 
 
 @dataclass(init=True, slots=True)
-class MethodPayload(GlacierPayload):
+class MethodPayload(FrostPayload):
     """
     Represents the payload of a method-related message.
 
@@ -52,7 +52,7 @@ class MethodPayload(GlacierPayload):
 
 
 @dataclass(init=True, slots=True)
-class ProtocolPayload(GlacierPayload):
+class ProtocolPayload(FrostPayload):
     """
     Represents the payload of a protocol-related message.
 
@@ -67,7 +67,7 @@ class ProtocolPayload(GlacierPayload):
 
 class ErrorCode(int, Enum):
     """
-    Enum for error codes used in the Glacier protocol.
+    Enum for error codes used in the Frost protocol.
 
     :cvar UNKNOWN: General unknown error.
     :cvar BAD_REQUEST: The request is invalid.
@@ -89,7 +89,7 @@ class ErrorCode(int, Enum):
 
 class ErrorMessages(str, Enum):
     """
-    Enum for error messages associated with the Glacier protocol errors.
+    Enum for error messages associated with the Frost protocol errors.
 
     :cvar INVALID_NAMESPACE: Error message for invalid namespace.
     :cvar INVALID_REQUEST: Error message for invalid request.
@@ -110,9 +110,9 @@ class ErrorMessages(str, Enum):
 
 
 @dataclass(init=True, slots=True)
-class ErrorPayload(GlacierPayload):
+class ErrorPayload(FrostPayload):
     """
-    Represents the payload of an error message in the Glacier protocol.
+    Represents the payload of an error message in the Frost protocol.
 
     This class extends the base payload and includes error-related information.
 

@@ -1,11 +1,11 @@
 from machine_data_model.protocols.protocol_mng import Message
 from dataclasses import dataclass
-from machine_data_model.protocols.glacier_v1.glacier_header import GlacierHeader
-from machine_data_model.protocols.glacier_v1.glacier_payload import GlacierPayload
+from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
+from machine_data_model.protocols.frost_v1.frost_payload import FrostPayload
 
 
 @dataclass(init=True, slots=True)
-class GlacierMessage(Message):
+class FrostMessage(Message):
     """
     This class holds the core data of a message.
 
@@ -19,5 +19,5 @@ class GlacierMessage(Message):
     sender: str
     target: str
     identifier: str
-    header: GlacierHeader
-    payload: GlacierPayload
+    header: FrostHeader
+    payload: FrostPayload

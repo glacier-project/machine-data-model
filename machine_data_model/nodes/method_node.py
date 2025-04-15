@@ -43,10 +43,18 @@ class MethodNode(DataModelNode):
         self._parameters: list[VariableNode] = (
             parameters if parameters is not None else []
         )
+        for parameter in self._parameters:
+            assert isinstance(
+                parameter, VariableNode
+            ), "Parameter must be a VariableNode"
         self._returns: list[VariableNode] = returns if returns is not None else []
+        for return_value in self._returns:
+            assert isinstance(
+                return_value, VariableNode
+            ), "Return value must be a VariableNode"
 
-        self.set_parent(self._parameters)
-        self.set_parent(self._returns)
+        self.register_children(self._parameters)
+        self.register_children(self._returns)
 
         self._callback: Callable[..., Any] = (
             callback if callback is not None else lambda **kwargs: None
@@ -69,6 +77,7 @@ class MethodNode(DataModelNode):
 
         :param parameter: The parameter to add to the method.
         """
+        assert isinstance(parameter, VariableNode), "Parameter must be a VariableNode"
         self._parameters.append(parameter)
         parameter.parent = self
 
@@ -98,6 +107,9 @@ class MethodNode(DataModelNode):
 
         :param return_value: The return value to add to the method.
         """
+        assert isinstance(
+            return_value, VariableNode
+        ), "Return value must be a VariableNode"
         self._returns.append(return_value)
         return_value.parent = self
 
@@ -244,6 +256,15 @@ class MethodNode(DataModelNode):
     def _resolve_arguments(
         self, *args: list[Any], **kwargs: dict[str, Any]
     ) -> dict[str, Any]:
+        """
+        Resolves the arguments for the method. It fills in the missing arguments with
+        default values or reads them from the parameters.
+
+        :param args: The positional arguments of the method.
+        :param kwargs: The keyword arguments of the method.
+        :return: A dictionary of arguments for the method.
+        """
+
         kwargs = {**kwargs}
 
         for parameter in self._parameters:
@@ -260,6 +281,13 @@ class MethodNode(DataModelNode):
         return kwargs
 
     def _build_return_dict(self, ret: Any) -> dict[str, Any]:
+        """
+        Build a dictionary of return values from the method.
+
+        :param ret: The return values of the method.
+        :return: A dictionary of return values, where the keys are the names of the return values.
+        """
+
         ret_dict = {}
         ret = ret if isinstance(ret, tuple) else (ret,)
         for index, return_value in enumerate(ret):

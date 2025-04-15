@@ -1,6 +1,5 @@
 from machine_data_model.nodes.composite_method.control_flow_node import (
     ControlFlowNode,
-    resolve_value,
 )
 from machine_data_model.nodes.composite_method.control_flow_scope import (
     ControlFlowScope,
@@ -38,14 +37,10 @@ class ReadVariableNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: Returns always True.
         """
-        if (
-            not isinstance(self._ref_node, VariableNode)
-            and self.resolve_callback is not None
-        ):
-            node_path = resolve_value(self.node, scope)
-            self._ref_node = self.resolve_callback(node_path)
-        assert isinstance(self._ref_node, VariableNode)
-        value = self._ref_node.read()
-        name = self.store_as if self.store_as else self._ref_node.name
+        ref_variable = self._get_ref_node(scope)
+        assert isinstance(ref_variable, VariableNode)
+
+        value = ref_variable.read()
+        name = self.store_as if self.store_as else ref_variable.name
         scope.set_value(name, value)
         return True

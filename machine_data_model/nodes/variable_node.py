@@ -101,10 +101,9 @@ class VariableNode(DataModelNode):
         return self.read()
 
     @value.setter
-    def value(self, new_value: Any) -> bool:
+    def value(self, value: Any) -> None:
         # Setter for the 'value' property
-        success = self.write(new_value)
-        return success
+        self.write(value)
 
     def has_subscribers(self) -> bool:
         """
@@ -509,8 +508,12 @@ class ObjectVariableNode(VariableNode):
         self._properties: dict[str, VariableNode] = (
             properties if properties is not None else {}
         )
+        for property_node in self._properties.values():
+            assert isinstance(
+                property_node, VariableNode
+            ), "Property must be a VariableNode"
         self.value: dict[str, Any] = self._read_value()
-        self.set_parent(self._properties)
+        self.register_children(self._properties)
 
     def add_property(self, property_node: VariableNode) -> None:
         """
@@ -518,6 +521,9 @@ class ObjectVariableNode(VariableNode):
 
         :param property_node: The property node to add.
         """
+        assert isinstance(
+            property_node, VariableNode
+        ), "Property must be a VariableNode"
         self._properties[property_node.name] = property_node
         property_node.parent = self
 
@@ -567,6 +573,9 @@ class ObjectVariableNode(VariableNode):
 
         :param value: The new value of the object variable.
         """
+        assert len(value) == len(self._properties) and all(
+            prop in self._properties for prop in value
+        ), "The value must contain all properties of the object variable"
         for property_name, property_value in value.items():
             self._properties[property_name]._update_value(property_value)
 

@@ -8,14 +8,14 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
 )
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
-from machine_data_model.protocols.glacier_v1.glacier_header import (
+from machine_data_model.protocols.frost_v1.frost_header import (
     MsgType,
     MsgNamespace,
     VariableMsgName,
     MethodMsgName,
     ProtocolMsgName,
 )
-from machine_data_model.protocols.glacier_v1.glacier_payload import (
+from machine_data_model.protocols.frost_v1.frost_payload import (
     ErrorPayload,
     ErrorMessages,
     ErrorCode,
@@ -24,22 +24,22 @@ from machine_data_model.protocols.glacier_v1.glacier_payload import (
     ProtocolPayload,
 )
 from machine_data_model.protocols.protocol_mng import ProtocolMng, Message
-from machine_data_model.protocols.glacier_v1.glacier_message import GlacierMessage
-from machine_data_model.protocols.glacier_v1.glacier_header import GlacierHeader
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
 import uuid
 import copy
 
 
-def _create_response_msg(msg: GlacierMessage) -> GlacierMessage:
+def _create_response_msg(msg: FrostMessage) -> FrostMessage:
     """
-    Creates a response message based on an incoming `GlacierMessage`.
+    Creates a response message based on an incoming `FrostMessage`.
 
-    :param msg: The original `GlacierMessage` that will be used to create the response.
+    :param msg: The original `FrostMessage` that will be used to create the response.
 
-    :return: A new `GlacierMessage` with the modified header and payload.
+    :return: A new `FrostMessage` with the modified header and payload.
     """
     msg.header.type = MsgType.RESPONSE
-    return GlacierMessage(
+    return FrostMessage(
         sender=msg.target,
         target=msg.sender,
         identifier=str(uuid.uuid4()),
@@ -48,7 +48,7 @@ def _create_response_msg(msg: GlacierMessage) -> GlacierMessage:
     )
 
 
-def _create_error_response(msg: GlacierMessage, error_message: str) -> GlacierMessage:
+def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessage:
     """
     Creates an error response with the specified error message.
 
@@ -58,7 +58,7 @@ def _create_error_response(msg: GlacierMessage, error_message: str) -> GlacierMe
     :return: An `ErrorPayload` containing the error details.
     """
     msg.header.type = MsgType.RESPONSE
-    return GlacierMessage(
+    return FrostMessage(
         sender=msg.target,
         target=msg.sender,
         identifier=str(uuid.uuid4()),
@@ -71,49 +71,47 @@ def _create_error_response(msg: GlacierMessage, error_message: str) -> GlacierMe
     )
 
 
-class GlacierProtocolMng(ProtocolMng):
+class FrostProtocolMng(ProtocolMng):
     """
-    Manages messages encoded with the Glacier protocol and updates the machine
+    Manages messages encoded with the Frost protocol and updates the machine
     data model accordingly.
 
     This class handles the reception, processing, and encoding of messages
-    according to the Glacier protocol.
+    according to the Frost protocol.
 
     It supports version checks, message validation, and routing messages to
     appropriate handlers based on the namespace (VARIABLE, METHOD, etc.).
 
-    :ivar _protocol_version: The version of the Glacier protocol in use.
+    :ivar _protocol_version: The version of the Frost protocol in use.
     """
 
     def __init__(self, data_model: DataModel):
         """
-        Initializes the GlacierProtocolMng with the provided data model.
+        Initializes the FrostProtocolMng with the provided data model.
 
         :param data_model: The machine data model to be updated based on received messages.
         """
 
         super().__init__(data_model)
-        self._update_messages: List[GlacierMessage] = []
-        self._running_methods: dict[
-            str, tuple[CompositeMethodNode, GlacierMessage]
-        ] = {}
+        self._update_messages: List[FrostMessage] = []
+        self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
         self._protocol_version = (1, 0, 0)
 
         # # Set the subscription callback to handle updates and send messages.
         # variable_node.set_subscription_callback(self._update_variable_callback)
 
     @override
-    def handle_message(self, msg: Message) -> Message:
+    def handle_request(self, msg: Message) -> Message:
         """
-        Handles a message encoded with the Glacier protocol and updates the
+        Handles a message encoded with the Frost protocol and updates the
         machine data model accordingly.
 
         :param msg: The message to be handled.
         :return: A response message based on the validation and handling of the input message.
         """
 
-        if not isinstance(msg, GlacierMessage):
-            raise ValueError("msg must be an instance of GlacierMessage")
+        if not isinstance(msg, FrostMessage):
+            raise ValueError("msg must be an instance of FrostMessage")
         msg = copy.deepcopy(msg)
         header = msg.header
 
@@ -157,8 +155,8 @@ class GlacierProtocolMng(ProtocolMng):
         return version == self._protocol_version
 
     def _handle_method_message(
-        self, msg: GlacierMessage, method_node: MethodNode
-    ) -> GlacierMessage:
+        self, msg: FrostMessage, method_node: MethodNode
+    ) -> FrostMessage:
         """
         Handles a message within the METHOD namespace.
 
@@ -181,11 +179,11 @@ class GlacierProtocolMng(ProtocolMng):
 
     def _invoke_method(
         self,
-        msg: GlacierMessage,
+        msg: FrostMessage,
         method_node: MethodNode,
         args: list[Any],
         kwargs: dict[str, Any],
-    ) -> GlacierMessage:
+    ) -> FrostMessage:
         """
         Invokes the provided method node with the specified arguments.
 
@@ -212,8 +210,8 @@ class GlacierProtocolMng(ProtocolMng):
         return _create_response_msg(msg)
 
     def _handle_variable_message(
-        self, msg: GlacierMessage, variable_node: VariableNode
-    ) -> GlacierMessage:
+        self, msg: FrostMessage, variable_node: VariableNode
+    ) -> FrostMessage:
         """
         Handles a message within the VARIABLE namespace.
 
@@ -250,7 +248,7 @@ class GlacierProtocolMng(ProtocolMng):
 
         return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
 
-    def _handle_protocol_message(self, msg: GlacierMessage) -> GlacierMessage:
+    def _handle_protocol_message(self, msg: FrostMessage) -> FrostMessage:
         """
         Handles protocol-related messages such as REGISTER and UNREGISTER.
 
@@ -259,11 +257,11 @@ class GlacierProtocolMng(ProtocolMng):
         """
         if msg.header.msg_name == ProtocolMsgName.REGISTER:
             # Acknowledge registration.
-            return GlacierMessage(
+            return FrostMessage(
                 sender=msg.target,
                 target=msg.sender,
                 identifier=str(uuid.uuid4()),
-                header=GlacierHeader(
+                header=FrostHeader(
                     version=self._protocol_version,
                     type=MsgType.RESPONSE,
                     namespace=MsgNamespace.PROTOCOL,
@@ -274,11 +272,11 @@ class GlacierProtocolMng(ProtocolMng):
 
         if msg.header.msg_name == ProtocolMsgName.UNREGISTER:
             # Acknowledge unregistration.
-            return GlacierMessage(
+            return FrostMessage(
                 sender=msg.target,
                 target=msg.sender,
                 identifier=str(uuid.uuid4()),
-                header=GlacierHeader(
+                header=FrostHeader(
                     version=self._protocol_version,
                     type=MsgType.RESPONSE,
                     namespace=MsgNamespace.PROTOCOL,
@@ -289,11 +287,11 @@ class GlacierProtocolMng(ProtocolMng):
 
         return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
 
-    def get_update_messages(self) -> List[GlacierMessage]:
+    def get_update_messages(self) -> List[FrostMessage]:
         """
         Returns the list of update messages.
 
-        :return: A list of `GlacierMessage` objects representing the updates.
+        :return: A list of `FrostMessage` objects representing the updates.
         """
         return self._update_messages
 
@@ -325,10 +323,10 @@ class GlacierProtocolMng(ProtocolMng):
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
         """
-        Handle the update and create the corresponding GlacierMessage.
+        Handle the update and create the corresponding FrostMessage.
 
         This method is called when an update to a variable occurs. It constructs
-        a `GlacierMessage` with the relevant details, including the sender,
+        a `FrostMessage` with the relevant details, including the sender,
         target, and payload, and appends it to the list of update messages.
         """
 
@@ -337,11 +335,11 @@ class GlacierProtocolMng(ProtocolMng):
 
         # append update message
         self._update_messages.append(
-            GlacierMessage(
+            FrostMessage(
                 sender=self._data_model.name,
                 target=subscriber,
                 identifier=str(uuid.uuid4()),
-                header=GlacierHeader(
+                header=FrostHeader(
                     version=self._protocol_version,
                     type=MsgType.RESPONSE,
                     namespace=MsgNamespace.VARIABLE,
@@ -351,7 +349,7 @@ class GlacierProtocolMng(ProtocolMng):
             )
         )
 
-    # def _handle_node_message(self, msg: GlacierMessage) -> GlacierMessage:
+    # def _handle_node_message(self, msg: FrostMessage) -> FrostMessage:
     #     """
     #     This method handles a message withing the NODE namespace.
     #     :param msg: The message to be handled.

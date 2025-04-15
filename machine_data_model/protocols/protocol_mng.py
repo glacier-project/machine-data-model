@@ -49,12 +49,12 @@ class ProtocolMng(ABC):
         node.set_subscription_callback(self._update_variable_callback)
 
     @abstractmethod
-    def handle_message(self, msg: Message) -> Message:
+    def handle_request(self, msg: Message) -> Message:
         """
-        Abstract method to handle a protocol-specific message and update the
+        Abstract method to handle a protocol-specific request and update the
         machine data model.
 
-        :param msg: The message to be handled, which should be an instance of the appropriate protocol message.
+        :param msg: The request message to be handled, which should be an instance of the appropriate protocol message.
         :return: A response message based on the handling of the input message.
         """
 
