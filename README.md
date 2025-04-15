@@ -1,12 +1,13 @@
 # GLACIER Machine Data Model
 
-This repository contains the implementation of the machine data model for the GLACIER platform.
+This repository contains the implementation of the machine data model for the FROST platform.
 The machine data model consists of a structured representation, inspired by
 the OPC UA information model, ISA-95 data model, RAMI 4.0, SoM-like data
 models and other similar data models.
 It implements the machine interface that is used to interact with the
-machines in the GLACIER platform.
+machines in the FROST platform.
 
+## Nodes
 The data model is structured in a tree-like structure, where each node
 represents one of the following:
 
@@ -27,12 +28,30 @@ Each node has the following attributes:
 - Methods: the methods of the node (only for folders)
 - Properties: the properties of the node (only for variables of type object)
 
+### Variable Nodes
+
+StringVariableNode, NumericalVariableNode, BooleanVariableNode and ObjectVariableNode are all class that extend VariableNode class and they enhance it by declaring the variable type.
+ObjectVariableNode is similar to a folder node, but it can just contain VariableNode types. Sons of this node notifies the father whenever they get a value update.
+
+
+### Method Nodes
+
+We developed 3 different kind of MethodNodes:
+
+- AsyncMethodNode: it returns immediately when invoked. New users shall implement a callback and pass it to the node attribute.
+- MethodNode: it shall be enhanced in the Frost Platform with Lingua Franca code with callback assignemnt and timely behavior if necessary.
+- CompositeMethodNode: it shall be used for complex tasks. Despite it is a MethodNode, it can perform several operations declared in the control flow graph. It can write variables, read their value, wait for a particular condition and call other AsyncMethodNode.
+
+
+### Operations
+
 The supported interaction patterns are:
 
 - Read: read the value of a variable
 - Write: write the value of a variable
 - Call: call a method
 - Subscribe: subscribe to a variable to receive updates when its value changes
+
 
 ## TODOs
 
@@ -71,8 +90,17 @@ GLACIER v1 API)
     data model operations
 
 # Installation
+First of all, clone the repository:
 
-TODO
+`git clone https://github.com/esd-univr/frost-machine-data-model.git`
+
+Then build the wheel:
+
+`poetry build`
+
+Install through pip:
+
+`pip install dist/machine_data_model-0.0.0-py3-none-any.whl`
 
 # Contributing
 

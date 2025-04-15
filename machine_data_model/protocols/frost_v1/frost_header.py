@@ -100,7 +100,7 @@ class ProtocolMsgName(MsgName):
 
 
 @dataclass(init=True, slots=True)
-class GlacierHeader:
+class FrostHeader:
     """
     Represents the header of a message, and holds its metadata.
 
@@ -140,7 +140,7 @@ class GlacierHeader:
 
     def __str__(self) -> str:
         """
-        Returns a string representation of the GlacierHeader.
+        Returns a string representation of the FrostHeader.
 
         The format will be:
             Type: REQUEST, Version: 1.0.0, Namespace: VARIABLE, Message Name: READ, Timestamp: 2023-02-28T14:20:00+00:00
@@ -155,16 +155,16 @@ class GlacierHeader:
 
     def __repr__(self) -> str:
         """
-        Returns an official string representation of the GlacierHeader.
+        Returns an official string representation of the FrostHeader.
 
         The format will be:
-            GlacierHeader(type='REQUEST', version=(1, 0, 0), namespace='VARIABLE',
+            FrostHeader(type='REQUEST', version=(1, 0, 0), namespace='VARIABLE',
                 msg_name='READ',
                 timestamp=datetime.datetime(2023, 2, 28, 14, 20, 0, 123456, tzinfo=datetime.timezone.utc)
             )
         """
         return (
-            f"GlacierHeader(type={self.type!r}, "
+            f"FrostHeader(type={self.type!r}, "
             f"version={self.version!r}, "
             f"namespace={self.namespace!r}, "
             f"msg_name={self.msg_name!r}, "

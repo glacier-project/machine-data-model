@@ -1,10 +1,10 @@
 import random
 
 import pytest
-
+import os
 from typing import Any
-
 from machine_data_model.data_model import DataModel
+from machine_data_model.builder.data_model_builder import DataModelBuilder
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
@@ -12,7 +12,22 @@ from machine_data_model.nodes.variable_node import (
     StringVariableNode,
 )
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
 from tests import get_random_folder_node
+
+
+def get_template_data_model() -> DataModel:
+    # Construct the absolute path from the data_model.yml file
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(base_dir, "../template/data_model.yml")
+
+    # Use DataModelBuilder to load the data model
+    builder = DataModelBuilder()
+    data_model = builder.get_data_model(file_path)
+
+    return data_model
 
 
 @pytest.mark.parametrize("root", [get_random_folder_node() for _ in range(3)])
@@ -145,3 +160,22 @@ class TestDataModel:
         # Assert that the changes list contains the expected value.
         assert ("A", child, "Perfect!") in changes
         assert ("B", child, "Perfect!") in changes
+
+    def test_runtime_resolution_of_nodes(self, root: FolderNode) -> None:
+        data_model = get_template_data_model()
+        # scope = ControlFlowScope(str("test"))
+        assert isinstance(data_model, DataModel)
+        r = data_model.get_node("folder1/folder2")
+        assert isinstance(r, FolderNode)
+        composite_node = r["comp_test"]
+        assert isinstance(composite_node, CompositeMethodNode)
+        args: list[Any] = [True, "folder1/boolean"]
+        assert isinstance(composite_node, CompositeMethodNode)
+        ret = composite_node(*args)
+
+        assert ret["@scope_id"]
+
+        data_model.write_variable("folder1/boolean", True)
+        ret = composite_node(*args)
+
+        assert ret["var_out"]

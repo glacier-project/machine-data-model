@@ -31,7 +31,9 @@ class FolderNode(DataModelNode):
         """
         super().__init__(id=id, name=name, description=description)
         self._children = {} if children is None else children
-        self.set_parent(self._children)
+        for child in self._children.values():
+            assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
+        self.register_children(self._children)
 
     @property
     def children(self) -> dict[str, DataModelNode]:
@@ -48,7 +50,7 @@ class FolderNode(DataModelNode):
 
         :param child: The child node to add to the folder.
         """
-        assert isinstance(child, DataModelNode)
+        assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
         self._children[child.name] = child
         child.parent = self
 

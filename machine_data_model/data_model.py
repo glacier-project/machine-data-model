@@ -65,14 +65,18 @@ class DataModel:
         """
         self._nodes[node.id] = node
 
-    def _resolve_composite_method_nodes(self, node: DataModelNode) -> None:
+    def _resolve_cfg_nodes(self, node: DataModelNode) -> None:
         if not isinstance(node, CompositeMethodNode):
             return
 
         for cf_node in node.cfg.nodes():
-            ref_node = self.get_node(cf_node.node)
-            assert ref_node
-            cf_node.set_ref_node(ref_node)
+            if cf_node.is_node_static():
+                ref_node = self.get_node(cf_node.node)
+                assert isinstance(ref_node, DataModelNode)
+                cf_node.set_ref_node(ref_node)
+            else:
+                # set get_node function to resolve the node at runtime
+                cf_node.get_data_model_node = self.get_node
         return
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
@@ -85,7 +89,7 @@ class DataModel:
 
         def _f_(n: DataModelNode) -> None:
             self._register_node(n)
-            self._resolve_composite_method_nodes(n)
+            self._resolve_cfg_nodes(n)
 
         self.traverse(node, _f_)
 
@@ -101,7 +105,10 @@ class DataModel:
         """
         function(node)
         for child in node:
-            if isinstance(child, (FolderNode, ObjectVariableNode)):
+            if isinstance(child, FolderNode):
+                self.traverse(child, function)
+            elif isinstance(child, ObjectVariableNode):
+                function(child)
                 self.traverse(child, function)
             else:
                 function(child)

@@ -40,7 +40,9 @@ class WriteVariableNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: Returns always True.
         """
-        assert isinstance(self._ref_node, VariableNode)
+        ref_variable = self._get_ref_node(scope)
+        assert isinstance(ref_variable, VariableNode)
+
         value = resolve_value(self._value, scope)
-        self._ref_node.write(value)
+        ref_variable.write(value)
         return True

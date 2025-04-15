@@ -37,11 +37,12 @@ class CallMethodNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: Returns always True.
         """
-        assert isinstance(self._ref_node, AsyncMethodNode)
-        method = self._ref_node
+        ref_method = self._get_ref_node(scope)
+        assert isinstance(ref_method, AsyncMethodNode)
+
         # resolve variables in the scope
         args = [resolve_value(arg, scope) for arg in self._args]
         kwargs = {k: resolve_value(v, scope) for k, v in self._kwargs.items()}
-        res = method(*args, **kwargs)
+        res = ref_method(*args, **kwargs)
         scope.set_all_values(**res)
         return True

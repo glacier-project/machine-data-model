@@ -18,6 +18,10 @@ root:
   name: "folder1"
   description: "folder_description1"
   children:
+    - !!BooleanVariableNode
+      name: "boolean"
+      description: ""
+      value: False
     - !!NumericalVariableNode
       name: "n_variable1"
       description: "variable_description1"
@@ -29,13 +33,76 @@ root:
       measure_unit: "LengthUnits.Meter"
       value: 30
     - !!FolderNode
+      name: "folder3"
+      description: "folder_description3"
+      children:
+        - !!CompositeMethodNode
+          name: "dynamic_read"
+          description: "dynamic_read_description"
+          parameters:
+            - !!StringVariableNode
+              name: "node_path"
+              value: "folder1/n_variable1"
+          returns:
+            - !!NumericalVariableNode
+              name: "var_value"
+              measure_unit: "LengthUnits.Meter"
+          cfg:
+            - !!ReadVariableNode
+              variable: "$node_path"
+              store_as: "var_value"
+        - !!CompositeMethodNode
+          name: "dynamic_write"
+          description: "dynamic_write_description"
+          parameters:
+            - !!StringVariableNode
+              name: "node_path"
+              value: "folder1/n_variable1"
+            - !!NumericalVariableNode
+              name: "var_value"
+              measure_unit: "LengthUnits.Meter"
+              value: 25
+          cfg:
+            - !!WriteVariableNode
+              variable: "$node_path"
+              value: "$var_value"
+        - !!CompositeMethodNode
+          name: "dynamic_call"
+          description: "dynamic_call_description"
+          parameters:
+            - !!StringVariableNode
+              name: "method_path"
+              value: "folder1/folder2/async_method1"
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable10"
+              measure_unit: "LengthUnits.Meter"
+          cfg:
+            - !!CallMethodNode
+              method: "$method_path"
+        - !!CompositeMethodNode
+          name: "dynamic_wait"
+          description: "dynamic_wait_description"
+          parameters:
+            - !!StringVariableNode
+              name: "variable_path"
+              value: "folder1/n_variable1"
+            - !!NumericalVariableNode
+              name: "value"
+              measure_unit: "LengthUnits.Meter"
+              value: 20
+          cfg:
+            - !!WaitConditionNode
+              variable: "$variable_path"
+              operator: "!="
+              rhs: "$value"
+    - !!FolderNode
       name: "folder2"
       description: "folder_description2"
       children:
         - !!MethodNode
           name: "method1"
           description: "method_description1"
-          durable: false
           parameters:
             - !!StringVariableNode
               name: "s_variable5"
@@ -44,7 +111,7 @@ root:
             - !!BooleanVariableNode
               name: "b_variable6"
               description: "variable_description6"
-              value: false # update to default value?
+              value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable7"
@@ -54,7 +121,6 @@ root:
         - !!AsyncMethodNode
           name: "async_method1"
           description: "method_description1"
-          durable: false
           parameters:
             - !!StringVariableNode
               name: "s_variable8"
@@ -63,7 +129,7 @@ root:
             - !!BooleanVariableNode
               name: "b_variable9"
               description: "variable_description6"
-              value: false # update to default value?
+              value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable10"
@@ -73,7 +139,6 @@ root:
         - !!CompositeMethodNode
           name: "composite_method1"
           description: "method_description1"
-          durable: false
           parameters:
             - !!StringVariableNode
               name: "s_variable11"
@@ -82,7 +147,7 @@ root:
             - !!BooleanVariableNode
               name: "b_variable12"
               description: "variable_description6"
-              value: false # update to default value?
+              value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable13"
@@ -102,13 +167,57 @@ root:
             - !!CallMethodNode
               method: "folder1/folder2/async_method1"
               args:
-                - false
+                - False
               kwargs:
                 s_variable8: "variable_value5"
             - !!WaitConditionNode
               variable: "folder1/n_variable2"
               operator: ">"
               rhs: 10
+        - !!CompositeMethodNode
+          name: "comp_test"
+          description: "method"
+          parameters:
+            - !!BooleanVariableNode
+              name: "var_in"
+              description: "variable_description6"
+              value: True # update to default value?
+            - !!StringVariableNode
+              name: "node_path"
+              description: ""
+              value: "default"
+          returns:
+            - !!BooleanVariableNode
+              name: "var_out"
+              description: "variable_description7"
+              value: True # remove?s
+          cfg:
+            - !!WaitConditionNode
+              variable: $node_path
+              operator: "=="
+              rhs: $var_in
+            - !!ReadVariableNode
+              variable: $node_path
+              store_as: "var_out"
+        - !!CompositeMethodNode
+          name: "simple_composite_method"
+          description: ""
+          cfg:
+            - !!WriteVariableNode
+              variable: "folder1/n_variable1"
+              value: 18
+            - !!WaitConditionNode
+              variable: "folder1/n_variable1"
+              operator: "=="
+              rhs: 17
+            - !!ReadVariableNode
+              variable: "folder1/boolean"
+              store_as: "var_out"
+          returns:
+            - !!BooleanVariableNode
+              name: "var_out"
+              description: "variable_description7"
+              value: True # remove?s
     - !!ObjectVariableNode
       name: "o_variable2"
       description: "variable_description2"
