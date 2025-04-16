@@ -244,9 +244,21 @@ The supported interaction patterns are:
 # Protocol Manager
 This repository contains the implementation of the machine data model for the [FROST](https://github.com/esd-univr/frost.git) platform inside `examples/ICE`.
 
-```python
+Protocol manager works as an intergace between data model and protocol messages.
+It just translates what messages asks for into operations on the data model, simplifying the interaction with the data model.
 
+We take the Frost Protocol Manager for making an example.
+A message arrives and it asks for writing *True* to a particular variable:
+
+```python
+target_node = data_model.get_node("root/target_node")
+target_node.value = False
+protocol_manager.handle_message(incoming_message)
+print(target_node.value)
+#True
 ```
+
+Thus, you may prepare your message protocol and its protocol manager, or use ours.
 
 # Installation
 First of all, clone the repository:
