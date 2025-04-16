@@ -44,6 +44,13 @@ node.subscribe("New User")
 print(f"Subscribers: {node.get_subscribers()}")
 #Subscribers: ["New User"]
 
+def callback_example(subscriber: str, node: VariableNode, value: Any) -> None:
+  print(node.name, "got an update for", subscriber, ":", value)
+
+node.set_subscription_callback()
+node.value = True
+#boolean got an update for New User: True
+
 node.unsubscribe("New User")
 print(f"Subscribers: {node.get_subscribers()}")
 #Subscribers: []
@@ -237,7 +244,9 @@ The supported interaction patterns are:
 # Protocol Manager
 This repository contains the implementation of the machine data model for the [FROST](https://github.com/esd-univr/frost.git) platform inside `examples/ICE`.
 
-#TODO
+```python
+
+```
 
 # Installation
 First of all, clone the repository:
