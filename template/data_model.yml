@@ -21,17 +21,17 @@ root:
     - !!BooleanVariableNode
       name: "boolean"
       description: ""
-      value: False
+      initial_value: False
     - !!NumericalVariableNode
       name: "n_variable1"
       description: "variable_description1"
       measure_unit: "LengthUnits.Meter"
-      value: 5
+      initial_value: 5
     - !!NumericalVariableNode
       name: "n_variable2"
       description: "variable_description1"
       measure_unit: "LengthUnits.Meter"
-      value: 30
+      initial_value: 30
     - !!FolderNode
       name: "folder3"
       description: "folder_description3"
@@ -42,7 +42,7 @@ root:
           parameters:
             - !!StringVariableNode
               name: "node_path"
-              value: "folder1/n_variable1"
+              default_value: "folder1/n_variable1"
           returns:
             - !!NumericalVariableNode
               name: "var_value"
@@ -57,11 +57,11 @@ root:
           parameters:
             - !!StringVariableNode
               name: "node_path"
-              value: "folder1/n_variable1"
+              default_value: "folder1/n_variable1"
             - !!NumericalVariableNode
               name: "var_value"
               measure_unit: "LengthUnits.Meter"
-              value: 25
+              default_value: 25
           cfg:
             - !!WriteVariableNode
               variable: "$node_path"
@@ -72,7 +72,7 @@ root:
           parameters:
             - !!StringVariableNode
               name: "method_path"
-              value: "folder1/folder2/async_method1"
+              default_value: "folder1/folder2/async_method1"
           returns:
             - !!NumericalVariableNode
               name: "n_variable10"
@@ -86,11 +86,11 @@ root:
           parameters:
             - !!StringVariableNode
               name: "variable_path"
-              value: "folder1/n_variable1"
+              default_value: "folder1/n_variable1"
             - !!NumericalVariableNode
               name: "value"
               measure_unit: "LengthUnits.Meter"
-              value: 20
+              default_value: 20
           cfg:
             - !!WaitConditionNode
               variable: "$variable_path"
@@ -107,17 +107,16 @@ root:
             - !!StringVariableNode
               name: "s_variable5"
               description: "variable_description5"
-              value: "variable_value5" # update to default value?
+              default_value: "variable_value5" # update to default value?
             - !!BooleanVariableNode
               name: "b_variable6"
               description: "variable_description6"
-              value: False # update to default value?
+              default_value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable7"
               description: "variable_description7"
               measure_unit: "LengthUnits.Meter"
-              value: 50 # remove?
         - !!AsyncMethodNode
           name: "async_method1"
           description: "method_description1"
@@ -125,17 +124,16 @@ root:
             - !!StringVariableNode
               name: "s_variable8"
               description: "variable_description5"
-              value: "variable_value5" # update to default value?
+              default_value: "variable_value5" # update to default value?
             - !!BooleanVariableNode
               name: "b_variable9"
               description: "variable_description6"
-              value: False # update to default value?
+              default_value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable10"
               description: "variable_description7"
               measure_unit: "LengthUnits.Meter"
-              value: 50 # remove?
         - !!CompositeMethodNode
           name: "composite_method1"
           description: "method_description1"
@@ -143,17 +141,16 @@ root:
             - !!StringVariableNode
               name: "s_variable11"
               description: "variable_description5"
-              value: "variable_value5" # update to default value?
+              default_value: "variable_value5" # update to default value?
             - !!BooleanVariableNode
               name: "b_variable12"
               description: "variable_description6"
-              value: False # update to default value?
+              default_value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable13"
               description: "variable_description7"
               measure_unit: "LengthUnits.Meter"
-              value: 50 # remove?
           cfg:
             - !!ReadVariableNode
               variable: "folder1/n_variable1"
@@ -181,16 +178,15 @@ root:
             - !!BooleanVariableNode
               name: "var_in"
               description: "variable_description6"
-              value: True # update to default value?
+              default_value: True # update to default value?
             - !!StringVariableNode
               name: "node_path"
               description: ""
-              value: "default"
+              default_value: "default"
           returns:
             - !!BooleanVariableNode
               name: "var_out"
               description: "variable_description7"
-              value: True # remove?s
           cfg:
             - !!WaitConditionNode
               variable: $node_path
@@ -225,11 +221,11 @@ root:
         - !!StringVariableNode
           name: "s_variable3"
           description: "variable_description3"
-          value: "variable_value3"
+          initial_value: "variable_value3"
         - !!StringVariableNode
           name: "s_variable4"
           description: "variable_description4"
-          value: "variable_value4"
+          initial_value: "variable_value4"
 #    - !Include # VariableObj are include from other files to avoid redundancy
 #      file: "template/variable_obj.yml" # path to the file containing the object
 #      value: "{json-like initialization}" # json-like initialization of the object

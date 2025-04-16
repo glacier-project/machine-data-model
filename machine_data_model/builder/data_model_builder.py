@@ -91,7 +91,7 @@ class DataModelBuilder:
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "measure_unit": data.get("measure_unit", NoneMeasureUnits.NONE),
-                "value": data.get("value", 0),
+                "value": data.get("initial_value", 0),
             }
         )
 
@@ -109,7 +109,7 @@ class DataModelBuilder:
             **{
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
-                "value": data.get("value", ""),
+                "value": data.get("initial_value", ""),
             }
         )
 
@@ -127,7 +127,7 @@ class DataModelBuilder:
             **{
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
-                "value": data.get("value", False),
+                "value": data.get("initial_value", False),
             }
         )
 

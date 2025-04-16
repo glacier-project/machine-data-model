@@ -1,5 +1,5 @@
 # Machine Data Model
-This project enables the creation of structured and efficient data models. The machine data model is a structured representation inspired by standards such as the OPC UA information model, ISA-95 data model, RAMI 4.0, SoM-like data models, and others. 
+This project enables the creation of structured and efficient data models. The machine data model is a structured representation inspired by standards such as the OPC UA information model, ISA-95 data model, RAMI 4.0, SoM-like data models, and others.
 
 
 ## Nodes
@@ -166,11 +166,11 @@ We developed 3 different kind of MethodNodes:
     - !!StringVariableNode
       name: "s_variable8"
       description: "variable_description5"
-      default_value: "variable_value5" 
+      default_value: "variable_value5"
     - !!BooleanVariableNode
       name: "b_variable9"
       description: "variable_description6"
-      default_value: False 
+      default_value: False
   returns:
     - !!NumericalVariableNode
       name: "n_variable10"
@@ -244,7 +244,7 @@ First of all, clone the repository:
 
 `git clone https://github.com/esd-univr/frost-machine-data-model.git`
 
-Then build the wheel: 
+Then build the wheel:
 
 `poetry build`
 
