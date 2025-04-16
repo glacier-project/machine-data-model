@@ -1,12 +1,6 @@
-# FROST Machine Data Model 💠
+# Machine Data Model
+This project enables the creation of structured and efficient data models. The machine data model is a structured representation inspired by standards such as the OPC UA information model, ISA-95 data model, RAMI 4.0, SoM-like data models, and others. 
 
-This repository contains the implementation of the machine data model for the [FROST](https://github.com/esd-univr/frost.git) platform .
-
-The machine data model consists of a structured representation, inspired by
-the OPC UA information model, ISA-95 data model, RAMI 4.0, SoM-like data
-models and other similar data models.
-It implements the machine interface that is used to interact with the
-machines in the FROST platform.
 
 ## Nodes
 The data model is shaped in a tree-like structure, where each node represents one of the following:
@@ -239,6 +233,11 @@ The supported interaction patterns are:
 - Write: write the value of a variable
 - Call: call a method
 - Subscribe: subscribe to a variable to receive updates when its value changes
+
+# Protocol Manager
+This repository contains the implementation of the machine data model for the [FROST](https://github.com/esd-univr/frost.git) platform inside `examples/ICE`.
+
+#TODO
 
 # Installation
 First of all, clone the repository:
