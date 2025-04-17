@@ -109,18 +109,19 @@ class TestDataModel:
         assert data_model.read_variable(child.id) == new_value
 
     def test_call_method(self, root: FolderNode) -> None:
-        def callback() -> str:
-            return "result"
+        def callback(input: str) -> str:
+            return input
 
         method = MethodNode(
             name="method",
             callback=callback,
+            parameters=[StringVariableNode(name="input", value="Test")],
             returns=[StringVariableNode(name="return_value", value="")],
         )
         root.add_child(method)
         data_model = DataModel(name="dm", root=root)
         result = data_model.call_method(method.id)
-        assert result["return_value"] == "result"
+        assert result["return_value"] == "Test"
 
     def test_subscribe(self, root: FolderNode) -> None:
         # Tracks the list of changes.

@@ -244,7 +244,7 @@ The supported interaction patterns are:
 # Protocol Manager
 This repository contains the implementation of the machine data model for the [FROST](https://github.com/esd-univr/frost.git) platform inside `examples/ICE`.
 
-Protocol manager works as an intergace between data model and protocol messages.
+Protocol manager works as an interface between data model and protocol messages.
 It just translates what messages asks for into operations on the data model, simplifying the interaction with the data model.
 
 We take the Frost Protocol Manager for making an example.
