@@ -287,7 +287,8 @@ Coming soon!
 
 # Contributing
 
-TODO
+Contributions are welcome! If you have suggestions for improvements or
+features, please open an issue or submit a pull request.
 
 ## Development Setup
 
