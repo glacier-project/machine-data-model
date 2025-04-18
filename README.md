@@ -1,135 +1,238 @@
 # Machine Data Model
-This project enables the creation of structured and efficient data models. The machine data model is a structured representation inspired by standards such as the OPC UA information model, ISA-95 data model, RAMI 4.0, SoM-like data models, and others.
 
+This library simplifies the creation of machine data models in the manufacturing
+domain. It provides a structured and efficient way to represent machine data,
+enabling seamless integration with various protocols and systems.
+The library is designed to be extensible, allowing users to define their own data
+models and integrate them with existing systems.
+This library is inspired by standards such as the OPC UA information model, ISA-95 data model,
+RAMI 4.0, SoM-like data models, and others.
 
 ## Nodes
-The data model is shaped in a tree-like structure, where each node represents one of the following:
+The data model is organized in a tree-like structure, where each node
+represents one of the following:
 
-- **Folder**: a folder that contains other directories or variables;
-- **Variable**: a variable with a simple data type (string, numeric, boolean) or a
-complex data type (object);
-- **Method**: a method that can be called to perform an action on the machine;
+- **Folder**: a folder that can contain other folders or variables;
+- **Variable**: a variable storing a simple data type (i.e., string, numeric,
+  boolean) or a complex data type (i.e., object);
+- **Method**: a method that represents an action that can be invoked on request.
 
 Each node has the following attributes:
 
 - **Id**: a unique identifier for the node;
 - **Name**: a human-readable name for the node;
 - **Description**: a description of the node;
-- **Value**: the initial value of the node (ObjectNodes holds a dict `{"son_name": its_value}`);
 - **Parent**: the parent node;
 
 ### Folder Nodes
-It contains a dict with all its **children**.
-It must be the root node in the data model.
+
+Folder nodes are used to organize the data model into a hierarchical structure.
+They can contain other folder nodes or variable nodes.
+The root node of the data model is always a folder node.
+The following example shows how to define a folder:
 
 ```yaml
-!!FolderNode
-  name: "folder1"
-  description: "folder_description1"
+name: "machine_name" # name of the machine
+machine_category: "machine_category" # category of the machine
+machine_type: "machine_type" # type of the machine
+machine_model: "machine_model" # model of the machine
+description: "machine_description" # description of the machine
+root:
+  !!FolderNode
+  name: "folder"
+  description: "folder_description"
   children:
+    ...
 ```
 
 ### Variable Nodes
-Variable nodes compose the data that your model exposes. They have a **value** variable where it's stored the machine state.
 
-You can perform operation on the variable node taking the target node:
+Variable nodes are used to store data values in the data model. They can be of
+different types, including boolean, string, numerical, and object.
+To create a variable node, you need to specify its type, name, description,
+initial value, and any additional attributes specific to the variable type.
+The following examples show how to define a folder node with different types of variable nodes:
+
+```yaml
+...
+  !!FolderNode
+    name: "folder"
+    description: "folder_description"
+    children:
+     - !!BooleanVariableNode
+       name: "boolean"
+       description: "description"
+       initial_value: False
+     - !!StringVariableNode
+       name: "string"
+       description: "string_description"
+       initial_value: "value"
+     - !!NumericalVariableNode
+       name: "float"
+       description: "float_description"
+       # numerical nodes may also have a measure unit
+       measure_unit: "LengthUnits.Meter"
+       initial_value: 50.0
+     - !!ObjectVariableNode
+       name: "object"
+       description: "object_description"
+       properties:
+         - !!StringVariableNode
+           name: "string"
+           initial_value: "value"
+         - !!BooleanVariableNode
+           name: "boolean"
+           initial_value: True
+```
+
+Once the data model is defined, you can create an instance of the data model
+using the `DataModel` class. The data model is created by loading the YAML file
+containing the data model definition. The `DataModel` class provides methods to
+read and write variable values, call methods, and manage subscriptions.
 
 ```python
-node = data_model.get_node("root_folder/boolean")
+from machine_data_model.builder.data_model_builder import DataModelBuilder
+from machine_data_model.nodes.variable_node import VariableNode
+
+builder = DataModelBuilder()
+data_model = builder.get_data_model("path/to/model.yaml")
+
+node = data_model.get_node("folder1/boolean")
 node.value = False
 print(f"Node.value : {node.value}")
-#Node.value: False
+# Node.value: False
 
 node.subscribe("New User")
 print(f"Subscribers: {node.get_subscribers()}")
-#Subscribers: ["New User"]
+# Subscribers: ["New User"]
 
-def callback_example(subscriber: str, node: VariableNode, value: Any) -> None:
+def callback_example(subscriber: str, node: VariableNode, value) -> None:
   print(node.name, "got an update for", subscriber, ":", value)
 
-node.set_subscription_callback()
+node.set_subscription_callback(callback_example)
 node.value = True
-#boolean got an update for New User: True
+# boolean got an update for New User: True
 
 node.unsubscribe("New User")
 print(f"Subscribers: {node.get_subscribers()}")
-#Subscribers: []
+# Subscribers: []
 ```
 
 or through the data model:
+
 ```python
-data_model.write_variable("root_folder/boolean", False)
-print(f"Node.value : {data_model.read_variable("root_folder/boolean")}")
-#Node.value: False
+data_model.write_variable("folder1/boolean", False)
+print(f"Node.value : {data_model.read_variable("folder1/boolean")}")
+# Node.value: False
 ```
 
+The nodes also support pre- and post-callbacks, which can be used to execute custom logic
+before or after a read or write operation.
+This allows for user-defined interactions with the data model.
 
-We implemented 4 kind of VariableNode:
-
-1. **BooleanVariableNode**: it stores a boolean variable;
-
-```yaml
-!!BooleanVariableNode
-  name: "boolean"
-  description: ""
-  initial_value: False
+```python
+node.set_pre_read_value_callback(lambda: print("Pre read callback"))
+node.set_post_read_value_callback(lambda node_value: print("Post read callback ", node_value))
+node.set_pre_update_value_callback(lambda new_value: print("Pre write callback ", new_value))
+# post update return a boolean value, which when False cancels the update,
+# reverting the value of the node to the previous one
+node.set_post_update_value_callback(lambda prev_value, new_value: prev_value != new_value)
 ```
 
-2. **StringVariableNode**: it stores string;
+Object nodes are a special type of variable node that can contain other variable nodes as properties.
+Properties of the node can be accessed using the bracket notation, similar to how
+you would access properties in a dictionary.
 
-```yaml
-!!StringVariableNode
-  name: "s_variable5"
-  description: "variable_description5"
-  initial_value: "variable_value5"
+```python
+object_node = data_model.get_node("folder1/o_variable2")
+print(f"Node.value : {object_node["s_variable3"].value}")
+# "variable_value3"
 ```
-
-3. **NumericalVariableNode**: it stores a numerical variable. It contains a further field, **measure unit** that describes the physical property of the Node;
-
-```yaml
-!!NumericalVariableNode
-  name: "n_variable7"
-  description: "variable_description7"
-  measure_unit: "LengthUnits.Meter"
-  initial_value: 50
-```
-
-4. **ObjectVariableNode**: it contains several VariableNodes. It doesn't store a value, but sons of this node notifies the father whenever they get a value update.
-
-```yaml
-!!ObjectVariableNode
-  name: "o_variable2"
-  description: "variable_description2"
-  properties:
-    - !!StringVariableNode
-      name: "s_variable3"
-      description: "variable_description3"
-      initial_value: "variable_value3"
-    - !!BooleanVariableNode
-      name: "boolean_var"
-      description: "variable_description4"
-      initial_value: True
-```
-
-#### Pre and Post Callbacks
-All variable nodes, except for **ObjectVariableNodes**, support **pre** and **post** callbacks. These callbacks can be triggered:
-- **Before** a read or write request,
-- **After** a read or write request,
-- Or **both** before and after a read or write request.
-
-This feature allows for custom logic to be executed during variable interactions, enhancing flexibility and control.
-
-#### Subscribers and Subscription Callbacks
-Each variable node maintains a list of **subscribers**. Subscribers can register to receive updates whenever the variable's value changes. Additionally, variable nodes can instantiate a **subscription callback**, enabling dynamic and responsive behavior.
-
-#### Object Node Properties
-**ObjectVariableNodes** maintain a dictionary of children, referred to as **properties**. This structure allows the object node to seamlessly access and manage the values of its child nodes, fostering a hierarchical and organized data model.
 
 ### Method Nodes
-Method nodes can be invoked in order to perform operations on the data model. Their behavior must be implemented in the target code and passed to the **callback** attribute.
+
+Method nodes are used to define functions that can be invoked on the data model.
+The data model supports three types of method nodes:
+
+- **MethodNode**: A synchronous method that returns only after
+  the requested operation completes. The operation may be a long-running
+  task, which requires multiple time steps to complete.
+
+```yaml
+...
+  ...
+    !!MethodNode
+      name: "method"
+      description: "method_description"
+      parameters:
+        - !!StringVariableNode
+          name: "string"
+          description: "string_description"
+          default_value: "value"
+        - !!BooleanVariableNode
+          name: "boolean"
+          description: "boolean_description"
+          default_value: False
+      returns:
+        - !!NumericalVariableNode
+          name: "float"
+          description: "float_description"
+          measure_unit: "LengthUnits.Meter"
+```
+
+- **AsyncMethodNode**: An asynchronous method that returns immediately after
+  being invoked.
+
+```yaml
+...
+  ...
+    !AsyncMethodNode
+      name: "async_method"
+      description: "async_method_description"
+      parameters:
+        ...
+      returns:
+        ...
+```
+
+- **CompositeMethodNode**: A synchronous method composed of a sequence of
+  operations specified in a Control Flow Graph (**CFG**). It allows wrapping
+  asynchronous methods in synchronous semantics. The nodes in the CFG can be
+  read, write, wait, asynchronous method invocation operations on the data
+  model nodes. When invoked, the method executes the operations in the CFG
+  in the order they are defined, and returns the result only when all
+  operations are completed. If the execution does not terminate (hen
+  some wait conditions are not met), it returns the id of execution instance.
+  The execution id can be used to resume the execution of the method.
+
+```yaml
+...
+  ...
+    !!CompositeMethodNode
+      name: "composite_method"
+      description: "composite_method_description"
+      parameters:
+        ...
+      cfg:
+        - !!WriteVariableNode
+          variable: "folder/float"
+          value: 18
+        - !!WaitConditionNode
+          variable: "folder/float"
+          operator: "=="
+          rhs: 17
+        - !!ReadVariableNode
+          variable: "folder/boolean"
+          store_as: "var_out"
+      returns:
+        ...
+```
+
+The behavior of the method must be implemented in the target code and bind
+to the **callback** attribute of the node.
 
 ```python
-node = data_model.get_node("root_folder/method")
+node = data_model.get_node("folder/method")
 
 def sum_1(i:int) -> int:
   return i + 1
@@ -139,139 +242,48 @@ print(f"Result: {node(1)}")
 #Result: 2
 ```
 
-We developed 3 different kind of MethodNodes:
+Similarly to the variable nodes, method nodes can also have pre- and
+post-callbacks.
+These callbacks enable operations to be executed **before** or **after** the method invocation,
+allowing for user-defined interactions with the data model.
 
-- **MethodNode**: it is designed to be enhanced in the FROST platform with Lingua Franca code, allowing for **callback** assignment and timely behavior when required.
+## Protocol Manager
 
-```yaml
-!!MethodNode
-  name: "method1"
-  description: "method_description1"
-  parameters:
-    - !!StringVariableNode
-      name: "s_variable5"
-      description: "variable_description5"
-      default_value: "variable_value5"
-    - !!BooleanVariableNode
-      name: "b_variable6"
-      description: "variable_description6"
-      default_value: False
-  returns:
-    - !!NumericalVariableNode
-      name: "n_variable7"
-      description: "variable_description7"
-      measure_unit: "LengthUnits.Meter"
-```
+The protocol manager is a component that acts as an interface between the data model
+and the different protocols used to communicate with the data model.
+Currently, the library supports the [FROST](https://github.com/esd-univr/frost.git)
+protocol, which is a protocol for communication between machines and
+applications in the manufacturing domain.
 
-- **AsyncMethodNode**: it returns immediately when invoked. Users should implement a **callback** function and assign it to the node's attribute to handle the asynchronous behavior.
+The protocol manager implements the protocol-specific logic for handling
+incoming requests and outgoing responses. It translates the protocol messages
+into operations on the data model, allowing users to interact with the data
+model using the protocol.
 
-```yaml
-!AsyncMethodNode
-  name: "async_method1"
-  description: "method_description1"
-  parameters:
-    - !!StringVariableNode
-      name: "s_variable8"
-      description: "variable_description5"
-      default_value: "variable_value5"
-    - !!BooleanVariableNode
-      name: "b_variable9"
-      description: "variable_description6"
-      default_value: False
-  returns:
-    - !!NumericalVariableNode
-      name: "n_variable10"
-      description: "variable_description7"
-      measure_unit: "LengthUnits.Meter"
-```
-
-- **CompositeMethodNode**: it is designed for complex tasks. Although it is a type of MethodNode, it can execute multiple operations defined in a control flow graph (**cfg**). These operations include writing to variables, reading their values, waiting for specific conditions, and invoking other AsyncMethodNodes.
-
-#### Method Node Features
-
-Each method node supports **input assignment** and **result handling** through its `parameters` and `returns` attributes, both of which are `list[VariableNode]`:
-
-- **Parameters**: A list of arguments required by the method.
-- **Returns**: A list of results produced by the method.
-
-To leverage these features, populate the `parameters` and `returns` fields in your model file as needed.
-
-#### Pre and Post Callbacks
-
-Both **MethodNode** and **AsyncMethodNode** types include **pre** and **post** callback attributes. These callbacks enable operations to be executed **before** or **after** the method invocation, providing flexibility for custom logic.
-
-#### Control Flow Graph for Object Nodes
-
-```yaml
-!!CompositeMethodNode
-  name: "simple_composite_method"
-  description: ""
-  cfg:
-    - !!WriteVariableNode
-      variable: "folder1/n_variable1"
-      value: 18
-    - !!WaitConditionNode
-      variable: "folder1/n_variable1"
-      operator: "=="
-      rhs: 17
-    - !!ReadVariableNode
-      variable: "folder1/boolean"
-      store_as: "var_out"
-  returns:
-    - !!BooleanVariableNode
-      name: "var_out"
-      description: "variable_description7"
-```
-
-For **ObjectVariableNodes**, you can implement a **control flow graph (CFG)** to define complex behaviors. The CFG can include the following node types:
-
-- **WaitConditionNode**: Pauses execution until a specific condition is met.
-- **WriteVariableNode**: Writes a value to a variable.
-- **ReadVariableNode**: Reads a value from a variable.
-- **CallMethodNode**: Invokes a method.
-
-This structure allows for the creation of dynamic and responsive workflows within the data model.
-
-## Operations
-
-The supported interaction patterns are:
-
-- Read: read the value of a variable
-- Write: write the value of a variable
-- Call: call a method
-- Subscribe: subscribe to a variable to receive updates when its value changes
-
-# Protocol Manager
-This repository contains the implementation of the machine data model for the [FROST](https://github.com/esd-univr/frost.git) platform inside `examples/ICE`.
-
-Protocol manager works as an interface between data model and protocol messages.
-It just translates what messages asks for into operations on the data model, simplifying the interaction with the data model.
-
-We take the Frost Protocol Manager for making an example.
-A message arrives and it asks for writing *True* to a particular variable:
-
-```python
-target_node = data_model.get_node("root/target_node")
-target_node.value = False
-protocol_manager.handle_message(incoming_message)
-print(target_node.value)
-#True
-```
-
-Thus, you may prepare your message protocol and its protocol manager, or use ours.
+More information about the protocol manager can be found in the directory
+`machine_data_model/protocol_manager/`.
 
 # Installation
-First of all, clone the repository:
 
-`git clone https://github.com/esd-univr/frost-machine-data-model.git`
+## From source
 
-Then build the wheel:
+#### Pre-requisites
 
-`poetry build`
+- Python 3.11 or higher
+- Poetry 1.8 or higher
 
-Install through pip:
+#### Building the library
 
-`pip install dist/machine_data_model-0.0.0-py3-none-any.whl`
+```bash
+git clone https://github.com/esd-univr/machine-data-model.git
+cd machine-data-model
+poetry build
+python3.11 -m pip install dist/machine_data_model-0.0.1-py3-none-any.whl
+```
+
+## From PyPI
+
+Coming soon!
 
 # Contributing
 
