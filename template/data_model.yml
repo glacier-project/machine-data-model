@@ -1,10 +1,9 @@
-machine:
-  name: "machine1" # name of the machine
-  category: "machine_category1" # category of the machine
-  type: "machine_type1" # type of the machine
-  model: "machine_model1" # model of the machine
-  description: "machine_description1" # description of the machine
-data_model:
+name: "machine1" # name of the machine
+machine_category: "machine_category1" # category of the machine
+machine_type: "machine_type1" # type of the machine
+machine_model: "machine_model1" # model of the machine
+description: "machine_description1" # description of the machine
+root:
   # The data model is a tree of objects, each object can be a Variable, Method, Folder or Include.
   # The tree is rooted in a Folder object.
   # Folders can contain other Folders, Variables, Methods or Includes.
@@ -15,48 +14,218 @@ data_model:
   # To avoid redundancy, VariableObj are included from other files with the !Include tag, defining the structure of the object.
   # Methods are used to define remote procedures that can be requested to the machine. (i.e., services)
   # The Include tag can also be used to include portions of the data model from other files.
-  - !Folder
-    name: "directory1"
-    description: "directory_description1"
-    children:
-      - !Variable
-        name: "variable1"
-        description: "variable_description1"
-        measure_domain: "variable_measure_domain1"
-        measure_unit: "variable_measure_unit1"
-        type: "variable_type1"
-        value: "variable_value1"
-      - !Folder
-        name: "directory2"
-        description: "directory_description2"
-        children:
-          - !Method
-            name: "method1"
-            description: "method_description1"
-            parameters:
-              - !Variable
-                name: "variable5"
-                description: "variable_description5"
-                measure_domain: "variable_measure_domain5"
-                measure_unit: "variable_measure_unit5"
-                type: "variable_type5"
-                value: "variable_value5"
-              - !Variable
-                name: "variable6"
-                description: "variable_description6"
-                measure_domain: "variable_measure_domain6"
-                measure_unit: "variable_measure_unit6"
-                type: "variable_type6"
-                value: "variable_value6"
-            return:
-              - !Variable
-                name: "variable7"
-                description: "variable_description7"
-                measure_domain: "variable_measure_domain7"
-                measure_unit: "variable_measure_unit7"
-                type: "variable_type7"
-                value: "variable_value7"
-      - !Include # VariableObj are include from other files to avoid redundancy
-        file: "template/variable_obj.yml" # path to the file containing the object
-        value: "{json-like initialization}" # json-like initialization of the object
-
+  !!FolderNode
+  name: "folder1"
+  description: "folder_description1"
+  children:
+    - !!BooleanVariableNode
+      name: "boolean"
+      description: ""
+      initial_value: False
+    - !!NumericalVariableNode
+      name: "n_variable1"
+      description: "variable_description1"
+      measure_unit: "LengthUnits.Meter"
+      initial_value: 5
+    - !!NumericalVariableNode
+      name: "n_variable2"
+      description: "variable_description1"
+      measure_unit: "LengthUnits.Meter"
+      initial_value: 30
+    - !!FolderNode
+      name: "folder3"
+      description: "folder_description3"
+      children:
+        - !!CompositeMethodNode
+          name: "dynamic_read"
+          description: "dynamic_read_description"
+          parameters:
+            - !!StringVariableNode
+              name: "node_path"
+              default_value: "folder1/n_variable1"
+          returns:
+            - !!NumericalVariableNode
+              name: "var_value"
+              measure_unit: "LengthUnits.Meter"
+          cfg:
+            - !!ReadVariableNode
+              variable: "$node_path"
+              store_as: "var_value"
+        - !!CompositeMethodNode
+          name: "dynamic_write"
+          description: "dynamic_write_description"
+          parameters:
+            - !!StringVariableNode
+              name: "node_path"
+              default_value: "folder1/n_variable1"
+            - !!NumericalVariableNode
+              name: "var_value"
+              measure_unit: "LengthUnits.Meter"
+              default_value: 25
+          cfg:
+            - !!WriteVariableNode
+              variable: "$node_path"
+              value: "$var_value"
+        - !!CompositeMethodNode
+          name: "dynamic_call"
+          description: "dynamic_call_description"
+          parameters:
+            - !!StringVariableNode
+              name: "method_path"
+              default_value: "folder1/folder2/async_method1"
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable10"
+              measure_unit: "LengthUnits.Meter"
+          cfg:
+            - !!CallMethodNode
+              method: "$method_path"
+        - !!CompositeMethodNode
+          name: "dynamic_wait"
+          description: "dynamic_wait_description"
+          parameters:
+            - !!StringVariableNode
+              name: "variable_path"
+              default_value: "folder1/n_variable1"
+            - !!NumericalVariableNode
+              name: "value"
+              measure_unit: "LengthUnits.Meter"
+              default_value: 20
+          cfg:
+            - !!WaitConditionNode
+              variable: "$variable_path"
+              operator: "!="
+              rhs: "$value"
+    - !!FolderNode
+      name: "folder2"
+      description: "folder_description2"
+      children:
+        - !!MethodNode
+          name: "method1"
+          description: "method_description1"
+          parameters:
+            - !!StringVariableNode
+              name: "s_variable5"
+              description: "variable_description5"
+              default_value: "variable_value5" # update to default value?
+            - !!BooleanVariableNode
+              name: "b_variable6"
+              description: "variable_description6"
+              default_value: False # update to default value?
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable7"
+              description: "variable_description7"
+              measure_unit: "LengthUnits.Meter"
+        - !!AsyncMethodNode
+          name: "async_method1"
+          description: "method_description1"
+          parameters:
+            - !!StringVariableNode
+              name: "s_variable8"
+              description: "variable_description5"
+              default_value: "variable_value5" # update to default value?
+            - !!BooleanVariableNode
+              name: "b_variable9"
+              description: "variable_description6"
+              default_value: False # update to default value?
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable10"
+              description: "variable_description7"
+              measure_unit: "LengthUnits.Meter"
+        - !!CompositeMethodNode
+          name: "composite_method1"
+          description: "method_description1"
+          parameters:
+            - !!StringVariableNode
+              name: "s_variable11"
+              description: "variable_description5"
+              default_value: "variable_value5" # update to default value?
+            - !!BooleanVariableNode
+              name: "b_variable12"
+              description: "variable_description6"
+              default_value: False # update to default value?
+          returns:
+            - !!NumericalVariableNode
+              name: "n_variable13"
+              description: "variable_description7"
+              measure_unit: "LengthUnits.Meter"
+          cfg:
+            - !!ReadVariableNode
+              variable: "folder1/n_variable1"
+              store_as: "my_var"
+            - !!WriteVariableNode
+              variable: "folder1/n_variable2"
+              value: "$my_var"
+            - !!ReadVariableNode
+              variable: "folder1/n_variable2"
+              store_as: "n_variable13"
+            - !!CallMethodNode
+              method: "folder1/folder2/async_method1"
+              args:
+                - False
+              kwargs:
+                s_variable8: "variable_value5"
+            - !!WaitConditionNode
+              variable: "folder1/n_variable2"
+              operator: ">"
+              rhs: 10
+        - !!CompositeMethodNode
+          name: "comp_test"
+          description: "method"
+          parameters:
+            - !!BooleanVariableNode
+              name: "var_in"
+              description: "variable_description6"
+              default_value: True # update to default value?
+            - !!StringVariableNode
+              name: "node_path"
+              description: ""
+              default_value: "default"
+          returns:
+            - !!BooleanVariableNode
+              name: "var_out"
+              description: "variable_description7"
+          cfg:
+            - !!WaitConditionNode
+              variable: $node_path
+              operator: "=="
+              rhs: $var_in
+            - !!ReadVariableNode
+              variable: $node_path
+              store_as: "var_out"
+        - !!CompositeMethodNode
+          name: "simple_composite_method"
+          description: ""
+          cfg:
+            - !!WriteVariableNode
+              variable: "folder1/n_variable1"
+              value: 18
+            - !!WaitConditionNode
+              variable: "folder1/n_variable1"
+              operator: "=="
+              rhs: 17
+            - !!ReadVariableNode
+              variable: "folder1/boolean"
+              store_as: "var_out"
+          returns:
+            - !!BooleanVariableNode
+              name: "var_out"
+              description: "variable_description7"
+              value: True # remove?s
+    - !!ObjectVariableNode
+      name: "o_variable2"
+      description: "variable_description2"
+      properties:
+        - !!StringVariableNode
+          name: "s_variable3"
+          description: "variable_description3"
+          initial_value: "variable_value3"
+        - !!StringVariableNode
+          name: "s_variable4"
+          description: "variable_description4"
+          initial_value: "variable_value4"
+#    - !Include # VariableObj are include from other files to avoid redundancy
+#      file: "template/variable_obj.yml" # path to the file containing the object
+#      value: "{json-like initialization}" # json-like initialization of the object

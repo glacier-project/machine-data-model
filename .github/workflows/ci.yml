@@ -1,0 +1,70 @@
+---
+name: Test and build
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+#  workflow_call:
+#    inputs:
+#      config:
+#        required: true
+#        type: string
+#    secrets:
+#      token:
+#        required: true
+#        type: string
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pre-commit/action@v3.0.1
+#  check-links:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: gaurav-nelson/github-action-markdown-link-check@v1
+#        name: Check links in markdown files
+#        with:
+#          use-quiet-mode: "yes"
+#          use-verbose-mode: "yes"
+  test:
+    needs: qa
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"] #, "macos-latest", "windows-latest"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run image
+        uses: abatilo/actions-poetry@v3.0.1
+        with:
+          poetry-version: "1.8.5"
+      - name: Install dependencies
+        run: poetry install --all-extras
+#      - name: Run tests
+#        run: poetry run pytest
+      - name: Setup test suite
+        run: poetry run tox run -vv --notest
+        env:
+          TOX_GH_MAJOR_MINOR: ${{ matrix.python-version }}
+      - name: Run test suite
+        run: poetry run tox run --skip-pkg-install --skip-missing-interpreters true --skip-env "(formatter|type|coverage)"
+        env:
+          TOX_GH_MAJOR_MINOR: ${{ matrix.python-version }}
+      - name: Run type checks
+        if: matrix.python-version == '3.10'
+        run: poetry run tox run --skip-pkg-install -e type
+        env:
+          TOX_GH_MAJOR_MINOR: ${{ matrix.python-version }}

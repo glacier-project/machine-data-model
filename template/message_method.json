@@ -1,0 +1,31 @@
+{
+  "sender": {
+    "type": "str",
+    "value": "example_sender"
+  },
+  "target": {
+    "type": "str",
+    "value": "example_target"
+  },
+  "uuid_code": {
+    "type": "uuid.UUID",
+    "value": "example_uuid"
+  },
+  "topology": {
+    "type": "MessageTopology",
+    "value": "message_topology"
+  },
+  "payload": {
+    "type": "MethodCall",
+    "value": {
+      "method": {
+        "type": "str",
+        "value": "example_method_name"
+      },
+      "args": {
+        "type": "list",
+        "value": []
+      }
+    }
+  }
+}
