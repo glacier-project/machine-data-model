@@ -124,3 +124,18 @@ class DataModelNode(ABC):
         :return: An iterator over the children of the node.
         """
         pass
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if two nodes are equal based on their IDs.
+
+        :param other: The other node to compare with.
+        :return: True if the nodes are equal, False otherwise.
+        """
+        if not isinstance(other, DataModelNode):
+            return False
+        return (
+            self.id == other.id
+            and self.name == other.name
+            and self.description == other.description
+        )
