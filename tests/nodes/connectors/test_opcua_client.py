@@ -23,3 +23,4 @@ class TestOpcuaConnector:
         assert connector.ip == ip
         assert connector.port == port
         assert connector.security_policy == security_policy
+        connector.stop_thread()
