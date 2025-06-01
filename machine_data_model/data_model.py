@@ -1,4 +1,6 @@
+import asyncio
 from collections.abc import Callable
+import warnings
 
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -8,6 +10,7 @@ from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
 
 
 class DataModel:
@@ -19,6 +22,7 @@ class DataModel:
         machine_model: str = "",
         description: str = "",
         root: FolderNode | None = None,
+        connectors: list[AbstractConnector] | None = None,
     ):
         self._name = name
         self._machine_category = machine_category
@@ -30,6 +34,14 @@ class DataModel:
             if root is not None
             else FolderNode(name="root", description="Root folder of the data model")
         )
+
+        self._connectors: dict[str, AbstractConnector] = {}
+        if connectors is not None:
+            for connector in connectors:
+                if connector.name is None:
+                    continue
+                self._connectors[connector.name] = connector
+
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
         self._register_nodes(self._root)
@@ -57,6 +69,20 @@ class DataModel:
     @property
     def root(self) -> FolderNode:
         return self._root
+
+    @property
+    def connectors(self) -> dict[str, AbstractConnector]:
+        return self._connectors
+
+    def _get_connector_by_name(self, name: str) -> AbstractConnector | None:
+        """
+        Returns the connector associated with the given name.
+        :param name: name of the connector
+        """
+        connector = self._connectors.get(name)
+        if connector is None:
+            warnings.warn("Connector with name {} not found".format(name))
+        return connector
 
     def _register_node(self, node: DataModelNode) -> None:
         """
@@ -121,6 +147,7 @@ class DataModel:
         """
 
         current_node: DataModelNode = self._root
+        connector: AbstractConnector | None = None
         path = path.lstrip("/")
         if "/" not in path:
             if current_node.name == path:
@@ -140,6 +167,18 @@ class DataModel:
             ) and not current_node.has_property(part):
                 return None
             current_node = current_node[part]
+            if current_node.connector_name is not None:
+                connector = self._get_connector_by_name(current_node.connector_name)
+
+        if connector is not None:
+            loop = asyncio.get_event_loop()
+            loop.set_debug(True)
+            task = loop.create_task(connector.get_node(path))
+            done, _ = loop.run_until_complete(asyncio.wait([task]))
+            result = done.pop().result()
+            if result is not None:
+                current_node = result
+            loop.close()
         return current_node
 
     def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
@@ -238,7 +277,8 @@ class DataModel:
             f"machine_type={self._machine_type}, "
             f"machine_model={self._machine_model}, "
             f"description={self._description}, "
-            f"root={self._root})"
+            f"root={self._root}, "
+            f"connectors={self._connectors})"
         )
 
     def __repr__(self) -> str:

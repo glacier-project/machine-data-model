@@ -2,6 +2,7 @@ import os
 from collections.abc import Callable
 
 import yaml
+from machine_data_model.nodes.connectors.opcua_connector import OpcuaConnector
 
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.call_method_node import CallMethodNode
@@ -92,6 +93,7 @@ class DataModelBuilder:
                 "description": data.get("description", ""),
                 "measure_unit": data.get("measure_unit", NoneMeasureUnits.NONE),
                 "value": data.get("initial_value", 0),
+                "connector_name": data.get("connector_name", None),
             }
         )
 
@@ -110,6 +112,7 @@ class DataModelBuilder:
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", ""),
+                "connector_name": data.get("connector_name", None),
             }
         )
 
@@ -277,6 +280,27 @@ class DataModelBuilder:
 
         return data_model
 
+    def _get_opcua_connector_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> OpcuaConnector:
+        """
+        Construct a call method node from a yaml node.
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The constructed call method node.
+        """
+        data = loader.construct_mapping(node, deep=True)
+        return OpcuaConnector(
+            name=data.get("name", ""),
+            ip=data.get("ip", ""),
+            port=data.get("port", 1234),
+            security_policy=data.get("security_policy", "SecurityPolicyBasic256Sha256"),
+            host_name=data.get("host_name", None),
+            client_app_uri=data.get("client_app_uri", None),
+            certificate_file_path=data.get("certificate_file_path", None),
+            private_key_file_path=data.get("private_key_file_path", None),
+        )
+
     def _add_yaml_constructors(self) -> None:
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:FolderNode",
@@ -325,4 +349,8 @@ class DataModelBuilder:
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:CallMethodNode",
             self._get_call_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:OpcuaConnector",
+            self._get_opcua_connector_node,
         )

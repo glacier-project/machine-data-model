@@ -1,0 +1,52 @@
+name: "boiler"
+machine_category: "boiler_cat"
+machine_type: "boiler_type"
+machine_model: "boiler_model"
+description: "boiler description"
+connectors:
+  - !!OpcuaConnector
+    name: "myOpcuaConnector1"
+    ip: "127.0.0.1"
+    port: 50000
+    security_policy: "SecurityPolicyBasic256Sha256"
+    private_key_file_path: "certificates/peer-private-key-example-4.pem"
+    certificate_file_path: "certificates/peer-certificate-example-4.der"
+root:
+  !!FolderNode
+  name: "Objects"
+  description: "Objects folder"
+  children:
+    - !!FolderNode
+      name: "4:Boilers"
+      description: "Boilers folder"
+      children:
+        - !!ObjectVariableNode
+          name: "4:Boiler #2"
+          description: "Boiler 2"
+          properties:
+            - !!StringVariableNode
+              name: "2:AssetId"
+              description: "asset id"
+              connector_name: "myOpcuaConnector1"
+
+            - !!ObjectVariableNode
+              name: "2:ParameterSet"
+              description: "parameter set"
+              properties:
+                - !!NumericalVariableNode
+                  name: "4:CurrentTemperature"
+                  description: "current temperature"
+    - !!FolderNode
+      name: "3:OpcPlc"
+      description: "Opc PLC"
+      children:
+        - !!FolderNode
+          name: "3:Methods"
+          description: "methods"
+          children:
+            - !!MethodNode
+              name: "4:HeaterOff"
+              description: "heater off"
+            - !!MethodNode
+              name: "4:HeaterOn"
+              description: "heater on"

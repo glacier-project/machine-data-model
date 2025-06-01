@@ -33,6 +33,7 @@ class VariableNode(DataModelNode):
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
+        connector_name: str | None = None,
     ):
         """
         Initializes a new VariableNode instance.
@@ -41,7 +42,9 @@ class VariableNode(DataModelNode):
         :param name: The name of the variable.
         :param description: The description of the variable.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id, name=name, description=description, connector_name=connector_name
+        )
         # Read callbacks.
         self._pre_read_value: Callable[[], None] = lambda: None
         self._post_read_value: Callable[[Any], Any] = lambda value: value
@@ -261,6 +264,7 @@ class NumericalVariableNode(VariableNode):
         description: str | None = None,
         measure_unit: Enum | str = NoneMeasureUnits.NONE,
         value: float = 0,
+        connector_name: str | None = None,
     ):
         """
         Initializes a new NumericalVariableNode instance.
@@ -271,7 +275,9 @@ class NumericalVariableNode(VariableNode):
         :param measure_unit: The measure unit of the numerical variable.
         :param value: The initial value of the numerical variable.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id, name=name, description=description, connector_name=connector_name
+        )
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
             measure_unit
         )
@@ -331,6 +337,7 @@ class StringVariableNode(VariableNode):
         name: str | None = None,
         description: str | None = None,
         value: str = "",
+        connector_name: str | None = None,
     ):
         """
         Initializes a new StringVariableNode instance.
@@ -340,7 +347,9 @@ class StringVariableNode(VariableNode):
         :param description: The description of the string variable.
         :param value: The initial value of the string variable.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id, name=name, description=description, connector_name=connector_name
+        )
         self._value: str = value
 
     def _read_value(self) -> str:

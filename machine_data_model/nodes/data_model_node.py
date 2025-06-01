@@ -21,6 +21,7 @@ class DataModelNode(ABC):
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
+        connector_name: str | None = None,
     ):
         """
         Initializes a new `DataModelNode` instance.
@@ -39,6 +40,7 @@ class DataModelNode(ABC):
         self._description = "" if description is None else description
         assert isinstance(self._description, str), "Description must be a string"
         self.parent: DataModelNode | None = None
+        self._connector_name = connector_name
 
     @property
     def id(self) -> str:
@@ -80,6 +82,10 @@ class DataModelNode(ABC):
         :return: The description of the node.
         """
         return self._description
+
+    @property
+    def connector_name(self) -> str | None:
+        return self._connector_name
 
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]
