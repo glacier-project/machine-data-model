@@ -1,6 +1,6 @@
 import asyncio
-from threading import Thread
-from queue import ShutDown, Empty, Queue
+from threading import Thread, Event
+from queue import Empty, Queue
 from typing import Coroutine, Any
 
 
@@ -8,33 +8,33 @@ class ConnectorThread(Thread):
     """
     Connector's thread. Handles async tasks and returns the result.
     """
-    def __init__(self, tasks_input_queue: Queue, results_output_queue: Queue):
+
+    def __init__(
+        self, stop_event: Event, tasks_input_queue: Queue, results_output_queue: Queue
+    ):
         super().__init__()
         self._tasks_input_queue = tasks_input_queue
         self._results_output_queue = results_output_queue
         self._asyncio_loop = asyncio.new_event_loop()
+        self._stop_event = stop_event
 
     def run(self) -> None:
         """
         Thread's control loop: retrieve one task at a time to
          execute it and return its result using the two queues.
 
-        The thread stops its execution when at least one queue gets closed.
+        The thread stops its execution when the stop_event arrives.
         """
-        try:
-            while True:
-                try:
-                    async_task = self._tasks_input_queue.get(True, 0.1)
-                    task_result = self.compute_task(async_task)
-                    self._results_output_queue.put(task_result)
-                    self._tasks_input_queue.task_done()
-                    self._results_output_queue.join()
-                except Empty:
-                    # the timeout expired
-                    pass
-        except ShutDown:
-            # a queue was closed
-            pass
+        while not self._stop_event.wait(0.1):
+            try:
+                async_task = self._tasks_input_queue.get(True, 0.1)
+                task_result = self.compute_task(async_task)
+                self._results_output_queue.put(task_result)
+                self._tasks_input_queue.task_done()
+                self._results_output_queue.join()
+            except Empty:
+                # the timeout expired
+                pass
 
     def compute_task(self, task: Coroutine) -> Any:
         """

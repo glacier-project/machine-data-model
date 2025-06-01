@@ -1,5 +1,5 @@
 import queue
-from threading import Thread
+from threading import Thread, Event
 import uuid
 from abc import ABC, abstractmethod
 from typing import Iterator, Coroutine, Any
@@ -26,7 +26,10 @@ class AbstractConnector(ABC):
         self._port: int | None = port
         self._tasks_queue: queue.Queue = queue.Queue()
         self._results_queue: queue.Queue = queue.Queue()
-        self._thread: Thread = ConnectorThread(self._tasks_queue, self._results_queue)
+        self._thread_stop_event = Event()
+        self._thread: Thread = ConnectorThread(
+            self._thread_stop_event, self._tasks_queue, self._results_queue
+        )
         self._thread.start()
 
     @property
@@ -70,8 +73,7 @@ class AbstractConnector(ABC):
         """
         Stop the thread.
         """
-        self._tasks_queue.shutdown(immediate=True)
-        self._results_queue.shutdown(immediate=True)
+        self._thread_stop_event.set()
         self._thread.join()
 
     def _handle_task(self, task: Coroutine) -> Any:
