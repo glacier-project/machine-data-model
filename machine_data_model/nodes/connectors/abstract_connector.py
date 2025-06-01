@@ -2,9 +2,12 @@ import queue
 from threading import Thread, Event
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator, Coroutine, Any
+from typing import Iterator, Coroutine
 
-from machine_data_model.nodes.connectors.connector_thread import ConnectorThread
+from machine_data_model.nodes.connectors.connector_thread import (
+    ConnectorThread,
+    TaskReturnType,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
 
 
@@ -76,13 +79,15 @@ class AbstractConnector(ABC):
         self._thread_stop_event.set()
         self._thread.join()
 
-    def _handle_task(self, task: Coroutine) -> Any:
+    def _handle_task(
+        self, task: Coroutine[None, None, TaskReturnType]
+    ) -> TaskReturnType:
         """
         Run a task in the thread, wait for the result and return it.
         """
         self._tasks_queue.put(task)
         self._tasks_queue.join()
-        output = self._results_queue.get()
+        output: TaskReturnType = self._results_queue.get()
         self._results_queue.task_done()
         return output
 

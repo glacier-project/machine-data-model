@@ -1,7 +1,9 @@
 import asyncio
 from threading import Thread, Event
 from queue import Empty, Queue
-from typing import Coroutine, Any
+from typing import Coroutine, TypeVar
+
+TaskReturnType = TypeVar("TaskReturnType")
 
 
 class ConnectorThread(Thread):
@@ -36,7 +38,9 @@ class ConnectorThread(Thread):
                 # the timeout expired
                 pass
 
-    def compute_task(self, task: Coroutine) -> Any:
+    def compute_task(
+        self, task: Coroutine[None, None, TaskReturnType]
+    ) -> TaskReturnType:
         """
         Execute the async task using asyncio's loop
         and return the result.

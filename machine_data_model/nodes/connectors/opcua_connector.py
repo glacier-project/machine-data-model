@@ -67,11 +67,11 @@ def _security_policy_string_to_asyncua_policy(
     """
     Converts a string containing the desired security policy into a asyncua SecurityPolicy type.
     """
+    policy: type[SecurityPolicy] | None = None
     if policy_string == "SecurityPolicyBasic256Sha256":
-        # TODO: figure out the correct type
-        return SecurityPolicyBasic256Sha256  # type: ignore[no-any-return]
+        policy = SecurityPolicyBasic256Sha256
 
-    return None
+    return policy
 
 
 class OpcuaConnector(AbstractConnector):
