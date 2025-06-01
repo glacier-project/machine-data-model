@@ -203,9 +203,17 @@ class OpcuaConnector(AbstractConnector):
         await self._client.disconnect()
 
     @override
-    async def get_node(self, path: str) -> DataModelNode | None:
+    def get_node(self, path: str) -> DataModelNode | None:
         """
         Returns the node from the OPC-UA server.
+        """
+        get_node_coroutine = self._async_get_node(path)
+        task_result = self._handle_task(get_node_coroutine)
+        return task_result
+
+    async def _async_get_node(self, path: str) -> DataModelNode | None:
+        """
+        Asynchronous function which returns the node from the OPC-UA server.
         """
         node = None
         await self.connect()

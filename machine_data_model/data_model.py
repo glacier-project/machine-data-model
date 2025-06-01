@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import Callable
 import warnings
 
@@ -171,14 +170,9 @@ class DataModel:
                 connector = self._get_connector_by_name(current_node.connector_name)
 
         if connector is not None:
-            loop = asyncio.get_event_loop()
-            loop.set_debug(True)
-            task = loop.create_task(connector.get_node(path))
-            done, _ = loop.run_until_complete(asyncio.wait([task]))
-            result = done.pop().result()
-            if result is not None:
-                current_node = result
-            loop.close()
+            node = connector.get_node(path)
+            if node is not None:
+                current_node = node
         return current_node
 
     def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
@@ -269,6 +263,13 @@ class DataModel:
             node.unsubscribe(unsubscriber)
             return True
         raise ValueError(f"Variable Node '{target_node}' not found in data model")
+
+    def close_connectors(self) -> None:
+        """
+        Stops all connectors threads.
+        """
+        for connector in self._connectors.values():
+            connector.stop_thread()
 
     def __str__(self) -> str:
         return (

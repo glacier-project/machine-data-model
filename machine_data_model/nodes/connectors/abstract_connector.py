@@ -1,7 +1,10 @@
+import queue
+from threading import Thread
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator
+from typing import Iterator, Coroutine, Any
 
+from machine_data_model.nodes.connectors.connector_thread import ConnectorThread
 from machine_data_model.nodes.data_model_node import DataModelNode
 
 
@@ -18,9 +21,13 @@ class AbstractConnector(ABC):
         port: int | None = None,
     ):
         self._id: str = str(uuid.uuid4()) if id is None else id
-        self._name = name
-        self._ip = ip
-        self._port = port
+        self._name: str | None = name
+        self._ip: str | None = ip
+        self._port: int | None = port
+        self._tasks_queue: queue.Queue = queue.Queue()
+        self._results_queue: queue.Queue = queue.Queue()
+        self._thread: Thread = ConnectorThread(self._tasks_queue, self._results_queue)
+        self._thread.start()
 
     @property
     def id(self) -> str:
@@ -53,11 +60,29 @@ class AbstractConnector(ABC):
         pass
 
     @abstractmethod
-    async def get_node(self, path: str) -> DataModelNode | None:
+    def get_node(self, path: str) -> DataModelNode | None:
         """
         Try to retrieve the node from the server.
         """
         pass
+
+    def stop_thread(self) -> None:
+        """
+        Stop the thread.
+        """
+        self._tasks_queue.shutdown(immediate=True)
+        self._results_queue.shutdown(immediate=True)
+        self._thread.join()
+
+    def _handle_task(self, task: Coroutine) -> Any:
+        """
+        Run a task in the thread, wait for the result and return it.
+        """
+        self._tasks_queue.put(task)
+        self._tasks_queue.join()
+        output = self._results_queue.get()
+        self._results_queue.task_done()
+        return output
 
     def __iter__(self) -> Iterator["AbstractConnector"]:
         for _ in []:

@@ -15,3 +15,6 @@ print("----------------")
 print("node:")
 node = data_model.get_node("Objects/4:Boilers/4:Boiler #2/2:AssetId")
 print(node)
+
+# connectors use threads: stop them
+data_model.close_connectors()
