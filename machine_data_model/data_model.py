@@ -200,7 +200,7 @@ class DataModel:
                 connector = self._get_connector_by_name(current_node.connector_name)
 
         if connector is not None:
-            node = connector.get_node(path, current_node)
+            node = connector.get_data_model_node(path, current_node)
             if node is not None:
                 current_node = node
         return current_node

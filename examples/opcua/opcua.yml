@@ -36,6 +36,10 @@ root:
                 - !!NumericalVariableNode
                   name: "4:CurrentTemperature"
                   description: "current temperature"
+                - !!NumericalVariableNode
+                  name: "4:OverheatedThresholdTemperature"
+                  description: "overheated threshold temp"
+                  connector_name: "myOpcuaConnector1"
     - !!FolderNode
       name: "3:OpcPlc"
       description: "Opc PLC"

@@ -72,14 +72,25 @@ class AbstractConnector(ABC):
         pass
 
     @abstractmethod
-    def get_node(
+    def get_data_model_node(
         self, path: str, stub_node: DataModelNode | None = None
     ) -> DataModelNode | None:
         """
-        Try to retrieve the node from the server.
+        Try to retrieve the node from the server
+        and to convert it to a DataModelNode before returning it.
 
         :param path: node's path
-        :param stub_node: local node, its information are used to create the remote node
+        :param stub_node: local node, its information is used to create the remote node
+        """
+        pass
+
+    @abstractmethod
+    def _get_remote_node(self, path: str) -> Any:
+        """
+        Try to retrieve the node from the server.
+        The node's type depends on the library used to interact with the server.
+
+        :param path: node's path
         """
         pass
 
@@ -88,6 +99,16 @@ class AbstractConnector(ABC):
         """
         Retrieve and return a node's value.
         :param path: node's path
+        """
+        pass
+
+    @abstractmethod
+    def write_node_value(self, path: str, value: Any) -> bool:
+        """
+        Write a variable node.
+
+        :param path: node's path
+        :param value: new value to write
         """
         pass
 

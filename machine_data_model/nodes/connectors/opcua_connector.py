@@ -237,36 +237,54 @@ class OpcuaConnector(AbstractConnector):
         await self._client.disconnect()
 
     @override
-    def get_node(
+    def get_data_model_node(
         self, path: str, stub_node: DataModelNode | None = None
     ) -> DataModelNode | None:
         """
-        Returns the node from the OPC-UA server.
+        Returns the node from the OPC-UA server,
+        converted into a DataModelNode.
         """
-        get_node_coroutine = self._async_get_node(path)
-        task_result = self._handle_task(get_node_coroutine)
-        if task_result is None:
+        asyncua_node = self._get_remote_node(path)
+        assert isinstance(
+            asyncua_node, (asyncua.Node, type(None))
+        ), "Node read by remote OPC-UA server must be an asyncua.Node"
+        if asyncua_node is None:
+            return None
+
+        data_model_node = self._handle_task(
+            _convert_asyncua_node_to_data_model_node(asyncua_node)
+        )
+        if data_model_node is None:
             return None
 
         if stub_node is None:
-            return task_result
+            return data_model_node
 
         # TODO: it might be a cleaner approach to return the information
         #       retrieved from the server and modify the original node later
         #       instead of returning a new node
-        task_result.set_remote_path(stub_node.remote_path)
-        task_result.set_connector(stub_node.connector)
-        task_result.set_connector_name(stub_node.connector_name)
+        data_model_node.set_remote_path(stub_node.remote_path)
+        data_model_node.set_connector(stub_node.connector)
+        data_model_node.set_connector_name(stub_node.connector_name)
 
         if stub_node.name:
-            task_result.set_name(stub_node.name)
+            data_model_node.set_name(stub_node.name)
 
         if stub_node.description:
-            task_result.set_description(stub_node.description)
+            data_model_node.set_description(stub_node.description)
 
+        return data_model_node
+
+    def _get_remote_node(self, path: str) -> Any:
+        """
+        Returns the node from the OPC-UA server,
+        The node's type is asyncua.Node.
+        """
+        get_node_coroutine = self._async_get_remote_node(path)
+        task_result = self._handle_task(get_node_coroutine)
         return task_result
 
-    async def _async_get_node(self, path: str) -> DataModelNode | None:
+    async def _async_get_remote_node(self, path: str) -> asyncua.Node | None:
         """
         Asynchronous function which returns the node from the OPC-UA server.
         """
@@ -274,8 +292,7 @@ class OpcuaConnector(AbstractConnector):
         if self._client is None:
             return None
         try:
-            asyncua_node = await self._client.get_root_node().get_child(path)
-            node = await _convert_asyncua_node_to_data_model_node(asyncua_node)
+            node = await self._client.get_root_node().get_child(path)
         except UaError as exp:
             _logger.error(exp)
 
@@ -286,10 +303,39 @@ class OpcuaConnector(AbstractConnector):
         """
         Reads the node's value and returns it.
         """
-        node = self.get_node(path)
+        node = self.get_data_model_node(path)
         if not isinstance(node, VariableNode):
             return None
         return node.value
+
+    @override
+    def write_node_value(self, path: str, value: Any) -> bool:
+        """
+        Writes a value to the remote OPC-UA server.
+        """
+        node = self._get_remote_node(path)
+        assert isinstance(
+            node, (asyncua.Node, type(None))
+        ), "Node read by remote OPC-UA server must be an asyncua.Node"
+        if node is None:
+            return False
+
+        success = self._handle_task(self._async_write_node_value(node, value))
+        return success
+
+    async def _async_write_node_value(self, node: asyncua.Node, new_value: Any) -> bool:
+        """
+        Function which asynchronously writes the value to the OPC-UA server-
+        """
+        success = True
+        try:
+            current_value = await node.read_data_value()
+            current_value_type = current_value.Value.VariantType
+            await node.write_value(new_value, current_value_type)
+        except UaError as exp:
+            _logger.error(exp)
+            success = False
+        return success
 
     def __str__(self) -> str:
         return (
