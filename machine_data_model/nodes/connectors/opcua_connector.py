@@ -142,9 +142,16 @@ class OpcuaConnector(AbstractConnector):
     def certificate_file_path(self) -> Path | None:
         return self._certificate_file_path
 
-    async def connect(self) -> None:
+    @override
+    def connect(self) -> None:
         """
         Connect to the OPC-UA server.
+        """
+        self._handle_task(self._async_connect())
+
+    async def _async_connect(self) -> None:
+        """
+        Async function which uses the asyncua library to connect to the OPC-UA server.
         """
         url = "opc.tcp://{}:{}".format(self.ip, self.port)
 
@@ -193,9 +200,16 @@ class OpcuaConnector(AbstractConnector):
         self._client = client
         await self._client.connect()
 
-    async def disconnect(self) -> None:
+    @override
+    def disconnect(self) -> None:
         """
         Disconnect from the OPC-UA server.
+        """
+        self._handle_task(self._async_disconnect())
+
+    async def _async_disconnect(self) -> None:
+        """
+        Async function which uses the asyncua library to disconnect from the OPC-UA server.
         """
         if self._client is None:
             return
@@ -216,7 +230,6 @@ class OpcuaConnector(AbstractConnector):
         Asynchronous function which returns the node from the OPC-UA server.
         """
         node = None
-        await self.connect()
         if self._client is None:
             return None
         try:
@@ -225,7 +238,6 @@ class OpcuaConnector(AbstractConnector):
         except UaError as exp:
             _logger.error(exp)
 
-        await self.disconnect()
         return node
 
     def __str__(self) -> str:
