@@ -39,6 +39,7 @@ class DataModel:
             for connector in connectors:
                 if connector.name is None:
                     continue
+                connector.connect()  # connect to the server
                 self._connectors[connector.name] = connector
 
         # hashmap for fast access to nodes by id
@@ -170,9 +171,7 @@ class DataModel:
                 connector = self._get_connector_by_name(current_node.connector_name)
 
         if connector is not None:
-            connector.connect()
             node = connector.get_node(path)
-            connector.disconnect()
             if node is not None:
                 current_node = node
         return current_node
@@ -268,9 +267,10 @@ class DataModel:
 
     def close_connectors(self) -> None:
         """
-        Stops all connectors threads.
+        Disconnect all connectors and stop their threads.
         """
         for connector in self._connectors.values():
+            connector.disconnect()
             connector.stop_thread()
 
     def __str__(self) -> str:
