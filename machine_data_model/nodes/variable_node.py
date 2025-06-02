@@ -167,10 +167,27 @@ class VariableNode(DataModelNode):
         for subscriber in self._subscribers:
             self._subscription_callback(subscriber, self, value)
 
-    @abstractmethod
     def _read_value(self) -> Any:
         """
         Get the value of the variable.
+        """
+        # a connector could be set only after reading the full yaml file
+        if self.is_remote() and self.is_connector_set():
+            return self._read_remote_value()
+        else:
+            return self._read_internal_value()
+
+    @abstractmethod
+    def _read_internal_value(self) -> Any:
+        """
+        Read the value locally.
+        """
+        pass
+
+    @abstractmethod
+    def _read_remote_value(self) -> Any:
+        """
+        Read the value remotely, using the connector.
         """
         pass
 
@@ -287,13 +304,27 @@ class NumericalVariableNode(VariableNode):
             )
         )
 
-    def _read_value(self) -> float:
+    def _read_internal_value(self) -> float:
         """
         Get the value of the numerical variable.
 
         :return: The value of the numerical variable.
         """
         return self._value.base_value  # type: ignore[no-any-return]
+
+    def _read_remote_value(self) -> float:
+        """
+        Get the value of the numerical variable from the remote server.
+
+        :return: The value of the numerical variable.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        result = self._connector.read_node_value(self.remote_path)
+        assert isinstance(result, (int, float))
+        return result
 
     def _update_value(self, value: float) -> None:
         """
@@ -352,13 +383,28 @@ class StringVariableNode(VariableNode):
         )
         self._value: str = value
 
-    def _read_value(self) -> str:
+    def _read_internal_value(self) -> str:
         """
         Get the value of the string variable.
 
         :return: The value of the string variable.
         """
         return self._value
+
+    @override
+    def _read_remote_value(self) -> str:
+        """
+        Get the value of the string variable from the remote server.
+
+        :return: The value of the string variable.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        result = self._connector.read_node_value(self.remote_path)
+        assert isinstance(result, str)
+        return result
 
     def _update_value(self, value: str) -> None:
         """
@@ -434,13 +480,28 @@ class BooleanVariableNode(VariableNode):
         super().__init__(id, name, description)
         self._value: bool = value
 
-    def _read_value(self) -> bool:
+    def _read_internal_value(self) -> bool:
         """
         Get the value of the boolean variable.
 
         :return: The value of the boolean variable.
         """
         return self._value
+
+    @override
+    def _read_remote_value(self) -> bool:
+        """
+        Get the value of the boolean variable from the remote server.
+
+        :return: The value of the boolean variable.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        result = self._connector.read_node_value(self.remote_path)
+        assert isinstance(result, bool)
+        return result
 
     def _update_value(self, value: bool) -> None:
         """
@@ -564,7 +625,7 @@ class ObjectVariableNode(VariableNode):
         """
         return self._properties[property_name]
 
-    def _read_value(self) -> Any:
+    def _read_internal_value(self) -> Any:
         """
         Get the value of the object variable.
 
@@ -575,6 +636,20 @@ class ObjectVariableNode(VariableNode):
             if isinstance(property_node, VariableNode):
                 value[property_name] = property_node.read()
         return value
+
+    @override
+    def _read_remote_value(self) -> Any:
+        """
+        Get the value of the object variable from the remote server.
+
+        :return: The value of the object variable.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        result = self._connector.read_node_value(self.remote_path)
+        return result
 
     def _update_value(self, value: dict) -> None:
         """

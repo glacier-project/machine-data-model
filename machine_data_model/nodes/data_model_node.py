@@ -1,6 +1,11 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator, Mapping, Sequence
+from typing import Iterator, Mapping, Sequence, TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
+else:
+    AbstractConnector = Any
 
 
 class DataModelNode(ABC):
@@ -40,7 +45,11 @@ class DataModelNode(ABC):
         self._description = "" if description is None else description
         assert isinstance(self._description, str), "Description must be a string"
         self.parent: DataModelNode | None = None
-        self._connector_name = connector_name
+
+        # -- connector management
+        self._connector_name: str | None = connector_name
+        self._connector: AbstractConnector | None = None
+        self._remote_path: str | None = None
 
     @property
     def id(self) -> str:
@@ -70,6 +79,10 @@ class DataModelNode(ABC):
         """
         return self._name
 
+    def set_name(self, value: str) -> None:
+        """Sets the name of the node."""
+        self._name = value
+
     ## Git commit
     # Introduce composite method nodes to the machine data model. Composite method nodes
     # are used to implement the logic of a run-time method in the machine data model.
@@ -83,9 +96,69 @@ class DataModelNode(ABC):
         """
         return self._description
 
+    def set_description(self, value: str) -> None:
+        """Sets the description of the node."""
+        self._description = value
+
     @property
     def connector_name(self) -> str | None:
         return self._connector_name
+
+    def set_connector_name(self, value: str | None) -> None:
+        """Sets the connector name."""
+        self._connector_name = value
+
+    def is_remote(self) -> bool:
+        """
+        Returns True if the current node is a remote node,
+        which means that to interact with it, we need to use its connector.
+        A node is a remote node if the user defined the 'connector_name' attribute in the yaml file.
+
+        :return: True if the current node is a remote node, False otherwise.
+        """
+        return self.connector_name is not None
+
+    def is_connector_set(self) -> bool:
+        """
+        Returns True if the connector was set.
+        A remote node (is_remote() == True) must have, at some point, its connector set up.
+
+        :return: True if the connector is set, False otherwise.
+        """
+        return self._connector is not None
+
+    def set_connector(self, connector: AbstractConnector | None) -> None:
+        """
+        Sets the connector which will be used to interact with this variable.
+
+        :param connector: The node's connector.
+        """
+        self._connector = connector
+
+    @property
+    def connector(self) -> AbstractConnector | None:
+        """Connector getter."""
+        return self._connector
+
+    def is_remote_path_set(self) -> bool:
+        """
+        Returns True if the remote path is set.
+        The remote path is the path used by the connector to interact with the remote variable.
+
+        :return: True if the remote path is set.
+        """
+        return self._remote_path is not None
+
+    def set_remote_path(self, remote_path: str | None) -> None:
+        """
+        Sets the remote path, which is used to interact with the remote variable.
+        """
+        self._remote_path = remote_path
+
+    @property
+    def remote_path(self) -> str | None:
+        """Remote path getter."""
+        return self._remote_path
 
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]

@@ -1,6 +1,7 @@
 import logging
 import socket
 from pathlib import Path
+from typing import Any
 
 import asyncua
 from asyncua import Client as AsyncuaClient
@@ -20,6 +21,7 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     StringVariableNode,
+    VariableNode,
 )
 
 logging.basicConfig(level=logging.ERROR)
@@ -35,7 +37,21 @@ async def _convert_asyncua_node_to_data_model_node(
     Converts an asyncua.Node to a DataModelNode.
     """
     variant_type = await node.read_data_type_as_variant_type()
-    name = await node.read_display_name()
+
+    name_text = None
+    try:
+        name = await node.read_display_name()
+        name_text = name.Text
+    except UaError:
+        pass
+
+    description_text = None
+    try:
+        description = await node.read_description()
+        description_text = description.Text
+    except UaError:
+        pass
+
     if variant_type in [
         VariantType.Int16,
         VariantType.Int32,
@@ -47,16 +63,20 @@ async def _convert_asyncua_node_to_data_model_node(
         VariantType.UInt64,
     ]:
         value = await node.get_value()
+        assert isinstance(value, (int, float)), "Value must be numeric"
         return NumericalVariableNode(
-            name=name.Text,
+            name=name_text,
             value=value,
+            description=description_text,
         )
 
     if variant_type in [VariantType.String, VariantType.ByteString]:
         value = await node.get_value()
+        assert isinstance(value, str), "Value must be a string"
         return StringVariableNode(
-            name=name.Text,
+            name=name_text,
             value=value,
+            description=description_text,
         )
     return None
 
@@ -217,12 +237,33 @@ class OpcuaConnector(AbstractConnector):
         await self._client.disconnect()
 
     @override
-    def get_node(self, path: str) -> DataModelNode | None:
+    def get_node(
+        self, path: str, stub_node: DataModelNode | None = None
+    ) -> DataModelNode | None:
         """
         Returns the node from the OPC-UA server.
         """
         get_node_coroutine = self._async_get_node(path)
         task_result = self._handle_task(get_node_coroutine)
+        if task_result is None:
+            return None
+
+        if stub_node is None:
+            return task_result
+
+        # TODO: it might be a cleaner approach to return the information
+        #       retrieved from the server and modify the original node later
+        #       instead of returning a new node
+        task_result.set_remote_path(stub_node.remote_path)
+        task_result.set_connector(stub_node.connector)
+        task_result.set_connector_name(stub_node.connector_name)
+
+        if stub_node.name:
+            task_result.set_name(stub_node.name)
+
+        if stub_node.description:
+            task_result.set_description(stub_node.description)
+
         return task_result
 
     async def _async_get_node(self, path: str) -> DataModelNode | None:
@@ -239,6 +280,16 @@ class OpcuaConnector(AbstractConnector):
             _logger.error(exp)
 
         return node
+
+    @override
+    def read_node_value(self, path: str) -> Any:
+        """
+        Reads the node's value and returns it.
+        """
+        node = self.get_node(path)
+        if not isinstance(node, VariableNode):
+            return None
+        return node.value
 
     def __str__(self) -> str:
         return (

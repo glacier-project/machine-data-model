@@ -3,7 +3,7 @@ import warnings
 from threading import Thread, Event
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator, Coroutine
+from typing import Iterator, Coroutine, Any
 
 from machine_data_model.nodes.connectors.connector_thread import (
     ConnectorThread,
@@ -72,9 +72,22 @@ class AbstractConnector(ABC):
         pass
 
     @abstractmethod
-    def get_node(self, path: str) -> DataModelNode | None:
+    def get_node(
+        self, path: str, stub_node: DataModelNode | None = None
+    ) -> DataModelNode | None:
         """
         Try to retrieve the node from the server.
+
+        :param path: node's path
+        :param stub_node: local node, its information are used to create the remote node
+        """
+        pass
+
+    @abstractmethod
+    def read_node_value(self, path: str) -> Any:
+        """
+        Retrieve and return a node's value.
+        :param path: node's path
         """
         pass
 

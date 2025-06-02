@@ -1,5 +1,4 @@
 from collections.abc import Callable
-import warnings
 
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -74,14 +73,18 @@ class DataModel:
     def connectors(self) -> dict[str, AbstractConnector]:
         return self._connectors
 
-    def _get_connector_by_name(self, name: str) -> AbstractConnector | None:
+    def _get_connector_by_name(self, name: str) -> AbstractConnector:
         """
         Returns the connector associated with the given name.
+        Raises an exception if a connector with the given name is not found.
+
         :param name: name of the connector
+        :return: AbstractConnector with that name
+        :raises Exception: thrown when a connector with that name doesn't exist
         """
         connector = self._connectors.get(name)
         if connector is None:
-            warnings.warn("Connector with name {} not found".format(name))
+            raise Exception("Connector with name {} not found".format(name))
         return connector
 
     def _register_node(self, node: DataModelNode) -> None:
@@ -105,6 +108,30 @@ class DataModel:
                 cf_node.get_data_model_node = self.get_node
         return
 
+    def _set_nodes_connector(self, node: DataModelNode) -> None:
+        """
+        If the node is a remote node, set the connector which
+        will be used to interact with the node.
+
+        :param node: DataModelNode which might need setup
+        """
+        if node.is_remote():
+            assert (
+                node.connector_name is not None
+            ), "Remote nodes must have a connector name"
+            node.set_connector(self._get_connector_by_name(node.connector_name))
+
+    def _set_nodes_remote_path(self, node: DataModelNode) -> None:
+        """
+        If the node is a remote node, and the remote path is not set,
+        set the remote path to its qualified name.
+        The remote path is used to interact with the remote variable
+
+        :param node: DataModelNode which might need setup
+        """
+        if node.is_remote() and not node.is_remote_path_set():
+            node.set_remote_path(node.qualified_name)
+
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
         """
         Register all nodes in the data model for id-based access.
@@ -116,6 +143,8 @@ class DataModel:
         def _f_(n: DataModelNode) -> None:
             self._register_node(n)
             self._resolve_cfg_nodes(n)
+            self._set_nodes_connector(n)
+            self._set_nodes_remote_path(n)
 
         self.traverse(node, _f_)
 
@@ -171,7 +200,7 @@ class DataModel:
                 connector = self._get_connector_by_name(current_node.connector_name)
 
         if connector is not None:
-            node = connector.get_node(path)
+            node = connector.get_node(path, current_node)
             if node is not None:
                 current_node = node
         return current_node
