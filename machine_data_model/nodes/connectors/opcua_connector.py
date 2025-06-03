@@ -163,15 +163,20 @@ class OpcuaConnector(AbstractConnector):
         return self._certificate_file_path
 
     @override
-    def connect(self) -> None:
+    def connect(self) -> bool:
         """
         Connect to the OPC-UA server.
-        """
-        self._handle_task(self._async_connect())
 
-    async def _async_connect(self) -> None:
+        :return: True if the client is connected to the server
+        """
+        success = self._handle_task(self._async_connect())
+        return success
+
+    async def _async_connect(self) -> bool:
         """
         Async function which uses the asyncua library to connect to the OPC-UA server.
+
+        :return: True if the client is connected to the server
         """
         url = "opc.tcp://{}:{}".format(self.ip, self.port)
 
@@ -192,12 +197,16 @@ class OpcuaConnector(AbstractConnector):
         client.application_uri = self._client_app_uri
 
         if self._security_policy is not None:
-            await client.set_security(
-                _security_policy_string_to_asyncua_policy(self._security_policy),
-                certificate=self.certificate_file_path,
-                private_key=self.private_key_file_path,
-                server_certificate=None,  # "certificate-example.der",
-            )
+            try:
+                await client.set_security(
+                    _security_policy_string_to_asyncua_policy(self._security_policy),
+                    certificate=self.certificate_file_path,
+                    private_key=self.private_key_file_path,
+                    server_certificate=None,  # "certificate-example.der",
+                )
+            except ConnectionRefusedError as e:
+                _logger.error(e)
+                return False
 
         # TODO: handle trust store
         if USE_TRUST_STORE:
@@ -218,23 +227,39 @@ class OpcuaConnector(AbstractConnector):
         client.certificate_validator = validator
 
         self._client = client
-        await self._client.connect()
+        try:
+            await self._client.connect()
+        except Exception as e:
+            _logger.error(e)
+            return False
+        return True
 
     @override
-    def disconnect(self) -> None:
+    def disconnect(self) -> bool:
         """
         Disconnect from the OPC-UA server.
-        """
-        self._handle_task(self._async_disconnect())
 
-    async def _async_disconnect(self) -> None:
+        :return: True if the client is disconnected from the server
+        """
+        success = self._handle_task(self._async_disconnect())
+        return success
+
+    async def _async_disconnect(self) -> bool:
         """
         Async function which uses the asyncua library to disconnect from the OPC-UA server.
+
+        :return: True if the client is disconnected from the server
         """
         if self._client is None:
-            return
+            return True
 
-        await self._client.disconnect()
+        try:
+            await self._client.disconnect()
+        except Exception as e:
+            _logger.error(e)
+            return False
+
+        return True
 
     @override
     def get_data_model_node(

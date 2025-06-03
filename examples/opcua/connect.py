@@ -1,3 +1,4 @@
+import sys
 import time
 from pathlib import Path
 
@@ -6,7 +7,12 @@ from machine_data_model.nodes.variable_node import VariableNode
 
 yml_path = Path(__file__).parent / "opcua.yml"
 builder = DataModelBuilder()
-data_model = builder.get_data_model(str(yml_path))
+
+try:
+    data_model = builder.get_data_model(str(yml_path))
+except Exception as e:
+    print("ERROR:", e)
+    sys.exit(1)
 
 print("data_model:")
 print(data_model.__dict__)

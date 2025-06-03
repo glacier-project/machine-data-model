@@ -38,8 +38,16 @@ class DataModel:
             for connector in connectors:
                 if connector.name is None:
                     continue
-                connector.connect()  # connect to the server
+                connection_successful = connector.connect()  # connect to the server
                 self._connectors[connector.name] = connector
+                # if we couldn't connect, disconnect and stop all the other connectors
+                if not connection_successful:
+                    for c in connectors:
+                        c.disconnect()
+                        c.stop_thread()
+                    raise Exception(
+                        f"Failed to connect to the remote server using the {connector.name} connector."
+                    )
 
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}

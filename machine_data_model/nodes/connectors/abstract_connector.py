@@ -58,16 +58,20 @@ class AbstractConnector(ABC):
         return self._port
 
     @abstractmethod
-    def connect(self) -> None:
+    def connect(self) -> bool:
         """
         Connect to the server.
+
+        :return: True if the client is connected to the server
         """
         pass
 
     @abstractmethod
-    def disconnect(self) -> None:
+    def disconnect(self) -> bool:
         """
         Disconnect from the server.
+
+        :return: True if the client is disconnected from the server
         """
         pass
 
