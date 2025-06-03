@@ -27,6 +27,7 @@ class ConnectorThread(Thread):
 
         The thread stops its execution when the stop_event arrives.
         """
+        asyncio.set_event_loop(self._asyncio_loop)
         while not self._stop_event.wait(0.1):
             try:
                 async_task = self._tasks_input_queue.get(True, 0.1)
@@ -37,6 +38,8 @@ class ConnectorThread(Thread):
             except Empty:
                 # the timeout expired
                 pass
+
+        self._asyncio_loop.close()
 
     def compute_task(
         self, task: Coroutine[None, None, TaskReturnType]
