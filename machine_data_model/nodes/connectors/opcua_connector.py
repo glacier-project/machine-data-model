@@ -245,9 +245,6 @@ class OpcuaConnector(AbstractConnector):
         converted into a DataModelNode.
         """
         asyncua_node = self._get_remote_node(path)
-        assert isinstance(
-            asyncua_node, (asyncua.Node, type(None))
-        ), "Node read by remote OPC-UA server must be an asyncua.Node"
         if asyncua_node is None:
             return None
 
@@ -275,13 +272,16 @@ class OpcuaConnector(AbstractConnector):
 
         return data_model_node
 
-    def _get_remote_node(self, path: str) -> Any:
+    def _get_remote_node(self, path: str) -> asyncua.Node | None:
         """
         Returns the node from the OPC-UA server,
         The node's type is asyncua.Node.
         """
         get_node_coroutine = self._async_get_remote_node(path)
-        task_result = self._handle_task(get_node_coroutine)
+        task_result: asyncua.Node | None = self._handle_task(get_node_coroutine)
+        assert isinstance(
+            task_result, (asyncua.Node, type(None))
+        ), "Node read by remote OPC-UA server must be an asyncua.Node"
         return task_result
 
     async def _async_get_remote_node(self, path: str) -> asyncua.Node | None:

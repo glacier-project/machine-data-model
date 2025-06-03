@@ -191,7 +191,7 @@ class VariableNode(DataModelNode):
         """
         pass
 
-    def _update_value(self, value: Any) -> None:
+    def _update_value(self, value: Any) -> Any:
         """
         Update the value of the variable.
         """
