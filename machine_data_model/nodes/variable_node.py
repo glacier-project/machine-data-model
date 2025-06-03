@@ -191,10 +191,30 @@ class VariableNode(DataModelNode):
         """
         pass
 
-    @abstractmethod
     def _update_value(self, value: Any) -> None:
         """
         Update the value of the variable.
+        """
+        if self.is_remote() and self.is_connector_set():
+            return self._update_remote_value(value)
+        else:
+            return self._update_internal_value(value)
+
+    @abstractmethod
+    def _update_remote_value(self, value: Any) -> None:
+        """
+        Update the value of the variable remotely.
+
+        :param value: new value
+        """
+        pass
+
+    @abstractmethod
+    def _update_internal_value(self, value: Any) -> None:
+        """
+        Update the value of the variable locally.
+
+        :param value: new value
         """
         pass
 
@@ -326,13 +346,26 @@ class NumericalVariableNode(VariableNode):
         assert isinstance(result, (int, float))
         return result
 
-    def _update_value(self, value: float) -> None:
+    def _update_internal_value(self, value: float) -> None:
         """
         Update the value of the numerical variable.
 
         :param value: The new value of the numerical variable.
         """
         self._value = self._value.__class__(value, self._measure_unit)
+
+    @override
+    def _update_remote_value(self, value: float) -> None:
+        """
+        Update the value of the numerical variable remotely.
+
+        :param value: new value
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        self._connector.write_node_value(self.remote_path, value)
 
     def __str__(self) -> str:
         """
@@ -406,7 +439,7 @@ class StringVariableNode(VariableNode):
         assert isinstance(result, str)
         return result
 
-    def _update_value(self, value: str) -> None:
+    def _update_internal_value(self, value: str) -> None:
         """
         Update the value of the string variable.
 
@@ -414,6 +447,19 @@ class StringVariableNode(VariableNode):
         """
         assert isinstance(value, str)
         self._value = value
+
+    @override
+    def _update_remote_value(self, value: str) -> None:
+        """
+        Update the value of the string variable remotely.
+
+        :param value: new value
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        self._connector.write_node_value(self.remote_path, value)
 
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
@@ -503,7 +549,7 @@ class BooleanVariableNode(VariableNode):
         assert isinstance(result, bool)
         return result
 
-    def _update_value(self, value: bool) -> None:
+    def _update_internal_value(self, value: bool) -> None:
         """
         Update the value of the boolean variable.
 
@@ -511,6 +557,19 @@ class BooleanVariableNode(VariableNode):
         """
         assert isinstance(value, bool)
         self._value = value
+
+    @override
+    def _update_remote_value(self, value: bool) -> None:
+        """
+        Update the value of the boolean variable remotely.
+
+        :param value: new value
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        self._connector.write_node_value(self.remote_path, value)
 
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
@@ -651,7 +710,7 @@ class ObjectVariableNode(VariableNode):
         result = self._connector.read_node_value(self.remote_path)
         return result
 
-    def _update_value(self, value: dict) -> None:
+    def _update_internal_value(self, value: dict) -> None:
         """
         Update the value of the object variable.
 
@@ -662,6 +721,19 @@ class ObjectVariableNode(VariableNode):
         ), "The value must contain all properties of the object variable"
         for property_name, property_value in value.items():
             self._properties[property_name]._update_value(property_value)
+
+    @override
+    def _update_remote_value(self, value: dict) -> None:
+        """
+        Update the value of the object variable remotely.
+
+        :param value: new value
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        self._connector.write_node_value(self.remote_path, value)
 
     def subscribe(self, subscriber_id: str) -> None:
         """

@@ -38,5 +38,15 @@ print("wrote the previous value + 10")
 new_value = c.read_node_value(temp_threshold_path)
 print("Read the overwritten value, its current value is:", new_value)
 
+print("----------------")
+print("modify the variable using write():")
+threshold = data_model.get_node(temp_threshold_path)
+assert isinstance(threshold, VariableNode)
+current_value = threshold.read()
+print("current value:", current_value)
+print("writing current value -5")
+threshold.write(current_value - 5)
+print("new current value:", threshold.read())
+
 # connectors use threads: stop them
 data_model.close_connectors()
