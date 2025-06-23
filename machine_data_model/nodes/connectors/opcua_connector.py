@@ -180,19 +180,24 @@ class OpcuaConnector(AbstractConnector):
         """
         url = "opc.tcp://{}:{}".format(self.ip, self.port)
 
-        await setup_self_signed_certificate(
-            self._private_key_file_path,
-            self._certificate_file_path,
-            self._client_app_uri,
-            self._host_name,
-            [ExtendedKeyUsageOID.CLIENT_AUTH],
-            {
-                "countryName": "CN",
-                "stateOrProvinceName": "AState",
-                "localityName": "Foo",
-                "organizationName": "Bar Ltd",
-            },
-        )
+        try:
+            await setup_self_signed_certificate(
+                self._private_key_file_path,
+                self._certificate_file_path,
+                self._client_app_uri,
+                self._host_name,
+                [ExtendedKeyUsageOID.CLIENT_AUTH],
+                {
+                    "countryName": "CN",
+                    "stateOrProvinceName": "AState",
+                    "localityName": "Foo",
+                    "organizationName": "Bar Ltd",
+                },
+            )
+        except FileNotFoundError as e:
+            _logger.error(e)
+            return False
+
         client = AsyncuaClient(url=url)
         client.application_uri = self._client_app_uri
 
@@ -204,7 +209,7 @@ class OpcuaConnector(AbstractConnector):
                     private_key=self.private_key_file_path,
                     server_certificate=None,  # "certificate-example.der",
                 )
-            except ConnectionRefusedError as e:
+            except (ConnectionRefusedError, TimeoutError) as e:
                 _logger.error(e)
                 return False
 
