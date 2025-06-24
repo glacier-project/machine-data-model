@@ -53,6 +53,28 @@ class DataModel:
         self._nodes: dict[str, DataModelNode] = {}
         self._register_nodes(self._root)
 
+        # set up the connector for each node
+        # todo: this can be optimized by setting
+        #       the connectors while registering the nodes
+        for node in self._nodes.values():
+            self._set_node_connector(node)
+
+    def _set_node_connector(self, node: DataModelNode):
+        """
+        Find the closest connector to the node by moving upwards in the tree.
+        When/if found, set it as the node's connector.
+        """
+        node_ptr = node
+        while node_ptr is not None and node_ptr.connector_name is None:
+            node_ptr = node_ptr.parent
+
+        if node_ptr:
+            node.set_connector_name(node_ptr.connector_name)
+            node.set_connector(self._get_connector_by_name(node_ptr.connector_name))
+
+            # todo: allow the user to override the remote_path using a yaml attribute
+            node.set_remote_path(node.qualified_name)
+
     @property
     def name(self) -> str:
         return self._name
@@ -116,30 +138,6 @@ class DataModel:
                 cf_node.get_data_model_node = self.get_node
         return
 
-    def _set_nodes_connector(self, node: DataModelNode) -> None:
-        """
-        If the node is a remote node, set the connector which
-        will be used to interact with the node.
-
-        :param node: DataModelNode which might need setup
-        """
-        if node.is_remote():
-            assert (
-                node.connector_name is not None
-            ), "Remote nodes must have a connector name"
-            node.set_connector(self._get_connector_by_name(node.connector_name))
-
-    def _set_nodes_remote_path(self, node: DataModelNode) -> None:
-        """
-        If the node is a remote node, and the remote path is not set,
-        set the remote path to its qualified name.
-        The remote path is used to interact with the remote variable
-
-        :param node: DataModelNode which might need setup
-        """
-        if node.is_remote() and not node.is_remote_path_set():
-            node.set_remote_path(node.qualified_name)
-
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
         """
         Register all nodes in the data model for id-based access.
@@ -151,8 +149,6 @@ class DataModel:
         def _f_(n: DataModelNode) -> None:
             self._register_node(n)
             self._resolve_cfg_nodes(n)
-            self._set_nodes_connector(n)
-            self._set_nodes_remote_path(n)
 
         self.traverse(node, _f_)
 
