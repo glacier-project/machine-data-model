@@ -376,7 +376,7 @@ class NumericalVariableNode(VariableNode):
         return (
             f"NumericalVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, measure_unit={self._measure_unit}, "
-            f"value={self._value})"
+            f"value={repr(self.value)})"
         )
 
     def __repr__(self) -> str:
@@ -489,7 +489,7 @@ class StringVariableNode(VariableNode):
         """
         return (
             f"StringVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={self._value})"
+            f"description={self._description}, value={repr(self.value)})"
         )
 
     def __repr__(self) -> str:
@@ -599,7 +599,7 @@ class BooleanVariableNode(VariableNode):
         """
         return (
             f"BooleanVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={self._value})"
+            f"description={self._description}, value={repr(self.value)})"
         )
 
     def __repr__(self) -> str:
