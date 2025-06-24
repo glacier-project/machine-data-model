@@ -707,8 +707,11 @@ class ObjectVariableNode(VariableNode):
         assert (
             self.remote_path is not None
         ), "Remote nodes must have a valid remote path"
-        result = self._connector.read_node_value(self.remote_path)
-        return result
+        value = {}
+        for property_name, property_node in self._properties.items():
+            if isinstance(property_node, VariableNode):
+                value[property_name] = property_node.read()
+        return value
 
     def _update_internal_value(self, value: dict) -> None:
         """
