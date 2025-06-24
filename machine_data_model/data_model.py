@@ -180,7 +180,6 @@ class DataModel:
         """
 
         current_node: DataModelNode = self._root
-        connector: AbstractConnector | None = None
         path = path.lstrip("/")
         if "/" not in path:
             if current_node.name == path:
@@ -200,13 +199,7 @@ class DataModel:
             ) and not current_node.has_property(part):
                 return None
             current_node = current_node[part]
-            if current_node.connector_name is not None:
-                connector = self._get_connector_by_name(current_node.connector_name)
 
-        if connector is not None:
-            node = connector.get_data_model_node(path, current_node)
-            if node is not None:
-                current_node = node
         return current_node
 
     def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
