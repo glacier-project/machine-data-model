@@ -74,6 +74,7 @@ class DataModelBuilder:
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "children": {child.name: child for child in data.get("children", [])},
+                "connector_name": data.get("connector_name", None),
             }
         )
 

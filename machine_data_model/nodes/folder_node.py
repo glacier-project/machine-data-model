@@ -20,6 +20,7 @@ class FolderNode(DataModelNode):
         name: str | None = None,
         description: str | None = None,
         children: dict[str, DataModelNode] | None = None,
+        connector_name: str | None = None,
     ):
         """
         Initializes a new FolderNode instance.
@@ -29,7 +30,7 @@ class FolderNode(DataModelNode):
         :param description: The description of the folder.
         :param children: A dictionary of child nodes of the folder.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(id=id, name=name, description=description, connector_name=connector_name)
         self._children = {} if children is None else children
         for child in self._children.values():
             assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
@@ -117,7 +118,7 @@ class FolderNode(DataModelNode):
         """
         return (
             f"FolderNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, children={self._children})"
+            f"description={self._description}, children={self._children}, connector_name={repr(self.connector_name)})"
         )
 
     def __repr__(self) -> str:
