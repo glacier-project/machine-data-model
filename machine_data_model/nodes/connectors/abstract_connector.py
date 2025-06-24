@@ -1,15 +1,49 @@
-import queue
-import warnings
-from threading import Thread, Event
+from threading import Thread
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator, Coroutine, Any
+from typing import Iterator, Any, TypeVar
 
-from machine_data_model.nodes.connectors.connector_thread import (
-    ConnectorThread,
-    TaskReturnType,
-)
 from machine_data_model.nodes.data_model_node import DataModelNode
+import asyncio
+from asyncio import AbstractEventLoop
+from collections.abc import Coroutine
+from concurrent.futures import Future
+
+TaskReturnType = TypeVar("TaskReturnType")
+
+
+def create_event_loop_thread() -> AbstractEventLoop:
+    """
+    Creates a thread with an asyncio loop.
+    The loop can then be used to execute the async tasks inside the thread.
+
+    Credits:
+    https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
+    """
+    def start_background_loop(loop: AbstractEventLoop) -> None:
+        """
+        Runs the asyncio loop forever.
+        """
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
+    event_loop = asyncio.new_event_loop()
+    thread = Thread(target=start_background_loop, args=(event_loop,), daemon=True)
+    thread.start()
+    return event_loop
+
+
+def run_coroutine_in_thread(
+    loop: AbstractEventLoop, coro: Coroutine[None, None, TaskReturnType]
+) -> Future[TaskReturnType]:
+    """
+    Runs a coroutine in a thread.
+    Use create_event_loop_thread() to get the loop.
+
+    Credits:
+    https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
+    """
+    return asyncio.run_coroutine_threadsafe(coro, loop)
 
 
 class AbstractConnector(ABC):
@@ -23,23 +57,14 @@ class AbstractConnector(ABC):
         name: str | None = None,
         ip: str | None = None,
         port: int | None = None,
+        event_loop: AbstractEventLoop | None = None
     ):
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str | None = name
         self._ip: str | None = ip
         self._port: int | None = port
 
-        # -- thread management
-        self._tasks_queue: queue.Queue = queue.Queue()
-        self._results_queue: queue.Queue = queue.Queue()
-        self._thread_stop_event = Event()
-        self._thread: Thread = ConnectorThread(
-            self._thread_stop_event, self._tasks_queue, self._results_queue
-        )
-        # True if the ConnectorThread is already running a task
-        self._is_task_running = False
-
-        self._thread.start()
+        self._event_loop = create_event_loop_thread() if event_loop is None else event_loop
 
     @property
     def id(self) -> str:
@@ -120,8 +145,7 @@ class AbstractConnector(ABC):
         """
         Stop the thread.
         """
-        self._thread_stop_event.set()
-        self._thread.join()
+        self._event_loop.stop()
 
     def _handle_task(
         self, task: Coroutine[None, None, TaskReturnType]
@@ -129,18 +153,8 @@ class AbstractConnector(ABC):
         """
         Run a task in the thread, wait for the result and return it.
         """
-        if self._is_task_running:
-            warnings.warn(
-                "Trying to run a task inside the task that is currently running in this ConnectorThread: "
-                "this will likely cause a deadlock. Make sure that there are no (direct or indirect) calls "
-                "to _handle_task() inside tasks run by _handle_task()."
-            )
-        self._is_task_running = True
-        self._tasks_queue.put(task)
-        self._tasks_queue.join()
-        output: TaskReturnType = self._results_queue.get()
-        self._results_queue.task_done()
-        self._is_task_running = False
+        res = run_coroutine_in_thread(self._event_loop, task)
+        output = res.result()
         return output
 
     def __iter__(self) -> Iterator["AbstractConnector"]:
