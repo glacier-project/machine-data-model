@@ -110,13 +110,19 @@ async def task(_loop: AbstractEventLoop) -> None:
             print("Turning on the heater...")
             await turn_heater_on(objects)
 
+            reference_methods = await objects.get_child("6:ReferenceTest/6:Methods")
+            a = ua.Variant(2, ua.VariantType.Float)
+            b = ua.Variant(5, ua.VariantType.UInt32)
+            res = await reference_methods.call_method("6:Methods_Add", a, b)
+            print("Adding 2 + 5: result is", res)
+
             await asyncio.sleep(10)
     except ua.UaError as exp:
         _logger.error(exp)
 
 
 def main() -> None:
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.set_debug(True)
     loop.run_until_complete(task(loop))
     loop.close()
