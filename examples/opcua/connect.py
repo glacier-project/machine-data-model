@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
+from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 
 yml_path = Path(__file__).parent / "opcua.yml"
@@ -64,6 +65,20 @@ print("current value:", current_value)
 print("writing current value -5")
 threshold.write(current_value - 5)
 print("new current value:", threshold.read())
+
+# call method
+print("Call the add(a, b) == a + b method:")
+try:
+    add_method_path = "Objects/6:ReferenceTest/6:Methods/6:Methods_Add"
+    add_method = data_model.get_node(add_method_path)
+    assert isinstance(add_method, MethodNode), "add_method must be a method"
+    print("- parameters: ", add_method.parameters)
+    result = add_method(2.0, 3)
+    print("- result:", result)
+except Exception as e:
+    print("ERROR:", e)
+    data_model.close_connectors()
+    sys.exit(1)
 
 # connectors use threads: stop them
 data_model.close_connectors()

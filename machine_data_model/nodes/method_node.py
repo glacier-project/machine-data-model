@@ -246,7 +246,10 @@ class MethodNode(DataModelNode):
         kwargs = self._resolve_arguments(*args, **kwargs)
 
         self._pre_call(**kwargs)
-        ret_c = self._callback(**kwargs)
+        if self.is_remote():
+            ret_c = self.connector.call_node_as_method(self.remote_path, kwargs)
+        else:
+            ret_c = self._callback(**kwargs)
         ret = self._build_return_dict(ret_c)
 
         self._post_call(ret)

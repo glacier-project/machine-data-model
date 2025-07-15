@@ -141,6 +141,17 @@ class AbstractConnector(ABC):
         """
         pass
 
+    @abstractmethod
+    def call_node_as_method(self, path, kwargs: dict[str, Any]) -> dict[str, Any]:
+        """
+        Calls the method at path <path> with <kwargs> as its arguments.
+
+        :param path: node/method path
+        :param kwargs: method arguments expressed as key/name - value pairs
+        :return: dict of results in the form of name - value pairs
+        """
+        pass
+
     def stop_thread(self) -> None:
         """
         Stop the thread.

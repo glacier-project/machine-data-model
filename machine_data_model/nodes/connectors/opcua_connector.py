@@ -367,6 +367,60 @@ class OpcuaConnector(AbstractConnector):
             success = False
         return success
 
+    @override
+    def call_node_as_method(self, path, kwargs: dict[str, Any]) -> Any:
+        """
+        Calls the method at path <path> with <kwargs> as its arguments.
+
+        :param path: node/method path
+        :param kwargs: method arguments expressed as key/name - value pairs
+        :return: dict of results in the form of name - value pairs
+        """
+        result = self._handle_task(self._async_call_node_as_method(path, **kwargs))
+        return result
+
+    async def _async_call_node_as_method(self, path: str, **kwargs: dict[str, Any]) -> Any:
+        """
+        Asynchronously calls the method at path <path> with <kwargs> as its arguments.
+
+        :param path: node/method path
+        :param kwargs: method arguments expressed as key/name - value pairs
+        :return: dict of results in the form of name - value pairs
+        """
+        path_parts = path.lstrip('/').split("/")
+        input_arg_path = path + '/InputArguments'
+        # TODO: this might fail if the method as no input parameters
+        method_inputs = await self._async_get_remote_node(input_arg_path)
+        if method_inputs is None:
+            return None
+
+        inputs = await method_inputs.read_value() # returns a list of Argument-Class
+        assert isinstance(inputs, list), "inputs must be a list"
+        params = []
+        for ua_param, value in zip(inputs, kwargs.values()):
+            dt = ua_param.DataType
+            identifier = dt.Identifier
+            variant_type = VariantType(identifier)
+            params.append(asyncua.ua.Variant(value, variant_type))
+
+        if len(path_parts) == 0:
+            return None
+
+        if len(path_parts) == 1:
+            method_id = path_parts[0]
+            result = await self._client.get_root_node().call_method(method_id, *params)
+            return result
+
+        result = None
+        try:
+            parent_path = "/".join(path_parts[:-1])
+            method_id = path_parts[-1]
+            parent_node = await self._async_get_remote_node(parent_path)
+            result = await parent_node.call_method(method_id, *params)
+        except UaError as exp:
+            _logger.error(exp)
+        return result
+
     def __str__(self) -> str:
         return (
             "OpcuaConnector("
