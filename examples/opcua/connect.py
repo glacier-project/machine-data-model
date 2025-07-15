@@ -48,6 +48,17 @@ print("----------------")
 print("modify the variable using write():")
 threshold = data_model.get_node(temp_threshold_path)
 assert isinstance(threshold, VariableNode)
+
+
+def my_callback(subscriber_id, modified_node, new_node_value):
+    print("Threshold's value changed:")
+    print(f"- subscriber_id: {subscriber_id}")
+    print(f"- modified_node: {modified_node}")
+    print(f"- new_node_value: {new_node_value}")
+
+
+threshold.set_subscription_callback(my_callback)
+threshold.subscribe("thresholdUser")
 current_value = threshold.read()
 print("current value:", current_value)
 print("writing current value -5")
