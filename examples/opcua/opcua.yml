@@ -15,6 +15,7 @@ root:
   !!FolderNode
   name: "Objects"
   description: "Objects folder"
+  connector_name: "myOpcuaConnector1"
   children:
     - !!FolderNode
       name: "4:Boilers"
@@ -27,7 +28,6 @@ root:
             - !!StringVariableNode
               name: "2:AssetId"
               description: "asset id"
-              connector_name: "myOpcuaConnector1"
 
             - !!ObjectVariableNode
               name: "2:ParameterSet"
@@ -39,7 +39,6 @@ root:
                 - !!NumericalVariableNode
                   name: "4:OverheatedThresholdTemperature"
                   description: "overheated threshold temp"
-                  connector_name: "myOpcuaConnector1"
     - !!FolderNode
       name: "3:OpcPlc"
       description: "Opc PLC"
@@ -54,3 +53,26 @@ root:
             - !!MethodNode
               name: "4:HeaterOn"
               description: "heater on"
+
+    - !!FolderNode
+      name: "6:ReferenceTest"
+      description: "Reference Test"
+      children:
+        - !!FolderNode
+          name: "6:Methods"
+          description: "Reference Test Methods"
+          children:
+            - !!MethodNode
+              name: "6:Methods_Add"
+              description: "Adds a float with an integer and returns the result"
+              parameters:
+                - !!NumericalVariableNode
+                  name: "FloatValue"
+                  description: "first parameter"
+                - !!NumericalVariableNode
+                  name: "Uint32Value"
+                  description: "second parameter"
+              returns:
+                - !!NumericalVariableNode
+                  name: "AddResult"
+                  description: "addition result"
