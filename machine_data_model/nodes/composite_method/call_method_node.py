@@ -30,6 +30,24 @@ class CallMethodNode(ControlFlowNode):
         self._args = args
         self._kwargs = kwargs
 
+    @property
+    def args(self) -> list[Any]:
+        """
+        Get the list of positional arguments to pass to the method.
+
+        :return: The list of positional arguments to pass to the method.
+        """
+        return self._args
+
+    @property
+    def kwargs(self) -> dict[str, Any]:
+        """
+        Get the dictionary of keyword arguments to pass to the method.
+
+        :return: The dictionary of keyword arguments to pass to the method.
+        """
+        return self._kwargs
+
     def execute(self, scope: ControlFlowScope) -> bool:
         """
         Execute the call operation of the method in the machine data model.

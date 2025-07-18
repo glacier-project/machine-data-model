@@ -33,6 +33,15 @@ class WriteVariableNode(ControlFlowNode):
         super().__init__(variable_node, successors)
         self._value = value
 
+    @property
+    def value(self) -> Any:
+        """
+        Get the value to write to the variable.
+
+        :return: The value to write to the variable.
+        """
+        return self._value
+
     def execute(self, scope: ControlFlowScope) -> bool:
         """
         Execute the write operation of the variable in the machine data model.

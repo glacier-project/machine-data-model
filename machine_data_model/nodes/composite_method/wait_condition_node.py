@@ -60,6 +60,24 @@ class WaitConditionNode(ControlFlowNode):
         self._rhs = rhs
         self._op = op
 
+    @property
+    def rhs(self) -> Any:
+        """
+        Get the right-hand side of the comparison.
+
+        :return: The right-hand side of the comparison.
+        """
+        return self._rhs
+
+    @property
+    def op(self) -> WaitConditionOperator:
+        """
+        Get the comparison operator.
+
+        :return: The comparison operator.
+        """
+        return self._op
+
     def execute(self, scope: ControlFlowScope) -> bool:
         """
         Execute the wait condition in the control flow graph. If the condition is met, it returns

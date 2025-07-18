@@ -297,6 +297,14 @@ class NumericalVariableNode(VariableNode):
         """
         self._value = self._value.__class__(value, self._measure_unit)
 
+    def get_measure_unit(self) -> Enum:
+        """
+        Get the measure unit of the numerical variable.
+
+        :return: The measure unit of the numerical variable.
+        """
+        return self._measure_unit
+
     def __str__(self) -> str:
         """
         Returns a string representation of the NumericalVariableNode.
@@ -554,6 +562,14 @@ class ObjectVariableNode(VariableNode):
         :return: The property node.
         """
         return self._properties[property_name]
+
+    def get_properties(self) -> dict[str, VariableNode]:
+        """
+        Get the properties of the object variable.
+
+        :return: A dictionary of property nodes.
+        """
+        return self._properties
 
     def _read_value(self) -> Any:
         """
