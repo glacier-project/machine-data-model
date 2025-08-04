@@ -345,7 +345,7 @@ class FrostProtocolMng(ProtocolMng):
                     namespace=MsgNamespace.VARIABLE,
                     msg_name=VariableMsgName.UPDATE,
                 ),
-                payload=VariablePayload(node=node.name, value=value),
+                payload=VariablePayload(node=node.qualified_name, value=value),
             )
         )
 

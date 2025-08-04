@@ -319,7 +319,9 @@ class DataModelDumper:
 
         :return: The YAML string representation of the machine data model.
         """
-        return yaml.dump(self.data_model)
+        data_model_str = yaml.dump(self.data_model)
+        assert isinstance(data_model_str, str)
+        return data_model_str
 
     def dumps(self, file_path: str) -> None:
         """

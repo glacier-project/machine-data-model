@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from collections.abc import Callable
 from enum import Enum
-from typing import Any, Iterator
+from typing import Any, Generator
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -233,14 +233,13 @@ class VariableNode(DataModelNode):
         return False
 
     @override
-    def __iter__(self) -> Iterator["VariableNode"]:
+    def __iter__(self) -> Generator["VariableNode", None, None]:
         """
         Returns an empty iterator, as this node does not have child nodes.
 
         :return: An empty iterator.
         """
-        for _ in []:
-            yield _
+        yield from []
 
 
 class NumericalVariableNode(VariableNode):
@@ -612,18 +611,6 @@ class ObjectVariableNode(VariableNode):
         self._subscribers.remove(subscriber_id)
 
     @override
-    def notify_subscribers(self) -> None:
-        """
-        Notify all subscribed entities about an update or change. This will
-        execute the subscription callback for each subscriber.
-        """
-        # Get the current value of the node.
-        value = self._read_value()
-        # Pass the value to the callback.
-        for subscriber in self._subscribers:
-            self._subscription_callback(subscriber, self, value)
-
-    @override
     def __getitem__(self, property_name: str) -> VariableNode:
         """
         Get a property of the object variable.
@@ -644,7 +631,7 @@ class ObjectVariableNode(VariableNode):
         return self.has_property(property_name)
 
     @override
-    def __iter__(self) -> Iterator[VariableNode]:
+    def __iter__(self) -> Generator[VariableNode, None, None]:
         """
         Iterate over the properties of the object variable.
 
