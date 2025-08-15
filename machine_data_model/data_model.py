@@ -59,18 +59,19 @@ class DataModel:
         for node in self._nodes.values():
             self._set_node_connector(node)
 
-    def _set_node_connector(self, node: DataModelNode):
+    def _set_node_connector(self, node: DataModelNode) -> None:
         """
         Find the closest connector to the node by moving upwards in the tree.
         When/if found, set it as the node's connector.
         """
-        node_ptr = node
+        node_ptr: DataModelNode | None = node
         while node_ptr is not None and node_ptr.connector_name is None:
             node_ptr = node_ptr.parent
 
-        if node_ptr:
+        if node_ptr and node_ptr.connector_name:
             node.set_connector_name(node_ptr.connector_name)
-            node.set_connector(self._get_connector_by_name(node_ptr.connector_name))
+            connector = self._get_connector_by_name(node_ptr.connector_name)
+            node.set_connector(connector)
 
             # todo: allow the user to override the remote_path using a yaml attribute
             node.set_remote_path(node.qualified_name)

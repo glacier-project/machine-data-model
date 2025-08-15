@@ -3,6 +3,7 @@ from typing import Any, Iterator
 
 from typing_extensions import override
 
+from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import VariableNode
 
@@ -247,6 +248,12 @@ class MethodNode(DataModelNode):
 
         self._pre_call(**kwargs)
         if self.is_remote():
+            assert isinstance(
+                self.connector, AbstractConnector
+            ), "connector must be an AbstractConnector"
+            assert (
+                self.remote_path is not None
+            ), "remote_path must be set for a remote node"
             ret_c = self.connector.call_node_as_method(self.remote_path, kwargs)
         else:
             ret_c = self._callback(**kwargs)

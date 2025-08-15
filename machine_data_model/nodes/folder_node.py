@@ -30,7 +30,9 @@ class FolderNode(DataModelNode):
         :param description: The description of the folder.
         :param children: A dictionary of child nodes of the folder.
         """
-        super().__init__(id=id, name=name, description=description, connector_name=connector_name)
+        super().__init__(
+            id=id, name=name, description=description, connector_name=connector_name
+        )
         self._children = {} if children is None else children
         for child in self._children.values():
             assert isinstance(child, DataModelNode), "Child must be a DataModelNode"

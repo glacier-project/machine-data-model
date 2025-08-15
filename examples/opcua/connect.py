@@ -1,6 +1,7 @@
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
 from machine_data_model.nodes.method_node import MethodNode
@@ -51,7 +52,7 @@ threshold = data_model.get_node(temp_threshold_path)
 assert isinstance(threshold, VariableNode)
 
 
-def my_callback(subscriber_id, modified_node, new_node_value):
+def my_callback(subscriber_id: str, modified_node: VariableNode, new_node_value: Any) -> None:
     print("Threshold's value changed:")
     print(f"- subscriber_id: {subscriber_id}")
     print(f"- modified_node: {modified_node}")

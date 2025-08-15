@@ -20,6 +20,7 @@ def create_event_loop_thread() -> AbstractEventLoop:
     Credits:
     https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
     """
+
     def start_background_loop(loop: AbstractEventLoop) -> None:
         """
         Runs the asyncio loop forever.
@@ -57,14 +58,16 @@ class AbstractConnector(ABC):
         name: str | None = None,
         ip: str | None = None,
         port: int | None = None,
-        event_loop: AbstractEventLoop | None = None
+        event_loop: AbstractEventLoop | None = None,
     ):
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str | None = name
         self._ip: str | None = ip
         self._port: int | None = port
 
-        self._event_loop = create_event_loop_thread() if event_loop is None else event_loop
+        self._event_loop = (
+            create_event_loop_thread() if event_loop is None else event_loop
+        )
 
     @property
     def id(self) -> str:
@@ -142,7 +145,7 @@ class AbstractConnector(ABC):
         pass
 
     @abstractmethod
-    def call_node_as_method(self, path, kwargs: dict[str, Any]) -> dict[str, Any]:
+    def call_node_as_method(self, path: str, kwargs: dict[str, Any]) -> dict[str, Any]:
         """
         Calls the method at path <path> with <kwargs> as its arguments.
 
