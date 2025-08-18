@@ -135,11 +135,15 @@ class OpcuaConnector(AbstractConnector):
             if client_app_uri is not None
             else f"urn:{self._host_name}:foobar:myselfsignedclient"
         )
-        self._private_key_file_path: Path | None = (
-            Path(private_key_file_path) if private_key_file_path is not None else None
+        self._private_key_file_path: Path = (
+            Path(private_key_file_path)
+            if private_key_file_path is not None
+            else Path("private.selfsigned.pem")
         )
-        self._certificate_file_path: Path | None = (
-            Path(certificate_file_path) if certificate_file_path is not None else None
+        self._certificate_file_path: Path = (
+            Path(certificate_file_path)
+            if certificate_file_path is not None
+            else Path("cert.selfsigned.der")
         )
 
     @property
