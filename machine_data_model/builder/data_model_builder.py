@@ -292,7 +292,7 @@ class DataModelBuilder:
         """
         data = loader.construct_mapping(node, deep=True)
         return OpcuaConnector(
-            name=data.get("name", ""),
+            name=data.get("name", None),
             ip=data.get("ip", "127.0.0.1"),
             port=data.get("port", 4840),
             security_policy=data.get("security_policy", "SecurityPolicyBasic256Sha256"),

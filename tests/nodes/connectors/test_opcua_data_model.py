@@ -99,12 +99,6 @@ def create_yaml_data_model(file_content: str) -> DataModel:
     yaml_file = tempfile.NamedTemporaryFile("w")
     yaml_file.write(file_content)
     yaml_file.flush()
-    with open("out.log", "a") as f:
-        f.write("\n=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!\n")
-        f.write(yaml_file.name)
-        f.write("\n-----------------------\n")
-        f.write(file_content)
-        f.write("\n=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!\n")
     data_model = builder.get_data_model(yaml_file.name)
     yaml_file.close()
     return data_model
@@ -123,6 +117,21 @@ def free_port() -> int:
 
 
 class TestOpcuaDataModel:
+    def test_connector_without_name(
+        self,
+        start_opcua_test_server: Tuple[Container, int],
+    ) -> None:
+        docker_container, container_port = start_opcua_test_server
+        yaml = """
+        connectors:
+          - !!OpcuaConnector
+            ip: "127.0.0.1"
+            port: {opcua_port}
+            security_policy: "SecurityPolicyBasic256Sha256"
+        """
+        with pytest.raises(Exception, match="doesn't have the name attribute"):
+            create_yaml_data_model(yaml.format(opcua_port=container_port))
+
     def test_connection_failure(self) -> None:
         port = free_port()
         with pytest.raises(Exception, match="Failed to connect to the remote server"):

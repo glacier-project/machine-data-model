@@ -37,7 +37,9 @@ class DataModel:
         if connectors is not None:
             for connector in connectors:
                 if connector.name is None:
-                    continue
+                    raise Exception(
+                        "At least one connector doesn't have the name attribute defined"
+                    )
                 connection_successful = connector.connect()  # connect to the server
                 self._connectors[connector.name] = connector
                 # if we couldn't connect, disconnect and stop all the other connectors
