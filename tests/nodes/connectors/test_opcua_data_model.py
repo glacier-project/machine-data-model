@@ -185,6 +185,7 @@ class TestOpcuaDataModel:
         value = node.read()
         assert isinstance(value, str), "the value should be a string"
         assert value == "Boiler #2"
+        dm.close_connectors()
 
     def test_read_numerical_node(
         self,
@@ -199,6 +200,7 @@ class TestOpcuaDataModel:
         assert isinstance(node, VariableNode), "the node should be defined"
         value = node.read()
         assert isinstance(value, float), "the value should be a floating point number"
+        dm.close_connectors()
 
     def test_read_boolean_node(
         self,
@@ -261,6 +263,7 @@ class TestOpcuaDataModel:
         assert math.isclose(
             new_value, prev_value + 7
         ), "the new value should be equal to the prev value +7"
+        dm.close_connectors()
 
     def test_call_method_node(
         self,
@@ -275,3 +278,4 @@ class TestOpcuaDataModel:
         result = returned_value["AddResult"]
         assert isinstance(result, float), "the result should be a floating point number"
         assert math.isclose(result, 5), "the result should be equal to 2.0 + 3 = 5"
+        dm.close_connectors()
