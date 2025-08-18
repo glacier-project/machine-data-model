@@ -400,6 +400,10 @@ class OpcuaConnector(AbstractConnector):
         if self._client is None:
             return None
 
+        node = await self._async_get_remote_node(path)
+        if node is None:
+            raise Exception("Couldn't call remote method: the node doesn't exist")
+
         path_parts = path.lstrip("/").split("/")
         input_arg_path = path + "/InputArguments"
         # TODO: this might fail if the method as no input parameters
