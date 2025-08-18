@@ -205,10 +205,14 @@ class OpcuaConnector(AbstractConnector):
         client = AsyncuaClient(url=url)
         client.application_uri = self._client_app_uri
 
-        if self._security_policy is not None:
+        security_policy = _security_policy_string_to_asyncua_policy(
+            self._security_policy
+        )
+
+        if security_policy is not None:
             try:
                 await client.set_security(
-                    _security_policy_string_to_asyncua_policy(self._security_policy),
+                    security_policy,
                     certificate=self.certificate_file_path,
                     private_key=self.private_key_file_path,
                     server_certificate=None,  # "certificate-example.der",
