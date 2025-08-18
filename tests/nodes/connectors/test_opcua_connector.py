@@ -1,25 +1,11 @@
 import math
-import os
 from typing import Tuple
 
 import pytest
 from docker.models.containers import Container
 
 from machine_data_model.nodes.connectors.opcua_connector import OpcuaConnector
-from machine_data_model.data_model import DataModel
-from machine_data_model.builder.data_model_builder import DataModelBuilder
 from tests import gen_random_string
-
-
-def get_remote_opcua_server_data_model() -> DataModel:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "..", "template", "remote_opcua_server.yml")
-
-    # Use DataModelBuilder to load the data model
-    builder = DataModelBuilder()
-    data_model = builder.get_data_model(file_path)
-
-    return data_model
 
 
 class TestOpcuaConnector:
