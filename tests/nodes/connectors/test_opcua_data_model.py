@@ -88,6 +88,17 @@ root:
                 - !!NumericalVariableNode
                   name: "AddResult"
                   description: "addition result"
+        - !!FolderNode
+          name: "6:Scalar"
+          description: "Scalars"
+          children:
+            - !!FolderNode
+              name: "6:Scalar_Static"
+              description: "Static Scalars"
+              children:
+                - !!BooleanVariableNode
+                  name: "6:Scalar_Static_Boolean"
+                  description: "Boolean node"
 """
 
 
@@ -173,6 +184,43 @@ class TestOpcuaDataModel:
         assert isinstance(node, VariableNode), "the node should be defined"
         value = node.read()
         assert isinstance(value, float), "the value should be a floating point number"
+
+    def test_read_boolean_node(
+        self,
+        start_opcua_test_server: Tuple[Container, int],
+    ) -> None:
+        docker_container, container_port = start_opcua_test_server
+        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        assert dm is not None, "the data model should be defined"
+        node = dm.get_node(
+            "Objects/6:ReferenceTest/6:Scalar/6:Scalar_Static/6:Scalar_Static_Boolean"
+        )
+        assert isinstance(node, VariableNode), "the node should be defined"
+        value = node.read()
+        assert isinstance(value, bool), "the value should be a boolean"
+        dm.close_connectors()
+
+    def test_write_boolean_node(
+        self,
+        start_opcua_test_server: Tuple[Container, int],
+    ) -> None:
+        docker_container, container_port = start_opcua_test_server
+        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        assert dm is not None, "the data model should be defined"
+        node = dm.get_node(
+            "Objects/6:ReferenceTest/6:Scalar/6:Scalar_Static/6:Scalar_Static_Boolean"
+        )
+        assert isinstance(node, VariableNode), "the node should be defined"
+        prev_value = node.read()
+        assert isinstance(prev_value, bool), "the prev value should be a boolean"
+        success = node.write(not prev_value)
+        assert success, "the value should be written successfully"
+        value = node.read()
+        assert isinstance(value, bool), "the new value should be a boolean"
+        assert value == (
+            not prev_value
+        ), "the new value should be the opposite of the previous value"
+        dm.close_connectors()
 
     def test_write_numerical_node(
         self,

@@ -22,6 +22,7 @@ from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     StringVariableNode,
     VariableNode,
+    BooleanVariableNode,
 )
 
 logging.basicConfig(level=logging.ERROR)
@@ -78,6 +79,14 @@ async def _convert_asyncua_node_to_data_model_node(
             value=value,
             description=description_text,
         )
+
+    if variant_type == VariantType.Boolean:
+        value = await node.get_value()
+        assert isinstance(value, bool), "Value must be a boolean"
+        return BooleanVariableNode(
+            name=name_text, value=value, description=description_text
+        )
+
     return None
 
 
