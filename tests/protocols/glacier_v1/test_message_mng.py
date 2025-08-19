@@ -97,6 +97,8 @@ class TestGlacierProtocolMng:
         response = manager.handle_request(msg)
 
         assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
         assert response.target == sender
         assert response.sender == target
         assert isinstance(response, FrostMessage)
@@ -128,6 +130,8 @@ class TestGlacierProtocolMng:
         response = manager.handle_request(msg)
 
         assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
         assert response.target == sender
         assert response.sender == target
         assert isinstance(response, FrostMessage)
@@ -201,7 +205,17 @@ class TestGlacierProtocolMng:
             ),
             payload=VariablePayload(node=var_name, value=value),
         )
-        manager.handle_request(msg)
+        response = manager.handle_request(msg)
+
+        assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
+        assert response.target == sender
+        assert response.sender == target
+        assert isinstance(response.payload, VariablePayload)
+        assert response.payload.node == var_name
+        assert response.payload.value == value
+
         node["s_variable3"].write("Hello")
         node["s_variable4"].write("Confirm")
         update_messages = manager.get_update_messages()
@@ -257,9 +271,10 @@ class TestGlacierProtocolMng:
         response = manager.handle_request(msg)
 
         assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
         assert response.target == sender
         assert response.sender == target
-        assert isinstance(response, FrostMessage)
         assert response.header.type == MsgType.RESPONSE
         assert isinstance(response.payload, MethodPayload)
         assert len(response.payload.ret) == 1
@@ -285,6 +300,10 @@ class TestGlacierProtocolMng:
         response = manager.handle_request(msg)
 
         assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
+        assert response.target == sender
+        assert response.sender == target
         assert isinstance(response.payload, MethodPayload)
         assert SCOPE_ID in response.payload.ret
         assert isinstance(wait_node, VariableNode)
