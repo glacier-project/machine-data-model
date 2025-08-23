@@ -119,7 +119,7 @@ class OpcuaConnector(AbstractConnector):
         client_app_uri: str | None = None,
         private_key_file_path: str | None = None,
         certificate_file_path: str | None = None,
-    ):
+    ) -> None:
         """
         Initializes an OPCUA client.
 
