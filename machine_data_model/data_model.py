@@ -147,7 +147,7 @@ class DataModel:
         """
         connector = self._connectors.get(name)
         if connector is None:
-            raise Exception("Connector with name {} not found".format(name))
+            raise KeyError(f"Connector with name '{name}' not found")
         return connector
 
     def _register_node(self, node: DataModelNode) -> None:
