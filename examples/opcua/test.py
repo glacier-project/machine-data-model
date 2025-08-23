@@ -18,7 +18,7 @@ from asyncua import ua
 from asyncua.common.subscription import DataChangeNotificationHandler, DataChangeNotif
 from asyncua.common.node import Node
 
-logging.basicConfig(level=logging.WARN)
+logging.basicConfig(level=logging.WARNING)
 _logger = logging.getLogger(__name__)
 
 USE_TRUST_STORE = False
