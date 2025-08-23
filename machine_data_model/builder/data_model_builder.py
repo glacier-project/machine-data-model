@@ -285,10 +285,10 @@ class DataModelBuilder:
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> OpcuaConnector:
         """
-        Construct a call method node from a yaml node.
+        Construct an OPC-UA Connector from a yaml node.
         :param loader: The yaml loader.
         :param node: The yaml node.
-        :return: The constructed call method node.
+        :return: The constructed OPC-UA Connector.
         """
         data = loader.construct_mapping(node, deep=True)
         return OpcuaConnector(
