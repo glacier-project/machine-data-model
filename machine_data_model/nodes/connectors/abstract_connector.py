@@ -59,7 +59,7 @@ class AbstractConnector(ABC):
         ip: str | None = None,
         port: int | None = None,
         event_loop: AbstractEventLoop | None = None,
-    ):
+    ) -> None:
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str | None = name
         self._ip: str | None = ip
