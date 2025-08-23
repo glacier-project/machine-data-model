@@ -4,7 +4,7 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
-from typing import Any
+from typing import Any, Iterable
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
@@ -33,23 +33,9 @@ class DataModel:
             else FolderNode(name="root", description="Root folder of the data model")
         )
 
-        self._connectors: dict[str, AbstractConnector] = {}
-        if connectors is not None:
-            for connector in connectors:
-                if connector.name is None:
-                    raise Exception(
-                        "At least one connector doesn't have the name attribute defined"
-                    )
-                connection_successful = connector.connect()  # connect to the server
-                self._connectors[connector.name] = connector
-                # if we couldn't connect, disconnect and stop all the other connectors
-                if not connection_successful:
-                    for c in connectors:
-                        c.disconnect()
-                        c.stop_thread()
-                    raise Exception(
-                        f"Failed to connect to the remote server using the {connector.name} connector."
-                    )
+        self._connectors: dict[str, AbstractConnector] = self._initialize_connectors(
+            connectors
+        )
 
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
@@ -60,6 +46,50 @@ class DataModel:
         #       the connectors while registering the nodes
         for node in self._nodes.values():
             self._set_node_connector(node)
+
+    def _initialize_connectors(
+        self, connectors: list[AbstractConnector] | None
+    ) -> dict[str, AbstractConnector]:
+        """
+        Given a list of connectors, returns a dictionary mapping connector names to their respective connectors.
+        The connectors are used to connect to the remote servers.
+
+        If something goes wrong, stops all the connectors and their threads:
+        - all connectors must have a unique, identifying name
+        - all connectors must be able to connect successfully to their remote server
+
+        :param connectors: connectors list from the yaml file
+        :return: a dictionary of key - value: (connector's name, connector)
+        """
+        connectors_dict: dict[str, AbstractConnector] = {}
+        if connectors is None:
+            return connectors_dict
+
+        for connector in connectors:
+            if connector.name is None:
+                self._cleanup_connectors(connectors)
+                raise Exception(
+                    "At least one connector doesn't have the name attribute defined"
+                )
+
+            # check if the name/identifier is unique
+            if connectors_dict.get(connector.name) is not None:
+                self._cleanup_connectors(connectors)
+                raise Exception(
+                    f"There are at least two connectors with the same name/identifier: {connector.name}."
+                )
+
+            connection_successful = connector.connect()  # connect to the server
+
+            # if we couldn't connect, disconnect and stop all the other connectors
+            if not connection_successful:
+                self._cleanup_connectors(connectors)
+                raise Exception(
+                    f"Failed to connect to the remote server using the {connector.name} connector."
+                )
+
+            connectors_dict[connector.name] = connector
+        return connectors_dict
 
     def _set_node_connector(self, node: DataModelNode) -> None:
         """
@@ -298,7 +328,14 @@ class DataModel:
         """
         Disconnect all connectors and stop their threads.
         """
-        for connector in self._connectors.values():
+        self._cleanup_connectors(self._connectors.values())
+
+    def _cleanup_connectors(self, connectors: Iterable[AbstractConnector]) -> None:
+        """
+        Iterate over all connectors to disconnect them from their servers and stop the threads.
+        :param connectors: connectors that have resources to clean up
+        """
+        for connector in connectors:
             connector.disconnect()
             connector.stop_thread()
 

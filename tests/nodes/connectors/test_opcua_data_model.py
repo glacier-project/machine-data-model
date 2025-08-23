@@ -143,6 +143,27 @@ class TestOpcuaDataModel:
         with pytest.raises(Exception, match="doesn't have the name attribute"):
             create_yaml_data_model(yaml.format(opcua_port=container_port))
 
+    def test_multiple_connector_definitions(
+        self,
+        start_opcua_test_server: Tuple[Container, int],
+    ) -> None:
+        docker_container, container_port = start_opcua_test_server
+        yaml = """
+        connectors:
+          - !!OpcuaConnector
+            name: "myConnector"
+            ip: "127.0.0.1"
+            port: {opcua_port}
+            security_policy: "SecurityPolicyBasic256Sha256"
+          - !!OpcuaConnector
+            name: "myConnector"
+            ip: "127.0.0.1"
+            port: {opcua_port}
+            security_policy: "SecurityPolicyBasic256Sha256"
+        """
+        with pytest.raises(Exception, match="two connectors with the same name"):
+            create_yaml_data_model(yaml.format(opcua_port=container_port))
+
     def test_connector_not_defined(
         self,
         start_opcua_test_server: Tuple[Container, int],
