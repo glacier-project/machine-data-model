@@ -157,8 +157,9 @@ class AbstractConnector(ABC):
 
     def stop_thread(self) -> None:
         """
-        Stop the thread.
+        Stops the thread. Calls disconnect() automatically to disconnect from the server.
         """
+        self.disconnect()
         self._event_loop.stop()
 
     def _handle_task(
