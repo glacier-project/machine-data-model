@@ -22,7 +22,6 @@ class TestOpcuaConnector:
         ip: str,
         port: int,
         security_policy: str,
-        start_opcua_test_server: Tuple[Container, int],
     ) -> None:
         connector = OpcuaConnector(
             name=name, ip=ip, port=port, security_policy=security_policy
