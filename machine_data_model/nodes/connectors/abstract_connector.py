@@ -1,7 +1,7 @@
 from threading import Thread
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator, Any, TypeVar
+from typing import Iterator, Any, TypeVar, Callable
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 import asyncio
@@ -152,6 +152,24 @@ class AbstractConnector(ABC):
         :param path: node/method path
         :param kwargs: method arguments expressed as key/name - value pairs
         :return: dict of results in the form of name - value pairs
+        """
+        pass
+
+    @abstractmethod
+    def subscribe_to_node_changes(
+        self, path: str, callback: Callable[[Any, dict[str, Any]], None]
+    ) -> int:
+        """
+        Subscribes to remote node changes.
+        Calls the callback function every time the remote value changes.
+
+        The callback must accept two parameters:
+        - the new remote value
+        - other data. It can be used to pass different data depending on the Connector's protocol/implementation
+
+        :param path: node path
+        :param callback: callback
+        :return: handler code which can be used to unsubscribe from new events
         """
         pass
 

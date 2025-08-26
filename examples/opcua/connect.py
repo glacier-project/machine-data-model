@@ -81,5 +81,19 @@ except Exception as e:
     data_model.close_connectors()
     sys.exit(1)
 
+# subscribe using the connector to the remote server
+print("----------------")
+
+
+def my_remote_callback(new_remote_value: Any, other: dict[str, Any]) -> None:
+    print("Remote value changed:")
+    print(f"- new value: {new_remote_value}")
+    print(f"- other: {other}")
+    print("")
+
+
+c.subscribe_to_node_changes("Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:CurrentTemperature", my_remote_callback)
+time.sleep(10)
+
 # connectors use threads: stop them
 data_model.close_connectors()

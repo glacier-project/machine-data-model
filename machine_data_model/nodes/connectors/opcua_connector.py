@@ -1,10 +1,11 @@
 import logging
 import socket
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import asyncua
 from asyncua import Client as AsyncuaClient
+from asyncua.common.subscription import DataChangeNotificationHandler, DataChangeNotif
 from asyncua.crypto.cert_gen import setup_self_signed_certificate
 from asyncua.crypto.security_policies import (
     SecurityPolicyBasic256Sha256,
@@ -448,6 +449,48 @@ class OpcuaConnector(AbstractConnector):
             _logger.error(exp)
         return result
 
+    @override
+    def subscribe_to_node_changes(
+        self, path: str, callback: Callable[[Any, dict[str, Any]], None]
+    ) -> int:
+        """
+        Subscribes to remote node changes.
+        Calls the callback function every time the remote value changes.
+
+        The callback must accept two parameters:
+        - the new remote value
+        - other data. It can be used to pass different data depending on the Connector's protocol/implementation
+
+        :param path: node path
+        :param callback: callback
+        :return: handler code which can be used to unsubscribe from new events
+        """
+        return self._handle_task(self._async_subscribe_to_node_changes(path, callback))
+
+    async def _async_subscribe_to_node_changes(
+        self, path: str, callback: Callable[[Any, dict[str, Any]], None]
+    ) -> int:
+        """
+        Asynchronous function which subscribes to remote variable data changes.
+
+        :param path: node path
+        :param callback: callback
+        :return: handler code which can be used to unsubscribe from new events
+        """
+        if self._client is None:
+            raise Exception("Client is not running")
+
+        handler = OpcUaDataChangeHandler(callback)
+        subscription = await self._client.create_subscription(1, handler)
+        node = await self._async_get_remote_node(path)
+
+        if node is None:
+            raise Exception("Couldn't subscribe to unexisting node")
+
+        res = await subscription.subscribe_data_change(node)
+        assert isinstance(res, int), "subscription handler must be a int"
+        return res
+
     def __str__(self) -> str:
         return (
             "OpcuaConnector("
@@ -465,3 +508,24 @@ class OpcuaConnector(AbstractConnector):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[misc]
+    """
+    Handles OPC-UA data changes by calling a callback function.
+    """
+
+    def __init__(self, callback: Callable[[Any, dict[str, Any]], None]) -> None:
+        """
+        Stores the callback to be called when a remote value changes.
+        """
+        self._callback = callback
+
+    def datachange_notification(
+        self, node: asyncua.Node, val: Any, data: DataChangeNotif
+    ) -> None:
+        """
+        called for every datachange notification from server
+        """
+        other = {"node": node, "value": val, "notification": data}
+        self._callback(val, other)
