@@ -45,6 +45,7 @@ def _create_response_msg(msg: FrostMessage) -> FrostMessage:
         identifier=str(uuid.uuid4()),
         header=msg.header,
         payload=msg.payload,
+        correlation_id=msg.correlation_id,
     )
 
 
@@ -68,6 +69,7 @@ def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessag
             error_code=ErrorCode.BAD_REQUEST,
             error_message=error_message,
         ),
+        correlation_id=msg.correlation_id,
     )
 
 
@@ -345,7 +347,7 @@ class FrostProtocolMng(ProtocolMng):
                     namespace=MsgNamespace.VARIABLE,
                     msg_name=VariableMsgName.UPDATE,
                 ),
-                payload=VariablePayload(node=node.name, value=value),
+                payload=VariablePayload(node=node.qualified_name, value=value),
             )
         )
 
