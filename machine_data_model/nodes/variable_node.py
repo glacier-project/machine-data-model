@@ -2,8 +2,8 @@ from abc import abstractmethod
 from collections.abc import Callable
 from enum import Enum
 from typing import Any, Generator
-
 from typing_extensions import override
+
 from unitsnet_py.abstract_unit import AbstractMeasure
 
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -86,7 +86,8 @@ class VariableNode(DataModelNode):
         # return False.
         if not self._post_update_value(prev_value, value):
             # Restore previous value if validation fails.
-            self._update_value(prev_value)
+            value = self._update_value(prev_value)
+            assert value == prev_value
             return False
 
         # Notify subscribers if the update was successful.
@@ -172,7 +173,7 @@ class VariableNode(DataModelNode):
         pass
 
     @abstractmethod
-    def _update_value(self, value: Any) -> None:
+    def _update_value(self, value: Any) -> Any:
         """
         Update the value of the variable.
         """
@@ -210,7 +211,6 @@ class VariableNode(DataModelNode):
         """
         self._post_update_value = callback
 
-    @override
     def __getitem__(self, node_name: str) -> "VariableNode":
         """
         Raises an exception because child nodes are not supported.
@@ -222,7 +222,6 @@ class VariableNode(DataModelNode):
             f"{self.__class__.__name__} does not support child nodes"
         )
 
-    @override
     def __contains__(self, node_name: str) -> bool:
         """
         Always returns False, as this node does not have child nodes.
@@ -232,7 +231,6 @@ class VariableNode(DataModelNode):
         """
         return False
 
-    @override
     def __iter__(self) -> Generator["VariableNode", None, None]:
         """
         Returns an empty iterator, as this node does not have child nodes.
@@ -280,6 +278,7 @@ class NumericalVariableNode(VariableNode):
             )
         )
 
+    @override
     def _read_value(self) -> float:
         """
         Get the value of the numerical variable.
@@ -288,13 +287,15 @@ class NumericalVariableNode(VariableNode):
         """
         return self._value.base_value  # type: ignore[no-any-return]
 
-    def _update_value(self, value: float) -> None:
+    @override
+    def _update_value(self, value: float) -> float:
         """
         Update the value of the numerical variable.
 
         :param value: The new value of the numerical variable.
         """
         self._value = self._value.__class__(value, self._measure_unit)
+        return self._value.base_value  # type: ignore[no-any-return]
 
     def get_measure_unit(self) -> Enum:
         """
@@ -350,6 +351,7 @@ class StringVariableNode(VariableNode):
         super().__init__(id=id, name=name, description=description)
         self._value: str = value
 
+    @override
     def _read_value(self) -> str:
         """
         Get the value of the string variable.
@@ -358,7 +360,8 @@ class StringVariableNode(VariableNode):
         """
         return self._value
 
-    def _update_value(self, value: str) -> None:
+    @override
+    def _update_value(self, value: str) -> str:
         """
         Update the value of the string variable.
 
@@ -366,8 +369,8 @@ class StringVariableNode(VariableNode):
         """
         assert isinstance(value, str)
         self._value = value
+        return self._value
 
-    @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
         Raises a NotImplementedError, as StringVariableNode does not support child nodes.
@@ -377,7 +380,6 @@ class StringVariableNode(VariableNode):
         """
         raise NotImplementedError("StringVariableNode does not support child nodes")
 
-    @override
     def __contains__(self, node_name: str) -> bool:
         """
         Always returns False, as StringVariableNode does not support child nodes.
@@ -432,6 +434,7 @@ class BooleanVariableNode(VariableNode):
         super().__init__(id, name, description)
         self._value: bool = value
 
+    @override
     def _read_value(self) -> bool:
         """
         Get the value of the boolean variable.
@@ -440,7 +443,8 @@ class BooleanVariableNode(VariableNode):
         """
         return self._value
 
-    def _update_value(self, value: bool) -> None:
+    @override
+    def _update_value(self, value: bool) -> bool:
         """
         Update the value of the boolean variable.
 
@@ -448,8 +452,8 @@ class BooleanVariableNode(VariableNode):
         """
         assert isinstance(value, bool)
         self._value = value
+        return self._value
 
-    @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
         Raises NotImplementedError as BooleanVariableNode does not support child nodes.
@@ -459,7 +463,6 @@ class BooleanVariableNode(VariableNode):
         """
         raise NotImplementedError("BooleanVariableNode does not support child nodes")
 
-    @override
     def __contains__(self, node_name: str) -> bool:
         """
         Always returns False, as BooleanVariableNode does not support child nodes.
@@ -570,7 +573,8 @@ class ObjectVariableNode(VariableNode):
         """
         return self._properties
 
-    def _read_value(self) -> Any:
+    @override
+    def _read_value(self) -> dict[str, Any]:
         """
         Get the value of the object variable.
 
@@ -582,7 +586,8 @@ class ObjectVariableNode(VariableNode):
                 value[property_name] = property_node.read()
         return value
 
-    def _update_value(self, value: dict) -> None:
+    @override
+    def _update_value(self, value: dict[str, Any]) -> dict[str, Any]:
         """
         Update the value of the object variable.
 
@@ -593,6 +598,7 @@ class ObjectVariableNode(VariableNode):
         ), "The value must contain all properties of the object variable"
         for property_name, property_value in value.items():
             self._properties[property_name]._update_value(property_value)
+        return self._read_value()
 
     def subscribe(self, subscriber_id: str) -> None:
         """
@@ -610,7 +616,6 @@ class ObjectVariableNode(VariableNode):
         """
         self._subscribers.remove(subscriber_id)
 
-    @override
     def __getitem__(self, property_name: str) -> VariableNode:
         """
         Get a property of the object variable.
@@ -620,7 +625,6 @@ class ObjectVariableNode(VariableNode):
         """
         return self.get_property(property_name)
 
-    @override
     def __contains__(self, property_name: str) -> bool:
         """
         Check if the object variable has a property.
@@ -630,7 +634,6 @@ class ObjectVariableNode(VariableNode):
         """
         return self.has_property(property_name)
 
-    @override
     def __iter__(self) -> Generator[VariableNode, None, None]:
         """
         Iterate over the properties of the object variable.
