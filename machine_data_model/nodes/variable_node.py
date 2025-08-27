@@ -770,7 +770,9 @@ class ObjectVariableNode(VariableNode):
         value = {}
         for property_name, property_node in self._properties.items():
             if isinstance(property_node, VariableNode):
-                value[property_name] = property_node.read(force_remote_read=force_remote_read)
+                value[property_name] = property_node.read(
+                    force_remote_read=force_remote_read
+                )
         return value
 
     def _update_internal_value(self, value: dict) -> None:
