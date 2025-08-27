@@ -61,10 +61,15 @@ def my_callback(subscriber_id: str, modified_node: VariableNode, new_node_value:
 
 threshold.set_subscription_callback(my_callback)
 threshold.subscribe("thresholdUser")
-current_value = threshold.read()
+# to be consistent with the value written by the connector, read from the remote server
+current_value = threshold.read(force_remote_read=True)
 print("current value:", current_value)
 print("writing current value -5")
 threshold.write(current_value - 5)
+new_value = threshold.read()
+print("new current value:", new_value)
+print("writing current value -5")
+threshold.write(new_value - 5)
 print("new current value:", threshold.read())
 
 # call method

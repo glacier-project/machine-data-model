@@ -46,6 +46,12 @@ class DataModel:
         #       the connectors while registering the nodes
         for node in self._nodes.values():
             self._set_node_connector(node)
+            # subscribe to all the variable changes
+            # > if it is an object, skip it: the subscription is done on the properties
+            if isinstance(node, VariableNode) and not isinstance(
+                node, ObjectVariableNode
+            ):
+                node.subscribe_to_remote_changes()
 
     def _initialize_connectors(
         self, connectors: list[AbstractConnector] | None
