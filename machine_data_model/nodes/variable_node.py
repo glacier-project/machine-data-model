@@ -58,10 +58,6 @@ class VariableNode(DataModelNode):
             lambda subscriber, node, value: None
         )
 
-        # a variable subscription might not have returned values yet:
-        # we must read the remote value at least once before returning the cached internal value
-        self._did_read_remote_once = False
-
     def read(self, force_remote_read: bool = False) -> Any:
         """
         Get the value of the variable node.
@@ -182,10 +178,8 @@ class VariableNode(DataModelNode):
         """
         # a connector could be set only after reading the full yaml file
         if self.is_remote() and self.is_connector_set():
-            remote_read = force_remote_read or not self._did_read_remote_once
-            value = self._read_remote_value(force_remote_read=remote_read)
+            value = self._read_remote_value(force_remote_read=force_remote_read)
             self._update_internal_value(value)
-            self._did_read_remote_once = True
             return value
         else:
             return self._read_internal_value()
@@ -280,6 +274,8 @@ class VariableNode(DataModelNode):
         self.connector.subscribe_to_node_changes(
             self._remote_path, self._remote_subscription_callback
         )
+        value = self._read_remote_value(force_remote_read=True)
+        self._update_internal_value(value)
         return None
 
     def _remote_subscription_callback(
