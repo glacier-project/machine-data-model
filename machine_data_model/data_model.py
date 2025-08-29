@@ -358,3 +358,15 @@ class DataModel:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DataModel):
+            return False
+        return (
+            self._name == other._name
+            and self._machine_category == other._machine_category
+            and self._machine_type == other._machine_type
+            and self._machine_model == other._machine_model
+            and self._description == other._description
+            and self._root == other._root
+        )

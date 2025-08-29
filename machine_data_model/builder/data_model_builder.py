@@ -269,6 +269,22 @@ class DataModelBuilder:
         )
         return method
 
+    def from_string(self, data_model_string: str) -> DataModel:
+        """
+        Create a data model from a YAML string.
+
+        :param data_model_string: The YAML string containing the data model.
+        :return: The data model.
+        """
+
+        # Load the YAML string
+        data = yaml.load(data_model_string, Loader=yaml.FullLoader)
+
+        # Create the data model
+        data_model = DataModel(**data)
+
+        return data_model
+
     def _get_data_model(self, data_model_path: str) -> DataModel:
         """ "
         Create a data model from a yaml file.
@@ -303,49 +319,98 @@ class DataModelBuilder:
         )
 
     def _add_yaml_constructors(self) -> None:
+        # TODO: change old !! tags to single ! tags
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.folder_node.FolderNode",
+            self._get_folder,
+        )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:FolderNode",
             self._get_folder,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.NumericalVariableNode",
+            self._get_numerical_variable,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:NumericalVariableNode",
             self._get_numerical_variable,
         )
         yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.StringVariableNode",
+            self._get_string_variable,
+        )
+        yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:StringVariableNode",
             self._get_string_variable,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.BooleanVariableNode",
+            self._get_boolean_variable,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:BooleanVariableNode",
             self._get_boolean_variable,
         )
         yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.ObjectVariableNode",
+            self._get_object_variable,
+        )
+        yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:ObjectVariableNode",
             self._get_object_variable,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.method_node.MethodNode",
+            self._get_method_node,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:MethodNode",
             self._get_method_node,
         )
         yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.method_node.AsyncMethodNode",
+            self._get_async_method_node,
+        )
+        yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:AsyncMethodNode",
             self._get_async_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.composite_method_node.CompositeMethodNode",
+            self._get_composite_method_node,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:CompositeMethodNode",
             self._get_composite_method_node,
         )
         yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.read_variable_node.ReadVariableNode",
+            self._get_read_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:ReadVariableNode",
             self._get_read_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.write_variable_node.WriteVariableNode",
+            self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:WriteVariableNode",
             self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.wait_condition_node.WaitConditionNode",
+            self._get_wait_node,
+        )
+        yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:WaitConditionNode",
             self._get_wait_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.call_method_node.CallMethodNode",
+            self._get_call_method_node,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:CallMethodNode",
