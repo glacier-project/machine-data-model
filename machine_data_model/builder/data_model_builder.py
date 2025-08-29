@@ -132,6 +132,7 @@ class DataModelBuilder:
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", False),
+                "connector_name": data.get("connector_name", None),
             }
         )
 
@@ -151,6 +152,7 @@ class DataModelBuilder:
                 "name": data.get("name", None),
                 "description": data.get("description", None),
                 "properties": {prop.name: prop for prop in data.get("properties", [])},
+                "connector_name": data.get("connector_name", None),
             }
         )
 

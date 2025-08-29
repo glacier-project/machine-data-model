@@ -583,6 +583,7 @@ class BooleanVariableNode(VariableNode):
         name: str | None = None,
         description: str | None = None,
         value: bool = False,
+        connector_name: str | None = None,
     ):
         """
         Initializes a new BooleanVariableNode instance.
@@ -592,7 +593,7 @@ class BooleanVariableNode(VariableNode):
         :param description: The description of the boolean variable.
         :param value: The initial value of the boolean variable.
         """
-        super().__init__(id, name, description)
+        super().__init__(id, name, description, connector_name=connector_name)
         self._value: bool = value
 
     @override
@@ -704,6 +705,7 @@ class ObjectVariableNode(VariableNode):
         name: str | None = None,
         description: str | None = None,
         properties: dict[str, VariableNode] | None = None,
+        connector_name: str | None = None,
     ):
         """
         Initializes a new ObjectVariableNode instance.
@@ -713,7 +715,9 @@ class ObjectVariableNode(VariableNode):
         :param description: The description of the object variable.
         :param properties: The properties of the object variable.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id, name=name, description=description, connector_name=connector_name
+        )
         self._properties: dict[str, VariableNode] = (
             properties if properties is not None else {}
         )
