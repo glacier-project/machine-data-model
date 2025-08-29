@@ -289,7 +289,7 @@ class VariableNode(DataModelNode):
         :param other: other data that is available from the remote subscription (differs by the connector's protocol)
         """
         self._update_internal_value(value)
-        self._did_read_remote_once = True
+        self.notify_subscribers()
 
     @override
     def __getitem__(self, node_name: str) -> "VariableNode":

@@ -54,7 +54,7 @@ assert isinstance(threshold, VariableNode)
 
 
 def my_callback(subscriber_id: str, modified_node: VariableNode, new_node_value: Any) -> None:
-    print("Threshold's value changed:")
+    print("Callback received a new value changed event:")
     print(f"- subscriber_id: {subscriber_id}")
     print(f"- modified_node: {modified_node}")
     print(f"- new_node_value: {new_node_value}")
@@ -73,7 +73,10 @@ print("writing current value -5")
 threshold.write(new_value - 5)
 print("new current value:", threshold.read())
 
+time.sleep(5)
+threshold.unsubscribe("thresholdUser")
 # call method
+print("----------------")
 print("Call the add(a, b) == a + b method:")
 try:
     add_method_path = "Objects/6:ReferenceTest/6:Methods/6:Methods_Add"
@@ -92,13 +95,18 @@ print("----------------")
 
 
 def my_remote_callback(new_remote_value: Any, other: SubscriptionArguments) -> None:
-    print("Remote value changed:")
+    print("Connector detected remote value change:")
     print(f"- new value: {new_remote_value}")
     print(f"- other: {other}")
     print("")
 
 
-c.subscribe_to_node_changes("Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:CurrentTemperature", my_remote_callback)
+current_temperature_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:CurrentTemperature"
+current_temperature_node = data_model.get_node(current_temperature_path)
+assert isinstance(current_temperature_node, VariableNode), "current_temperature_node must be a VariableNode"
+current_temperature_node.set_subscription_callback(my_callback)
+current_temperature_node.subscribe("currentTemperatureUser")
+c.subscribe_to_node_changes(current_temperature_path, my_remote_callback)
 time.sleep(10)
 
 # connectors use threads: stop them
