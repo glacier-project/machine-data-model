@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
+from machine_data_model.nodes.connectors.abstract_connector import SubscriptionArguments
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 
@@ -90,7 +91,7 @@ except Exception as e:
 print("----------------")
 
 
-def my_remote_callback(new_remote_value: Any, other: dict[str, Any]) -> None:
+def my_remote_callback(new_remote_value: Any, other: SubscriptionArguments) -> None:
     print("Remote value changed:")
     print(f"- new value: {new_remote_value}")
     print(f"- other: {other}")

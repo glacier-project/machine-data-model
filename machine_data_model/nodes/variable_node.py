@@ -6,6 +6,7 @@ from typing import Any, Iterator
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
 
+from machine_data_model.nodes.connectors.abstract_connector import SubscriptionArguments
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.measurement_unit.measure_builder import (
     MeasureBuilder,
@@ -281,7 +282,9 @@ class VariableNode(DataModelNode):
         )
         return None
 
-    def _remote_subscription_callback(self, value: Any, other: dict[str, Any]) -> None:
+    def _remote_subscription_callback(
+        self, value: Any, other: SubscriptionArguments
+    ) -> None:
         """
         Callback that handles remote variable changes.
         Sets the internal cached value to the new value.

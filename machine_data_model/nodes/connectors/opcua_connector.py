@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 import socket
 from pathlib import Path
@@ -17,7 +18,10 @@ from asyncua.ua import UaError, VariantType
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override
 
-from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
+from machine_data_model.nodes.connectors.abstract_connector import (
+    AbstractConnector,
+    SubscriptionArguments,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
@@ -30,6 +34,17 @@ logging.basicConfig(level=logging.ERROR)
 _logger = logging.getLogger(__name__)
 
 USE_TRUST_STORE = False
+
+
+@dataclass(frozen=True)
+class OpcuaSubscriptionArguments(SubscriptionArguments):
+    """
+    Data returned to the OPC-UA subscription callback.
+    """
+
+    node: asyncua.Node
+    value: Any
+    notification: DataChangeNotif
 
 
 async def _convert_asyncua_node_to_data_model_node(
@@ -451,7 +466,7 @@ class OpcuaConnector(AbstractConnector):
 
     @override
     def subscribe_to_node_changes(
-        self, path: str, callback: Callable[[Any, dict[str, Any]], None]
+        self, path: str, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
     ) -> int:
         """
         Subscribes to remote node changes.
@@ -468,7 +483,7 @@ class OpcuaConnector(AbstractConnector):
         return self._handle_task(self._async_subscribe_to_node_changes(path, callback))
 
     async def _async_subscribe_to_node_changes(
-        self, path: str, callback: Callable[[Any, dict[str, Any]], None]
+        self, path: str, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
     ) -> int:
         """
         Asynchronous function which subscribes to remote variable data changes.
@@ -515,7 +530,9 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
     Handles OPC-UA data changes by calling a callback function.
     """
 
-    def __init__(self, callback: Callable[[Any, dict[str, Any]], None]) -> None:
+    def __init__(
+        self, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
+    ) -> None:
         """
         Stores the callback to be called when a remote value changes.
         """
@@ -527,5 +544,5 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
         """
         called for every datachange notification from server
         """
-        other = {"node": node, "value": val, "notification": data}
+        other = OpcuaSubscriptionArguments(node=node, value=val, notification=data)
         self._callback(val, other)

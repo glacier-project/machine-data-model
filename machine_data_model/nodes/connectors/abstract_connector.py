@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from threading import Thread
 import uuid
 from abc import ABC, abstractmethod
@@ -45,6 +46,16 @@ def run_coroutine_in_thread(
     https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
     """
     return asyncio.run_coroutine_threadsafe(coro, loop)
+
+
+@dataclass(frozen=True)
+class SubscriptionArguments:
+    """
+    Superclass which is common for all data that is returned
+    to subscription callbacks.
+    """
+
+    pass
 
 
 class AbstractConnector(ABC):
@@ -157,7 +168,7 @@ class AbstractConnector(ABC):
 
     @abstractmethod
     def subscribe_to_node_changes(
-        self, path: str, callback: Callable[[Any, dict[str, Any]], None]
+        self, path: str, callback: Callable[[Any, SubscriptionArguments], None]
     ) -> int:
         """
         Subscribes to remote node changes.
