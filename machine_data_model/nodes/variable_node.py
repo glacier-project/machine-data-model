@@ -410,7 +410,7 @@ class NumericalVariableNode(VariableNode):
         return self._measure_unit
 
     @override
-    def _update_remote_value(self, value: float) -> None:
+    def _update_remote_value(self, value: float) -> float:
         """
         Update the value of the numerical variable remotely.
 
@@ -420,7 +420,11 @@ class NumericalVariableNode(VariableNode):
         assert (
             self.remote_path is not None
         ), "Remote nodes must have a valid remote path"
-        self._connector.write_node_value(self.remote_path, value)
+        prev_value = self._read_internal_value()
+        write_successful = self._connector.write_node_value(self.remote_path, value)
+        if write_successful:
+            return value
+        return prev_value
 
     def __str__(self) -> str:
         """
@@ -522,7 +526,7 @@ class StringVariableNode(VariableNode):
         assert (
             self.remote_path is not None
         ), "Remote nodes must have a valid remote path"
-        prev_value = self._value
+        prev_value = self._read_internal_value()
         write_successful = self._connector.write_node_value(self.remote_path, value)
         if write_successful:
             return value
@@ -633,7 +637,7 @@ class BooleanVariableNode(VariableNode):
         return self._value
 
     @override
-    def _update_remote_value(self, value: bool) -> None:
+    def _update_remote_value(self, value: bool) -> bool:
         """
         Update the value of the boolean variable remotely.
 
@@ -643,7 +647,11 @@ class BooleanVariableNode(VariableNode):
         assert (
             self.remote_path is not None
         ), "Remote nodes must have a valid remote path"
-        self._connector.write_node_value(self.remote_path, value)
+        prev_value = self._read_internal_value()
+        write_successful = self._connector.write_node_value(self.remote_path, value)
+        if write_successful:
+            return value
+        return prev_value
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """
@@ -813,7 +821,7 @@ class ObjectVariableNode(VariableNode):
         return self._read_internal_value()
 
     @override
-    def _update_remote_value(self, value: dict) -> None:
+    def _update_remote_value(self, value: dict[str, Any]) -> dict[str, Any]:
         """
         Update the value of the object variable remotely.
 
@@ -823,7 +831,20 @@ class ObjectVariableNode(VariableNode):
         assert (
             self.remote_path is not None
         ), "Remote nodes must have a valid remote path"
-        self._connector.write_node_value(self.remote_path, value)
+        prev_value = self._read_internal_value()
+        write_successful = True
+        for property_name, property_value in value.items():
+            write_successful = self._properties[property_name]._update_remote_value(
+                property_value
+            )
+            if not write_successful:
+                break
+
+        if not write_successful:
+            for property_name, property_value in prev_value.items():
+                self._properties[property_name]._update_remote_value(property_value)
+            return prev_value
+        return value
 
     def subscribe(self, subscriber_id: str) -> None:
         """
