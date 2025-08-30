@@ -35,6 +35,7 @@ class VariableNode(DataModelNode):
         name: str | None = None,
         description: str | None = None,
         connector_name: str | None = None,
+        notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
         Initializes a new VariableNode instance.
@@ -56,6 +57,12 @@ class VariableNode(DataModelNode):
         self._subscribers: list[str] = []
         self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
             lambda subscriber, node, value: None
+        )
+
+        self._notify_subscribers_only_if_value_changed = (
+            notify_subscribers_only_if_value_changed
+            if notify_subscribers_only_if_value_changed is not None
+            else True
         )
 
     def read(self, force_remote_read: bool = False) -> Any:
@@ -96,7 +103,11 @@ class VariableNode(DataModelNode):
             return False
 
         # Notify subscribers if the update was successful.
-        self.notify_subscribers()
+        should_notify_subscribers = (
+            not self._notify_subscribers_only_if_value_changed
+        ) or prev_value != value
+        if should_notify_subscribers:
+            self.notify_subscribers()
 
         # Return True if the value was successfully updated and validated.
         return True
@@ -289,8 +300,13 @@ class VariableNode(DataModelNode):
         :param value: value that was read from remote
         :param other: other data that is available from the remote subscription (differs by the connector's protocol)
         """
+        prev_value = self._read_internal_value()
         self._update_internal_value(value)
-        self.notify_subscribers()
+        should_notify_subscribers = (
+            not self._notify_subscribers_only_if_value_changed
+        ) or prev_value != value
+        if should_notify_subscribers:
+            self.notify_subscribers()
 
     def __getitem__(self, node_name: str) -> "VariableNode":
         """
@@ -340,6 +356,7 @@ class NumericalVariableNode(VariableNode):
         measure_unit: Enum | str = NoneMeasureUnits.NONE,
         value: float = 0,
         connector_name: str | None = None,
+        notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
         Initializes a new NumericalVariableNode instance.
@@ -351,7 +368,11 @@ class NumericalVariableNode(VariableNode):
         :param value: The initial value of the numerical variable.
         """
         super().__init__(
-            id=id, name=name, description=description, connector_name=connector_name
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
         )
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
             measure_unit
@@ -461,6 +482,7 @@ class StringVariableNode(VariableNode):
         description: str | None = None,
         value: str = "",
         connector_name: str | None = None,
+        notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
         Initializes a new StringVariableNode instance.
@@ -471,7 +493,11 @@ class StringVariableNode(VariableNode):
         :param value: The initial value of the string variable.
         """
         super().__init__(
-            id=id, name=name, description=description, connector_name=connector_name
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
         )
         self._value: str = value
 
@@ -584,6 +610,7 @@ class BooleanVariableNode(VariableNode):
         description: str | None = None,
         value: bool = False,
         connector_name: str | None = None,
+        notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
         Initializes a new BooleanVariableNode instance.
@@ -593,7 +620,13 @@ class BooleanVariableNode(VariableNode):
         :param description: The description of the boolean variable.
         :param value: The initial value of the boolean variable.
         """
-        super().__init__(id, name, description, connector_name=connector_name)
+        super().__init__(
+            id,
+            name,
+            description,
+            connector_name=connector_name,
+            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
+        )
         self._value: bool = value
 
     @override
@@ -706,6 +739,7 @@ class ObjectVariableNode(VariableNode):
         description: str | None = None,
         properties: dict[str, VariableNode] | None = None,
         connector_name: str | None = None,
+        notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
         Initializes a new ObjectVariableNode instance.
@@ -716,7 +750,11 @@ class ObjectVariableNode(VariableNode):
         :param properties: The properties of the object variable.
         """
         super().__init__(
-            id=id, name=name, description=description, connector_name=connector_name
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
         )
         self._properties: dict[str, VariableNode] = (
             properties if properties is not None else {}

@@ -72,9 +72,15 @@ print("new current value:", new_value)
 print("writing current value -5")
 threshold.write(new_value - 5)
 print("new current value:", threshold.read())
+print("write the same value - the callback should NOT get called")
+threshold.write(new_value - 5)
+print("current value should be the same:", threshold.read())
+current_value = threshold.read(force_remote_read=True)
+print("current value after forcing remote read:", current_value)
 
 time.sleep(5)
 threshold.unsubscribe("thresholdUser")
+
 # call method
 print("----------------")
 print("Call the add(a, b) == a + b method:")
