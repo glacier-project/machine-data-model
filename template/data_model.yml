@@ -213,7 +213,7 @@ root:
             - !!BooleanVariableNode
               name: "var_out"
               description: "variable_description7"
-              value: True # remove?s
+              default_value: True # remove?s
     - !!ObjectVariableNode
       name: "o_variable2"
       description: "variable_description2"
