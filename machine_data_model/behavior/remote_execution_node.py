@@ -51,8 +51,11 @@ class RemoteExecutionNode(ControlFlowNode):
         pass
 
     @abstractmethod
-    def _validate_response(self, response: FrostMessage) -> bool:
+    def _validate_response(
+        self, scope: ControlFlowScope, response: FrostMessage
+    ) -> bool:
         """Validate the response message received from the remote node.
+        :param scope: The scope of the control flow graph.
         :param response: The response message received from the remote node.
         :return: True if the response is valid, otherwise False.
         """
@@ -71,7 +74,7 @@ class RemoteExecutionNode(ControlFlowNode):
         ):
             return False
 
-        if not self._validate_response(response):
+        if not self._validate_response(scope, response):
             return False
 
         scope.status = ControlFlowStatus.RESPONSE_RECEIVED
@@ -113,7 +116,9 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         self._args = args
         self._kwargs = kwargs
 
-    def _validate_response(self, response: FrostMessage) -> bool:
+    def _validate_response(
+        self, scope: ControlFlowScope, response: FrostMessage
+    ) -> bool:
         if not response.header.matches(
             _type=MsgType.RESPONSE,
             _namespace=MsgNamespace.METHOD,
@@ -126,6 +131,10 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             or response.payload.node != self.node
         ):
             return False
+
+        # add all return values to the scope
+        scope.set_all_values(**response.payload.ret)
+
         return True
 
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:

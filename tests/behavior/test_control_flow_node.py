@@ -208,6 +208,9 @@ class TestControlFlowNode:
         msg.target = sender
         msg.header.type = MsgType.RESPONSE
         msg.header.msg_name = MethodMsgName.COMPLETED
+        assert isinstance(msg.payload, MethodPayload)
+        assert len(method_node.returns) > 0
+        msg.payload.ret = {param.name: param.read() for param in method_node.returns}
         is_valid = c_remote_node.handle_response(scope, msg)
         assert is_valid
 
@@ -215,3 +218,6 @@ class TestControlFlowNode:
         ret = c_remote_node.execute(scope)
         assert ret.success
         assert not ret.messages
+        # check that the return values are set in the scope
+        for param in method_node.returns:
+            assert param.read() == scope.get_value(param.name)
