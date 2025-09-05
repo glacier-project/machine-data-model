@@ -3,11 +3,11 @@ from typing import Any
 from typing_extensions import override
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
-    ControlFlowStatus,
     ExecutionNodeResult,
     resolve_value,
 )
 from machine_data_model.behavior.control_flow_scope import (
+    ControlFlowStatus,
     ControlFlowScope,
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage

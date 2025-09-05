@@ -2,7 +2,7 @@ from machine_data_model.behavior.control_flow_node import ControlFlowNode
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
-from protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 
 class ControlFlow:

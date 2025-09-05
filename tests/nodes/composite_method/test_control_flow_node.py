@@ -130,4 +130,4 @@ class TestControlFlowNode:
 
         assert w_variable_node.node == variable_node.qualified_name
         print("Comparison result: ", f'"{variable_node.read()}"' + op + f'"{rhs}"')
-        assert ret == comparison_result
+        assert ret.success == comparison_result
