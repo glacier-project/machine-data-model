@@ -1,6 +1,8 @@
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     LocalExecutionNode,
+    ExecutionNodeResult,
+    execution_success,
 )
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
@@ -31,7 +33,7 @@ class ReadVariableNode(LocalExecutionNode):
         super().__init__(variable_node, successors)
         self.store_as = store_as
 
-    def execute(self, scope: ControlFlowScope) -> bool:
+    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         """
         Execute the read operation of the variable in the machine data model.
 
@@ -44,4 +46,4 @@ class ReadVariableNode(LocalExecutionNode):
         value = ref_variable.read()
         name = self.store_as if self.store_as else ref_variable.name
         scope.set_value(name, value)
-        return True
+        return execution_success()

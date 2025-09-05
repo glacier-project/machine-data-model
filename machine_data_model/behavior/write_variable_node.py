@@ -4,6 +4,8 @@ from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     resolve_value,
     LocalExecutionNode,
+    execution_success,
+    ExecutionNodeResult,
 )
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
@@ -43,7 +45,7 @@ class WriteVariableNode(LocalExecutionNode):
         """
         return self._value
 
-    def execute(self, scope: ControlFlowScope) -> bool:
+    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         """
         Execute the write operation of the variable in the machine data model.
 
@@ -55,4 +57,4 @@ class WriteVariableNode(LocalExecutionNode):
 
         value = resolve_value(self._value, scope)
         ref_variable.write(value)
-        return True
+        return execution_success()

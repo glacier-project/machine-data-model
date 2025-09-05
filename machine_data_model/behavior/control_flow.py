@@ -2,6 +2,7 @@ from machine_data_model.behavior.control_flow_node import ControlFlowNode
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
+from protocols.frost_v1.frost_message import FrostMessage
 
 
 class ControlFlow:
@@ -29,18 +30,27 @@ class ControlFlow:
         """
         return self._nodes
 
-    def execute(self, scope: ControlFlowScope) -> None:
+    def execute(self, scope: ControlFlowScope) -> list[FrostMessage]:
         """
         Executes the control flow graph with the specified scope.
         The scope is deactivated when the control flow graph reaches the end of the graph.
 
         :param scope: The scope of the control flow graph.
+        :return: A list of Frost messages to be sent as a result of executing the control flow graph.
         """
+        messages: list[FrostMessage] = []
         pc = scope.get_pc()
         while pc < len(self._nodes):
             node = self._nodes[pc]
-            if not node.execute(scope):
-                return
+
+            result = node.execute(scope)
+            if result.messages:
+                messages.extend(result.messages)
+            if not result.success:
+                return messages
             pc += 1
             scope.set_pc(pc)
         scope.deactivate()
+        return messages
+
+    # callback for listening for responses in the protocol manager

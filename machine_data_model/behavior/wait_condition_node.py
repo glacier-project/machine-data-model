@@ -5,6 +5,9 @@ from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     resolve_value,
     LocalExecutionNode,
+    execution_success,
+    ExecutionNodeResult,
+    execution_failure,
 )
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
@@ -79,7 +82,7 @@ class WaitConditionNode(LocalExecutionNode):
         """
         return self._op
 
-    def execute(self, scope: ControlFlowScope) -> bool:
+    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         """
         Execute the wait condition in the control flow graph. If the condition is met, it returns
         immediately. Otherwise, it subscribes to the variable and returns False.
@@ -110,7 +113,7 @@ class WaitConditionNode(LocalExecutionNode):
         if not res:
             if scope.id() not in ref_variable.get_subscribers():
                 ref_variable.subscribe(scope.id())
-            return False
+            return execution_failure()
 
         ref_variable.unsubscribe(scope.id())
-        return True
+        return execution_success()

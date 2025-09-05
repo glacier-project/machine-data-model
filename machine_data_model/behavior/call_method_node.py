@@ -4,6 +4,8 @@ from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     resolve_value,
     LocalExecutionNode,
+    ExecutionNodeResult,
+    execution_success,
 )
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
@@ -49,7 +51,7 @@ class CallMethodNode(LocalExecutionNode):
         """
         return self._kwargs
 
-    def execute(self, scope: ControlFlowScope) -> bool:
+    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         """
         Execute the call operation of the method in the machine data model.
 
@@ -64,4 +66,4 @@ class CallMethodNode(LocalExecutionNode):
         kwargs = {k: resolve_value(v, scope) for k, v in self._kwargs.items()}
         res = ref_method(*args, **kwargs)
         scope.set_all_values(**res)
-        return True
+        return execution_success()

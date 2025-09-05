@@ -143,6 +143,8 @@ class FrostProtocolMng(ProtocolMng):
                 return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
             return self._handle_method_message(msg, node)
 
+        # Forward the message to listeners
+
         # Return invalid namespace.
         return _create_error_response(msg, ErrorMessages.INVALID_NAMESPACE)
 

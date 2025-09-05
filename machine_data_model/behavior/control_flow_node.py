@@ -1,10 +1,9 @@
 from typing import Any
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from machine_data_model.behavior.control_flow_scope import (
-    ControlFlowScope,
-)
+from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 
 def is_variable(value: Any) -> bool:
@@ -29,6 +28,32 @@ def resolve_value(value: Any, scope: ControlFlowScope) -> Any:
     return value
 
 
+class ExecutionNodeResult:
+    """
+    Represents the result of executing a control flow node.
+    :ivar success: True if the execution was successful, otherwise False.
+    :ivar messages: A list of FrostMessage to be sent, if any.
+    """
+
+    def __init__(self, success: bool, messages: list[FrostMessage] | None = None):
+        self.success = success
+        self.messages = messages if messages is not None else []
+
+
+def execution_success(
+    messages: list[FrostMessage] | None = None,
+) -> ExecutionNodeResult:
+    """Create a successful ExecutionNodeResult."""
+    return ExecutionNodeResult(True, messages)
+
+
+def execution_failure(
+    messages: list[FrostMessage] | None = None,
+) -> ExecutionNodeResult:
+    """Create a failed ExecutionNodeResult."""
+    return ExecutionNodeResult(False, messages)
+
+
 class ControlFlowNode(ABC):
     """
     Abstract base class representing a node in the control flow graph. A control flow node
@@ -50,12 +75,12 @@ class ControlFlowNode(ABC):
         self._successors = [] if successors is None else successors
 
     @abstractmethod
-    def execute(self, scope: ControlFlowScope) -> bool:
+    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         """
         Execute the control flow node in the context of the specified scope.
 
         :param scope: The scope of the control flow graph.
-        :return: True if the execution is successful, otherwise False.
+        :return: An ExecutionNodeResult object representing the result of the execution.
         """
         pass
 
@@ -131,7 +156,3 @@ class LocalExecutionNode(ControlFlowNode):
         node_path = resolve_value(self.node, scope)
         assert self.get_data_model_node is not None
         return self.get_data_model_node(node_path)
-
-
-class RemoteExecutionNode(ControlFlowNode):
-    pass

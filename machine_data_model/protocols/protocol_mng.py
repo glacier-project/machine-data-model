@@ -3,19 +3,10 @@ from abc import ABC, abstractmethod
 from typing_extensions import Any
 
 from machine_data_model.data_model import DataModel
-from dataclasses import dataclass
+from machine_data_model.protocols.message import Message
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import VariableNode
-
-
-@dataclass(init=True, slots=True)
-class Message(ABC):
-    """
-    Abstract base class representing a message in the protocol.
-    """
-
-    pass
 
 
 class ProtocolMng(ABC):
