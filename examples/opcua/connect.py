@@ -100,6 +100,20 @@ except Exception as e:
     data_model.close_connectors()
     sys.exit(1)
 
+print("----------------")
+print("Call method with no inputs:")
+try:
+    output_method_path = "Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+    output_method = data_model.get_node(output_method_path)
+    assert isinstance(output_method, MethodNode), "output_method must be a method"
+    print("- parameters: ", output_method.parameters)
+    result = output_method()
+    print("- result:", result)
+except Exception as e:
+    print("ERROR:", e)
+    data_model.close_connectors()
+    sys.exit(1)
+
 # subscribe using the connector to the remote server
 print("----------------")
 

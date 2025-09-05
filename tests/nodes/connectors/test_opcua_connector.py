@@ -138,4 +138,10 @@ class TestOpcuaConnector:
             add_method_result, 5.0
         ), "the result should be 5.0 after adding 2.0 and 3"
 
+        output_method_path = "Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+        output_method_result = connector.call_node_as_method(output_method_path, {})
+        assert (
+            output_method_result == "Output"
+        ), "the return value of the output method should be the 'Output' string"
+
         connector.stop_thread()

@@ -76,3 +76,11 @@ root:
                 - !!NumericalVariableNode
                   name: "AddResult"
                   description: "addition result"
+
+            - !!MethodNode
+              name: "6:Methods_Output"
+              description: "Method with no input, returns the 'Output' string"
+              returns:
+                - !!StringVariableNode
+                  name: "Result"
+                  description: "Method output"

@@ -336,17 +336,18 @@ class OpcuaConnector(AbstractConnector):
 
         node = await self._async_get_remote_node(path)
         if node is None:
-            raise Exception("Couldn't call remote method: the node doesn't exist")
-
+            raise ValueError("Couldn't call remote method: the node doesn't exist")
         path_parts = path.lstrip("/").split("/")
         input_arg_path = path + "/InputArguments"
-        # TODO: this might fail if the method as no input parameters
         method_inputs = await self._async_get_remote_node(input_arg_path)
-        if method_inputs is None:
-            return None
+        inputs = []
+        if method_inputs is not None:
+            inputs = (
+                await method_inputs.read_value()
+            )  # returns a list of Argument-Class
+            assert isinstance(inputs, list), "inputs must be a list"
 
-        inputs = await method_inputs.read_value()  # returns a list of Argument-Class
-        assert isinstance(inputs, list), "inputs must be a list"
+        # Try to convert the parameters types from python types to the equivalent asyncua VariantTypes
         params = []
         for ua_param, value in zip(inputs, kwargs.values()):
             dt = ua_param.DataType
