@@ -41,6 +41,7 @@ c = data_model.connectors["myOpcuaConnector1"]
 
 temp_threshold_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:OverheatedThresholdTemperature"
 current_value = c.read_node_value(temp_threshold_path)
+initial_value = current_value
 print("current temp threshold:", current_value)
 c.write_node_value(temp_threshold_path, current_value + 10)
 print("wrote the previous value + 10")
@@ -74,9 +75,12 @@ threshold.write(new_value - 5)
 print("new current value:", threshold.read())
 print("write the same value - the callback should NOT get called")
 threshold.write(new_value - 5)
-print("current value should be the same:", threshold.read())
+val = threshold.read()
+print("current value should be the same:", val)
 current_value = threshold.read(force_remote_read=True)
 print("current value after forcing remote read:", current_value)
+assert current_value == val, "read() after write() and forced read() should be equal"
+assert current_value == initial_value, "current value and initial value should be equal"
 
 time.sleep(5)
 threshold.unsubscribe("thresholdUser")

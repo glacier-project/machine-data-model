@@ -65,7 +65,7 @@ class VariableNode(DataModelNode):
             else True
         )
 
-    def read(self, force_remote_read: bool = False) -> Any:
+    def read(self, force_remote_read: bool = True) -> Any:
         """
         Get the value of the variable node.
 
@@ -174,7 +174,7 @@ class VariableNode(DataModelNode):
         execute the subscription callback for each subscriber.
         """
         # Get the current value of the node.
-        value = self._read_value()
+        value = self._read_internal_value()
         # Pass the value to the callback.
         if isinstance(self.parent, VariableNode):
             self.parent.notify_subscribers()
@@ -456,7 +456,7 @@ class NumericalVariableNode(VariableNode):
         return (
             f"NumericalVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, measure_unit={self._measure_unit}, "
-            f"value={repr(self.value)})"
+            f"value={repr(self._read_internal_value())})"
         )
 
     def __repr__(self) -> str:
@@ -584,7 +584,7 @@ class StringVariableNode(VariableNode):
         """
         return (
             f"StringVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={repr(self.value)})"
+            f"description={self._description}, value={repr(self._read_internal_value())})"
         )
 
     def __repr__(self) -> str:
@@ -713,7 +713,7 @@ class BooleanVariableNode(VariableNode):
         """
         return (
             f"BooleanVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={repr(self.value)})"
+            f"description={self._description}, value={repr(self._read_internal_value())})"
         )
 
     def __repr__(self) -> str:
@@ -763,7 +763,7 @@ class ObjectVariableNode(VariableNode):
             assert isinstance(
                 property_node, VariableNode
             ), "Property must be a VariableNode"
-        self.value: dict[str, Any] = self._read_value()
+        self.value: dict[str, Any] = self._read_internal_value()
         self.register_children(self._properties)
 
     def add_property(self, property_node: VariableNode) -> None:
@@ -824,7 +824,7 @@ class ObjectVariableNode(VariableNode):
         value = {}
         for property_name, property_node in self._properties.items():
             if isinstance(property_node, VariableNode):
-                value[property_name] = property_node.read()
+                value[property_name] = property_node._read_internal_value()
         return value
 
     @override
@@ -939,7 +939,7 @@ class ObjectVariableNode(VariableNode):
         """
         return (
             f"ObjectVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={self._read_value()})"
+            f"description={self._description}, value={self._read_internal_value()})"
         )
 
     def __repr__(self) -> str:
