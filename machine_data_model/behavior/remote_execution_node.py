@@ -5,6 +5,8 @@ from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
     resolve_value,
+    execution_failure,
+    execution_success,
 )
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowStatus,
@@ -31,16 +33,14 @@ class RemoteExecutionNode(ControlFlowNode):
 
     def __init__(
         self,
-        node: str,
+        node_path: str,
         sender_id: str,
         remote_id: str,
-        node_path: str,
         successors: list[ControlFlowNode] | None = None,
     ):
-        super().__init__(node, successors)
+        super().__init__(node_path, successors)
         self._sender_id: str = sender_id
         self._remote_id: str = remote_id
-        self._node_path: str = node_path
 
     @abstractmethod
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
@@ -81,7 +81,7 @@ class RemoteExecutionNode(ControlFlowNode):
     @override
     def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         if scope.status == ControlFlowStatus.WAITING_FOR_RESPONSE:
-            return ExecutionNodeResult(False)
+            return execution_failure()
 
         # check if the response has been received
         if (
@@ -89,7 +89,7 @@ class RemoteExecutionNode(ControlFlowNode):
             and not scope.active_request
         ):
             scope.status = ControlFlowStatus.RUNNING
-            return ExecutionNodeResult(True)
+            return execution_success()
 
         # create the request message
         msg = self._create_request(scope)
@@ -102,15 +102,14 @@ class RemoteExecutionNode(ControlFlowNode):
 class CallRemoteMethodNode(RemoteExecutionNode):
     def __init__(
         self,
-        node: str,
+        method_node: str,
         sender_id: str,
         remote_id: str,
-        node_path: str,
         args: list[Any],
         kwargs: dict[str, Any],
         successors: list[ControlFlowNode] | None = None,
     ):
-        super().__init__(node, sender_id, remote_id, node_path, successors)
+        super().__init__(method_node, sender_id, remote_id, successors)
         self._args = args
         self._kwargs = kwargs
 
@@ -124,7 +123,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
         if (
             not isinstance(response.payload, MethodPayload)
-            or response.payload.node != self._node_path
+            or response.payload.node != self.node
         ):
             return False
         return True
@@ -140,7 +139,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
                 msg_name=MethodMsgName.INVOKE,
             ),
             payload=MethodPayload(
-                node=self._node_path,
+                node=self.node,
                 args=[resolve_value(arg, scope) for arg in self._args],
                 kwargs={k: resolve_value(v, scope) for k, v in self._kwargs.items()},
             ),

@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from machine_data_model.behavior.call_method_node import CallMethodNode
+from machine_data_model.behavior.remote_execution_node import CallRemoteMethodNode
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
@@ -21,6 +22,12 @@ from machine_data_model.behavior.write_variable_node import (
 )
 from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
 from machine_data_model.nodes.variable_node import VariableNode, StringVariableNode
+from machine_data_model.protocols.frost_v1.frost_header import (
+    MsgNamespace,
+    MsgType,
+    MethodMsgName,
+)
+from machine_data_model.protocols.frost_v1.frost_payload import MethodPayload
 from tests import (
     get_dummy_method_node,
     get_default_kwargs,
@@ -131,3 +138,80 @@ class TestControlFlowNode:
         assert w_variable_node.node == variable_node.qualified_name
         print("Comparison result: ", f'"{variable_node.read()}"' + op + f'"{rhs}"')
         assert ret.success == comparison_result
+
+    @pytest.mark.parametrize(
+        "method_node",
+        [
+            get_dummy_method_node(method_types=[AsyncMethodNode]),
+        ],
+    )
+    def test_call_remote_node(
+        self, scope: ControlFlowScope, method_node: MethodNode
+    ) -> None:
+        sender = "local"
+        target = "remote"
+        kwargs = get_default_kwargs(method_node)
+
+        c_remote_node = CallRemoteMethodNode(
+            method_node=method_node.qualified_name,
+            args=[],
+            kwargs=kwargs,
+            sender_id=sender,
+            remote_id=target,
+        )
+        ret = c_remote_node.execute(scope)
+        msgs = ret.messages
+
+        # should not complete as there is no remote execution environment
+        assert not ret.success
+        assert len(msgs) == 1
+        msg = msgs[0]
+
+        assert msg.sender == sender
+        assert msg.target == target
+        assert msg.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.METHOD,
+            _msg_name=MethodMsgName.INVOKE,
+        )
+        assert isinstance(msg.payload, MethodPayload)
+        assert msg.payload.node == method_node.qualified_name
+        # check args and kwargs
+        assert msg.payload.args == []
+        assert msg.payload.kwargs == kwargs
+
+    @pytest.mark.parametrize(
+        "method_node",
+        [
+            get_dummy_method_node(method_types=[AsyncMethodNode]),
+        ],
+    )
+    def test_call_remote_node_validate_response(
+        self, scope: ControlFlowScope, method_node: MethodNode
+    ) -> None:
+        sender = "local"
+        target = "remote"
+        kwargs = get_default_kwargs(method_node)
+
+        c_remote_node = CallRemoteMethodNode(
+            method_node=method_node.qualified_name,
+            args=[],
+            kwargs=kwargs,
+            sender_id=sender,
+            remote_id=target,
+        )
+        ret = c_remote_node.execute(scope)
+        msg = ret.messages[0]
+
+        # create a valid response message
+        msg.sender = target
+        msg.target = sender
+        msg.header.type = MsgType.RESPONSE
+        msg.header.msg_name = MethodMsgName.COMPLETED
+        is_valid = c_remote_node.handle_response(scope, msg)
+        assert is_valid
+
+        # try resume the execution
+        ret = c_remote_node.execute(scope)
+        assert ret.success
+        assert not ret.messages
