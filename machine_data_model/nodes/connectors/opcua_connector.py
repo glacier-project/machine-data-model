@@ -411,11 +411,14 @@ class OpcuaConnector(AbstractConnector):
             parent_path = "/".join(path_parts[:-1])
             method_id = path_parts[-1]
             parent_node = await self._async_get_remote_node(parent_path)
-            if parent_node:
-                result = await parent_node.call_method(method_id, *params)
-                _logger.debug(
-                    f"Called '{path}' using the parent node '{parent_path}' and method_id '{method_id}'. Return value is: {result!r}"
+            if parent_node is None:
+                raise Exception(
+                    "Couldn't call remote method: couldn't retrieve the parent node which contains the method"
                 )
+            result = await parent_node.call_method(method_id, *params)
+            _logger.debug(
+                f"Called '{path}' using the parent node '{parent_path}' and method_id '{method_id}'. Return value is: {result!r}"
+            )
         except UaError as exp:
             _logger.error(exp)
         return result
