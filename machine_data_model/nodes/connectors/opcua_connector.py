@@ -268,9 +268,13 @@ class OpcuaConnector(AbstractConnector):
         Asynchronous function which returns the node from the OPC-UA server.
         """
         _logger.debug(f"Retrieving node '{path}' from OPC-UA server")
-        node = None
+
         if self._client is None:
-            return None
+            raise Exception(
+                "Couldn't retrieve remote node: the client is not connected"
+            )
+
+        node = None
         try:
             node = await self._client.get_root_node().get_child(path)
             assert isinstance(
