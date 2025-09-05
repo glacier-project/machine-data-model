@@ -1,6 +1,5 @@
 import math
 import socket
-import tempfile
 from typing import Tuple
 
 import pytest
@@ -104,14 +103,10 @@ root:
 
 def create_yaml_data_model(file_content: str) -> DataModel:
     """
-    Creates a temporary yaml file which is used to create the data model.
+    Uses the DataModelBuilder to create the data model starting from a string.
     """
     builder = DataModelBuilder()
-    yaml_file = tempfile.NamedTemporaryFile("w")
-    yaml_file.write(file_content)
-    yaml_file.flush()
-    data_model = builder.get_data_model(yaml_file.name)
-    yaml_file.close()
+    data_model = builder.from_string(file_content)
     return data_model
 
 
