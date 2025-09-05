@@ -75,6 +75,7 @@ class DataModelBuilder:
                 "description": data.get("description", ""),
                 "children": {child.name: child for child in data.get("children", [])},
                 "connector_name": data.get("connector_name", None),
+                "remote_path": data.get("remote_path", None),
             }
         )
 
@@ -95,6 +96,7 @@ class DataModelBuilder:
                 "measure_unit": data.get("measure_unit", NoneMeasureUnits.NONE),
                 "value": data.get("initial_value", 0),
                 "connector_name": data.get("connector_name", None),
+                "remote_path": data.get("remote_path", None),
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
@@ -117,6 +119,7 @@ class DataModelBuilder:
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", ""),
                 "connector_name": data.get("connector_name", None),
+                "remote_path": data.get("remote_path", None),
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
@@ -139,6 +142,7 @@ class DataModelBuilder:
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", False),
                 "connector_name": data.get("connector_name", None),
+                "remote_path": data.get("remote_path", None),
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
@@ -162,6 +166,7 @@ class DataModelBuilder:
                 "description": data.get("description", None),
                 "properties": {prop.name: prop for prop in data.get("properties", [])},
                 "connector_name": data.get("connector_name", None),
+                "remote_path": data.get("remote_path", None),
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
@@ -187,6 +192,7 @@ class DataModelBuilder:
                 "description": data.get("description", ""),
                 "parameters": [param for param in data.get("parameters", [])],
                 "returns": [ret for ret in data.get("returns", [])],
+                "remote_path": data.get("remote_path", None),
             }
         )
         return method

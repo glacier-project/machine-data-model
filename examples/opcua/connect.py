@@ -114,6 +114,11 @@ try:
     print("- parameters: ", output_method.parameters)
     result = output_method()
     print("- result:", result)
+
+    output_method_objects = data_model.get_node("Objects/Methods_Output_With_Remote_Path")
+    assert isinstance(output_method_objects, MethodNode), "output_method_objects must be a method"
+    result = output_method_objects()
+    print("Result of the same method, but defined using remote_path: ", result)
 except Exception as e:
     print("ERROR:", e)
     data_model.close_connectors()

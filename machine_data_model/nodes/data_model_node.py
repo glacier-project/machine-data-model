@@ -27,6 +27,7 @@ class DataModelNode(ABC):
         name: str | None = None,
         description: str | None = None,
         connector_name: str | None = None,
+        remote_path: str | None = None,
     ):
         """
         Initializes a new `DataModelNode` instance.
@@ -34,6 +35,11 @@ class DataModelNode(ABC):
         :param id: The unique identifier of the node. If `None`, a new UUID is generated.
         :param name: The name of the node. If `None`, the name is set to an empty string.
         :param description: A description of the node. If `None`, the description is set to an empty string.
+        :param connector_name: The name of the connector to use to interact with the server.
+                               If it is `None`, and the hierarchy of the node also doesn't define this attribute,
+                               the node is not a remote node: interacting with the node will change the internal value.
+        :param remote_path: The remote path of the node in the server.
+                            Allows to override the qualified name of the node, defined by the yaml config structure.
         """
 
         self._id: str = str(uuid.uuid4()) if id is None else id
@@ -49,7 +55,7 @@ class DataModelNode(ABC):
         # -- connector management
         self._connector_name: str | None = connector_name
         self._connector: AbstractConnector | None = None
-        self._remote_path: str | None = None
+        self._remote_path: str | None = remote_path
 
     @property
     def id(self) -> str:

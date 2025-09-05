@@ -18,6 +18,14 @@ root:
   description: "Objects folder"
   connector_name: "myOpcuaConnector1"
   children:
+    - !!MethodNode
+      name: "Methods_Output_With_Remote_Path"
+      remote_path: "/Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+      description: "The remote_path overrides the qualified name. Method with no input, returns the 'Output' string"
+      returns:
+        - !!StringVariableNode
+          name: "Result"
+          description: "Method output"
     - !!FolderNode
       name: "4:Boilers"
       description: "Boilers folder"

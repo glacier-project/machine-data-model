@@ -111,8 +111,9 @@ class DataModel:
             connector = self._get_connector_by_name(node_ptr.connector_name)
             node.set_connector(connector)
 
-            # todo: allow the user to override the remote_path using a yaml attribute
-            node.set_remote_path(node.qualified_name)
+            # if the user overrides the remote path, don't set it as the qualified name
+            if not node.is_remote_path_set():
+                node.set_remote_path(node.qualified_name)
 
     @property
     def name(self) -> str:

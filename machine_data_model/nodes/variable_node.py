@@ -35,6 +35,7 @@ class VariableNode(DataModelNode):
         name: str | None = None,
         description: str | None = None,
         connector_name: str | None = None,
+        remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
@@ -45,7 +46,11 @@ class VariableNode(DataModelNode):
         :param description: The description of the variable.
         """
         super().__init__(
-            id=id, name=name, description=description, connector_name=connector_name
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            remote_path=remote_path,
         )
         # Read callbacks.
         self._pre_read_value: Callable[[], None] = lambda: None
@@ -356,6 +361,7 @@ class NumericalVariableNode(VariableNode):
         measure_unit: Enum | str = NoneMeasureUnits.NONE,
         value: float = 0,
         connector_name: str | None = None,
+        remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
@@ -372,6 +378,7 @@ class NumericalVariableNode(VariableNode):
             name=name,
             description=description,
             connector_name=connector_name,
+            remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
         )
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
@@ -482,6 +489,7 @@ class StringVariableNode(VariableNode):
         description: str | None = None,
         value: str = "",
         connector_name: str | None = None,
+        remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
@@ -497,6 +505,7 @@ class StringVariableNode(VariableNode):
             name=name,
             description=description,
             connector_name=connector_name,
+            remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
         )
         self._value: str = value
@@ -610,6 +619,7 @@ class BooleanVariableNode(VariableNode):
         description: str | None = None,
         value: bool = False,
         connector_name: str | None = None,
+        remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
@@ -625,6 +635,7 @@ class BooleanVariableNode(VariableNode):
             name,
             description,
             connector_name=connector_name,
+            remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
         )
         self._value: bool = value
@@ -739,6 +750,7 @@ class ObjectVariableNode(VariableNode):
         description: str | None = None,
         properties: dict[str, VariableNode] | None = None,
         connector_name: str | None = None,
+        remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
     ):
         """
@@ -754,6 +766,7 @@ class ObjectVariableNode(VariableNode):
             name=name,
             description=description,
             connector_name=connector_name,
+            remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
         )
         self._properties: dict[str, VariableNode] = (
