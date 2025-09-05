@@ -68,6 +68,7 @@ class OpcuaConnector(AbstractConnector):
         client_app_uri: str | None = None,
         private_key_file_path: str | None = None,
         certificate_file_path: str | None = None,
+        trust_store_certificates_paths: list[str] | None = None,
     ) -> None:
         """
         Initializes an OPCUA client.
@@ -81,6 +82,7 @@ class OpcuaConnector(AbstractConnector):
         :param client_app_uri: app URI
         :param private_key_file_path: path to the private key file
         :param certificate_file_path: path to the certificate file
+        :param trust_store_certificates_paths: paths which contains certificates for the trust store
         """
         super().__init__(id=id, name=name, ip=ip, port=port)
         self._security_policy: str | None = security_policy
@@ -93,6 +95,17 @@ class OpcuaConnector(AbstractConnector):
             if client_app_uri is not None
             else f"urn:{self._host_name}:foobar:myselfsignedclient"
         )
+
+        if private_key_file_path is None:
+            _logger.warning(
+                f"Connector {self.name} doesn't have 'private_key_file_path' attribute specified: a private key will be generated and used automatically"
+            )
+
+        if certificate_file_path is None:
+            _logger.warning(
+                f"Connector {self.name} doesn't have 'certificate_file_path' attribute specified: a self-signed certificate will be generated and used automatically"
+            )
+
         self._private_key_file_path: Path = (
             Path(private_key_file_path)
             if private_key_file_path is not None
@@ -103,6 +116,29 @@ class OpcuaConnector(AbstractConnector):
             if certificate_file_path is not None
             else Path("cert.selfsigned.der")
         )
+
+        if not isinstance(trust_store_certificates_paths, (list, type(None))):
+            raise TypeError(
+                "trust_store_certificates_paths, when defined, must be a list of strings"
+            )
+
+        self._trust_store_certificates_paths: list[Path] = []
+        if trust_store_certificates_paths is not None:
+            if len(trust_store_certificates_paths) == 0:
+                raise ValueError(
+                    "trust_store_certificates_paths cannot be defined but also empty. Please, remove the attribute 'trust_store_certificates_paths' or add valid paths to the list"
+                )
+            for path_string in trust_store_certificates_paths:
+                if not isinstance(path_string, str):
+                    raise TypeError(
+                        f"The {path_string} path inside trust_store_certificates_paths is not a string"
+                    )
+                trust_store_cert_path = Path(path_string)
+                if not trust_store_cert_path.is_dir():
+                    raise ValueError(
+                        f"The {path_string} path inside trust_store_certificates_paths is not a directory"
+                    )
+                self._trust_store_certificates_paths.append(trust_store_cert_path)
 
     @property
     def security_policy(self) -> str | None:
@@ -189,11 +225,9 @@ class OpcuaConnector(AbstractConnector):
         _logger.debug(
             f"Setting up the certificate validator for the '{self.name}' connector"
         )
-        # TODO: handle trust store
-        if USE_TRUST_STORE:
-            trust_store = TrustStore(
-                [Path("examples") / "certificates" / "trusted" / "certs"], []
-            )
+
+        if len(self._trust_store_certificates_paths) > 0:
+            trust_store = TrustStore(self._trust_store_certificates_paths, [])
             await trust_store.load()
             validator = CertificateValidator(
                 CertificateValidatorOptions.TRUSTED_VALIDATION

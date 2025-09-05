@@ -9,8 +9,9 @@ connectors:
     ip: "127.0.0.1"
     port: 50000
     security_policy: "SecurityPolicyBasic256Sha256"
-    private_key_file_path: "certificates/peer-private-key-example-4.pem"
-    certificate_file_path: "certificates/peer-certificate-example-4.der"
+    # private_key_file_path: "certificates/peer-private-key-example-4.pem"
+    # certificate_file_path: "certificates/peer-certificate-example-4.der"
+    # trust_store_certificates_paths: ['certificates']
 root:
   !!FolderNode
   name: "Objects"

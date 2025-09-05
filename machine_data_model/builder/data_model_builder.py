@@ -330,6 +330,9 @@ class DataModelBuilder:
             client_app_uri=data.get("client_app_uri", None),
             certificate_file_path=data.get("certificate_file_path", None),
             private_key_file_path=data.get("private_key_file_path", None),
+            trust_store_certificates_paths=data.get(
+                "trust_store_certificates_paths", None
+            ),
         )
 
     def _add_yaml_constructors(self) -> None:
