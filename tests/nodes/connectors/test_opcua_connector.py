@@ -93,9 +93,8 @@ class TestOpcuaConnector:
         is_connected = connector.connect()
         assert is_connected, "connector should connect successfully"
 
-        assert (
-            connector.write_node_value("non_existent_node", 123) is False
-        ), "this node doesn't exist, so it shouldn't be written"
+        with pytest.raises(ValueError, match="node does not exist"):
+            connector.write_node_value("non_existent_node", 123)
 
         temp_threshold_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:OverheatedThresholdTemperature"
         prev_temp_threshold_value = connector.read_node_value(temp_threshold_path)

@@ -313,28 +313,34 @@ class OpcuaConnector(AbstractConnector):
         """
         Writes a value to the remote OPC-UA server.
         """
-        node = self._get_remote_node(path)
-        assert isinstance(
-            node, (asyncua.Node, type(None))
-        ), "Node read by remote OPC-UA server must be an asyncua.Node"
-        if node is None:
-            return False
-
-        success = self._handle_task(self._async_write_node_value(node, value))
+        success = self._handle_task(self._async_write_node_value(path, value))
         return success
 
-    async def _async_write_node_value(self, node: asyncua.Node, new_value: Any) -> bool:
+    async def _async_write_node_value(self, path: str, value: Any) -> bool:
         """
         Function which asynchronously writes the value to the OPC-UA server-
         """
+        _logger.debug(f"Writing node '{path}' with value: {value}")
+
+        node = await self._async_get_remote_node(path)
+        if node is None:
+            raise ValueError(
+                f"Couldn't read value of '{path}' using the {self.name} connector: the node does not exist"
+            )
+
         success = True
         try:
             current_value = await node.read_data_value()
             current_value_type = current_value.Value.VariantType
-            await node.write_value(new_value, current_value_type)
+            _logger.debug(
+                f"Overriding node '{path}', which previously had value {current_value!r} (type {current_value_type}), with value: {value!r}"
+            )
+            await node.write_value(value, current_value_type)
         except UaError as exp:
             _logger.error(exp)
             success = False
+
+        _logger.debug(f"Written node '{path}' with value: {value}")
         return success
 
     @override
