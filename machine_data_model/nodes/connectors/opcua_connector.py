@@ -23,7 +23,6 @@ from machine_data_model.nodes.connectors.abstract_connector import (
     SubscriptionArguments,
 )
 
-logging.basicConfig(level=logging.ERROR)
 _logger = logging.getLogger(__name__)
 
 USE_TRUST_STORE = False
@@ -142,6 +141,10 @@ class OpcuaConnector(AbstractConnector):
         :return: True if the client is connected to the server
         """
         url = "opc.tcp://{}:{}".format(self.ip, self.port)
+        _logger.debug(
+            f"Connecting '{self.name}' connector to OPC-UA server. Url is: {url}"
+        )
+        _logger.debug(f"Setting up the certificates for the '{self.name}' connector.")
 
         try:
             await setup_self_signed_certificate(
@@ -169,6 +172,9 @@ class OpcuaConnector(AbstractConnector):
         )
 
         if security_policy is not None:
+            _logger.debug(
+                f"Setting up the security policy for the '{self.name}' connector. Policy is: {security_policy}"
+            )
             try:
                 await client.set_security(
                     security_policy,
@@ -180,6 +186,9 @@ class OpcuaConnector(AbstractConnector):
                 _logger.error(e)
                 return False
 
+        _logger.debug(
+            f"Setting up the certificate validator for the '{self.name}' connector"
+        )
         # TODO: handle trust store
         if USE_TRUST_STORE:
             trust_store = TrustStore(
@@ -202,8 +211,12 @@ class OpcuaConnector(AbstractConnector):
         try:
             await self._client.connect()
         except Exception as e:
+            _logger.debug(
+                f"Couldn't connect the '{self.name}' connector to the OPC-UA server"
+            )
             _logger.error(e)
             return False
+        _logger.debug(f"Connected the '{self.name}' connector to the OPC-UA server")
         return True
 
     @override
@@ -222,15 +235,19 @@ class OpcuaConnector(AbstractConnector):
 
         :return: True if the client is disconnected from the server
         """
+        _logger.debug(f"Disconnecting '{self.name}' connector from OPC-UA server")
         if self._client is None:
+            _logger.debug(f"The '{self.name}' connector was already disconnected")
             return True
 
         try:
             await self._client.disconnect()
         except Exception as e:
+            _logger.debug(f"Couldn't disconnect '{self.name}' connector")
             _logger.error(e)
             return False
 
+        _logger.debug(f"Disconnected '{self.name}' connector")
         return True
 
     @override
@@ -250,11 +267,16 @@ class OpcuaConnector(AbstractConnector):
         """
         Asynchronous function which returns the node from the OPC-UA server.
         """
+        _logger.debug(f"Retrieving node '{path}' from OPC-UA server")
         node = None
         if self._client is None:
             return None
         try:
             node = await self._client.get_root_node().get_child(path)
+            assert isinstance(
+                node, asyncua.Node
+            ), "Node read by remote OPC-UA server must be an asyncua.Node"
+            _logger.debug(f"Retrieved node '{path}' successfully")
         except UaError as exp:
             _logger.error(exp)
 
@@ -272,12 +294,14 @@ class OpcuaConnector(AbstractConnector):
         """
         Asynchronously reads the node's value from the server.
         """
+        _logger.debug(f"Reading node '{path}'")
         node = await self._async_get_remote_node(path)
         if node is None:
             raise ValueError(
                 f"Couldn't read value of '{path}' using the {self.name} connector: the node does not exist"
             )
         value = await node.get_value()
+        _logger.debug(f"Read node '{path}'. Its value is: {value!r}")
         return value
 
     @override
@@ -331,12 +355,16 @@ class OpcuaConnector(AbstractConnector):
         :param kwargs: method arguments expressed as key/name - value pairs
         :return: dict of results in the form of name - value pairs
         """
+        _logger.debug(
+            f"Calling remote method '{path}', with the following parameters: {kwargs}"
+        )
         if self._client is None:
             return None
 
         node = await self._async_get_remote_node(path)
         if node is None:
             raise ValueError("Couldn't call remote method: the node doesn't exist")
+
         path_parts = path.lstrip("/").split("/")
         input_arg_path = path + "/InputArguments"
         method_inputs = await self._async_get_remote_node(input_arg_path)
@@ -355,12 +383,17 @@ class OpcuaConnector(AbstractConnector):
             variant_type = VariantType(identifier)
             params.append(asyncua.ua.Variant(value, variant_type))
 
+        _logger.debug(f"Converted parameters of '{path}' into VariantTypes: {params}")
+
         if len(path_parts) == 0:
             return None
 
         if len(path_parts) == 1:
             method_id = path_parts[0]
             result = await self._client.get_root_node().call_method(method_id, *params)
+            _logger.debug(
+                f"Called '{path}' using the root node and method_id = '{method_id}'. Return value is: {result!r}"
+            )
             return result
 
         result = None
@@ -370,6 +403,9 @@ class OpcuaConnector(AbstractConnector):
             parent_node = await self._async_get_remote_node(parent_path)
             if parent_node:
                 result = await parent_node.call_method(method_id, *params)
+                _logger.debug(
+                    f"Called '{path}' using the parent node '{parent_path}' and method_id '{method_id}'. Return value is: {result!r}"
+                )
         except UaError as exp:
             _logger.error(exp)
         return result
@@ -402,6 +438,7 @@ class OpcuaConnector(AbstractConnector):
         :param callback: callback
         :return: handler code which can be used to unsubscribe from new events
         """
+        _logger.debug(f"Subscribing to remote node '{path}'")
         if self._client is None:
             raise Exception("Client is not running")
 
@@ -414,6 +451,9 @@ class OpcuaConnector(AbstractConnector):
 
         res = await subscription.subscribe_data_change(node)
         assert isinstance(res, int), "subscription handler must be a int"
+        _logger.debug(
+            f"Subscribed to remote node '{path}'. Subscription handler code: {res}"
+        )
         return res
 
     def __str__(self) -> str:
@@ -454,5 +494,8 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
         """
         called for every datachange notification from server
         """
+        _logger.debug(
+            f"Received new datachange notification for node {node}. Its new value is: {val!r}"
+        )
         other = OpcuaSubscriptionArguments(node=node, value=val, notification=data)
         self._callback(val, other)

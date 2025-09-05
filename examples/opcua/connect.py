@@ -2,11 +2,16 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+import logging
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
 from machine_data_model.nodes.connectors.abstract_connector import SubscriptionArguments
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
+
+# change to logging.DEBUG to show debug messages
+logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
+logging.getLogger("asyncua").setLevel(logging.ERROR)
 
 yml_path = Path(__file__).parent / "opcua.yml"
 builder = DataModelBuilder()
