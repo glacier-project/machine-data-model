@@ -258,9 +258,6 @@ class OpcuaConnector(AbstractConnector):
         """
         get_node_coroutine = self._async_get_remote_node(path)
         task_result: asyncua.Node | None = self._handle_task(get_node_coroutine)
-        assert isinstance(
-            task_result, (asyncua.Node, type(None))
-        ), "Node read by remote OPC-UA server must be an asyncua.Node"
         return task_result
 
     async def _async_get_remote_node(self, path: str) -> asyncua.Node | None:
