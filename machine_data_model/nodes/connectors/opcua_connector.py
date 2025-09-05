@@ -22,13 +22,6 @@ from machine_data_model.nodes.connectors.abstract_connector import (
     AbstractConnector,
     SubscriptionArguments,
 )
-from machine_data_model.nodes.data_model_node import DataModelNode
-from machine_data_model.nodes.variable_node import (
-    NumericalVariableNode,
-    StringVariableNode,
-    VariableNode,
-    BooleanVariableNode,
-)
 
 logging.basicConfig(level=logging.ERROR)
 _logger = logging.getLogger(__name__)
@@ -45,65 +38,6 @@ class OpcuaSubscriptionArguments(SubscriptionArguments):
     node: asyncua.Node
     value: Any
     notification: DataChangeNotif
-
-
-async def _convert_asyncua_node_to_data_model_node(
-    node: asyncua.Node,
-) -> DataModelNode | None:
-    """
-    Converts an asyncua.Node to a DataModelNode.
-    """
-    variant_type = await node.read_data_type_as_variant_type()
-
-    name_text = None
-    try:
-        name = await node.read_display_name()
-        name_text = name.Text
-    except UaError:
-        pass
-
-    description_text = None
-    try:
-        description = await node.read_description()
-        description_text = description.Text
-    except UaError:
-        pass
-
-    if variant_type in [
-        VariantType.Int16,
-        VariantType.Int32,
-        VariantType.Int64,
-        VariantType.Float,
-        VariantType.Double,
-        VariantType.UInt16,
-        VariantType.UInt32,
-        VariantType.UInt64,
-    ]:
-        value = await node.get_value()
-        assert isinstance(value, (int, float)), "Value must be numeric"
-        return NumericalVariableNode(
-            name=name_text,
-            value=value,
-            description=description_text,
-        )
-
-    if variant_type in [VariantType.String, VariantType.ByteString]:
-        value = await node.get_value()
-        assert isinstance(value, str), "Value must be a string"
-        return StringVariableNode(
-            name=name_text,
-            value=value,
-            description=description_text,
-        )
-
-    if variant_type == VariantType.Boolean:
-        value = await node.get_value()
-        assert isinstance(value, bool), "Value must be a boolean"
-        return BooleanVariableNode(
-            name=name_text, value=value, description=description_text
-        )
-
-    return None
 
 
 def _security_policy_string_to_asyncua_policy(
@@ -300,41 +234,6 @@ class OpcuaConnector(AbstractConnector):
         return True
 
     @override
-    def get_data_model_node(
-        self, path: str, stub_node: DataModelNode | None = None
-    ) -> DataModelNode | None:
-        """
-        Returns the node from the OPC-UA server,
-        converted into a DataModelNode.
-        """
-        asyncua_node = self._get_remote_node(path)
-        if asyncua_node is None:
-            return None
-
-        data_model_node = self._handle_task(
-            _convert_asyncua_node_to_data_model_node(asyncua_node)
-        )
-        if data_model_node is None:
-            return None
-
-        if stub_node is None:
-            return data_model_node
-
-        # TODO: it might be a cleaner approach to return the information
-        #       retrieved from the server and modify the original node later
-        #       instead of returning a new node
-        data_model_node.set_remote_path(stub_node.remote_path)
-        data_model_node.set_connector(stub_node.connector)
-        data_model_node.set_connector_name(stub_node.connector_name)
-
-        if stub_node.name:
-            data_model_node.set_name(stub_node.name)
-
-        if stub_node.description:
-            data_model_node.set_description(stub_node.description)
-
-        return data_model_node
-
     def _get_remote_node(self, path: str) -> asyncua.Node | None:
         """
         Returns the node from the OPC-UA server,
@@ -366,10 +265,20 @@ class OpcuaConnector(AbstractConnector):
         """
         Reads the node's value and returns it.
         """
-        node = self.get_data_model_node(path)
-        if not isinstance(node, VariableNode):
-            return None
-        return node.value
+        value = self._handle_task(self._async_read_node_value(path))
+        return value
+
+    async def _async_read_node_value(self, path: str) -> Any:
+        """
+        Asynchronously reads the node's value from the server.
+        """
+        node = await self._async_get_remote_node(path)
+        if node is None:
+            raise ValueError(
+                f"Couldn't read value of '{path}' using the {self.name} connector: the node does not exist"
+            )
+        value = await node.get_value()
+        return value
 
     @override
     def write_node_value(self, path: str, value: Any) -> bool:

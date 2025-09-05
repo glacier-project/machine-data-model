@@ -48,30 +48,6 @@ class TestOpcuaConnector:
         assert is_connected, "connector should connect successfully"
         connector.stop_thread()
 
-    def test_get_data_model_node(
-        self, start_opcua_test_server: Tuple[Container, int]
-    ) -> None:
-        docker_container, container_port = start_opcua_test_server
-        connector = OpcuaConnector(
-            name="myConnector",
-            ip="127.0.0.1",
-            port=container_port,
-            security_policy="SecurityPolicyBasic256Sha256",
-        )
-
-        is_connected = connector.connect()
-        assert is_connected, "connector should connect successfully"
-
-        assert (
-            connector.get_data_model_node("non_existent_node") is None
-        ), "this node should not exist"
-
-        temp_threshold_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:OverheatedThresholdTemperature"
-        temp_threshold = connector.get_data_model_node(temp_threshold_path)
-        assert temp_threshold is not None, "temp_threshold should not be None"
-
-        connector.stop_thread()
-
     def test_read_node_value(
         self,
         start_opcua_test_server: Tuple[Container, int],
@@ -87,9 +63,8 @@ class TestOpcuaConnector:
         is_connected = connector.connect()
         assert is_connected, "connector should connect successfully"
 
-        assert (
-            connector.read_node_value("non_existent_node") is None
-        ), "this node should not exist"
+        with pytest.raises(ValueError, match="node does not exist"):
+            connector.read_node_value("non_existent_node")
 
         temp_threshold_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:OverheatedThresholdTemperature"
         temp_threshold_value = connector.read_node_value(temp_threshold_path)

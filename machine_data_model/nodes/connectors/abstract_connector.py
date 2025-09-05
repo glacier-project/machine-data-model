@@ -4,7 +4,6 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Iterator, Any, TypeVar, Callable
 
-from machine_data_model.nodes.data_model_node import DataModelNode
 import asyncio
 from asyncio import AbstractEventLoop
 from collections.abc import Coroutine
@@ -111,19 +110,6 @@ class AbstractConnector(ABC):
         Disconnect from the server.
 
         :return: True if the client is disconnected from the server
-        """
-        pass
-
-    @abstractmethod
-    def get_data_model_node(
-        self, path: str, stub_node: DataModelNode | None = None
-    ) -> DataModelNode | None:
-        """
-        Try to retrieve the node from the server
-        and to convert it to a DataModelNode before returning it.
-
-        :param path: node's path
-        :param stub_node: local node, its information is used to create the remote node
         """
         pass
 
