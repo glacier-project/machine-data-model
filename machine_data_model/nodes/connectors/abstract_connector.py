@@ -3,6 +3,7 @@ from threading import Thread
 import uuid
 from abc import ABC, abstractmethod
 from typing import Iterator, Any, TypeVar, Callable
+import logging
 
 import asyncio
 from asyncio import AbstractEventLoop
@@ -10,6 +11,8 @@ from collections.abc import Coroutine
 from concurrent.futures import Future
 
 TaskReturnType = TypeVar("TaskReturnType")
+
+_logger = logging.getLogger(__name__)
 
 
 def create_event_loop_thread() -> AbstractEventLoop:
@@ -28,9 +31,11 @@ def create_event_loop_thread() -> AbstractEventLoop:
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
+    _logger.debug("Creating thread and its event loop")
     event_loop = asyncio.new_event_loop()
     thread = Thread(target=start_background_loop, args=(event_loop,), daemon=True)
     thread.start()
+    _logger.debug("Created thread and its event loop")
     return event_loop
 
 
@@ -174,8 +179,10 @@ class AbstractConnector(ABC):
         """
         Stops the thread. Calls disconnect() automatically to disconnect from the server.
         """
+        _logger.debug(f"Stopping thread of the {self.name} connector")
         self.disconnect()
         self._event_loop.stop()
+        _logger.debug(f"Stopped thread of the {self.name} connector")
 
     def _handle_task(
         self, task: Coroutine[None, None, TaskReturnType]
@@ -183,8 +190,12 @@ class AbstractConnector(ABC):
         """
         Run a task in the thread, wait for the result and return it.
         """
+        _logger.debug(f"Running task {task} using '{self.name}' connector")
         res = run_coroutine_in_thread(self._event_loop, task)
         output = res.result()
+        _logger.debug(
+            f"Runned task {task} using '{self.name}' connector. Its result is {output!r}"
+        )
         return output
 
     def __iter__(self) -> Iterator["AbstractConnector"]:
