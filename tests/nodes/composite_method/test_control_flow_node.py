@@ -4,19 +4,19 @@ from typing import Any
 
 import pytest
 
-from machine_data_model.nodes.composite_method.call_method_node import CallMethodNode
-from machine_data_model.nodes.composite_method.control_flow_scope import (
+from machine_data_model.behavior.call_method_node import CallMethodNode
+from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
-from machine_data_model.nodes.composite_method.read_variable_node import (
+from machine_data_model.behavior.read_variable_node import (
     ReadVariableNode,
 )
-from machine_data_model.nodes.composite_method.wait_condition_node import (
+from machine_data_model.behavior.wait_condition_node import (
     WaitConditionOperator,
     WaitConditionNode,
     get_condition_operator,
 )
-from machine_data_model.nodes.composite_method.write_variable_node import (
+from machine_data_model.behavior.write_variable_node import (
     WriteVariableNode,
 )
 from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode

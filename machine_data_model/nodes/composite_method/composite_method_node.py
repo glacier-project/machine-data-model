@@ -1,5 +1,5 @@
-from machine_data_model.nodes.composite_method.control_flow import ControlFlow
-from machine_data_model.nodes.composite_method.control_flow_scope import (
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
 from machine_data_model.nodes.method_node import MethodNode

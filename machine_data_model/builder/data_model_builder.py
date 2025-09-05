@@ -4,20 +4,20 @@ from collections.abc import Callable
 import yaml
 
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.composite_method.call_method_node import CallMethodNode
+from machine_data_model.behavior.call_method_node import CallMethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.composite_method.control_flow import ControlFlow
-from machine_data_model.nodes.composite_method.control_flow_node import ControlFlowNode
-from machine_data_model.nodes.composite_method.read_variable_node import (
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.control_flow_node import ControlFlowNode
+from machine_data_model.behavior.read_variable_node import (
     ReadVariableNode,
 )
-from machine_data_model.nodes.composite_method.wait_condition_node import (
+from machine_data_model.behavior.wait_condition_node import (
     WaitConditionNode,
     get_condition_operator,
 )
-from machine_data_model.nodes.composite_method.write_variable_node import (
+from machine_data_model.behavior.write_variable_node import (
     WriteVariableNode,
 )
 from machine_data_model.nodes.folder_node import FolderNode

@@ -1,7 +1,7 @@
 from typing import Any
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from machine_data_model.nodes.composite_method.control_flow_scope import (
+from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -36,7 +36,6 @@ class ControlFlowNode(ABC):
     flow scope.
 
     :ivar node: The identifier of a node in the machine data model.
-    :ivar _ref_node: The reference to the node in the machine data model.
     :ivar _successors: A list of control flow nodes that are successors of the current node. (Not used yet)
     """
 
@@ -48,8 +47,39 @@ class ControlFlowNode(ABC):
         :param successors: A list of control flow nodes that are successors of the current node.
         """
         self.node = node
-        self._ref_node: DataModelNode | None = None
         self._successors = [] if successors is None else successors
+
+    @abstractmethod
+    def execute(self, scope: ControlFlowScope) -> bool:
+        """
+        Execute the control flow node in the context of the specified scope.
+
+        :param scope: The scope of the control flow graph.
+        :return: True if the execution is successful, otherwise False.
+        """
+        pass
+
+
+class LocalExecutionNode(ControlFlowNode):
+    """
+    Abstract base class representing a control flow action node in the control flow graph. A control flow action node is a basic unit of the control flow graph that can be executed locally in the context of a control flow scope.
+
+    :ivar node: The identifier of a local node in the machine data model.
+    :ivar _ref_node: The reference to the node in the machine data model.
+    :ivar get_data_model_node: A callable that takes a node identifier and returns the corresponding node in the machine data model.
+    """
+
+    def __init__(self, node: str, successors: list["ControlFlowNode"] | None = None):
+        """
+        Initialize a new CFActionNode instance.
+
+        :param node: The identifier of a local node in the machine data model.
+        :param successors: A list of control flow nodes that are successors of the current node.
+        """
+        super().__init__(node, successors)
+
+        self.node = node
+        self._ref_node: DataModelNode | None = None
         self.get_data_model_node: Callable[[str], DataModelNode | None] | None = None
 
     def get_successors(self) -> list["ControlFlowNode"]:
@@ -102,12 +132,6 @@ class ControlFlowNode(ABC):
         assert self.get_data_model_node is not None
         return self.get_data_model_node(node_path)
 
-    @abstractmethod
-    def execute(self, scope: ControlFlowScope) -> bool:
-        """
-        Execute the control flow node in the context of the specified scope.
 
-        :param scope: The scope of the control flow graph.
-        :return: True if the execution is successful, otherwise False.
-        """
-        pass
+class RemoteExecutionNode(ControlFlowNode):
+    pass

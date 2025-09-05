@@ -3,6 +3,7 @@ from collections.abc import Callable
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.behavior.control_flow_node import LocalExecutionNode
 from machine_data_model.nodes.data_model_node import DataModelNode
 from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
@@ -65,11 +66,14 @@ class DataModel:
         """
         self._nodes[node.id] = node
 
-    def _resolve_cfg_nodes(self, node: DataModelNode) -> None:
+    def _resolve_local_cfg_nodes(self, node: DataModelNode) -> None:
         if not isinstance(node, CompositeMethodNode):
             return
 
         for cf_node in node.cfg.nodes():
+            if not isinstance(cf_node, LocalExecutionNode):
+                continue
+
             if cf_node.is_node_static():
                 ref_node = self.get_node(cf_node.node)
                 assert isinstance(ref_node, DataModelNode)
@@ -89,7 +93,7 @@ class DataModel:
 
         def _f_(n: DataModelNode) -> None:
             self._register_node(n)
-            self._resolve_cfg_nodes(n)
+            self._resolve_local_cfg_nodes(n)
 
         self.traverse(node, _f_)
 

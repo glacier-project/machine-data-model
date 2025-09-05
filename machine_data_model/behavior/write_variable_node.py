@@ -1,16 +1,17 @@
 from typing import Any
 
-from machine_data_model.nodes.composite_method.control_flow_node import (
+from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     resolve_value,
+    LocalExecutionNode,
 )
-from machine_data_model.nodes.composite_method.control_flow_scope import (
+from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
 from machine_data_model.nodes.variable_node import VariableNode
 
 
-class WriteVariableNode(ControlFlowNode):
+class WriteVariableNode(LocalExecutionNode):
     """
     Represents the write operation of a variable in the machine data model.
     When executed, it writes the value to the variable in the machine data model.

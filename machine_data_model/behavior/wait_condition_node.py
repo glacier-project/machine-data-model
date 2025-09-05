@@ -1,11 +1,12 @@
 from enum import Enum
 from typing import Any
 
-from machine_data_model.nodes.composite_method.control_flow_node import (
+from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     resolve_value,
+    LocalExecutionNode,
 )
-from machine_data_model.nodes.composite_method.control_flow_scope import (
+from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
 from machine_data_model.nodes.variable_node import VariableNode
@@ -34,7 +35,7 @@ def get_condition_operator(op: str) -> WaitConditionOperator:
     raise ValueError(f"Invalid operator: {op}")
 
 
-class WaitConditionNode(ControlFlowNode):
+class WaitConditionNode(LocalExecutionNode):
     """
     Represents a wait condition in the control flow graph. When executed, it compares the value
     of a variable with a constant value or another variable.

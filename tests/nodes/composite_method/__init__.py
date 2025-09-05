@@ -1,9 +1,9 @@
 from typing import Callable
 
-from machine_data_model.nodes.composite_method.call_method_node import CallMethodNode
-from machine_data_model.nodes.composite_method.control_flow import ControlFlow
-from machine_data_model.nodes.composite_method.control_flow_node import ControlFlowNode
-from machine_data_model.nodes.composite_method.wait_condition_node import (
+from machine_data_model.behavior.call_method_node import CallMethodNode
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.control_flow_node import ControlFlowNode
+from machine_data_model.behavior.wait_condition_node import (
     WaitConditionNode,
     WaitConditionOperator,
 )
