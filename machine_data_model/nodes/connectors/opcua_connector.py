@@ -406,11 +406,22 @@ class OpcuaConnector(AbstractConnector):
         if node is None:
             raise ValueError("Couldn't call remote method: the node doesn't exist")
 
+        # check if the node has inputs
+        props = await node.get_properties()
+        contains_inputs = False
+        for prop in props:
+            name = await prop.read_display_name()
+            name = name.Text
+            if name == "InputArguments":
+                contains_inputs = True
+                break
+
         path_parts = path.lstrip("/").split("/")
         input_arg_path = path + "/InputArguments"
-        method_inputs = await self._async_get_remote_node(input_arg_path)
         inputs = []
-        if method_inputs is not None:
+        if contains_inputs:
+            method_inputs = await self._async_get_remote_node(input_arg_path)
+            assert method_inputs is not None, "method_inputs must be method inputs"
             inputs = (
                 await method_inputs.read_value()
             )  # returns a list of Argument-Class
