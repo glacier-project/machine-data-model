@@ -56,8 +56,9 @@ class TestCompositeMethod:
 
         ret = c_method()
 
+        assert not ret.messages
         for node in c_method.returns:
-            assert node.read() == ret[node.name]
+            assert node.read() == ret.return_values[node.name]
 
     @pytest.mark.parametrize(
         "method_nodes",
@@ -72,8 +73,9 @@ class TestCompositeMethod:
         wait_node = get_wait_var_node(c_method.cfg)
         node_val = wait_node.read()
         ret = c_method()
-        scope_id = ret[SCOPE_ID]
+        scope_id = ret.return_values[SCOPE_ID]
 
+        assert not ret.messages
         assert len(wait_node.get_subscribers()) > 0
 
         new_val = 0
@@ -83,9 +85,10 @@ class TestCompositeMethod:
         wait_node.write(new_val)
         ret = c_method.resume_execution(scope_id)
 
+        assert not ret.messages
         assert len(wait_node.get_subscribers()) == 0
         for node in c_method.returns:
-            assert node.read() == ret[node.name]
+            assert node.read() == ret.return_values[node.name]
 
     @pytest.mark.parametrize(
         "variable_path",
@@ -101,7 +104,8 @@ class TestCompositeMethod:
         args: list[Any] = [node.qualified_name]
         ret = dynamic_read(*args)
 
-        assert ret[dynamic_read.returns[0].name] == node.read()
+        assert not ret.messages
+        assert ret.return_values[dynamic_read.returns[0].name] == node.read()
 
     @pytest.mark.parametrize(
         "variable_path",
@@ -120,9 +124,10 @@ class TestCompositeMethod:
         ret = dynamic_write(*args)
         post_val = node.read()
 
+        assert not ret.messages
         assert post_val != prev_val
         assert post_val == value
-        assert len(ret) == 0
+        assert len(ret.return_values) == 0
 
     @pytest.mark.parametrize(
         "method_path",
@@ -146,7 +151,8 @@ class TestCompositeMethod:
 
         args: list[Any] = [node.qualified_name]
         ret = dynamic_method(*args)
-        assert ret["n_variable10"] == value
+        assert not ret.messages
+        assert ret.return_values["n_variable10"] == value
 
     @pytest.mark.parametrize(
         "wait_node_path",
@@ -166,15 +172,18 @@ class TestCompositeMethod:
             subscriber: str, node: VariableNode, value: Any
         ) -> None:
             assert isinstance(dynamic_wait, CompositeMethodNode)
-            res = dynamic_wait.resume_execution(ret[SCOPE_ID])
-            assert res == {}
+            res = dynamic_wait.resume_execution(ret.return_values[SCOPE_ID])
+            assert not res.messages
+            assert res.return_values == {}
 
         node.set_subscription_callback(subscription_callback)
 
         args: list[Any] = [node.qualified_name, current_value]
         ret = dynamic_wait(*args)
-        assert SCOPE_ID in ret
-        assert not dynamic_wait.is_terminated(ret[SCOPE_ID])
+
+        assert not ret.messages
+        assert SCOPE_ID in ret.return_values
+        assert not dynamic_wait.is_terminated(ret.return_values[SCOPE_ID])
 
         node.value += 1
-        assert dynamic_wait.is_terminated(ret[SCOPE_ID])
+        assert dynamic_wait.is_terminated(ret.return_values[SCOPE_ID])

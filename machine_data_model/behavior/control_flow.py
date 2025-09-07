@@ -1,3 +1,4 @@
+from typing import Sequence
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
@@ -14,7 +15,7 @@ class ControlFlow:
     :ivar _nodes: A list of control flow nodes in the control flow graph.
     """
 
-    def __init__(self, nodes: list[ControlFlowNode] | None = None):
+    def __init__(self, nodes: Sequence[ControlFlowNode] | None = None):
         """
         Initializes a new `ControlFlow` instance.
 
@@ -22,7 +23,7 @@ class ControlFlow:
         """
         self._nodes = nodes if nodes is not None else []
 
-    def nodes(self) -> list[ControlFlowNode]:
+    def nodes(self) -> Sequence[ControlFlowNode]:
         """
         Gets the list of control flow nodes in the control flow graph.
 

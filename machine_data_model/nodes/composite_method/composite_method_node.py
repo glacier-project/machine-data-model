@@ -6,6 +6,7 @@ from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from typing import Any
 import uuid
+from machine_data_model.nodes.method_node import MethodExecutionResult
 
 
 SCOPE_ID = "@scope_id"
@@ -61,7 +62,9 @@ class CompositeMethodNode(MethodNode):
         self._scopes: dict[str, ControlFlowScope] = {}
         self.cfg = cfg if cfg is not None else ControlFlow()
 
-    def __call__(self, *args: list[Any], **kwargs: dict[str, Any]) -> dict:
+    def __call__(
+        self, *args: list[Any], **kwargs: dict[str, Any]
+    ) -> MethodExecutionResult:
         """
         Call the method with the specified arguments.
 
@@ -108,21 +111,23 @@ class CompositeMethodNode(MethodNode):
             raise ValueError(f"Scope '{scope_id}' not found")
         del self._scopes[scope_id]
 
-    def resume_execution(self, scope_id: str) -> dict[str, Any]:
+    def resume_execution(self, scope_id: str) -> MethodExecutionResult:
         """
         Resume the execution of the method with the specified scope id.
 
         :param scope_id: The id of the scope to resume.
-        :return: The return values of the method.
+        :return: The result of resuming the execution of the method.
         """
 
         scope = self._get_scope(scope_id)
         if scope is None:
             raise ValueError(f"Scope '{scope_id}' not found")
-        self.cfg.execute(scope)
-        return self._terminate_execution(scope)
+        remote_messages = self.cfg.execute(scope)
+        return MethodExecutionResult(
+            messages=remote_messages, return_values=self._terminate_execution(scope)
+        )
 
-    def _start_execution(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
+    def _start_execution(self, **kwargs: dict[str, Any]) -> MethodExecutionResult:
         """
         Start the execution of the composite method with the specified arguments.
         It creates a new scope and executes the control flow graph of the method until
@@ -130,12 +135,14 @@ class CompositeMethodNode(MethodNode):
         if the method is not completed.
 
         :param kwargs: The arguments of the method.
-        :return: The return values of the method.
+        :return: The result of starting the execution of the method.
         """
 
         scope = self._create_scope(**kwargs)
-        self.cfg.execute(scope)
-        return self._terminate_execution(scope)
+        remote_messages = self.cfg.execute(scope)
+        return MethodExecutionResult(
+            messages=remote_messages, return_values=self._terminate_execution(scope)
+        )
 
     def _get_scope(self, scope_id: str) -> ControlFlowScope:
         """

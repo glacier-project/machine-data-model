@@ -60,10 +60,14 @@ class TestMethodNode:
 
         result = method()
 
+        assert result.messages is None
         assert method.name == method_name
         assert method.description == method_description
         assert method.is_async() == async_method
-        assert result[returns[0].name] == parameters[0].read() + parameters[1].read()
+        assert (
+            result.return_values[returns[0].name]
+            == parameters[0].read() + parameters[1].read()
+        )
 
     @pytest.mark.parametrize(
         "parameters, returns",
@@ -100,7 +104,11 @@ class TestMethodNode:
 
         result = method()
 
+        assert result.messages is None
         assert method.name == method_name
         assert method.description == method_description
         assert method.is_async() == async_method
-        assert result[returns[0].name] == parameters[0].read() + parameters[1].read()
+        assert (
+            result.return_values[returns[0].name]
+            == parameters[0].read() + parameters[1].read()
+        )

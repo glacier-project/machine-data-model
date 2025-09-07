@@ -2,7 +2,9 @@ from typing import Callable
 
 from machine_data_model.behavior.call_method_node import CallMethodNode
 from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.control_flow_node import ControlFlowNode
+from machine_data_model.behavior.control_flow_node import (
+    LocalExecutionNode,
+)
 from machine_data_model.behavior.wait_condition_node import (
     WaitConditionNode,
     WaitConditionOperator,
@@ -14,8 +16,8 @@ from tests import get_random_numerical_node
 
 def get_cf_nodes(
     method_nodes: list[AsyncMethodNode],
-    ctor: Callable[[DataModelNode], ControlFlowNode],
-) -> list[ControlFlowNode]:
+    ctor: Callable[[DataModelNode], LocalExecutionNode],
+) -> list[LocalExecutionNode]:
     cf_nodes = []
     for node in method_nodes:
         cm_node = ctor(node)
@@ -24,7 +26,7 @@ def get_cf_nodes(
     return cf_nodes
 
 
-def get_cm_nodes(node: DataModelNode) -> ControlFlowNode:
+def get_cm_nodes(node: DataModelNode) -> LocalExecutionNode:
     return CallMethodNode(method_node=node.qualified_name, args=[], kwargs={})
 
 

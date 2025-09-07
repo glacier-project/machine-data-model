@@ -8,7 +8,7 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
 
 
 class DataModel:
@@ -210,11 +210,11 @@ class DataModel:
             return True
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
-    def call_method(self, method_id: str) -> Any:
+    def call_method(self, method_id: str) -> MethodExecutionResult:
         """
         Executes a method from the data model by exploring the structure of the node that contains that method.
         :param method_name: The id or the path of the method to call from the data model.
-        :return: The return value of the method.
+        :return: The result of the method execution.
         """
         node = self.get_node(method_id)
         if isinstance(node, MethodNode):

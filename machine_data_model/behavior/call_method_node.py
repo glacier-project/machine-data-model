@@ -65,5 +65,5 @@ class CallMethodNode(LocalExecutionNode):
         args = [resolve_value(arg, scope) for arg in self._args]
         kwargs = {k: resolve_value(v, scope) for k, v in self._kwargs.items()}
         res = ref_method(*args, **kwargs)
-        scope.set_all_values(**res)
+        scope.set_all_values(**res.return_values)
         return execution_success()

@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Sequence
 from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
@@ -199,18 +199,23 @@ class FrostProtocolMng(ProtocolMng):
         """
 
         ret = method_node(*args, **kwargs)
-        if SCOPE_ID in ret:
-            scope_id = ret[SCOPE_ID]
+        ret_values = ret.return_values
+        if SCOPE_ID in ret_values:
+            scope_id = ret_values[SCOPE_ID]
             assert isinstance(scope_id, str)
             assert isinstance(method_node, CompositeMethodNode)
             self._running_methods[scope_id] = (method_node, msg)
             # here we should return the accepted message
             msg.header.msg_name = MethodMsgName.STARTED
+
+            # If there are any update messages, extend the list.
+            if ret.messages:
+                self._update_messages.extend(ret.messages)
         else:
             msg.header.msg_name = MethodMsgName.COMPLETED
 
         assert isinstance(msg.payload, MethodPayload)
-        msg.payload.ret = ret
+        msg.payload.ret = ret_values
         return _create_response_msg(msg)
 
     def _handle_variable_message(
@@ -291,7 +296,7 @@ class FrostProtocolMng(ProtocolMng):
 
         return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
 
-    def get_update_messages(self) -> List[FrostMessage]:
+    def get_update_messages(self) -> Sequence[FrostMessage]:
         """
         Returns the list of update messages.
 
@@ -311,6 +316,10 @@ class FrostProtocolMng(ProtocolMng):
         scope_id = subscriber
         cm, msg = self._running_methods[scope_id]
         ret = cm.resume_execution(scope_id)
+
+        if ret.messages:
+            self._update_messages.extend(ret.messages)
+
         if not cm.is_terminated(scope_id):
             return
 
@@ -320,7 +329,7 @@ class FrostProtocolMng(ProtocolMng):
         # append response message
         msg.header.msg_name = MethodMsgName.COMPLETED
         assert isinstance(msg.payload, MethodPayload)
-        msg.payload.ret = ret
+        msg.payload.ret = ret.return_values
         self._update_messages.append(_create_response_msg(msg))
 
     def _update_variable_callback(
