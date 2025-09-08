@@ -103,7 +103,7 @@ class FrostProtocolMng(ProtocolMng):
         # variable_node.set_subscription_callback(self._update_variable_callback)
 
     @override
-    def handle_request(self, msg: Message) -> Message:
+    def handle_request(self, msg: Message) -> Message | None:
         """
         Handles a message encoded with the Frost protocol and updates the
         machine data model accordingly.
@@ -120,8 +120,18 @@ class FrostProtocolMng(ProtocolMng):
         if not self._is_version_supported(header.version):
             return _create_error_response(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
 
-        if header.type != MsgType.REQUEST:
-            return _create_error_response(msg, ErrorMessages.INVALID_REQUEST)
+        # if header.type != MsgType.REQUEST:
+        #     return _create_error_response(msg, ErrorMessages.INVALID_REQUEST)
+
+        # Resume methods waiting for a response
+        if msg.correlation_id in self._running_methods:
+            cm, original_msg = self._running_methods[msg.correlation_id]
+            if not cm.handle_message(msg.correlation_id, msg):
+                return _create_error_response(msg, ErrorMessages.BAD_RESPONSE)
+            response = self._resume_composite_method(msg.correlation_id)
+            if not response:
+                return None
+            return response
 
         # Handle PROTOCOL messages separately.
         if header.namespace == MsgNamespace.PROTOCOL:
@@ -142,8 +152,6 @@ class FrostProtocolMng(ProtocolMng):
             if not isinstance(node, MethodNode):
                 return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
             return self._handle_method_message(msg, node)
-
-        # Forward the message to listeners
 
         # Return invalid namespace.
         return _create_error_response(msg, ErrorMessages.INVALID_NAMESPACE)
@@ -310,10 +318,12 @@ class FrostProtocolMng(ProtocolMng):
         """
         self._update_messages.clear()
 
-    def resume_composite_method(
-        self, subscriber: str, node: VariableNode, value: Any
-    ) -> None:
-        scope_id = subscriber
+    def _resume_composite_method(self, scope_id: str) -> FrostMessage | None:
+        """
+        Resume the execution of a composite method with the specified scope id.
+        :param scope_id: The id of the scope to resume.
+        :return: A response message if the method is completed, otherwise None.
+        """
         cm, msg = self._running_methods[scope_id]
         ret = cm.resume_execution(scope_id)
 
@@ -321,7 +331,7 @@ class FrostProtocolMng(ProtocolMng):
             self._update_messages.extend(ret.messages)
 
         if not cm.is_terminated(scope_id):
-            return
+            return None
 
         # append response message
         cm.delete_scope(scope_id)
@@ -330,7 +340,20 @@ class FrostProtocolMng(ProtocolMng):
         msg.header.msg_name = MethodMsgName.COMPLETED
         assert isinstance(msg.payload, MethodPayload)
         msg.payload.ret = ret.return_values
-        self._update_messages.append(_create_response_msg(msg))
+        return _create_response_msg(msg)
+
+    def resume_composite_method(
+        self, subscriber: str, node: VariableNode, value: Any
+    ) -> None:
+        """
+        Resume the execution of a composite method waiting for the specified subscriber.
+        :param subscriber: The subscriber to resume.
+        :param node: The variable node that triggered the update.
+        :param value: The new value of the variable node.
+        """
+        response = self._resume_composite_method(subscriber)
+        if response:
+            self._update_messages.append(response)
 
     def _update_variable_callback(
         self, subscriber: str, node: VariableNode, value: Any

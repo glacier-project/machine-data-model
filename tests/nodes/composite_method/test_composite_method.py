@@ -13,6 +13,12 @@ from machine_data_model.behavior.wait_condition_node import (
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
 from machine_data_model.nodes.variable_node import VariableNode, NumericalVariableNode
+from machine_data_model.protocols.frost_v1.frost_header import (
+    MsgType,
+    MethodMsgName,
+    MsgNamespace,
+)
+from machine_data_model.protocols.frost_v1.frost_payload import MethodPayload
 from tests import get_dummy_method_node
 from tests.nodes.composite_method import get_non_blocking_cf, get_blocking_cf
 from tests.test_data_model import get_template_data_model
@@ -96,7 +102,7 @@ class TestCompositeMethod:
     )
     def test_dynamic_read_variable_node(self, variable_path: str) -> None:
         data_model = get_template_data_model()
-        dynamic_read = data_model.get_node("folder1/folder3/dynamic_read")
+        dynamic_read = data_model.get_node("folder1/dynamic_cfg/dynamic_read")
         node = data_model.get_node(variable_path)
 
         assert isinstance(node, NumericalVariableNode)
@@ -113,7 +119,7 @@ class TestCompositeMethod:
     )
     def test_dynamic_write_variable_node(self, variable_path: str) -> None:
         data_model = get_template_data_model()
-        dynamic_write = data_model.get_node("folder1/folder3/dynamic_write")
+        dynamic_write = data_model.get_node("folder1/dynamic_cfg/dynamic_write")
         node = data_model.get_node(variable_path)
         value = random.randint(100, 200)
         assert isinstance(node, NumericalVariableNode)
@@ -137,7 +143,7 @@ class TestCompositeMethod:
     )
     def test_dynamic_call_method_node(self, method_path: str) -> None:
         data_model = get_template_data_model()
-        dynamic_method = data_model.get_node("folder1/folder3/dynamic_call")
+        dynamic_method = data_model.get_node("folder1/dynamic_cfg/dynamic_call")
         node = data_model.get_node(method_path)
         value = 30
 
@@ -160,7 +166,7 @@ class TestCompositeMethod:
     )
     def test_dynamic_wait_node(self, wait_node_path: str) -> None:
         data_model = get_template_data_model()
-        dynamic_wait = data_model.get_node("folder1/folder3/dynamic_wait")
+        dynamic_wait = data_model.get_node("folder1/dynamic_cfg/dynamic_wait")
         node = data_model.get_node(wait_node_path)
 
         assert isinstance(node, VariableNode)
@@ -187,3 +193,39 @@ class TestCompositeMethod:
 
         node.value += 1
         assert dynamic_wait.is_terminated(ret.return_values[SCOPE_ID])
+
+    def test_remote_call_node(self) -> None:
+        method_path = "folder1/remote_cfg/remote_call"
+        data_model = get_template_data_model()
+        method = data_model.get_node(method_path)
+
+        assert isinstance(method, CompositeMethodNode)
+        result = method()
+
+        # assert that the method does complete
+        assert result.messages and len(result.messages) == 1
+        assert SCOPE_ID in result.return_values
+        scope = result.return_values[SCOPE_ID]
+        assert not method.is_terminated(scope)
+
+        message = result.messages[0]
+        assert message.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.METHOD,
+            _msg_name=MethodMsgName.INVOKE,
+        )
+        assert isinstance(message.payload, MethodPayload)
+        assert message.payload.node == method.cfg.nodes()[0].node
+        assert not message.payload.args
+        assert not message.payload.kwargs
+
+        # create response
+        message.sender, message.target = message.target, message.sender
+        message.header.type = MsgType.RESPONSE
+        message.header.msg_name = MethodMsgName.COMPLETED
+        message.payload.ret["remote_return_1"] = 45
+
+        assert method.handle_message(scope, message)
+        result = method.resume_execution(scope)
+        assert not result.messages
+        assert result.return_values["remote_return_1"] == 45

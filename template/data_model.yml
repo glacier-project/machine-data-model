@@ -33,8 +33,29 @@ root:
       measure_unit: "LengthUnits.Meter"
       initial_value: 30
     - !!FolderNode
-      name: "folder3"
-      description: "folder_description3"
+      name: "remote_cfg"
+      description: "folder_description_remote_cfg"
+      children:
+        - !!CompositeMethodNode
+          name: "remote_call"
+          description: "remote_call_description"
+          parameters:
+            - !!StringVariableNode
+              name: "remote_args_1"
+              initial_value: "remote_args_1"
+          returns:
+            - !!NumericalVariableNode
+              name: "remote_return_1"
+              measure_unit: "LengthUnits.Meter"
+              initial_value: 35
+          cfg:
+            - !!CallRemoteMethodNode
+              method: "/remote/method/path"
+              sender_id: "sender_id"
+              remote_id: "remote_id"
+    - !!FolderNode
+      name: "dynamic_cfg"
+      description: "folder_description_dynamic_cfg"
       children:
         - !!CompositeMethodNode
           name: "dynamic_read"
@@ -42,7 +63,7 @@ root:
           parameters:
             - !!StringVariableNode
               name: "node_path"
-              default_value: "folder1/n_variable1"
+              initial_value: "folder1/n_variable1"
           returns:
             - !!NumericalVariableNode
               name: "var_value"
@@ -57,11 +78,11 @@ root:
           parameters:
             - !!StringVariableNode
               name: "node_path"
-              default_value: "folder1/n_variable1"
+              initial_value: "folder1/n_variable1"
             - !!NumericalVariableNode
               name: "var_value"
               measure_unit: "LengthUnits.Meter"
-              default_value: 25
+              initial_value: 25
           cfg:
             - !!WriteVariableNode
               variable: "$node_path"
@@ -72,7 +93,7 @@ root:
           parameters:
             - !!StringVariableNode
               name: "method_path"
-              default_value: "folder1/folder2/async_method1"
+              initial_value: "folder1/folder2/async_method1"
           returns:
             - !!NumericalVariableNode
               name: "n_variable10"
@@ -86,11 +107,11 @@ root:
           parameters:
             - !!StringVariableNode
               name: "variable_path"
-              default_value: "folder1/n_variable1"
+              initial_value: "folder1/n_variable1"
             - !!NumericalVariableNode
               name: "value"
               measure_unit: "LengthUnits.Meter"
-              default_value: 20
+              initial_value: 20
           cfg:
             - !!WaitConditionNode
               variable: "$variable_path"
@@ -107,11 +128,11 @@ root:
             - !!StringVariableNode
               name: "s_variable5"
               description: "variable_description5"
-              default_value: "variable_value5" # update to default value?
+              initial_value: "variable_value5" # update to default value?
             - !!BooleanVariableNode
               name: "b_variable6"
               description: "variable_description6"
-              default_value: False # update to default value?
+              initial_value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable7"
@@ -124,11 +145,11 @@ root:
             - !!StringVariableNode
               name: "s_variable8"
               description: "variable_description5"
-              default_value: "variable_value5" # update to default value?
+              initial_value: "variable_value5" # update to default value?
             - !!BooleanVariableNode
               name: "b_variable9"
               description: "variable_description6"
-              default_value: False # update to default value?
+              initial_value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable10"
@@ -141,11 +162,11 @@ root:
             - !!StringVariableNode
               name: "s_variable11"
               description: "variable_description5"
-              default_value: "variable_value5" # update to default value?
+              initial_value: "variable_value5" # update to default value?
             - !!BooleanVariableNode
               name: "b_variable12"
               description: "variable_description6"
-              default_value: False # update to default value?
+              initial_value: False # update to default value?
           returns:
             - !!NumericalVariableNode
               name: "n_variable13"
@@ -178,11 +199,11 @@ root:
             - !!BooleanVariableNode
               name: "var_in"
               description: "variable_description6"
-              default_value: True # update to default value?
+              initial_value: True # update to default value?
             - !!StringVariableNode
               name: "node_path"
               description: ""
-              default_value: "default"
+              initial_value: "default"
           returns:
             - !!BooleanVariableNode
               name: "var_out"

@@ -31,6 +31,19 @@ class ControlFlow:
         """
         return self._nodes
 
+    def get_current_node(self, scope: ControlFlowScope) -> ControlFlowNode | None:
+        """
+        Get the current control flow node based on the program counter in the scope of the control flow graph.
+        :param scope: The scope of the control flow graph.
+        :return: The current control flow node, or None if the program counter is out of bounds.
+        """
+
+        # If the cfg is terminated return None
+        if not scope.is_active():
+            return None
+
+        return self._nodes[scope.get_pc()]
+
     def execute(self, scope: ControlFlowScope) -> list[FrostMessage]:
         """
         Executes the control flow graph with the specified scope.

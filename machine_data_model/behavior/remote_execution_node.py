@@ -139,6 +139,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
         return FrostMessage(
+            correlation_id=scope.id(),
             sender=self._sender_id,
             target=self._remote_id,
             header=FrostHeader(

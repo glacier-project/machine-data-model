@@ -85,6 +85,7 @@ class ErrorCode(int, Enum):
     NOT_SUPPORTED = 103
     NOT_IMPLEMENTED = 104
     VERSION_NOT_SUPPORTED = 105
+    BAD_RESPONSE = 200
 
 
 class ErrorMessages(str, Enum):
@@ -107,6 +108,7 @@ class ErrorMessages(str, Enum):
     BAD_REQUEST = "Bad request"
     NOT_ALLOWED = "The requested operation is not allowed on the specified node"
     VERSION_NOT_SUPPORTED = "The requested version of the protocol is not supported"
+    BAD_RESPONSE = "The response is invalid or malformed"
 
 
 @dataclass(init=True, slots=True)

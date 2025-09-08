@@ -2,11 +2,13 @@ from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
+from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from typing import Any
 import uuid
 from machine_data_model.nodes.method_node import MethodExecutionResult
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 
 SCOPE_ID = "@scope_id"
@@ -110,6 +112,22 @@ class CompositeMethodNode(MethodNode):
         if scope_id not in self._scopes:
             raise ValueError(f"Scope '{scope_id}' not found")
         del self._scopes[scope_id]
+
+    def handle_message(self, scope_id: str, message: FrostMessage) -> bool:
+        """Handle the response message in response to the request generated from the execution of the current remote node.
+
+        :param scope: The scope of the control flow graph.
+        :param message: The response to the current remote execution node request.
+        :return: True if the method can be resumed, False otherwise.
+        """
+        scope = self._get_scope(scope_id)
+
+        # get current node
+        node = self.cfg.get_current_node(scope)
+        if not isinstance(node, RemoteExecutionNode):
+            return False
+
+        return node.handle_response(scope=scope, response=message)
 
     def resume_execution(self, scope_id: str) -> MethodExecutionResult:
         """

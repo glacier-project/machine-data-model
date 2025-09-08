@@ -9,6 +9,9 @@ from machine_data_model.builder.data_model_builder import DataModelBuilder
 from machine_data_model.nodes.composite_method.composite_method_node import SCOPE_ID
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     StringVariableNode,
@@ -64,20 +67,21 @@ def get_value(data_model_node: DataModelNode) -> Any:
     return None
 
 
+VAR_PATHS = [
+    "root/n_variable1",
+    "root/folder2/method1/s_variable5",
+    "root/folder2/method1/b_variable6",
+    "root/o_variable2/s_variable3",
+    "root/o_variable2/s_variable4",
+]
+
+
 @pytest.mark.parametrize(
-    "sender, target, var_name",
-    [
-        (str(uuid.uuid4()), str(uuid.uuid4()), var_name)
-        for var_name in [
-            "root/n_variable1",
-            "root/folder2/method1/s_variable5",
-            "root/folder2/method1/b_variable6",
-            "root/o_variable2/s_variable3",
-            "root/o_variable2/s_variable4",
-        ]
-    ],
+    "sender, target",
+    [(str(uuid.uuid4()), str(uuid.uuid4()))],
 )
 class TestGlacierProtocolMng:
+    @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_variable_read_request(
         self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
@@ -108,6 +112,7 @@ class TestGlacierProtocolMng:
             var_name
         )
 
+    @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_variable_write_request(
         self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
@@ -142,7 +147,7 @@ class TestGlacierProtocolMng:
         )
 
     def test_handle_multiple_write_request(
-        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str
     ) -> None:
         write_list = [
             FrostMessage(
@@ -186,6 +191,7 @@ class TestGlacierProtocolMng:
             assert isinstance(res, FrostMessage)
             assert not isinstance(res.payload, ErrorPayload)
 
+    @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_variable_subscribe(
         self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
@@ -229,6 +235,7 @@ class TestGlacierProtocolMng:
         assert isinstance(update.payload.value, dict)
         assert update.payload.value["s_variable4"] == "Confirm"
 
+    @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_method_call_request(
         self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
@@ -281,7 +288,7 @@ class TestGlacierProtocolMng:
         assert response.payload.ret["out_var"] == param_value
 
     def test_handle_composite_msg_request(
-        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str
     ) -> None:
         wait_node = manager.get_data_model().get_node("/folder1/n_variable2")
         msg = FrostMessage(
@@ -315,7 +322,7 @@ class TestGlacierProtocolMng:
         assert manager.get_update_messages()
 
     def test_handle_protocol_register(
-        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str
     ) -> None:
         """
         Test handling a PROTOCOL REGISTER request.
@@ -350,3 +357,59 @@ class TestGlacierProtocolMng:
         assert response.header.namespace == MsgNamespace.PROTOCOL
         # Acknowledge registration
         assert response.header.msg_name == ProtocolMsgName.REGISTER
+
+    def test_remote_call_request(
+        self, manager: FrostProtocolMng, sender: str, target: str
+    ) -> None:
+        method_path = "folder1/remote_cfg/remote_call"
+        method = manager.get_data_model().get_node(method_path)
+        assert isinstance(method, CompositeMethodNode)
+
+        msg = FrostMessage(
+            sender=sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE,
+            ),
+            payload=MethodPayload(node=method_path),
+        )
+        response = manager.handle_request(msg)
+
+        assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
+        assert response.target == sender
+        assert response.sender == target
+        assert isinstance(response.payload, MethodPayload)
+        assert SCOPE_ID in response.payload.ret
+
+        assert len(manager.get_update_messages()) == 1
+        request = manager.get_update_messages()[0]
+        manager.clear_update_messages()
+        assert request.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.METHOD,
+            _msg_name=MethodMsgName.INVOKE,
+        )
+        assert isinstance(request.payload, MethodPayload)
+        assert request.payload.node == method.cfg.nodes()[0].node
+        assert not request.payload.args
+        assert not request.payload.kwargs
+
+        # resume the method
+        request.sender, request.target = request.target, request.sender
+        request.header.type = MsgType.RESPONSE
+        request.header.msg_name = MethodMsgName.COMPLETED
+        request.payload.ret["remote_return_1"] = 45
+
+        response = manager.handle_request(request)
+        assert isinstance(response, FrostMessage)
+        assert response.header.type == MsgType.RESPONSE
+        assert isinstance(response.payload, MethodPayload)
+        assert len(response.payload.ret) == 1
+        assert response.payload.ret["remote_return_1"] == 45
+        assert not manager.get_update_messages()

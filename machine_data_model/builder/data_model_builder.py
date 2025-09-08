@@ -29,6 +29,7 @@ from machine_data_model.nodes.variable_node import (
     ObjectVariableNode,
     StringVariableNode,
 )
+from machine_data_model.behavior.remote_execution_node import CallRemoteMethodNode
 
 
 class DataModelBuilder:
@@ -246,6 +247,18 @@ class DataModelBuilder:
             kwargs=data.get("kwargs", {}),
         )
 
+    def _get_call_remote_method_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> CallRemoteMethodNode:
+        data = loader.construct_mapping(node, deep=True)
+        return CallRemoteMethodNode(
+            method_node=data.get("method", ""),
+            sender_id=data["sender_id"],
+            remote_id=data["remote_id"],
+            args=data.get("args", []),
+            kwargs=data.get("kwargs", {}),
+        )
+
     def _get_composite_method_node(
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> MethodNode:
@@ -360,7 +373,7 @@ class DataModelBuilder:
             self._get_composite_method_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.read_variable_node.ReadVariableNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.read_variable_node.ReadVariableNode",
             self._get_read_variable_node,
         )
         yaml.FullLoader.add_constructor(
@@ -368,7 +381,7 @@ class DataModelBuilder:
             self._get_read_variable_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.write_variable_node.WriteVariableNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.write_variable_node.WriteVariableNode",
             self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
@@ -376,7 +389,7 @@ class DataModelBuilder:
             self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.wait_condition_node.WaitConditionNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.wait_condition_node.WaitConditionNode",
             self._get_wait_node,
         )
         yaml.FullLoader.add_constructor(
@@ -384,10 +397,18 @@ class DataModelBuilder:
             self._get_wait_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.call_method_node.CallMethodNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.call_method_node.CallMethodNode",
             self._get_call_method_node,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:CallMethodNode",
             self._get_call_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.remote_execution_node.CallRemoteMethodNode",
+            self._get_call_remote_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:CallRemoteMethodNode",
+            self._get_call_remote_method_node,
         )
