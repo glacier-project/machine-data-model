@@ -29,7 +29,11 @@ from machine_data_model.nodes.variable_node import (
     ObjectVariableNode,
     StringVariableNode,
 )
-from machine_data_model.behavior.remote_execution_node import CallRemoteMethodNode
+from machine_data_model.behavior.remote_execution_node import (
+    CallRemoteMethodNode,
+    WriteRemoteVariableNode,
+    ReadRemoteVariableNode,
+)
 
 
 class DataModelBuilder:
@@ -252,11 +256,33 @@ class DataModelBuilder:
     ) -> CallRemoteMethodNode:
         data = loader.construct_mapping(node, deep=True)
         return CallRemoteMethodNode(
-            method_node=data.get("method", ""),
+            method_node=data["method"],
             sender_id=data["sender_id"],
             remote_id=data["remote_id"],
             args=data.get("args", []),
             kwargs=data.get("kwargs", {}),
+        )
+
+    def _get_read_remote_variable_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> ReadRemoteVariableNode:
+        data = loader.construct_mapping(node, deep=True)
+        return ReadRemoteVariableNode(
+            variable_node=data["variable"],
+            sender_id=data["sender_id"],
+            remote_id=data["remote_id"],
+            store_as=data.get("store_as", ""),
+        )
+
+    def _get_write_remote_variable_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> WriteRemoteVariableNode:
+        data = loader.construct_mapping(node, deep=True)
+        return WriteRemoteVariableNode(
+            variable_node=data["variable"],
+            sender_id=data["sender_id"],
+            remote_id=data["remote_id"],
+            value=data["value"],
         )
 
     def _get_composite_method_node(

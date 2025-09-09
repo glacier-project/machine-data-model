@@ -53,6 +53,36 @@ root:
               method: "/remote/method/path"
               sender_id: "sender_id"
               remote_id: "remote_id"
+        - !!CompositeMethodNode
+          name: "remote_read"
+          description: "remote_read_description"
+          parameters: []
+          returns:
+            - !!NumericalVariableNode
+              name: "return_variable_1"
+              measure_unit: "LengthUnits.Meter"
+              initial_value: 35
+          cfg:
+            - !!ReadRemoteVariableNode
+              variable: "/remote/variable/path"
+              sender_id: "sender_id"
+              remote_id: "remote_id"
+              store_as: "return_variable_1"
+        - !!CompositeMethodNode
+          name: "remote_write"
+          description: "remote_write_description"
+          parameters:
+            - !!NumericalVariableNode
+              name: "parameter_1"
+              measure_unit: "LengthUnits.Meter"
+              initial_value: 35
+          returns: []
+          cfg:
+            - !!ReadRemoteVariableNode
+              variable: "/remote/variable/path"
+              sender_id: "sender_id"
+              remote_id: "remote_id"
+              value: "$parameter_1"
     - !!FolderNode
       name: "dynamic_cfg"
       description: "folder_description_dynamic_cfg"
