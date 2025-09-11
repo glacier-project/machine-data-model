@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from threading import Thread
 import uuid
@@ -74,11 +75,31 @@ class AbstractConnector(ABC):
         ip: str | None = None,
         port: int | None = None,
         event_loop: AbstractEventLoop | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        password_env_var: str | None = None,
     ) -> None:
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str | None = name
         self._ip: str | None = ip
         self._port: int | None = port
+        self._username: str | None = username
+
+        if password is not None and password_env_var is not None:
+            raise ValueError(
+                f"Connector '{self.name}': only set one of the following attributes: 'password' or 'password_env_var'"
+            )
+
+        if password_env_var is not None and os.getenv(password_env_var) is None:
+            raise ValueError(
+                f"Connector '{self.name}': password environment variable '{password_env_var}' is not set"
+            )
+
+        self._password: str | None = (
+            os.environ.get(password_env_var)
+            if password_env_var is not None
+            else password
+        )
 
         self._event_loop = (
             create_event_loop_thread() if event_loop is None else event_loop

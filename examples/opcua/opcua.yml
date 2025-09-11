@@ -12,6 +12,9 @@ connectors:
     # private_key_file_path: "certificates/peer-private-key-example-4.pem"
     # certificate_file_path: "certificates/peer-certificate-example-4.der"
     # trust_store_certificates_paths: ['certificates']
+    # username: "username"
+    # password: "password"
+    # password_env_var: "env_var_with_pwd"  # use either password or password_env_var
 root:
   !!FolderNode
   name: "Objects"

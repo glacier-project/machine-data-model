@@ -339,6 +339,9 @@ class DataModelBuilder:
             trust_store_certificates_paths=data.get(
                 "trust_store_certificates_paths", None
             ),
+            username=data.get("username", None),
+            password=data.get("password", None),
+            password_env_var=data.get("password_env_var", None),
         )
 
     def _add_yaml_constructors(self) -> None:

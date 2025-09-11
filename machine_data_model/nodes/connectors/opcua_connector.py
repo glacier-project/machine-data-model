@@ -69,6 +69,9 @@ class OpcuaConnector(AbstractConnector):
         private_key_file_path: str | None = None,
         certificate_file_path: str | None = None,
         trust_store_certificates_paths: list[str] | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        password_env_var: str | None = None,
     ) -> None:
         """
         Initializes an OPCUA client.
@@ -83,8 +86,19 @@ class OpcuaConnector(AbstractConnector):
         :param private_key_file_path: path to the private key file
         :param certificate_file_path: path to the certificate file
         :param trust_store_certificates_paths: paths which contains certificates for the trust store
+        :param username: OPC-UA username. Keep it set to None if the username is not required
+        :param password: OPC-UA password. Keep it set to None if the password is not required
+        :param password_env_var: environment variable which contains the OPC-UA password
         """
-        super().__init__(id=id, name=name, ip=ip, port=port)
+        super().__init__(
+            id=id,
+            name=name,
+            ip=ip,
+            port=port,
+            username=username,
+            password=password,
+            password_env_var=password_env_var,
+        )
         self._security_policy: str | None = security_policy
         self._client: AsyncuaClient | None = None
         self._host_name: str = (
@@ -202,6 +216,12 @@ class OpcuaConnector(AbstractConnector):
 
         client = AsyncuaClient(url=url)
         client.application_uri = self._client_app_uri
+
+        if self._username:
+            client.set_user(self._username)
+
+        if self._password:
+            client.set_password(self._password)
 
         security_policy = _security_policy_string_to_asyncua_policy(
             self._security_policy
