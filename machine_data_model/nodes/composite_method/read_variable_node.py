@@ -38,7 +38,9 @@ class ReadVariableNode(ControlFlowNode):
         :return: Returns always True.
         """
         ref_variable = self._get_ref_node(scope)
-        assert isinstance(ref_variable, VariableNode)
+        assert isinstance(
+            ref_variable, VariableNode
+        ), f"Node {ref_variable} is not a VariableNode"
 
         value = ref_variable.read()
         name = self.store_as if self.store_as else ref_variable.name

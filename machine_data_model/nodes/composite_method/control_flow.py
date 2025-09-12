@@ -2,6 +2,9 @@ from machine_data_model.nodes.composite_method.control_flow_node import ControlF
 from machine_data_model.nodes.composite_method.control_flow_scope import (
     ControlFlowScope,
 )
+from machine_data_model.nodes.composite_method.control_flow_node import (
+    is_template_variable,
+)
 
 
 class ControlFlow:
@@ -39,6 +42,8 @@ class ControlFlow:
         pc = scope.get_pc()
         while pc < len(self._nodes):
             node = self._nodes[pc]
+            if is_template_variable(node.node):
+                node.node = scope.resolve_template_variable(node.node)
             if not node.execute(scope):
                 return
             pc += 1

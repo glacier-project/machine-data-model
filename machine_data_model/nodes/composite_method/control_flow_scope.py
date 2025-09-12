@@ -46,6 +46,23 @@ class ControlFlowScope:
         """
         return self._locals[var_name]
 
+    def resolve_template_variable(self, string: str) -> Any:
+        """
+        Resolve a string that may contain variable references in the scope.
+
+        :param string: The string to resolve.
+        :return: The resolved string with variable references replaced by their values.
+        """
+        before = string.split("${")[0]
+        after = string.split("}")[-1]
+        result = string.split("${")[-1]
+        result = result.split("}")[0]
+        assert self._locals[
+            result
+        ], f"Variable '{result}' not found in scope {self._locals[result]}"
+        result = str(self._locals[result][0])
+        return before + result + after
+
     def set_value(self, var_name: str, value: Any) -> None:
         """
         Sets the value of a local variable in the scope.
