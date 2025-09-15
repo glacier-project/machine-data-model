@@ -335,6 +335,18 @@ class MethodNode(DataModelNode):
         """
         return self.__str__()
 
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, MethodNode):
+            return False
+
+        if not self._eq_base(other):
+            return False
+
+        return self._parameters == other._parameters and self._returns == other._returns
+
 
 class AsyncMethodNode(MethodNode):
     """

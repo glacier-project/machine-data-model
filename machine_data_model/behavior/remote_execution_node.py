@@ -43,8 +43,8 @@ class RemoteExecutionNode(ControlFlowNode):
         successors: list[ControlFlowNode] | None = None,
     ):
         super().__init__(node_path, successors)
-        self._sender_id: str = sender_id
-        self._remote_id: str = remote_id
+        self.sender_id: str = sender_id
+        self.remote_id: str = remote_id
 
     @abstractmethod
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
@@ -73,8 +73,8 @@ class RemoteExecutionNode(ControlFlowNode):
         """
         if (
             response.correlation_id != scope.active_request
-            or response.sender != self._remote_id
-            or self._sender_id != response.target
+            or response.sender != self.remote_id
+            or self.sender_id != response.target
         ):
             return False
 
@@ -105,6 +105,19 @@ class RemoteExecutionNode(ControlFlowNode):
         # send the request message
         return ExecutionNodeResult(False, [msg])
 
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, RemoteExecutionNode):
+            return False
+
+        return (
+            super().__eq__(other)
+            and self.sender_id == other.sender_id
+            and self.remote_id == other.remote_id
+        )
+
 
 class CallRemoteMethodNode(RemoteExecutionNode):
     """
@@ -124,8 +137,8 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         successors: list[ControlFlowNode] | None = None,
     ):
         super().__init__(method_node, sender_id, remote_id, successors)
-        self._args = args
-        self._kwargs = kwargs
+        self.args = args
+        self.kwargs = kwargs
 
     @override
     def _validate_response(
@@ -153,8 +166,8 @@ class CallRemoteMethodNode(RemoteExecutionNode):
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
         return FrostMessage(
             correlation_id=scope.id(),
-            sender=self._sender_id,
-            target=self._remote_id,
+            sender=self.sender_id,
+            target=self.remote_id,
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -163,9 +176,22 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             ),
             payload=MethodPayload(
                 node=self.node,
-                args=[resolve_value(arg, scope) for arg in self._args],
-                kwargs={k: resolve_value(v, scope) for k, v in self._kwargs.items()},
+                args=[resolve_value(arg, scope) for arg in self.args],
+                kwargs={k: resolve_value(v, scope) for k, v in self.kwargs.items()},
             ),
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, CallRemoteMethodNode):
+            return False
+
+        return (
+            super().__eq__(other)
+            and self.args == other.args
+            and self.kwargs == other.kwargs
         )
 
 
@@ -185,7 +211,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         successors: list[ControlFlowNode] | None = None,
     ):
         super().__init__(variable_node, sender_id, remote_id, successors)
-        self._store_as = store_as
+        self.store_as = store_as
 
     def _validate_response(
         self, scope: ControlFlowScope, response: FrostMessage
@@ -204,7 +230,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
             return False
 
         scope.set_value(
-            self._store_as if self._store_as else response.payload.node.split("/")[-1],
+            self.store_as if self.store_as else response.payload.node.split("/")[-1],
             response.payload.value,
         )
 
@@ -213,8 +239,8 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
         return FrostMessage(
             correlation_id=scope.id(),
-            sender=self._sender_id,
-            target=self._remote_id,
+            sender=self.sender_id,
+            target=self.remote_id,
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -225,6 +251,15 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
                 node=self.node,
             ),
         )
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, ReadRemoteVariableNode):
+            return False
+
+        return super().__eq__(other) and self.store_as == other.store_as
 
 
 class WriteRemoteVariableNode(RemoteExecutionNode):
@@ -244,7 +279,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         successors: list[ControlFlowNode] | None = None,
     ):
         super().__init__(variable_node, sender_id, remote_id, successors)
-        self._value = value
+        self.value = value
 
     def _validate_response(
         self, scope: ControlFlowScope, response: FrostMessage
@@ -267,8 +302,8 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
         return FrostMessage(
             correlation_id=scope.id(),
-            sender=self._sender_id,
-            target=self._remote_id,
+            sender=self.sender_id,
+            target=self.remote_id,
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -276,9 +311,18 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
                 msg_name=VariableMsgName.WRITE,
             ),
             payload=VariablePayload(
-                node=self.node, value=resolve_value(self._value, scope)
+                node=self.node, value=resolve_value(self.value, scope)
             ),
         )
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, WriteRemoteVariableNode):
+            return False
+
+        return super().__eq__(other) and self.value == other.value
 
 
 class WaitRemoteEventNode(RemoteExecutionNode):

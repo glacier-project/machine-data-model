@@ -17,8 +17,12 @@ from machine_data_model.protocols.frost_v1.frost_header import (
     MsgType,
     MethodMsgName,
     MsgNamespace,
+    VariableMsgName,
 )
-from machine_data_model.protocols.frost_v1.frost_payload import MethodPayload
+from machine_data_model.protocols.frost_v1.frost_payload import (
+    MethodPayload,
+    VariablePayload,
+)
 from tests import get_dummy_method_node
 from tests.nodes.composite_method import get_non_blocking_cf, get_blocking_cf
 from tests.test_data_model import get_template_data_model
@@ -229,3 +233,71 @@ class TestCompositeMethod:
         result = method.resume_execution(scope)
         assert not result.messages
         assert result.return_values["remote_return_1"] == 45
+
+    def test_remote_read_node(self) -> None:
+        method_path = "folder1/remote_cfg/remote_read"
+        data_model = get_template_data_model()
+        method = data_model.get_node(method_path)
+        assert isinstance(method, CompositeMethodNode)
+        remote_read_node = method.cfg.nodes()[0]
+
+        result = method()
+
+        # assert that the method does complete
+        assert result.messages and len(result.messages) == 1
+        assert SCOPE_ID in result.return_values
+        scope = result.return_values[SCOPE_ID]
+        assert not method.is_terminated(scope)
+
+        message = result.messages[0]
+        assert message.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.READ,
+        )
+        assert isinstance(message.payload, VariablePayload)
+        assert message.payload.node == remote_read_node.node
+
+        # create response
+        message.sender, message.target = message.target, message.sender
+        message.header.type = MsgType.RESPONSE
+        message.payload.value = method.returns[0].read()
+
+        assert method.handle_message(scope, message)
+        result = method.resume_execution(scope)
+        assert not result.messages
+        assert method.is_terminated(scope)
+        assert result.return_values[method.returns[0].name] == method.returns[0].read()
+
+    def test_remote_write_node(self) -> None:
+        method_path = "folder1/remote_cfg/remote_write"
+        data_model = get_template_data_model()
+        method = data_model.get_node(method_path)
+        assert isinstance(method, CompositeMethodNode)
+        remote_read_node = method.cfg.nodes()[0]
+
+        result = method()
+
+        # assert that the method does complete
+        assert result.messages and len(result.messages) == 1
+        assert SCOPE_ID in result.return_values
+        scope = result.return_values[SCOPE_ID]
+        assert not method.is_terminated(scope)
+
+        message = result.messages[0]
+        assert message.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.WRITE,
+        )
+        assert isinstance(message.payload, VariablePayload)
+        assert message.payload.node == remote_read_node.node
+
+        # create response
+        message.sender, message.target = message.target, message.sender
+        message.header.type = MsgType.RESPONSE
+
+        assert method.handle_message(scope, message)
+        result = method.resume_execution(scope)
+        assert not result.messages
+        assert method.is_terminated(scope)

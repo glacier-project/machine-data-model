@@ -186,3 +186,12 @@ class CompositeMethodNode(MethodNode):
 
     def __str__(self) -> str:
         return f"CompositeMethodNode(id={self.id}, name={self.name}, description={self.description}, parameters={self.parameters}, returns={self.returns})"
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, CompositeMethodNode):
+            return False
+
+        return super().__eq__(other) and self.cfg == other.cfg

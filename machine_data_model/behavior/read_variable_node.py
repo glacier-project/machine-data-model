@@ -47,3 +47,12 @@ class ReadVariableNode(LocalExecutionNode):
         name = self.store_as if self.store_as else ref_variable.name
         scope.set_value(name, value)
         return execution_success()
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, ReadVariableNode):
+            return False
+
+        return super().__eq__(other) and self.store_as == other.store_as

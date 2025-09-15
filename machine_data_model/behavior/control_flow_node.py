@@ -84,6 +84,15 @@ class ControlFlowNode(ABC):
         """
         pass
 
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, ControlFlowNode):
+            return False
+
+        return self.node == other.node
+
 
 class LocalExecutionNode(ControlFlowNode):
     """
@@ -156,3 +165,12 @@ class LocalExecutionNode(ControlFlowNode):
         node_path = resolve_value(self.node, scope)
         assert self.get_data_model_node is not None
         return self.get_data_model_node(node_path)
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, LocalExecutionNode):
+            return False
+
+        return super().__eq__(other)

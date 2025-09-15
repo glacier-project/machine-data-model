@@ -67,4 +67,18 @@ class ControlFlow:
         scope.deactivate()
         return messages
 
-    # callback for listening for responses in the protocol manager
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, ControlFlow):
+            return False
+
+        if len(self._nodes) != len(other._nodes):
+            return False
+
+        for i, node in enumerate(self._nodes):
+            if node != other._nodes[i]:
+                return False
+
+        return True

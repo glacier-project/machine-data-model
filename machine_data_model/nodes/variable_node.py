@@ -98,12 +98,10 @@ class VariableNode(DataModelNode):
 
     @property
     def value(self) -> Any:
-        # Getter for the 'value' property
         return self.read()
 
     @value.setter
     def value(self, value: Any) -> None:
-        # Setter for the 'value' property
         self.write(value)
 
     def has_subscribers(self) -> bool:
@@ -238,6 +236,15 @@ class VariableNode(DataModelNode):
         :return: An empty iterator.
         """
         yield from []
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, VariableNode):
+            return False
+
+        return self._eq_base(other) and self.read() == other.read()
 
 
 class NumericalVariableNode(VariableNode):

@@ -75,6 +75,7 @@ class DataModelBuilder:
         data = loader.construct_mapping(node, deep=True)
         return FolderNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "children": {child.name: child for child in data.get("children", [])},
@@ -93,6 +94,7 @@ class DataModelBuilder:
         data = loader.construct_mapping(node)
         return NumericalVariableNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "measure_unit": data.get("measure_unit", NoneMeasureUnits.NONE),
@@ -112,6 +114,7 @@ class DataModelBuilder:
         data = loader.construct_mapping(node)
         return StringVariableNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", ""),
@@ -130,6 +133,7 @@ class DataModelBuilder:
         data = loader.construct_mapping(node)
         return BooleanVariableNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", False),
@@ -170,6 +174,7 @@ class DataModelBuilder:
         data = loader.construct_mapping(node, deep=True)
         method = ctor(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "parameters": [param for param in data.get("parameters", [])],
@@ -296,6 +301,7 @@ class DataModelBuilder:
         """
         data = loader.construct_mapping(node, deep=True)
         method = CompositeMethodNode(
+            id=data.get("id", None),
             name=data.get("name", ""),
             description=data.get("description", ""),
             parameters=[param for param in data.get("parameters", [])],
@@ -437,4 +443,20 @@ class DataModelBuilder:
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:CallRemoteMethodNode",
             self._get_call_remote_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.remote_execution_node.ReadRemoteVariableNode",
+            self._get_read_remote_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:ReadRemoteVariableNode",
+            self._get_read_remote_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.remote_execution_node.WriteRemoteVariableNode",
+            self._get_write_remote_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:WriteRemoteVariableNode",
+            self._get_write_remote_variable_node,
         )

@@ -67,3 +67,16 @@ class CallMethodNode(LocalExecutionNode):
         res = ref_method(*args, **kwargs)
         scope.set_all_values(**res.return_values)
         return execution_success()
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, CallMethodNode):
+            return False
+
+        return (
+            super().__eq__(other)
+            and self.args == other.args
+            and self.kwargs == other.kwargs
+        )

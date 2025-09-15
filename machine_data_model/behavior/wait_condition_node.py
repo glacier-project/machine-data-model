@@ -117,3 +117,12 @@ class WaitConditionNode(LocalExecutionNode):
 
         ref_variable.unsubscribe(scope.id())
         return execution_success()
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, WaitConditionNode):
+            return False
+
+        return super().__eq__(other) and self.op == other.op and self.rhs == other.rhs

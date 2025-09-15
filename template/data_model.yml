@@ -78,7 +78,7 @@ root:
               initial_value: 35
           returns: []
           cfg:
-            - !!ReadRemoteVariableNode
+            - !!WriteRemoteVariableNode
               variable: "/remote/variable/path"
               sender_id: "sender_id"
               remote_id: "remote_id"

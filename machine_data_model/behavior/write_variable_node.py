@@ -58,3 +58,12 @@ class WriteVariableNode(LocalExecutionNode):
         value = resolve_value(self._value, scope)
         ref_variable.write(value)
         return execution_success()
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, WriteVariableNode):
+            return False
+
+        return super().__eq__(other) and self.value == other.value
