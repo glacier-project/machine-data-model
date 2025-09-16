@@ -191,4 +191,4 @@ class TestCompositeMethod:
         assert (
             dynamic_resolution(["empty_folder"], ["n_variable_empty"]).get("result")
             == 10
-        ), f"Failed on {dynamic_resolution(["n_variable0"])}"
+        ), "Failed on dynamic_resolution"
