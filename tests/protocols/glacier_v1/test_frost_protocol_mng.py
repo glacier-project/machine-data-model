@@ -413,3 +413,110 @@ class TestGlacierProtocolMng:
         assert len(response.payload.ret) == 1
         assert response.payload.ret["remote_return_1"] == 45
         assert not manager.get_update_messages()
+
+    def test_remote_read_request(
+        self, manager: FrostProtocolMng, sender: str, target: str
+    ) -> None:
+        method_path = "folder1/remote_cfg/remote_read"
+        method = manager.get_data_model().get_node(method_path)
+        assert isinstance(method, CompositeMethodNode)
+
+        msg = FrostMessage(
+            sender=sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE,
+            ),
+            payload=MethodPayload(node=method_path),
+        )
+        response = manager.handle_request(msg)
+
+        assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
+        assert response.target == sender
+        assert response.sender == target
+        assert isinstance(response.payload, MethodPayload)
+        assert SCOPE_ID in response.payload.ret
+
+        assert len(manager.get_update_messages()) == 1
+        request = manager.get_update_messages()[0]
+        manager.clear_update_messages()
+        assert request.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.READ,
+        )
+        assert isinstance(request.payload, VariablePayload)
+        assert request.payload.node == method.cfg.nodes()[0].node
+        assert request.payload.value is None
+
+        # resume the method
+        request.sender, request.target = request.target, request.sender
+        request.header.type = MsgType.RESPONSE
+        request.payload.value = method.returns[0].read()
+
+        response = manager.handle_request(request)
+        assert isinstance(response, FrostMessage)
+        assert response.header.type == MsgType.RESPONSE
+        assert isinstance(response.payload, MethodPayload)
+        assert len(response.payload.ret) == 1
+        assert response.payload.ret["return_variable_1"] == method.returns[0].read()
+        assert not manager.get_update_messages()
+
+    def test_remote_write_request(
+        self, manager: FrostProtocolMng, sender: str, target: str
+    ) -> None:
+        method_path = "folder1/remote_cfg/remote_write"
+        method = manager.get_data_model().get_node(method_path)
+        assert isinstance(method, CompositeMethodNode)
+
+        msg = FrostMessage(
+            sender=sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE,
+            ),
+            payload=MethodPayload(node=method_path),
+        )
+        response = manager.handle_request(msg)
+
+        assert isinstance(response, FrostMessage)
+        assert msg.identifier != response.identifier
+        assert msg.correlation_id == response.correlation_id
+        assert response.target == sender
+        assert response.sender == target
+        assert isinstance(response.payload, MethodPayload)
+        assert SCOPE_ID in response.payload.ret
+
+        assert len(manager.get_update_messages()) == 1
+        request = manager.get_update_messages()[0]
+        manager.clear_update_messages()
+        assert request.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.WRITE,
+        )
+        assert isinstance(request.payload, VariablePayload)
+        assert request.payload.node == method.cfg.nodes()[0].node
+        assert request.payload.value == method.parameters[0].read()
+
+        # resume the method
+        request.sender, request.target = request.target, request.sender
+        request.header.type = MsgType.RESPONSE
+        assert request.payload.value == method.parameters[0].read()
+
+        response = manager.handle_request(request)
+        assert isinstance(response, FrostMessage)
+        assert response.header.type == MsgType.RESPONSE
+        assert isinstance(response.payload, MethodPayload)
+        assert len(response.payload.ret) == 0
+        assert not manager.get_update_messages()

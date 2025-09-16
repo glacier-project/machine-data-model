@@ -45,7 +45,7 @@ from tests import (
 )
 
 
-class TestControlFlowNode:
+class TestLocalExecutionNode:
     @pytest.mark.parametrize(
         "method_node",
         [
