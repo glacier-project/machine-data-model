@@ -573,6 +573,20 @@ class ObjectVariableNode(VariableNode):
         """
         return self._properties
 
+    def __getattr__(self, name: str) -> Any:
+        """
+        Get a property of the object variable using attribute access.
+
+        :param name: The name of the property to get.
+        :return: The property node.
+        :raises AttributeError: If the property does not exist.
+        """
+        if "_properties" in self.__dict__ and name in self._properties:
+            return self._properties[name]
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
     @override
     def _read_value(self) -> dict[str, Any]:
         """

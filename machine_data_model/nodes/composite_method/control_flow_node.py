@@ -18,6 +18,17 @@ def is_variable(value: Any) -> bool:
     return isinstance(value, str) and value.startswith("$")
 
 
+def is_template_variable(value: Any) -> bool:
+    """
+    Check if the value is a template variable that must be resolved in the scope.
+    A template variable is considered to be a string starting with '${' and ending with '}'.
+
+    :param value: The value to check.
+    :return: True if the value is a template variable, otherwise False.
+    """
+    return isinstance(value, str) and "${" in value and "}" in value
+
+
 def resolve_value(value: Any, scope: ControlFlowScope) -> Any:
     """
     Resolve the value of a variable in the scope. If the value is a string starting with '$',
@@ -67,7 +78,11 @@ class ControlFlowNode(ABC):
 
         :return: True if the node is static, otherwise False.
         """
-        return self.node is not None and not is_variable(self.node)
+        return (
+            self.node is not None
+            and not is_variable(self.node)
+            and not is_template_variable(self.node)
+        )
 
     def set_ref_node(self, ref_node: DataModelNode) -> None:
         """
@@ -95,12 +110,19 @@ class ControlFlowNode(ABC):
         :param scope: The scope of the control flow graph.
         :return: The node referenced by the current node.
         """
-
-        if self.is_node_static():
+        if self.is_node_static() and self._ref_node is not None:
             return self._ref_node
-        node_path = resolve_value(self.node, scope)
+        node_path = ""
+        if is_variable(self.node):
+            node_path = resolve_value(self.node, scope)
+            assert node_path != "", f"Invalid template variable: {self.node}"
+        else:
+            node_path = self.node
+
         assert self.get_data_model_node is not None
-        return self.get_data_model_node(node_path)
+        x = self.get_data_model_node(node_path)
+        assert x is not None, f"Invalid node path: {node_path}"
+        return x
 
     @abstractmethod
     def execute(self, scope: ControlFlowScope) -> bool:

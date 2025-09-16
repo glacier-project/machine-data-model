@@ -188,3 +188,18 @@ class TestVariableNode:
         assert obj_var.description == var_description
         assert obj_var.has_property("a")
         assert obj_var.value["a"] == 10
+
+    def test_object_variable_node_getattr(
+        self, var_name: str, var_description: str
+    ) -> None:
+        properties = self.properties
+        obj_var = ObjectVariableNode(
+            name=var_name, description=var_description, properties=properties
+        )
+
+        num_var = NumericalVariableNode(
+            name="example", description="b", value=-1, measure_unit=LengthUnits.Meter
+        )
+        obj_var.add_property(num_var)
+
+        assert obj_var.example.value == num_var.value
