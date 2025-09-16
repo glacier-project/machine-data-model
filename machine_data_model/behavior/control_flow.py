@@ -1,5 +1,8 @@
 from typing import Sequence
-from machine_data_model.behavior.control_flow_node import ControlFlowNode
+from machine_data_model.behavior.control_flow_node import (
+    ControlFlowNode,
+    is_template_variable,
+)
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
@@ -56,6 +59,8 @@ class ControlFlow:
         pc = scope.get_pc()
         while pc < len(self._nodes):
             node = self._nodes[pc]
+            if is_template_variable(node.node):
+                node.node = scope.resolve_template_variable(node.node)
 
             result = node.execute(scope)
             if result.messages:

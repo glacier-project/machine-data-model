@@ -18,6 +18,20 @@ root:
   name: "folder1"
   description: "folder_description1"
   children:
+    - !!NumericalVariableNode
+      name: "n_variable0"
+      description: "variable_description0"
+      measure_unit: "LengthUnits.Meter"
+      initial_value: 10
+    - !!FolderNode
+      name: "empty_folder"
+      description: "empty_folder_description"
+      children:
+        - !!NumericalVariableNode
+          name: "n_variable_empty"
+          description: "variable_description_empty"
+          measure_unit: "LengthUnits.Meter"
+          initial_value: 10
     - !!BooleanVariableNode
       name: "boolean"
       description: ""
@@ -147,6 +161,7 @@ root:
               variable: "$variable_path"
               operator: "!="
               rhs: "$value"
+
     - !!FolderNode
       name: "folder2"
       description: "folder_description2"
@@ -264,7 +279,29 @@ root:
             - !!BooleanVariableNode
               name: "var_out"
               description: "variable_description7"
-              value: True # remove?s
+              default_value: True # remove?s
+    - !!FolderNode
+      name: "folder3"
+      description: "folder_description3"
+      children:
+        - !!CompositeMethodNode
+          name: "dynamic_node_name_resolution"
+          description: ""
+          parameters:
+            - !!StringVariableNode
+              name: "folder"
+              default_value: "boolean"
+            - !!StringVariableNode
+              name: "var_path"
+              default_value: "n_variable0"
+          returns:
+            - !!NumericalVariableNode
+              name: "result"
+              default_value: 1
+          cfg:
+            - !!ReadVariableNode
+              variable: "folder1/${folder}/${var_path}"
+              store_as: "result"
     - !!ObjectVariableNode
       name: "o_variable2"
       description: "variable_description2"

@@ -73,6 +73,10 @@ class DataModelBuilder:
         :return: The constructed folder node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {"id", "name", "description", "children"}
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(f"Unexpected keys in FolderNode: {', '.join(extra_keys)}")
         return FolderNode(
             **{
                 "id": data.get("id", None),
@@ -92,6 +96,19 @@ class DataModelBuilder:
         :return: The constructed numerical variable node.
         """
         data = loader.construct_mapping(node)
+        allowed_keys = {
+            "id",
+            "name",
+            "description",
+            "measure_unit",
+            "initial_value",
+            "default_value",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in NumericalVariableNode: {', '.join(extra_keys)}"
+            )
         return NumericalVariableNode(
             **{
                 "id": data.get("id", None),
@@ -112,6 +129,19 @@ class DataModelBuilder:
         :return: The constructed string variable node.
         """
         data = loader.construct_mapping(node)
+        allowed_keys = {
+            "id",
+            "name",
+            "description",
+            "measure_unit",
+            "initial_value",
+            "default_value",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in StringVariableNode: {', '.join(extra_keys)}"
+            )
         return StringVariableNode(
             **{
                 "id": data.get("id", None),
@@ -131,6 +161,19 @@ class DataModelBuilder:
         :return: The constructed boolean variable node.
         """
         data = loader.construct_mapping(node)
+        allowed_keys = {
+            "id",
+            "name",
+            "description",
+            "measure_unit",
+            "initial_value",
+            "default_value",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in BooleanVariableNode: {', '.join(extra_keys)}"
+            )
         return BooleanVariableNode(
             **{
                 "id": data.get("id", None),
@@ -150,6 +193,18 @@ class DataModelBuilder:
         :return: The constructed object variable node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {
+            "id",
+            "name",
+            "measure_unit",
+            "description",
+            "properties",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in ObjectVariableNode: {', '.join(extra_keys)}"
+            )
         return ObjectVariableNode(
             **{
                 "id": data.get("id", None),
@@ -172,6 +227,16 @@ class DataModelBuilder:
         :return: The constructed method node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {
+            "id",
+            "name",
+            "description",
+            "parameters",
+            "returns",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(f"Unexpected keys in MethodNode: {', '.join(extra_keys)}")
         method = ctor(
             **{
                 "id": data.get("id", None),
@@ -204,6 +269,15 @@ class DataModelBuilder:
         :return: The constructed read variable node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {
+            "variable",
+            "store_as",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in ReadVariableNode: {', '.join(extra_keys)}"
+            )
         return ReadVariableNode(
             variable_node=data.get("variable", ""),
             store_as=data.get("store_as", ""),
@@ -219,6 +293,15 @@ class DataModelBuilder:
         :return: The constructed write variable node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {
+            "variable",
+            "value",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in WriteVariableNode: {', '.join(extra_keys)}"
+            )
         return WriteVariableNode(
             variable_node=data.get("variable", ""),
             value=data.get("value", ""),
@@ -234,6 +317,16 @@ class DataModelBuilder:
         :return: The constructed wait condition node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {
+            "variable",
+            "operator",
+            "rhs",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in WaitConditionNode: {', '.join(extra_keys)}"
+            )
         return WaitConditionNode(
             variable_node=data.get("variable", ""),
             op=get_condition_operator(data.get("operator", "")),
@@ -250,6 +343,16 @@ class DataModelBuilder:
         :return: The constructed call method node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {
+            "method",
+            "args",
+            "kwargs",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in CallMethodNode: {', '.join(extra_keys)}"
+            )
         return CallMethodNode(
             method_node=data.get("method", ""),
             args=data.get("args", []),
@@ -300,6 +403,19 @@ class DataModelBuilder:
         :return: The constructed composite method node.
         """
         data = loader.construct_mapping(node, deep=True)
+        allowed_keys = {
+            "id",
+            "name",
+            "description",
+            "parameters",
+            "returns",
+            "cfg",
+        }
+        extra_keys = set(data.keys()) - allowed_keys
+        if extra_keys:
+            raise ValueError(
+                f"Unexpected keys in CompositeMethodNode: {', '.join(extra_keys)}"
+            )
         method = CompositeMethodNode(
             id=data.get("id", None),
             name=data.get("name", ""),

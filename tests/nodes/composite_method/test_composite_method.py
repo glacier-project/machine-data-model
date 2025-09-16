@@ -198,6 +198,22 @@ class TestCompositeMethod:
         node.value += 1
         assert dynamic_wait.is_terminated(ret.return_values[SCOPE_ID])
 
+    @pytest.mark.parametrize(
+        "name_resolution_node",
+        ["folder1/folder3/dynamic_node_name_resolution"],
+    )
+    def test_dynamic_resolution_name(self, name_resolution_node: str) -> None:
+        data_model = get_template_data_model()
+        dynamic_resolution = data_model.get_node(name_resolution_node)
+
+        assert isinstance(dynamic_resolution, CompositeMethodNode)
+        assert (
+            dynamic_resolution(
+                ["empty_folder"], ["n_variable_empty"]
+            ).return_values.get("result")
+            == 10
+        ), "Failed on dynamic_resolution"
+
     def test_remote_call_node(self) -> None:
         method_path = "folder1/remote_cfg/remote_call"
         data_model = get_template_data_model()

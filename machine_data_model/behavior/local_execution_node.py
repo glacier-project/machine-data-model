@@ -8,6 +8,7 @@ from machine_data_model.behavior.control_flow_node import (
     ExecutionNodeResult,
     execution_success,
     execution_failure,
+    is_template_variable,
 )
 from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -52,7 +53,11 @@ class LocalExecutionNode(ControlFlowNode):
 
         :return: True if the node is static, otherwise False.
         """
-        return self.node is not None and not is_variable(self.node)
+        return (
+            self.node is not None
+            and not is_variable(self.node)
+            and not is_template_variable(self.node)
+        )
 
     def set_ref_node(self, ref_node: DataModelNode) -> None:
         """
@@ -80,12 +85,19 @@ class LocalExecutionNode(ControlFlowNode):
         :param scope: The scope of the control flow graph.
         :return: The node referenced by the current node.
         """
-
-        if self.is_node_static():
+        if self.is_node_static() and self._ref_node is not None:
             return self._ref_node
-        node_path = resolve_value(self.node, scope)
+        node_path = ""
+        if is_variable(self.node):
+            node_path = resolve_value(self.node, scope)
+            assert node_path != "", f"Invalid template variable: {self.node}"
+        else:
+            node_path = self.node
+
         assert self.get_data_model_node is not None
-        return self.get_data_model_node(node_path)
+        x = self.get_data_model_node(node_path)
+        assert x is not None, f"Invalid node path: {node_path}"
+        return x
 
     def __eq__(self, other: object) -> bool:
         if self is other:
@@ -128,7 +140,9 @@ class ReadVariableNode(LocalExecutionNode):
         :return: Returns always True.
         """
         ref_variable = self._get_ref_node(scope)
-        assert isinstance(ref_variable, VariableNode)
+        assert isinstance(
+            ref_variable, VariableNode
+        ), f"Node {ref_variable} is not a VariableNode"
 
         value = ref_variable.read()
         name = self.store_as if self.store_as else ref_variable.name

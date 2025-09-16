@@ -15,6 +15,17 @@ def is_variable(value: Any) -> bool:
     return isinstance(value, str) and value.startswith("$")
 
 
+def is_template_variable(value: Any) -> bool:
+    """
+    Check if the value is a template variable that must be resolved in the scope.
+    A template variable is considered to be a string starting with '${' and ending with '}'.
+
+    :param value: The value to check.
+    :return: True if the value is a template variable, otherwise False.
+    """
+    return isinstance(value, str) and "${" in value and "}" in value
+
+
 def resolve_value(value: Any, scope: ControlFlowScope) -> Any:
     """
     Resolve the value of a variable in the scope. If the value is a string starting with '$',
