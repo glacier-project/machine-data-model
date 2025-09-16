@@ -4,20 +4,20 @@ from collections.abc import Callable
 import yaml
 
 from machine_data_model.data_model import DataModel
-from machine_data_model.behavior.call_method_node import CallMethodNode
+from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
-from machine_data_model.behavior.read_variable_node import (
+from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
 )
-from machine_data_model.behavior.wait_condition_node import (
+from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
     get_condition_operator,
 )
-from machine_data_model.behavior.write_variable_node import (
+from machine_data_model.behavior.local_execution_node import (
     WriteVariableNode,
 )
 from machine_data_model.nodes.folder_node import FolderNode
@@ -405,7 +405,7 @@ class DataModelBuilder:
             self._get_composite_method_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.behavior.read_variable_node.ReadVariableNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.ReadVariableNode",
             self._get_read_variable_node,
         )
         yaml.FullLoader.add_constructor(
@@ -413,7 +413,7 @@ class DataModelBuilder:
             self._get_read_variable_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.behavior.write_variable_node.WriteVariableNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.WriteVariableNode",
             self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
@@ -421,7 +421,7 @@ class DataModelBuilder:
             self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.behavior.wait_condition_node.WaitConditionNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.WaitConditionNode",
             self._get_wait_node,
         )
         yaml.FullLoader.add_constructor(
@@ -429,7 +429,7 @@ class DataModelBuilder:
             self._get_wait_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.behavior.call_method_node.CallMethodNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.CallMethodNode",
             self._get_call_method_node,
         )
         yaml.FullLoader.add_constructor(

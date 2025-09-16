@@ -1,11 +1,11 @@
 from typing import Callable
 
-from machine_data_model.behavior.call_method_node import CallMethodNode
+from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.control_flow_node import (
+from machine_data_model.behavior.local_execution_node import (
     LocalExecutionNode,
 )
-from machine_data_model.behavior.wait_condition_node import (
+from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
     WaitConditionOperator,
 )

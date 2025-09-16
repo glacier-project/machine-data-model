@@ -3,7 +3,7 @@ from collections.abc import Callable
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.behavior.control_flow_node import LocalExecutionNode
+from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.nodes.data_model_node import DataModelNode
 from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode

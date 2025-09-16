@@ -3,18 +3,18 @@ import os
 import yaml
 
 from machine_data_model.data_model import DataModel
-from machine_data_model.behavior.call_method_node import CallMethodNode
+from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.read_variable_node import (
+from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
 )
-from machine_data_model.behavior.wait_condition_node import (
+from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
 )
-from machine_data_model.behavior.write_variable_node import (
+from machine_data_model.behavior.local_execution_node import (
     WriteVariableNode,
 )
 from machine_data_model.nodes.folder_node import FolderNode

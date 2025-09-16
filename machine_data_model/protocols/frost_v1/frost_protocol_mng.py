@@ -99,9 +99,6 @@ class FrostProtocolMng(ProtocolMng):
         self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
         self._protocol_version = (1, 0, 0)
 
-        # # Set the subscription callback to handle updates and send messages.
-        # variable_node.set_subscription_callback(self._update_variable_callback)
-
     @override
     def handle_request(self, msg: Message) -> Message | None:
         """
@@ -120,18 +117,12 @@ class FrostProtocolMng(ProtocolMng):
         if not self._is_version_supported(header.version):
             return _create_error_response(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
 
-        # if header.type != MsgType.REQUEST:
-        #     return _create_error_response(msg, ErrorMessages.INVALID_REQUEST)
-
         # Resume methods waiting for a response
         if msg.correlation_id in self._running_methods:
-            cm, original_msg = self._running_methods[msg.correlation_id]
+            cm, _ = self._running_methods[msg.correlation_id]
             if not cm.handle_message(msg.correlation_id, msg):
                 return _create_error_response(msg, ErrorMessages.BAD_RESPONSE)
-            response = self._resume_composite_method(msg.correlation_id)
-            if not response:
-                return None
-            return response
+            return self._resume_composite_method(msg.correlation_id)
 
         # Handle PROTOCOL messages separately.
         if header.namespace == MsgNamespace.PROTOCOL:

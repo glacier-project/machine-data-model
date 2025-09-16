@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from machine_data_model.behavior.call_method_node import CallMethodNode
+from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
     ReadRemoteVariableNode,
@@ -13,15 +13,15 @@ from machine_data_model.behavior.remote_execution_node import (
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
-from machine_data_model.behavior.read_variable_node import (
+from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
 )
-from machine_data_model.behavior.wait_condition_node import (
+from machine_data_model.behavior.local_execution_node import (
     WaitConditionOperator,
     WaitConditionNode,
     get_condition_operator,
 )
-from machine_data_model.behavior.write_variable_node import (
+from machine_data_model.behavior.local_execution_node import (
     WriteVariableNode,
 )
 from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode

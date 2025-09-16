@@ -8,7 +8,7 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
     SCOPE_ID,
 )
 from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.wait_condition_node import (
+from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
