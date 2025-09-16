@@ -53,15 +53,21 @@ class ControlFlowScope:
         :param string: The string to resolve.
         :return: The resolved string with variable references replaced by their values.
         """
-        before = string.split("${")[0]
-        after = string.split("}")[-1]
-        result = string.split("${")[-1]
-        result = result.split("}")[0]
-        assert self._locals[
-            result
-        ], f"Variable '{result}' not found in scope {self._locals[result]}"
-        result = str(self._locals[result][0])
-        return before + result + after
+        res = string
+        before = ""
+        after = ""
+        result = ""
+        while "${" in res and "}" in res:
+            before = res.split("${")[0]
+            result = res.split("${", 1)[1]
+            after = result.split("}", 1)[1]
+            result = result.split("}")[0]
+            assert self._locals[
+                result
+            ], f"Variable '{result}' not found in scope {self._locals}"
+            result = str(self._locals[result][0])
+            res = before + result + after
+        return res
 
     def set_value(self, var_name: str, value: Any) -> None:
         """

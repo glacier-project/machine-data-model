@@ -23,6 +23,15 @@ root:
       description: "variable_description0"
       measure_unit: "LengthUnits.Meter"
       initial_value: 10
+    - !!FolderNode
+      name: "empty_folder"
+      description: "empty_folder_description"
+      children:
+        - !!NumericalVariableNode
+          name: "n_variable_empty"
+          description: "variable_description_empty"
+          measure_unit: "LengthUnits.Meter"
+          initial_value: 10
     - !!BooleanVariableNode
       name: "boolean"
       description: ""
@@ -106,15 +115,18 @@ root:
           description: ""
           parameters:
             - !!StringVariableNode
-              name: "variable_path"
+              name: "folder"
               default_value: "boolean"
+            - !!StringVariableNode
+              name: "var_path"
+              default_value: "n_variable0"
           returns:
             - !!NumericalVariableNode
               name: "result"
               default_value: 1
           cfg:
             - !!ReadVariableNode
-              variable: "folder1/${variable_path}"
+              variable: "folder1/${folder}/${var_path}"
               store_as: "result"
     - !!FolderNode
       name: "folder2"

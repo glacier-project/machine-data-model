@@ -189,5 +189,6 @@ class TestCompositeMethod:
 
         assert isinstance(dynamic_resolution, CompositeMethodNode)
         assert (
-            dynamic_resolution(["n_variable0"]).get("result") == 10
+            dynamic_resolution(["empty_folder"], ["n_variable_empty"]).get("result")
+            == 10
         ), f"Failed on {dynamic_resolution(["n_variable0"])}"
