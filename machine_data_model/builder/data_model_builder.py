@@ -4,20 +4,20 @@ from collections.abc import Callable
 import yaml
 
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.composite_method.call_method_node import CallMethodNode
+from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.composite_method.control_flow import ControlFlow
-from machine_data_model.nodes.composite_method.control_flow_node import ControlFlowNode
-from machine_data_model.nodes.composite_method.read_variable_node import (
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.control_flow_node import ControlFlowNode
+from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
 )
-from machine_data_model.nodes.composite_method.wait_condition_node import (
+from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
     get_condition_operator,
 )
-from machine_data_model.nodes.composite_method.write_variable_node import (
+from machine_data_model.behavior.local_execution_node import (
     WriteVariableNode,
 )
 from machine_data_model.nodes.folder_node import FolderNode
@@ -28,6 +28,11 @@ from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     ObjectVariableNode,
     StringVariableNode,
+)
+from machine_data_model.behavior.remote_execution_node import (
+    CallRemoteMethodNode,
+    WriteRemoteVariableNode,
+    ReadRemoteVariableNode,
 )
 
 
@@ -68,12 +73,13 @@ class DataModelBuilder:
         :return: The constructed folder node.
         """
         data = loader.construct_mapping(node, deep=True)
-        allowed_keys = {"name", "description", "children"}
+        allowed_keys = {"id", "name", "description", "children"}
         extra_keys = set(data.keys()) - allowed_keys
         if extra_keys:
             raise ValueError(f"Unexpected keys in FolderNode: {', '.join(extra_keys)}")
         return FolderNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "children": {child.name: child for child in data.get("children", [])},
@@ -91,6 +97,7 @@ class DataModelBuilder:
         """
         data = loader.construct_mapping(node)
         allowed_keys = {
+            "id",
             "name",
             "description",
             "measure_unit",
@@ -104,6 +111,7 @@ class DataModelBuilder:
             )
         return NumericalVariableNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "measure_unit": data.get("measure_unit", NoneMeasureUnits.NONE),
@@ -122,6 +130,7 @@ class DataModelBuilder:
         """
         data = loader.construct_mapping(node)
         allowed_keys = {
+            "id",
             "name",
             "description",
             "measure_unit",
@@ -135,6 +144,7 @@ class DataModelBuilder:
             )
         return StringVariableNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", ""),
@@ -152,6 +162,7 @@ class DataModelBuilder:
         """
         data = loader.construct_mapping(node)
         allowed_keys = {
+            "id",
             "name",
             "description",
             "measure_unit",
@@ -165,6 +176,7 @@ class DataModelBuilder:
             )
         return BooleanVariableNode(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "value": data.get("initial_value", False),
@@ -216,6 +228,7 @@ class DataModelBuilder:
         """
         data = loader.construct_mapping(node, deep=True)
         allowed_keys = {
+            "id",
             "name",
             "description",
             "parameters",
@@ -226,6 +239,7 @@ class DataModelBuilder:
             raise ValueError(f"Unexpected keys in MethodNode: {', '.join(extra_keys)}")
         method = ctor(
             **{
+                "id": data.get("id", None),
                 "name": data.get("name", ""),
                 "description": data.get("description", ""),
                 "parameters": [param for param in data.get("parameters", [])],
@@ -345,6 +359,40 @@ class DataModelBuilder:
             kwargs=data.get("kwargs", {}),
         )
 
+    def _get_call_remote_method_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> CallRemoteMethodNode:
+        data = loader.construct_mapping(node, deep=True)
+        return CallRemoteMethodNode(
+            method_node=data["method"],
+            sender_id=data["sender_id"],
+            remote_id=data["remote_id"],
+            args=data.get("args", []),
+            kwargs=data.get("kwargs", {}),
+        )
+
+    def _get_read_remote_variable_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> ReadRemoteVariableNode:
+        data = loader.construct_mapping(node, deep=True)
+        return ReadRemoteVariableNode(
+            variable_node=data["variable"],
+            sender_id=data["sender_id"],
+            remote_id=data["remote_id"],
+            store_as=data.get("store_as", ""),
+        )
+
+    def _get_write_remote_variable_node(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> WriteRemoteVariableNode:
+        data = loader.construct_mapping(node, deep=True)
+        return WriteRemoteVariableNode(
+            variable_node=data["variable"],
+            sender_id=data["sender_id"],
+            remote_id=data["remote_id"],
+            value=data["value"],
+        )
+
     def _get_composite_method_node(
         self, loader: yaml.FullLoader, node: yaml.MappingNode
     ) -> MethodNode:
@@ -356,6 +404,7 @@ class DataModelBuilder:
         """
         data = loader.construct_mapping(node, deep=True)
         allowed_keys = {
+            "id",
             "name",
             "description",
             "parameters",
@@ -368,6 +417,7 @@ class DataModelBuilder:
                 f"Unexpected keys in CompositeMethodNode: {', '.join(extra_keys)}"
             )
         method = CompositeMethodNode(
+            id=data.get("id", None),
             name=data.get("name", ""),
             description=data.get("description", ""),
             parameters=[param for param in data.get("parameters", [])],
@@ -471,7 +521,7 @@ class DataModelBuilder:
             self._get_composite_method_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.read_variable_node.ReadVariableNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.ReadVariableNode",
             self._get_read_variable_node,
         )
         yaml.FullLoader.add_constructor(
@@ -479,7 +529,7 @@ class DataModelBuilder:
             self._get_read_variable_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.write_variable_node.WriteVariableNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.WriteVariableNode",
             self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
@@ -487,7 +537,7 @@ class DataModelBuilder:
             self._get_write_variable_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.wait_condition_node.WaitConditionNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.WaitConditionNode",
             self._get_wait_node,
         )
         yaml.FullLoader.add_constructor(
@@ -495,10 +545,34 @@ class DataModelBuilder:
             self._get_wait_node,
         )
         yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.call_method_node.CallMethodNode",
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.local_execution_node.CallMethodNode",
             self._get_call_method_node,
         )
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:CallMethodNode",
             self._get_call_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.remote_execution_node.CallRemoteMethodNode",
+            self._get_call_remote_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:CallRemoteMethodNode",
+            self._get_call_remote_method_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.remote_execution_node.ReadRemoteVariableNode",
+            self._get_read_remote_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:ReadRemoteVariableNode",
+            self._get_read_remote_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:python/object:machine_data_model.behavior.remote_execution_node.WriteRemoteVariableNode",
+            self._get_write_remote_variable_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:WriteRemoteVariableNode",
+            self._get_write_remote_variable_node,
         )

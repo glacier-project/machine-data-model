@@ -121,7 +121,7 @@ class TestDataModel:
         root.add_child(method)
         data_model = DataModel(name="dm", root=root)
         result = data_model.call_method(method.id)
-        assert result["return_value"] == "Test"
+        assert result.return_values["return_value"] == "Test"
 
     def test_subscribe(self, root: FolderNode) -> None:
         # Tracks the list of changes.
@@ -174,9 +174,10 @@ class TestDataModel:
         assert isinstance(composite_node, CompositeMethodNode)
         ret = composite_node(*args)
 
-        assert ret["@scope_id"]
+        assert not ret.messages
+        assert ret.return_values["@scope_id"]
 
         data_model.write_variable("folder1/boolean", True)
         ret = composite_node(*args)
 
-        assert ret["var_out"]
+        assert ret.return_values["var_out"]

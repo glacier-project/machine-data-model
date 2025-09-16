@@ -1,5 +1,5 @@
 import uuid
-from machine_data_model.protocols.protocol_mng import Message
+from machine_data_model.protocols.message import Message
 from dataclasses import dataclass
 from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
 from machine_data_model.protocols.frost_v1.frost_payload import FrostPayload

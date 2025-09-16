@@ -1,4 +1,27 @@
 from typing import Any
+from enum import IntEnum
+
+
+class ControlFlowStatus(IntEnum):
+    """
+    Enumeration representing the status of a control flow graph execution.
+
+    :cvar READY: The control flow graph is ready to be executed.
+    :cvar RUNNING: The control flow graph is currently being executed.
+    :cvar WAITING_FOR_EVENT: The control flow graph is waiting for a local event to occur.
+    :cvar WAITING_FOR_RESPONSE: The control flow graph is waiting for a response of the remote execution identified by the current program counter.
+    :cvar RESPONSE_RECEIVED: The control flow graph has received the response from the remote execution and can continue execution.
+    :cvar COMPLETED: The control flow graph has completed execution.
+    :cvar FAILED: The control flow graph has failed during execution.
+    """
+
+    READY = 0
+    RUNNING = 1
+    WAITING_FOR_EVENT = 2
+    WAITING_FOR_RESPONSE = 3
+    RESPONSE_RECEIVED = 4
+    COMPLETED = 5
+    FAILED = 6
 
 
 class ControlFlowScope:
@@ -9,7 +32,8 @@ class ControlFlowScope:
     :ivar _scope_id: The unique identifier of the scope.
     :ivar _locals: The local variables of the scope.
     :ivar _pc: The program counter of the scope.
-    :ivar _is_active: A flag indicating if the scope is active or not.
+    :ivar _status: The status of the control flow graph execution.
+    :ivar active_request: The correlation id of the active request, if any.
     """
 
     def __init__(self, scope_id: str, **kwargs: dict[str, Any]):
@@ -22,7 +46,8 @@ class ControlFlowScope:
         self._scope_id = scope_id
         self._locals: dict[str, Any] = {}  # local variables
         self._pc = 0  # program counter
-        self._is_active = True
+        self._status = ControlFlowStatus.READY
+        self.active_request: str | None = None
         self.set_all_values(**kwargs)
 
     def set_all_values(self, **kwargs: dict[str, Any]) -> None:
@@ -31,7 +56,7 @@ class ControlFlowScope:
 
         :param kwargs: The local variables to set in the scope.
         """
-        if not self._is_active:
+        if not self.is_active():
             raise ValueError("Attempt to set values on an inactive scope")
 
         for key, value in kwargs.items():
@@ -98,7 +123,7 @@ class ControlFlowScope:
         """
         Deactivate the scope.
         """
-        self._is_active = False
+        self._status = ControlFlowStatus.COMPLETED
 
     def is_active(self) -> bool:
         """
@@ -106,7 +131,28 @@ class ControlFlowScope:
 
         :return: True if the scope is active, False otherwise.
         """
-        return self._is_active
+        return self._status not in [
+            ControlFlowStatus.COMPLETED,
+            ControlFlowStatus.FAILED,
+        ]
+
+    @property
+    def status(self) -> ControlFlowStatus:
+        """
+        Get the status of the control flow graph execution.
+
+        :return: The status of the control flow graph execution.
+        """
+        return self._status
+
+    @status.setter
+    def status(self, status: ControlFlowStatus) -> None:
+        """
+        Set the status of the control flow graph execution.
+
+        :param status: The new status of the control flow graph execution.
+        """
+        self._status = status
 
     def locals(self) -> dict[str, Any]:
         """
@@ -125,4 +171,4 @@ class ControlFlowScope:
         return self._scope_id
 
     def __str__(self) -> str:
-        return f"ControlFlowScope(execution_id={self._scope_id}, pc={self._pc})"
+        return f"ControlFlowScope(execution_id={self._scope_id}, pc={self._pc}, status={self._status})"

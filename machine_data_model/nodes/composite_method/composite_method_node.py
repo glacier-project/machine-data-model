@@ -1,11 +1,14 @@
-from machine_data_model.nodes.composite_method.control_flow import ControlFlow
-from machine_data_model.nodes.composite_method.control_flow_scope import (
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
+from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from typing import Any
 import uuid
+from machine_data_model.nodes.method_node import MethodExecutionResult
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 
 SCOPE_ID = "@scope_id"
@@ -61,7 +64,9 @@ class CompositeMethodNode(MethodNode):
         self._scopes: dict[str, ControlFlowScope] = {}
         self.cfg = cfg if cfg is not None else ControlFlow()
 
-    def __call__(self, *args: list[Any], **kwargs: dict[str, Any]) -> dict:
+    def __call__(
+        self, *args: list[Any], **kwargs: dict[str, Any]
+    ) -> MethodExecutionResult:
         """
         Call the method with the specified arguments.
 
@@ -108,21 +113,39 @@ class CompositeMethodNode(MethodNode):
             raise ValueError(f"Scope '{scope_id}' not found")
         del self._scopes[scope_id]
 
-    def resume_execution(self, scope_id: str) -> dict[str, Any]:
+    def handle_message(self, scope_id: str, message: FrostMessage) -> bool:
+        """Handle the response message in response to the request generated from the execution of the current remote node.
+
+        :param scope: The scope of the control flow graph.
+        :param message: The response to the current remote execution node request.
+        :return: True if the method can be resumed, False otherwise.
+        """
+        scope = self._get_scope(scope_id)
+
+        # get current node
+        node = self.cfg.get_current_node(scope)
+        if not isinstance(node, RemoteExecutionNode):
+            return False
+
+        return node.handle_response(scope=scope, response=message)
+
+    def resume_execution(self, scope_id: str) -> MethodExecutionResult:
         """
         Resume the execution of the method with the specified scope id.
 
         :param scope_id: The id of the scope to resume.
-        :return: The return values of the method.
+        :return: The result of resuming the execution of the method.
         """
 
         scope = self._get_scope(scope_id)
         if scope is None:
             raise ValueError(f"Scope '{scope_id}' not found")
-        self.cfg.execute(scope)
-        return self._terminate_execution(scope)
+        remote_messages = self.cfg.execute(scope)
+        return MethodExecutionResult(
+            messages=remote_messages, return_values=self._terminate_execution(scope)
+        )
 
-    def _start_execution(self, **kwargs: dict[str, Any]) -> dict[str, Any]:
+    def _start_execution(self, **kwargs: dict[str, Any]) -> MethodExecutionResult:
         """
         Start the execution of the composite method with the specified arguments.
         It creates a new scope and executes the control flow graph of the method until
@@ -130,12 +153,14 @@ class CompositeMethodNode(MethodNode):
         if the method is not completed.
 
         :param kwargs: The arguments of the method.
-        :return: The return values of the method.
+        :return: The result of starting the execution of the method.
         """
 
         scope = self._create_scope(**kwargs)
-        self.cfg.execute(scope)
-        return self._terminate_execution(scope)
+        remote_messages = self.cfg.execute(scope)
+        return MethodExecutionResult(
+            messages=remote_messages, return_values=self._terminate_execution(scope)
+        )
 
     def _get_scope(self, scope_id: str) -> ControlFlowScope:
         """
@@ -161,3 +186,12 @@ class CompositeMethodNode(MethodNode):
 
     def __str__(self) -> str:
         return f"CompositeMethodNode(id={self.id}, name={self.name}, description={self.description}, parameters={self.parameters}, returns={self.returns})"
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, CompositeMethodNode):
+            return False
+
+        return super().__eq__(other) and self.cfg == other.cfg
