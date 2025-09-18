@@ -133,24 +133,24 @@ class OpcuaConnector(AbstractConnector):
 
         if not isinstance(trust_store_certificates_paths, (list, type(None))):
             raise TypeError(
-                "trust_store_certificates_paths, when defined, must be a list of strings"
+                f"Connector '{name}': trust_store_certificates_paths, when defined, must be a list of strings"
             )
 
         self._trust_store_certificates_paths: list[Path] = []
         if trust_store_certificates_paths is not None:
             if len(trust_store_certificates_paths) == 0:
                 raise ValueError(
-                    "trust_store_certificates_paths cannot be defined but also empty. Please, remove the attribute 'trust_store_certificates_paths' or add valid paths to the list"
+                    f"Connector '{name}': trust_store_certificates_paths cannot be defined but also empty. Please, remove the 'trust_store_certificates_paths' attribute or add valid paths to the list"
                 )
             for path_string in trust_store_certificates_paths:
                 if not isinstance(path_string, str):
                     raise TypeError(
-                        f"The {path_string} path inside trust_store_certificates_paths is not a string"
+                        f"Connector '{name}': The '{path_string}' path inside trust_store_certificates_paths is not a string"
                     )
                 trust_store_cert_path = Path(path_string)
                 if not trust_store_cert_path.is_dir():
                     raise ValueError(
-                        f"The {path_string} path inside trust_store_certificates_paths is not a directory"
+                        f"Connector '{name}': The '{path_string}' path inside trust_store_certificates_paths is not a directory"
                     )
                 self._trust_store_certificates_paths.append(trust_store_cert_path)
 
@@ -322,7 +322,7 @@ class OpcuaConnector(AbstractConnector):
 
         if self._client is None:
             raise Exception(
-                "Couldn't retrieve remote node: the client is not connected"
+                f"Couldn't retrieve remote node '{path}' using '{self._name}' connector: the client is not connected"
             )
 
         node = None
@@ -353,7 +353,7 @@ class OpcuaConnector(AbstractConnector):
         node = await self._async_get_remote_node(path)
         if node is None:
             raise ValueError(
-                f"Couldn't read value of '{path}' using the {self.name} connector: the node does not exist"
+                f"Couldn't read value of '{path}' using the '{self.name}' connector: the node does not exist"
             )
         value = await node.get_value()
         _logger.debug(f"Read node '{path}'. Its value is: {value!r}")
@@ -376,7 +376,7 @@ class OpcuaConnector(AbstractConnector):
         node = await self._async_get_remote_node(path)
         if node is None:
             raise ValueError(
-                f"Couldn't read value of '{path}' using the {self.name} connector: the node does not exist"
+                f"Couldn't read value of '{path}' using the '{self.name}' connector: the node does not exist"
             )
 
         success = True
@@ -424,7 +424,9 @@ class OpcuaConnector(AbstractConnector):
 
         node = await self._async_get_remote_node(path)
         if node is None:
-            raise ValueError("Couldn't call remote method: the node doesn't exist")
+            raise ValueError(
+                f"Couldn't call remote method '{path}' using '{self._name}' connector: the node doesn't exist"
+            )
 
         # check if the node has inputs
         props = await node.get_properties()
@@ -475,7 +477,7 @@ class OpcuaConnector(AbstractConnector):
             parent_node = await self._async_get_remote_node(parent_path)
             if parent_node is None:
                 raise Exception(
-                    "Couldn't call remote method: couldn't retrieve the parent node which contains the method"
+                    f"Couldn't call remote method using '{self._name}' connector: couldn't retrieve the parent node which contains the method '{path}'"
                 )
             result = await parent_node.call_method(method_id, *params)
             _logger.debug(
@@ -515,14 +517,18 @@ class OpcuaConnector(AbstractConnector):
         """
         _logger.debug(f"Subscribing to remote node '{path}'")
         if self._client is None:
-            raise Exception("Client is not running")
+            raise Exception(
+                f"Couldn't subscribe to '{path}': Client is not running inside the '{self._name}' connector"
+            )
 
         handler = OpcUaDataChangeHandler(callback)
         subscription = await self._client.create_subscription(1, handler)
         node = await self._async_get_remote_node(path)
 
         if node is None:
-            raise Exception("Couldn't subscribe to unexisting node")
+            raise Exception(
+                f"Couldn't subscribe to unexisting node '{path}' using the '{self._name}' connector"
+            )
 
         res = await subscription.subscribe_data_change(node)
         assert isinstance(res, int), "subscription handler must be a int"
