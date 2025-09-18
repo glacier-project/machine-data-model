@@ -46,7 +46,7 @@ class TestOpcuaConnector:
 
         is_connected = connector.connect()
         assert is_connected, "connector should connect successfully"
-        connector.stop_thread()
+        connector.disconnect()
 
     def test_read_node_value(
         self,
@@ -76,7 +76,7 @@ class TestOpcuaConnector:
         asset_id_value = connector.read_node_value(asset_id_path)
         assert asset_id_value is not None, "asset_id_value should not be None"
 
-        connector.stop_thread()
+        connector.disconnect()
 
     def test_write_node_value(
         self,
@@ -108,7 +108,7 @@ class TestOpcuaConnector:
             current_temp_threshold_value == prev_temp_threshold_value + 7
         ), "the new value should be the previous value +7"
 
-        connector.stop_thread()
+        connector.disconnect()
 
     def test_call_node_as_method(
         self,
@@ -143,4 +143,4 @@ class TestOpcuaConnector:
             output_method_result == "Output"
         ), "the return value of the output method should be the 'Output' string"
 
-        connector.stop_thread()
+        connector.disconnect()

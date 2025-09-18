@@ -352,12 +352,11 @@ class DataModel:
 
     def _cleanup_connectors(self, connectors: Iterable[AbstractConnector]) -> None:
         """
-        Iterate over all connectors to disconnect them from their servers and stop the threads.
+        Iterate over all connectors to disconnect them from their servers.
         :param connectors: connectors that have resources to clean up
         """
         for connector in connectors:
             connector.disconnect()
-            connector.stop_thread()
 
     def __str__(self) -> str:
         return (

@@ -18,14 +18,10 @@ from asyncua.ua import UaError, VariantType
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override
 
-from machine_data_model.nodes.connectors.abstract_connector import (
-    AbstractConnector,
-    SubscriptionArguments,
-)
+from .abstract_connector import SubscriptionArguments
+from .abstract_async_connector import AbstractAsyncConnector
 
 _logger = logging.getLogger(__name__)
-
-USE_TRUST_STORE = False
 
 
 @dataclass(frozen=True)
@@ -52,7 +48,7 @@ def _security_policy_string_to_asyncua_policy(
     return policy
 
 
-class OpcuaConnector(AbstractConnector):
+class OpcuaConnector(AbstractAsyncConnector):
     """
     Represents an OPCUA client
     """
@@ -175,15 +171,6 @@ class OpcuaConnector(AbstractConnector):
         return self._certificate_file_path
 
     @override
-    def connect(self) -> bool:
-        """
-        Connect to the OPC-UA server.
-
-        :return: True if the client is connected to the server
-        """
-        success = self._handle_task(self._async_connect())
-        return success
-
     async def _async_connect(self) -> bool:
         """
         Async function which uses the asyncua library to connect to the OPC-UA server.
@@ -274,15 +261,6 @@ class OpcuaConnector(AbstractConnector):
         return True
 
     @override
-    def disconnect(self) -> bool:
-        """
-        Disconnect from the OPC-UA server.
-
-        :return: True if the client is disconnected from the server
-        """
-        success = self._handle_task(self._async_disconnect())
-        return success
-
     async def _async_disconnect(self) -> bool:
         """
         Async function which uses the asyncua library to disconnect from the OPC-UA server.
@@ -305,15 +283,6 @@ class OpcuaConnector(AbstractConnector):
         return True
 
     @override
-    def _get_remote_node(self, path: str) -> asyncua.Node | None:
-        """
-        Returns the node from the OPC-UA server,
-        The node's type is asyncua.Node.
-        """
-        get_node_coroutine = self._async_get_remote_node(path)
-        task_result: asyncua.Node | None = self._handle_task(get_node_coroutine)
-        return task_result
-
     async def _async_get_remote_node(self, path: str) -> asyncua.Node | None:
         """
         Asynchronous function which returns the node from the OPC-UA server.
@@ -338,13 +307,6 @@ class OpcuaConnector(AbstractConnector):
         return node
 
     @override
-    def read_node_value(self, path: str) -> Any:
-        """
-        Reads the node's value and returns it.
-        """
-        value = self._handle_task(self._async_read_node_value(path))
-        return value
-
     async def _async_read_node_value(self, path: str) -> Any:
         """
         Asynchronously reads the node's value from the server.
@@ -360,13 +322,6 @@ class OpcuaConnector(AbstractConnector):
         return value
 
     @override
-    def write_node_value(self, path: str, value: Any) -> bool:
-        """
-        Writes a value to the remote OPC-UA server.
-        """
-        success = self._handle_task(self._async_write_node_value(path, value))
-        return success
-
     async def _async_write_node_value(self, path: str, value: Any) -> bool:
         """
         Function which asynchronously writes the value to the OPC-UA server-
@@ -395,19 +350,8 @@ class OpcuaConnector(AbstractConnector):
         return success
 
     @override
-    def call_node_as_method(self, path: str, kwargs: dict[str, Any]) -> Any:
-        """
-        Calls the method at path <path> with <kwargs> as its arguments.
-
-        :param path: node/method path
-        :param kwargs: method arguments expressed as key/name - value pairs
-        :return: dict of results in the form of name - value pairs
-        """
-        result = self._handle_task(self._async_call_node_as_method(path, **kwargs))
-        return result
-
     async def _async_call_node_as_method(
-        self, path: str, **kwargs: dict[str, Any]
+        self, path: str, kwargs: dict[str, Any]
     ) -> Any:
         """
         Asynchronously calls the method at path <path> with <kwargs> as its arguments.
@@ -420,7 +364,9 @@ class OpcuaConnector(AbstractConnector):
             f"Calling remote method '{path}', with the following parameters: {kwargs}"
         )
         if self._client is None:
-            return None
+            raise Exception(
+                f"Couldn't call remote method '{path}' using '{self._name}' connector: the client is not connected"
+            )
 
         node = await self._async_get_remote_node(path)
         if node is None:
@@ -488,23 +434,6 @@ class OpcuaConnector(AbstractConnector):
         return result
 
     @override
-    def subscribe_to_node_changes(
-        self, path: str, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
-    ) -> int:
-        """
-        Subscribes to remote node changes.
-        Calls the callback function every time the remote value changes.
-
-        The callback must accept two parameters:
-        - the new remote value
-        - other data. It can be used to pass different data depending on the Connector's protocol/implementation
-
-        :param path: node path
-        :param callback: callback
-        :return: handler code which can be used to unsubscribe from new events
-        """
-        return self._handle_task(self._async_subscribe_to_node_changes(path, callback))
-
     async def _async_subscribe_to_node_changes(
         self, path: str, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
     ) -> int:

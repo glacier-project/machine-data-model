@@ -1,56 +1,13 @@
 import os
 from dataclasses import dataclass
-from threading import Thread
 import uuid
 from abc import ABC, abstractmethod
 from typing import Iterator, Any, TypeVar, Callable
 import logging
 
-import asyncio
-from asyncio import AbstractEventLoop
-from collections.abc import Coroutine
-from concurrent.futures import Future
-
 TaskReturnType = TypeVar("TaskReturnType")
 
 _logger = logging.getLogger(__name__)
-
-
-def create_event_loop_thread() -> AbstractEventLoop:
-    """
-    Creates a thread with an asyncio loop.
-    The loop can then be used to execute the async tasks inside the thread.
-
-    Credits:
-    https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
-    """
-
-    def start_background_loop(loop: AbstractEventLoop) -> None:
-        """
-        Runs the asyncio loop forever.
-        """
-        asyncio.set_event_loop(loop)
-        loop.run_forever()
-
-    _logger.debug("Creating thread and its event loop")
-    event_loop = asyncio.new_event_loop()
-    thread = Thread(target=start_background_loop, args=(event_loop,), daemon=True)
-    thread.start()
-    _logger.debug("Created thread and its event loop")
-    return event_loop
-
-
-def run_coroutine_in_thread(
-    loop: AbstractEventLoop, coro: Coroutine[None, None, TaskReturnType]
-) -> Future[TaskReturnType]:
-    """
-    Runs a coroutine in a thread.
-    Use create_event_loop_thread() to get the loop.
-
-    Credits:
-    https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
-    """
-    return asyncio.run_coroutine_threadsafe(coro, loop)
 
 
 @dataclass(frozen=True)
@@ -74,7 +31,6 @@ class AbstractConnector(ABC):
         name: str | None = None,
         ip: str | None = None,
         port: int | None = None,
-        event_loop: AbstractEventLoop | None = None,
         username: str | None = None,
         password: str | None = None,
         password_env_var: str | None = None,
@@ -99,10 +55,6 @@ class AbstractConnector(ABC):
             os.environ.get(password_env_var)
             if password_env_var is not None
             else password
-        )
-
-        self._event_loop = (
-            create_event_loop_thread() if event_loop is None else event_loop
         )
 
     @property
@@ -195,29 +147,6 @@ class AbstractConnector(ABC):
         :return: handler code which can be used to unsubscribe from new events
         """
         pass
-
-    def stop_thread(self) -> None:
-        """
-        Stops the thread. Calls disconnect() automatically to disconnect from the server.
-        """
-        _logger.debug(f"Stopping thread of the {self.name} connector")
-        self.disconnect()
-        self._event_loop.stop()
-        _logger.debug(f"Stopped thread of the {self.name} connector")
-
-    def _handle_task(
-        self, task: Coroutine[None, None, TaskReturnType]
-    ) -> TaskReturnType:
-        """
-        Run a task in the thread, wait for the result and return it.
-        """
-        _logger.debug(f"Running task {task} using '{self.name}' connector")
-        res = run_coroutine_in_thread(self._event_loop, task)
-        output = res.result()
-        _logger.debug(
-            f"Runned task {task} using '{self.name}' connector. Its result is {output!r}"
-        )
-        return output
 
     def __iter__(self) -> Iterator["AbstractConnector"]:
         for _ in []:
