@@ -30,6 +30,7 @@ class MethodNode(DataModelNode):
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
         remote_path: str | None = None,
+        namespace: str | None = None,
     ):
         """
         Initialize a new MethodNode instance.
@@ -43,7 +44,11 @@ class MethodNode(DataModelNode):
         :param remote_path: The remote path of the method. Allows to override the qualified name of the node.
         """
         super().__init__(
-            id=id, name=name, description=description, remote_path=remote_path
+            id=id,
+            name=name,
+            description=description,
+            remote_path=remote_path,
+            namespace=namespace,
         )
         self._parameters: list[VariableNode] = (
             parameters if parameters is not None else []
@@ -356,6 +361,7 @@ class AsyncMethodNode(MethodNode):
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
         remote_path: str | None = None,
+        namespace: str | None = None,
     ):
         """
         Initialize a new AsyncMethodNode instance.
@@ -375,6 +381,7 @@ class AsyncMethodNode(MethodNode):
             returns=returns,
             callback=callback,
             remote_path=remote_path,
+            namespace=namespace,
         )
 
     def is_async(self) -> bool:

@@ -28,6 +28,7 @@ class DataModelNode(ABC):
         description: str | None = None,
         connector_name: str | None = None,
         remote_path: str | None = None,
+        namespace: str | None = None,
     ):
         """
         Initializes a new `DataModelNode` instance.
@@ -56,6 +57,7 @@ class DataModelNode(ABC):
         self._connector_name: str | None = connector_name
         self._connector: AbstractConnector | None = None
         self._remote_path: str | None = remote_path
+        self._namespace: str | None = namespace
 
     @property
     def id(self) -> str:
@@ -165,6 +167,27 @@ class DataModelNode(ABC):
     def remote_path(self) -> str | None:
         """Remote path getter."""
         return self._remote_path
+
+    @property
+    def namespace(self) -> str | None:
+        """Remote namespace getter."""
+        return self._namespace
+
+    def set_namespace(self, namespace: str | None) -> None:
+        """Remote namespace setter."""
+        self._namespace = namespace
+
+    @property
+    def qualified_name_with_namespace(self) -> str | None:
+        """
+        Recursively constructs and returns the qualified name with namespaces.
+        """
+        p_qualified_name_with_namespace = (
+            self.parent.qualified_name_with_namespace if self.parent else ""
+        )
+        if self.namespace is None:
+            return f"{p_qualified_name_with_namespace}/{self.name}"
+        return f"{p_qualified_name_with_namespace}/{self.namespace}:{self.name}"
 
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]

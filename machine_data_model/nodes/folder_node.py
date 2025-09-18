@@ -22,6 +22,7 @@ class FolderNode(DataModelNode):
         children: dict[str, DataModelNode] | None = None,
         connector_name: str | None = None,
         remote_path: str | None = None,
+        namespace: str | None = None,
     ):
         """
         Initializes a new FolderNode instance.
@@ -37,6 +38,7 @@ class FolderNode(DataModelNode):
             description=description,
             connector_name=connector_name,
             remote_path=remote_path,
+            namespace=namespace,
         )
         self._children = {} if children is None else children
         for child in self._children.values():

@@ -30,52 +30,61 @@ root:
           name: "Result"
           description: "Method output"
     - !!FolderNode
-      name: "4:Boilers"
+      name: "Boilers"
+      namespace: "4"
       description: "Boilers folder"
       children:
         - !!ObjectVariableNode
-          name: "4:Boiler #2"
+          name: "Boiler #2"
           description: "Boiler 2"
           properties:
             - !!StringVariableNode
-              name: "2:AssetId"
+              name: "AssetId"
+              namespace: "2"
               description: "asset id"
 
             - !!ObjectVariableNode
-              name: "2:ParameterSet"
+              name: "ParameterSet"
+              namespace: "2"
               description: "parameter set"
               properties:
                 - !!NumericalVariableNode
-                  name: "4:CurrentTemperature"
+                  name: "CurrentTemperature"
+                  namespace: "4"
                   description: "current temperature"
                 - !!NumericalVariableNode
-                  name: "4:OverheatedThresholdTemperature"
+                  name: "OverheatedThresholdTemperature"
+                  namespace: "4"
                   description: "overheated threshold temp"
     - !!FolderNode
-      name: "3:OpcPlc"
+      name: "OpcPlc"
+      namespace: "3"
       description: "Opc PLC"
       children:
         - !!FolderNode
-          name: "3:Methods"
+          name: "Methods"
           description: "methods"
           children:
             - !!MethodNode
-              name: "4:HeaterOff"
+              name: "HeaterOff"
+              namespace: "4"
               description: "heater off"
             - !!MethodNode
               name: "4:HeaterOn"
+              namespace: "4"
               description: "heater on"
 
     - !!FolderNode
-      name: "6:ReferenceTest"
+      name: "ReferenceTest"
+      namespace: "6"
       description: "Reference Test"
       children:
         - !!FolderNode
-          name: "6:Methods"
+          name: "Methods"
           description: "Reference Test Methods"
           children:
             - !!MethodNode
-              name: "6:Methods_Add"
+              name: "Methods_Add"
               description: "Adds a float with an integer and returns the result"
               parameters:
                 - !!NumericalVariableNode
@@ -90,7 +99,7 @@ root:
                   description: "addition result"
 
             - !!MethodNode
-              name: "6:Methods_Output"
+              name: "Methods_Output"
               description: "Method with no input, returns the 'Output' string"
               returns:
                 - !!StringVariableNode

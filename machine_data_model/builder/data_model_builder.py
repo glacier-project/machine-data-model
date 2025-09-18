@@ -76,6 +76,7 @@ class DataModelBuilder:
                 "children": {child.name: child for child in data.get("children", [])},
                 "connector_name": data.get("connector_name", None),
                 "remote_path": data.get("remote_path", None),
+                "namespace": data.get("namespace", None),
             }
         )
 
@@ -100,6 +101,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
+                "namespace": data.get("namespace", None),
             }
         )
 
@@ -123,6 +125,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
+                "namespace": data.get("namespace", None),
             }
         )
 
@@ -146,6 +149,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
+                "namespace": data.get("namespace", None),
             }
         )
 
@@ -170,6 +174,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
+                "namespace": data.get("namespace", None),
             }
         )
 
@@ -193,6 +198,7 @@ class DataModelBuilder:
                 "parameters": [param for param in data.get("parameters", [])],
                 "returns": [ret for ret in data.get("returns", [])],
                 "remote_path": data.get("remote_path", None),
+                "namespace": data.get("namespace", None),
             }
         )
         return method

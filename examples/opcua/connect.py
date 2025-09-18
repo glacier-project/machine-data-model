@@ -29,7 +29,7 @@ print("connectors:")
 print(data_model.connectors)
 print("----------------")
 print("node:")
-node = data_model.get_node("Objects/4:Boilers/4:Boiler #2/2:AssetId")
+node = data_model.get_node("Objects/Boilers/Boiler #2/AssetId")
 print(node)
 
 assert isinstance(node, VariableNode)
@@ -55,6 +55,7 @@ print("Read the overwritten value, its current value is:", new_value)
 
 print("----------------")
 print("modify the variable using write():")
+temp_threshold_path = "Objects/Boilers/Boiler #2/ParameterSet/OverheatedThresholdTemperature"
 threshold = data_model.get_node(temp_threshold_path)
 assert isinstance(threshold, VariableNode)
 
@@ -94,7 +95,7 @@ threshold.unsubscribe("thresholdUser")
 print("----------------")
 print("Call the add(a, b) == a + b method:")
 try:
-    add_method_path = "Objects/6:ReferenceTest/6:Methods/6:Methods_Add"
+    add_method_path = "Objects/ReferenceTest/Methods/Methods_Add"
     add_method = data_model.get_node(add_method_path)
     assert isinstance(add_method, MethodNode), "add_method must be a method"
     print("- parameters: ", add_method.parameters)
@@ -108,7 +109,7 @@ except Exception as e:
 print("----------------")
 print("Call method with no inputs:")
 try:
-    output_method_path = "Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+    output_method_path = "Objects/ReferenceTest/Methods/Methods_Output"
     output_method = data_model.get_node(output_method_path)
     assert isinstance(output_method, MethodNode), "output_method must be a method"
     print("- parameters: ", output_method.parameters)
@@ -135,11 +136,15 @@ def my_remote_callback(new_remote_value: Any, other: SubscriptionArguments) -> N
     print("")
 
 
-current_temperature_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:CurrentTemperature"
+# subscribe using the data model
+current_temperature_path = "Objects/Boilers/Boiler #2/ParameterSet/CurrentTemperature"
 current_temperature_node = data_model.get_node(current_temperature_path)
 assert isinstance(current_temperature_node, VariableNode), "current_temperature_node must be a VariableNode"
 current_temperature_node.set_subscription_callback(my_callback)
 current_temperature_node.subscribe("currentTemperatureUser")
+
+# subscribe using the connector
+current_temperature_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:CurrentTemperature"
 c.subscribe_to_node_changes(current_temperature_path, my_remote_callback)
 time.sleep(10)
 

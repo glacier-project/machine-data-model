@@ -45,6 +45,7 @@ class DataModel:
         # todo: this can be optimized by setting
         #       the connectors while registering the nodes
         for node in self._nodes.values():
+            self._set_node_namespace(node)
             self._set_node_connector(node)
             # subscribe to all the variable changes
             # > if it is an object, skip it: the subscription is done on the properties
@@ -113,7 +114,19 @@ class DataModel:
 
             # if the user overrides the remote path, don't set it as the qualified name
             if not node.is_remote_path_set():
-                node.set_remote_path(node.qualified_name)
+                node.set_remote_path(node.qualified_name_with_namespace)
+
+    def _set_node_namespace(self, node: DataModelNode) -> None:
+        """
+        Find the closest namespace to the node by moving upwards in the tree.
+        When/if found, set it as the node's namespace.
+        """
+        node_ptr: DataModelNode | None = node
+        while node_ptr is not None and node_ptr.namespace is None:
+            node_ptr = node_ptr.parent
+
+        if node_ptr and node_ptr.namespace:
+            node.set_namespace(node_ptr.namespace)
 
     @property
     def name(self) -> str:

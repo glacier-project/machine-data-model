@@ -37,6 +37,7 @@ class VariableNode(DataModelNode):
         connector_name: str | None = None,
         remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
+        namespace: str | None = None,
     ):
         """
         Initializes a new VariableNode instance.
@@ -51,6 +52,7 @@ class VariableNode(DataModelNode):
             description=description,
             connector_name=connector_name,
             remote_path=remote_path,
+            namespace=namespace,
         )
         # Read callbacks.
         self._pre_read_value: Callable[[], None] = lambda: None
@@ -363,6 +365,7 @@ class NumericalVariableNode(VariableNode):
         connector_name: str | None = None,
         remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
+        namespace: str | None = None,
     ):
         """
         Initializes a new NumericalVariableNode instance.
@@ -380,6 +383,7 @@ class NumericalVariableNode(VariableNode):
             connector_name=connector_name,
             remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
+            namespace=namespace,
         )
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
             measure_unit
@@ -491,6 +495,7 @@ class StringVariableNode(VariableNode):
         connector_name: str | None = None,
         remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
+        namespace: str | None = None,
     ):
         """
         Initializes a new StringVariableNode instance.
@@ -507,6 +512,7 @@ class StringVariableNode(VariableNode):
             connector_name=connector_name,
             remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
+            namespace=namespace,
         )
         self._value: str = value
 
@@ -621,6 +627,7 @@ class BooleanVariableNode(VariableNode):
         connector_name: str | None = None,
         remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
+        namespace: str | None = None,
     ):
         """
         Initializes a new BooleanVariableNode instance.
@@ -637,6 +644,7 @@ class BooleanVariableNode(VariableNode):
             connector_name=connector_name,
             remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
+            namespace=namespace,
         )
         self._value: bool = value
 
@@ -752,6 +760,7 @@ class ObjectVariableNode(VariableNode):
         connector_name: str | None = None,
         remote_path: str | None = None,
         notify_subscribers_only_if_value_changed: bool | None = None,
+        namespace: str | None = None,
     ):
         """
         Initializes a new ObjectVariableNode instance.
@@ -768,6 +777,7 @@ class ObjectVariableNode(VariableNode):
             connector_name=connector_name,
             remote_path=remote_path,
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
+            namespace=namespace,
         )
         self._properties: dict[str, VariableNode] = (
             properties if properties is not None else {}
