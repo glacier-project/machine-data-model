@@ -29,6 +29,7 @@ class MethodNode(DataModelNode):
         parameters: list[VariableNode] | None = None,
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
+        connector_name: str | None = None,
         remote_path: str | None = None,
         namespace: str | None = None,
     ):
@@ -47,6 +48,7 @@ class MethodNode(DataModelNode):
             id=id,
             name=name,
             description=description,
+            connector_name=connector_name,
             remote_path=remote_path,
             namespace=namespace,
         )
@@ -360,6 +362,7 @@ class AsyncMethodNode(MethodNode):
         parameters: list[VariableNode] | None = None,
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
+        connector_name: str | None = None,
         remote_path: str | None = None,
         namespace: str | None = None,
     ):
@@ -380,6 +383,7 @@ class AsyncMethodNode(MethodNode):
             parameters=parameters,
             returns=returns,
             callback=callback,
+            connector_name=connector_name,
             remote_path=remote_path,
             namespace=namespace,
         )

@@ -197,6 +197,7 @@ class DataModelBuilder:
                 "description": data.get("description", ""),
                 "parameters": [param for param in data.get("parameters", [])],
                 "returns": [ret for ret in data.get("returns", [])],
+                "connector_name": data.get("connector_name", None),
                 "remote_path": data.get("remote_path", None),
                 "namespace": data.get("namespace", None),
             }
