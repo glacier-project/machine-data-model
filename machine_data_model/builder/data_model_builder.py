@@ -331,7 +331,7 @@ class DataModelBuilder:
             name=data.get("name", None),
             ip=data.get("ip", "127.0.0.1"),
             port=data.get("port", 4840),
-            security_policy=data.get("security_policy", "SecurityPolicyBasic256Sha256"),
+            security_policy=data.get("security_policy", None),
             host_name=data.get("host_name", None),
             client_app_uri=data.get("client_app_uri", None),
             certificate_file_path=data.get("certificate_file_path", None),
