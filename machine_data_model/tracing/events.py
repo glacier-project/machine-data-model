@@ -20,6 +20,19 @@ class VariableWriteEvent(TraceEvent):
     def __init__(
         self, variable_id: str, old_value: Any, new_value: Any, source: str = ""
     ):
+        """
+        Initialize a variable write event.
+
+        Args:
+            variable_id (str):
+                The ID of the variable being written.
+            old_value (Any):
+                The old value of the variable.
+            new_value (Any):
+                The new value of the variable.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.VARIABLE_WRITE,
@@ -43,6 +56,17 @@ class VariableReadEvent(TraceEvent):
     value: Any
 
     def __init__(self, variable_id: str, value: Any, source: str = ""):
+        """
+        Initialize a variable read event.
+
+        Args:
+            variable_id (str):
+                The ID of the variable being read.
+            value (Any):
+                The value of the variable.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.VARIABLE_READ,
@@ -61,6 +85,17 @@ class MethodStartEvent(TraceEvent):
     args: dict[str, Any]
 
     def __init__(self, method_id: str, args: dict[str, Any], source: str = ""):
+        """
+        Initialize a method start event.
+
+        Args:
+            method_id (str):
+                The ID of the method being called.
+            args (dict[str, Any]):
+                The arguments passed to the method.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.METHOD_START,
@@ -86,6 +121,19 @@ class MethodEndEvent(TraceEvent):
         execution_time: float,
         source: str = "",
     ):
+        """
+        Initialize a method end event.
+
+        Args:
+            method_id (str):
+                The ID of the method that completed.
+            returns (dict[str, Any]):
+                The return values from the method.
+            execution_time (float):
+                The time taken to execute the method.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.METHOD_END,
@@ -112,6 +160,19 @@ class WaitStartEvent(TraceEvent):
     def __init__(
         self, variable_id: str, condition: str, expected_value: Any, source: str = ""
     ):
+        """
+        Initialize a wait start event.
+
+        Args:
+            variable_id (str):
+                The ID of the variable being waited on.
+            condition (str):
+                The wait condition.
+            expected_value (Any):
+                The expected value for the condition.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.WAIT_START,
@@ -135,6 +196,17 @@ class WaitEndEvent(TraceEvent):
     wait_duration: float
 
     def __init__(self, variable_id: str, wait_duration: float, source: str = ""):
+        """
+        Initialize a wait end event.
+
+        Args:
+            variable_id (str):
+                The ID of the variable that was being waited on.
+            wait_duration (float):
+                The duration of the wait.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.WAIT_END,
@@ -162,6 +234,21 @@ class MessageSendEvent(TraceEvent):
         payload: dict[str, Any],
         source: str = "",
     ):
+        """
+        Initialize a message send event.
+
+        Args:
+            message_type (str):
+                The type of message being sent.
+            target (str):
+                The target of the message.
+            correlation_id (str):
+                The correlation ID for the message.
+            payload (dict[str, Any]):
+                The message payload.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.MESSAGE_SEND,
@@ -198,6 +285,23 @@ class MessageReceiveEvent(TraceEvent):
         latency: float,
         source: str = "",
     ):
+        """
+        Initialize a message receive event.
+
+        Args:
+            message_type (str):
+                The type of message being received.
+            sender (str):
+                The sender of the message.
+            correlation_id (str):
+                The correlation ID for the message.
+            payload (dict[str, Any]):
+                The message payload.
+            latency (float):
+                The latency of the message delivery.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.MESSAGE_RECEIVE,
@@ -271,7 +375,20 @@ def trace_variable_read(
 
 
 def trace_method_start(method_id: str, args: dict[str, Any], source: str = "") -> float:
-    """Trace method start and return start time for duration calculation."""
+    """
+    Trace method start and return start time for duration calculation.
+
+    Args:
+        method_id (str):
+            The ID of the method being called.
+        args (dict[str, Any]):
+            The arguments passed to the method.
+        source (str, optional):
+            The source of the event. Defaults to "".
+
+    Returns:
+        float: The timestamp when the method started.
+    """
     event = MethodStartEvent(
         method_id,
         args,
@@ -284,7 +401,19 @@ def trace_method_start(method_id: str, args: dict[str, Any], source: str = "") -
 def trace_method_end(
     method_id: str, returns: dict[str, Any], start_time: float, source: str = ""
 ) -> None:
-    """Trace method end with execution time."""
+    """
+    Trace method end with execution time.
+
+    Args:
+        method_id (str):
+            The ID of the method that completed.
+        returns (dict[str, Any]):
+            The return values from the method.
+        start_time (float):
+            The timestamp when the method started.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
     execution_time = time.time() - start_time
     event = MethodEndEvent(
         method_id,
@@ -298,7 +427,22 @@ def trace_method_end(
 def trace_wait_start(
     variable_id: str, condition: str, expected_value: Any, source: str = ""
 ) -> float:
-    """Trace wait start and return start time."""
+    """
+    Trace wait start and return start time.
+
+    Args:
+        variable_id (str):
+            The ID of the variable being waited on.
+        condition (str):
+            The wait condition.
+        expected_value (Any):
+            The expected value for the condition.
+        source (str, optional):
+            The source of the event. Defaults to "".
+
+    Returns:
+        float: The timestamp when the wait started.
+    """
     event = WaitStartEvent(
         variable_id,
         condition,
@@ -310,7 +454,17 @@ def trace_wait_start(
 
 
 def trace_wait_end(variable_id: str, start_time: float, source: str = "") -> None:
-    """Trace wait end with duration."""
+    """
+    Trace wait end with duration.
+
+    Args:
+        variable_id (str):
+            The ID of the variable that was being waited on.
+        start_time (float):
+            The timestamp when the wait started.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
     wait_duration = time.time() - start_time
     event = WaitEndEvent(
         variable_id,
@@ -327,7 +481,24 @@ def trace_message_send(
     payload: dict[str, Any],
     source: str = "",
 ) -> float:
-    """Trace message send and return send time."""
+    """
+    Trace message send and return send time.
+
+    Args:
+        message_type (str):
+            The type of message being sent.
+        target (str):
+            The target of the message.
+        correlation_id (str):
+            The correlation ID for the message.
+        payload (dict[str, Any]):
+            The message payload.
+        source (str, optional):
+            The source of the event. Defaults to "".
+
+    Returns:
+        float: The timestamp when the message was sent.
+    """
     event = MessageSendEvent(
         message_type,
         target,
@@ -347,7 +518,23 @@ def trace_message_receive(
     send_time: float,
     source: str = "",
 ) -> None:
-    """Trace message receive with latency."""
+    """
+    Trace message receive with latency.
+
+    Args:
+        message_type (str):
+            The type of message being received.
+        sender (str):
+            The sender of the message.
+        correlation_id (str):
+            The correlation ID for the message.
+        payload (dict[str, Any]):
+            The message payload.
+        send_time (float):
+            The timestamp when the message was sent.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
     latency = time.time() - send_time
     event = MessageReceiveEvent(
         message_type,
