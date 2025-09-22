@@ -41,6 +41,7 @@ class TestDataModelTracing:
         assert event.details["variable_id"] == "test_var"
         assert event.details["old_value"] == 10.0
         assert event.details["new_value"] == 20.0
+        assert event.details["success"] == True
         assert isinstance(event.timestamp, float)
 
     def test_tracing_records_reads(self) -> None:
@@ -81,6 +82,7 @@ class TestDataModelTracing:
         assert data[0]["details"]["variable_id"] == "test_var"
         assert data[0]["details"]["old_value"] == 10.0
         assert data[0]["details"]["new_value"] == 20.0
+        assert data[0]["details"]["success"] == True
         assert "test_var" in data[0]["details"].values()
 
     def test_tracing_records_method_calls(self) -> None:

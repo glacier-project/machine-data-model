@@ -229,8 +229,7 @@ class DataModel:
         if isinstance(node, VariableNode):
             old_value = node.read()
             success = node.write(value)
-            if success:
-                trace_variable_write(variable_id, old_value, value, source=self._name)
+            trace_variable_write(variable_id, old_value, value, success, source=self._name)
             return success
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 

@@ -16,9 +16,10 @@ class VariableWriteEvent(TraceEvent):
     variable_id: str
     old_value: Any
     new_value: Any
+    success: bool
 
     def __init__(
-        self, variable_id: str, old_value: Any, new_value: Any, source: str = ""
+        self, variable_id: str, old_value: Any, new_value: Any, success: bool, source: str = ""
     ):
         """
         Initialize a variable write event.
@@ -30,6 +31,8 @@ class VariableWriteEvent(TraceEvent):
                 The old value of the variable.
             new_value (Any):
                 The new value of the variable.
+            success (bool):
+                Whether the write operation was successful.
             source (str, optional):
                 The source of the event. Defaults to "".
         """
@@ -41,11 +44,13 @@ class VariableWriteEvent(TraceEvent):
                 "variable_id": variable_id,
                 "old_value": old_value,
                 "new_value": new_value,
+                "success": success,
             },
         )
         self.variable_id = variable_id
         self.old_value = old_value
         self.new_value = new_value
+        self.success = success
 
 
 @dataclass
@@ -326,6 +331,7 @@ def trace_variable_write(
     variable_id: str,
     old_value: Any,
     new_value: Any,
+    success: bool,
     source: str = "",
 ) -> None:
     """
@@ -338,6 +344,8 @@ def trace_variable_write(
             The old value of the variable.
         new_value (Any):
             The new value of the variable.
+        success (bool):
+            Whether the write operation was successful.
         source (str, optional):
             The source of the event. Defaults to "".
     """
@@ -345,6 +353,7 @@ def trace_variable_write(
         variable_id,
         old_value,
         new_value,
+        success,
         source,
     )
     get_global_collector().record_event(event)
