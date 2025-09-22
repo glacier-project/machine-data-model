@@ -12,6 +12,9 @@ from machine_data_model.behavior.control_flow_node import (
 )
 from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.nodes.method_node import AsyncMethodNode
 
@@ -332,6 +335,7 @@ class WaitConditionNode(LocalExecutionNode):
         super().__init__(variable_node, successors)
         self._rhs = rhs
         self._op = op
+        self._subscription: VariableSubscription | None = None
 
     @property
     def rhs(self) -> Any:
@@ -379,12 +383,16 @@ class WaitConditionNode(LocalExecutionNode):
         else:
             raise ValueError(f"Invalid operator: {self._op}")
 
+        if self._subscription is None:
+            self._subscription = VariableSubscription(subscriber_id=scope.id())
+        subscription = self._subscription
+
         if not res:
-            if scope.id() not in ref_variable.get_subscribers():
-                ref_variable.subscribe(scope.id())
+            if subscription not in ref_variable.get_subscriptions():
+                ref_variable.subscribe(subscription)
             return execution_failure()
 
-        ref_variable.unsubscribe(scope.id())
+        ref_variable.unsubscribe(subscription)
         return execution_success()
 
     def __eq__(self, other: object) -> bool:

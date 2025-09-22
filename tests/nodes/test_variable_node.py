@@ -11,6 +11,9 @@ from machine_data_model.nodes.variable_node import (
     ObjectVariableNode,
     StringVariableNode,
 )
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from tests import NUM_TESTS, gen_random_string
 
 
@@ -180,8 +183,8 @@ class TestVariableNode:
         )
         obj_var.add_property(num_var)
 
-        subscriber = "test"
-        obj_var.subscribe(subscriber)
+        subscription = VariableSubscription("subscriber_1", "corr_1")
+        obj_var.subscribe(subscription)
         num_var.write(10)
 
         assert obj_var.name == var_name

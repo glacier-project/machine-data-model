@@ -1,6 +1,7 @@
 from enum import IntFlag, auto
 from typing import Any
 from typing_extensions import override
+from uuid import uuid4
 
 
 class EventType(IntFlag):
@@ -19,7 +20,7 @@ class VariableSubscription:
     :ivar correlation_id: Correlation identifier for the subscription.
     """
 
-    def __init__(self, subscriber_id: str, correlation_id: str):
+    def __init__(self, subscriber_id: str, correlation_id: str = str(uuid4())):
         self.subscriber_id = subscriber_id
         self.correlation_id = correlation_id
 
@@ -47,8 +48,8 @@ class VariableSubscription:
 
     def __str__(self) -> str:
         return (
-            f"{self.__class__.__name__}(subscriber_id={self.subscriber_id!r}, "
-            f"correlation_id={self.correlation_id!r})"
+            f"{self.__class__.__name__}(subscriber_id={self.subscriber_id}, "
+            f"correlation_id={self.correlation_id})"
         )
 
     def __repr__(self) -> str:

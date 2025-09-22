@@ -7,6 +7,9 @@ from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.nodes.data_model_node import DataModelNode
 from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
 
@@ -221,18 +224,32 @@ class DataModel:
             return node()
         raise ValueError(f"Method '{method_id}' not found in data model")
 
-    def subscribe(self, target_node: str, subscriber: str) -> bool:
+    def subscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
+        """
+        Adds the provided subscription to the target variable node in the data model.
+        Raises a ValueError if the target node is not found or is not a VariableNode.
+
+        :param target_node: The id or the path of the variable node to subscribe to.
+        :param subscription: The subscription to add to the variable node.
+        :return: True if the subscription was added successfully, False otherwise.
+        """
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):
-            node.subscribe(subscriber)
-            return True
+            return node.subscribe(subscription)
         raise ValueError(f"Variable Node '{target_node}' not found in data model")
 
-    def unsubscribe(self, target_node: str, unsubscriber: str) -> bool:
+    def unsubscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
+        """
+        Removes the provided subscription from the target variable node in the data model.
+        Raises a ValueError if the target node is not found or is not a VariableNode.
+
+        :param target_node: The id or the path of the variable node to unsubscribe from.
+        :param subscription: The subscription to remove from the variable node.
+        :return: True if the subscription was removed successfully, False otherwise.
+        """
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):
-            node.unsubscribe(unsubscriber)
-            return True
+            return node.unsubscribe(subscription)
         raise ValueError(f"Variable Node '{target_node}' not found in data model")
 
     def __str__(self) -> str:

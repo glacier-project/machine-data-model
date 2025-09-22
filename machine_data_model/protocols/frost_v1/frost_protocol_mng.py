@@ -7,6 +7,9 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
     MsgType,
@@ -270,20 +273,27 @@ class FrostProtocolMng(ProtocolMng):
             value = variable_node.read()
             msg.payload.value = value
             return _create_response_msg(msg)
+
         if msg.header.msg_name == VariableMsgName.WRITE:
             if variable_node.write(msg.payload.value):
                 return _create_response_msg(msg)
             return _create_error_response(msg, ErrorMessages.NOT_ALLOWED)
+
         if msg.header.msg_name == VariableMsgName.SUBSCRIBE:
-            # Add the sender as a subscriber to the variable node.
-            variable_node.subscribe(msg.sender)
-            # Return a response message confirming the subscription.
+            subscription = VariableSubscription(
+                subscriber_id=msg.sender, correlation_id=msg.correlation_id
+            )
+            variable_node.subscribe(subscription)
             return _create_response_msg(msg)
+
         if msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
-            variable_node.unsubscribe(msg.sender)
-            # TODO: Think about reading when SUBSCRIBING
-            msg.payload.value = variable_node.read()
+            subscription = VariableSubscription(
+                subscriber_id=msg.sender, correlation_id=msg.correlation_id
+            )
+            variable_node.unsubscribe(subscription)
+
             return _create_response_msg(msg)
+
         if msg.header.msg_name == VariableMsgName.UPDATE:
             return _create_response_msg(msg)
 
@@ -380,7 +390,7 @@ class FrostProtocolMng(ProtocolMng):
             self._update_messages.append(response)
 
     def _update_variable_callback(
-        self, subscriber: str, node: VariableNode, value: Any
+        self, subscription: VariableSubscription, node: VariableNode, value: Any
     ) -> None:
         """
         Handle the update and create the corresponding FrostMessage.
@@ -390,14 +400,16 @@ class FrostProtocolMng(ProtocolMng):
         target, and payload, and appends it to the list of update messages.
         """
 
-        if subscriber in self._running_methods:
-            return self.resume_composite_method(subscriber, node, value)
+        if subscription.correlation_id in self._running_methods:
+            return self.resume_composite_method(
+                subscription.correlation_id, node, value
+            )
 
         # append update message
         self._update_messages.append(
             FrostMessage(
                 sender=self._data_model.name,
-                target=subscriber,
+                target=subscription.subscriber_id,
                 identifier=str(uuid.uuid4()),
                 header=FrostHeader(
                     version=self._protocol_version,

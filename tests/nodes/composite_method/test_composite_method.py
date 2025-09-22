@@ -86,7 +86,7 @@ class TestCompositeMethod:
         scope_id = ret.return_values[SCOPE_ID]
 
         assert not ret.messages
-        assert len(wait_node.get_subscribers()) > 0
+        assert len(wait_node.get_subscriptions()) > 0
 
         new_val = 0
         while node_val == new_val:
@@ -96,7 +96,7 @@ class TestCompositeMethod:
         ret = c_method.resume_execution(scope_id)
 
         assert not ret.messages
-        assert len(wait_node.get_subscribers()) == 0
+        assert len(wait_node.get_subscriptions()) == 0
         for node in c_method.returns:
             assert node.read() == ret.return_values[node.name]
 

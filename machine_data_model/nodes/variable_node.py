@@ -123,25 +123,29 @@ class VariableNode(DataModelNode):
         """
         return self._subscriptions
 
-    def subscribe(self, subscription: VariableSubscription) -> None:
+    def subscribe(self, subscription: VariableSubscription) -> bool:
         """
         Subscribe a subscriber to the variable node.
 
         :param subscriber_id: The ID of the subscriber.
+        :return: True if the subscription was added successfully, False otherwise.
         """
         if subscription in self._subscriptions:
-            return
+            return False
         self._subscriptions.append(subscription)
+        return True
 
-    def unsubscribe(self, subscription: VariableSubscription) -> None:
+    def unsubscribe(self, subscription: VariableSubscription) -> bool:
         """
         Unsubscribe a subscriber from the variable node.
 
-        :param subscriber_id: The ID of the subscriber.
+        :param subscription: The subscription to remove.
+        :return: True if the subscription was removed successfully, False otherwise.
         """
         if subscription not in self._subscriptions:
-            return
+            return False
         self._subscriptions.remove(subscription)
+        return True
 
     def set_subscription_callback(
         self, callback: Callable[[VariableSubscription, "VariableNode", Any], None]
@@ -625,22 +629,6 @@ class ObjectVariableNode(VariableNode):
         for property_name, property_value in value.items():
             self._properties[property_name]._update_value(property_value)
         return self._read_value()
-
-    def subscribe(self, subscriber_id: str) -> None:
-        """
-        Subscribe a subscriber to the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.append(subscriber_id)
-
-    def unsubscribe(self, subscriber_id: str) -> None:
-        """
-        Unsubscribe a subscriber from the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.remove(subscriber_id)
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 from enum import Enum
+from machine_data_model.nodes.subscription.variable_subscription import EventType
 
 
 @dataclass(init=True, slots=True)
@@ -30,6 +31,55 @@ class VariablePayload(FrostPayload):
     """
 
     value: Any = None
+
+
+@dataclass(init=True, slots=True)
+class SubscriptionPayload(FrostPayload):
+    """
+    Represents the payload of a subscription-related message.
+
+    This class extends the base payload and includes attributes that are need to handle
+    subscription-related messages.
+
+    :cvar node: The node associated with the message payload (inherited).
+    """
+
+    subscription_type: EventType = EventType.ANY
+
+
+@dataclass(init=True, slots=True)
+class DataChangeSubscriptionPayload(SubscriptionPayload):
+    """
+    Represents the payload of a data change subscription message.
+
+    This class extends the subscription payload and includes attributes specific to
+    data change subscriptions.
+
+    :cvar node: The node associated with the message payload (inherited).
+    :cvar deadband: Minimum change required to trigger a notification.
+    :cvar is_percent: If True, deadband is treated as a percentage of the
+    previous value; otherwise, it's an absolute value.
+    """
+
+    deadband: float = 0.0
+    is_percent: bool = False
+
+
+@dataclass(init=True, slots=True)
+class RangeSubscriptionPayload(SubscriptionPayload):
+    """
+    Represents the payload of a range subscription message.
+
+    This class extends the subscription payload and includes attributes specific to
+    range subscriptions.
+
+    :cvar node: The node associated with the message payload (inherited).
+    :cvar low: The lower bound of the range.
+    :cvar high: The upper bound of the range.
+    """
+
+    low: float = 0.0
+    high: float = 0.0
 
 
 @dataclass(init=True, slots=True)
