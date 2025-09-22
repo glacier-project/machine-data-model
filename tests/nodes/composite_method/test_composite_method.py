@@ -12,6 +12,9 @@ from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import VariableNode, NumericalVariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
     MsgType,
@@ -180,7 +183,7 @@ class TestCompositeMethod:
         current_value = node.read()
 
         def subscription_callback(
-            subscriber: str, node: VariableNode, value: Any
+            subscription: VariableSubscription, node: VariableNode, value: Any
         ) -> None:
             assert isinstance(dynamic_wait, CompositeMethodNode)
             res = dynamic_wait.resume_execution(ret.return_values[SCOPE_ID])

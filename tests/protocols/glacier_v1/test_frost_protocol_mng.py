@@ -12,7 +12,6 @@ from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.subscription.variable_subscription import EventType, VariableSubscription
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     StringVariableNode,
@@ -38,12 +37,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
     ProtocolPayload,
     ErrorPayload,
-    DataChangeSubscriptionPayload,
-    InRangeSubscriptionPayload,
-    OutOfRangeSubscriptionPayload
-
 )
-from tests.nodes.subscription import get_random_subscription, get_random_data_change_subscription, get_random_in_range_subscription, get_random_out_of_range_subscription
 
 
 @pytest.fixture
@@ -236,14 +230,16 @@ class TestGlacierProtocolMng:
         update_messages = manager.get_update_messages()
 
         assert len(update_messages) == 2
-        for update in update_messages:
+        for i, update in enumerate(update_messages):
             assert update.header.type == MsgType.RESPONSE
             assert update.correlation_id == msg.correlation_id
             assert update.target == sender
             assert isinstance(update.payload, VariablePayload)
             assert isinstance(update.payload.value, dict)
-        assert update_messages[0].payload.value["s_variable3"] == "Hello"
-        assert update_messages[1].payload.value["s_variable4"] == "Confirm"
+            if i == 0:
+                assert update.payload.value["s_variable3"] == "Hello"
+            if i == 1:
+                assert update.payload.value["s_variable4"] == "Confirm"
 
     @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_method_call_request(
@@ -416,12 +412,12 @@ class TestGlacierProtocolMng:
         request.header.msg_name = MethodMsgName.COMPLETED
         request.payload.ret["remote_return_1"] = 45
 
-        response = manager.handle_response(request)
-        assert isinstance(response, FrostMessage)
-        assert response.header.type == MsgType.RESPONSE
-        assert isinstance(response.payload, MethodPayload)
-        assert len(response.payload.ret) == 1
-        assert response.payload.ret["remote_return_1"] == 45
+        response_2 = manager.handle_response(request)
+        assert isinstance(response_2, FrostMessage)
+        assert response_2.header.type == MsgType.RESPONSE
+        assert isinstance(response_2.payload, MethodPayload)
+        assert len(response_2.payload.ret) == 1
+        assert response_2.payload.ret["remote_return_1"] == 45
         assert not manager.get_update_messages()
 
     def test_remote_read_request(
@@ -470,12 +466,12 @@ class TestGlacierProtocolMng:
         request.header.type = MsgType.RESPONSE
         request.payload.value = method.returns[0].read()
 
-        response = manager.handle_response(request)
-        assert isinstance(response, FrostMessage)
-        assert response.header.type == MsgType.RESPONSE
-        assert isinstance(response.payload, MethodPayload)
-        assert len(response.payload.ret) == 1
-        assert response.payload.ret["return_variable_1"] == method.returns[0].read()
+        response_2 = manager.handle_response(request)
+        assert isinstance(response_2, FrostMessage)
+        assert response_2.header.type == MsgType.RESPONSE
+        assert isinstance(response_2.payload, MethodPayload)
+        assert len(response_2.payload.ret) == 1
+        assert response_2.payload.ret["return_variable_1"] == method.returns[0].read()
         assert not manager.get_update_messages()
 
     def test_remote_write_request(
@@ -524,9 +520,9 @@ class TestGlacierProtocolMng:
         request.header.type = MsgType.RESPONSE
         assert request.payload.value == method.parameters[0].read()
 
-        response = manager.handle_response(request)
-        assert isinstance(response, FrostMessage)
-        assert response.header.type == MsgType.RESPONSE
-        assert isinstance(response.payload, MethodPayload)
-        assert len(response.payload.ret) == 0
+        response_2 = manager.handle_response(request)
+        assert isinstance(response_2, FrostMessage)
+        assert response_2.header.type == MsgType.RESPONSE
+        assert isinstance(response_2.payload, MethodPayload)
+        assert len(response_2.payload.ret) == 0
         assert not manager.get_update_messages()

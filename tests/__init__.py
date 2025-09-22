@@ -64,6 +64,7 @@ def get_random_boolean_node(
         name=var_name, description=var_description, value=random.choice([True, False])
     )
 
+
 def get_random_string_node(
     var_name: str | None = None, var_description: str | None = None
 ) -> StringVariableNode:
@@ -74,6 +75,7 @@ def get_random_string_node(
     return StringVariableNode(
         name=var_name, description=var_description, value=gen_random_string(10)
     )
+
 
 def get_random_numerical_node(
     var_name: str | None = None, var_description: str | None = None
@@ -96,6 +98,7 @@ def get_random_numerical_node(
         ),
     )
 
+
 def get_random_object_node(
     var_name: str | None = None, var_description: str | None = None
 ) -> ObjectVariableNode:
@@ -112,6 +115,7 @@ def get_random_object_node(
         assert isinstance(prop, VariableNode)
         object_node.add_property(prop)
     return object_node
+
 
 def get_random_folder_node(
     var_name: str | None = None, var_description: str | None = None
@@ -133,11 +137,14 @@ def get_random_folder_node(
         folder_node.add_child(child)
     return folder_node
 
+
 def get_default_args(method_node: MethodNode) -> tuple:
     return tuple(param.read() for param in method_node.parameters)
 
+
 def get_default_kwargs(method_node: MethodNode) -> dict:
     return {param.name: param.read() for param in method_node.parameters}
+
 
 def get_dummy_method_node(
     var_name: str | None = None,
@@ -155,6 +162,7 @@ def get_dummy_method_node(
 
     method_node.callback = method_callback
     return method_node
+
 
 def get_random_method_node(
     var_name: str | None = None,
@@ -207,13 +215,16 @@ def get_random_method_node(
 
 T = TypeVar("T", bound=DataModelNode)
 
+
 @overload
 def get_random_node(
     node_types: Sequence[Callable[..., VariableNode]],
 ) -> VariableNode: ...
 
+
 @overload
 def get_random_node(node_types: Sequence[Callable[..., T]] | None = None) -> T: ...
+
 
 def get_random_node(
     node_types: Sequence[Callable[..., DataModelNode]] | None = None,
@@ -234,10 +245,12 @@ def get_random_node(
     assert isinstance(node, DataModelNode)
     return node
 
+
 def get_random_simple_node() -> VariableNode:
     return get_random_node(
         [get_random_boolean_node, get_random_string_node, get_random_numerical_node]
     )
+
 
 def get_random_nodes(
     number: int, node_types: list | None = None
@@ -246,6 +259,7 @@ def get_random_nodes(
     for i in range(number):
         nodes.append(get_random_node(node_types))
     return nodes
+
 
 def get_random_simple_nodes(number: int) -> Sequence[DataModelNode]:
     return get_random_nodes(

@@ -48,6 +48,7 @@ class SubscriptionPayload(VariablePayload):
     def subscription_type(self) -> EventType:
         return EventType.ANY
 
+
 @dataclass(init=True, slots=True)
 class DataChangeSubscriptionPayload(SubscriptionPayload):
     """
@@ -89,7 +90,8 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
     @property
     def subscription_type(self) -> EventType:
         return EventType.IN_RANGE
-    
+
+
 @dataclass(init=True, slots=True)
 class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
     """
@@ -179,6 +181,7 @@ class ErrorMessages(str, Enum):
 
     INVALID_NAMESPACE = "Invalid namespace"
     INVALID_REQUEST = "Invalid request"
+    INVALID_RESPONSE = "Invalid response"
     NODE_NOT_FOUND = "Node not found"
     NOT_SUPPORTED = "The requested operation is not supported on the specified node"
     BAD_REQUEST = "Bad request"

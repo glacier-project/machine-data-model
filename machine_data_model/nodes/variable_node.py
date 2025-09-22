@@ -3,7 +3,6 @@ from collections.abc import Callable
 from enum import Enum
 from typing import Any, Generator
 from typing_extensions import override
-from multipledispatch import dispatch
 
 from unitsnet_py.abstract_unit import AbstractMeasure
 
@@ -153,29 +152,30 @@ class VariableNode(DataModelNode):
             ):
                 return sub
         return None
-    
-    @dispatch(str, str)
-    def unsubscribe(self, subscription_id: str, correlation_id: str) -> bool:
-        """
-        Delete a subscription from the variable node by subscriber ID and correlation ID.
 
-        :param subscription_id: The ID of the subscriber.
-        :param correlation_id: The correlation ID of the subscription.
+    def unsubscribe(
+        self,
+        subscription_or_id: VariableSubscription | str,
+        correlation_id: str | None = None,
+    ) -> bool:
+        """
+        Delete a subscription from the variable node either by subscription object or by subscriber ID and correlation ID.
+
+        :param subscription_or_id: The subscription to remove, or the subscriber ID.
+        :param correlation_id: The correlation ID when removing by IDs.
         :return: True if the subscription was removed successfully, False otherwise.
         """
-        subscription = self._find_subscription(subscription_id, correlation_id)
-        if subscription is None:
-            return False
-        return self.unsubscribe(subscription)
-    
-    @dispatch(VariableSubscription)
-    def unsubscribe(self, subscription: VariableSubscription) -> bool:
-        """
-        Delete a subscription from the variable node.
+        subscription: VariableSubscription | None
+        if (
+            isinstance(subscription_or_id, VariableSubscription)
+            and correlation_id is None
+        ):
+            subscription = subscription_or_id
+        elif isinstance(subscription_or_id, str) and isinstance(correlation_id, str):
+            subscription = self._find_subscription(subscription_or_id, correlation_id)
+        else:
+            raise TypeError("unsubscribe expects (VariableSubscription) or (str, str)")
 
-        :param subscription: The subscription to remove.
-        :return: True if the subscription was removed successfully, False otherwise.
-        """
         if subscription is None or subscription not in self._subscriptions:
             return False
         self._subscriptions.remove(subscription)

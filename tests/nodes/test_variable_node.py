@@ -6,7 +6,10 @@ import pytest
 from unitsnet_py.units.length import LengthUnits
 
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
-from machine_data_model.nodes.subscription.variable_subscription import DataChangeSubscription, VariableSubscription
+from machine_data_model.nodes.subscription.variable_subscription import (
+    DataChangeSubscription,
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
@@ -199,12 +202,13 @@ class TestVariableNode:
         self, var_name: str, var_description: str
     ) -> None:
         updates = []
-        def on_data_change(subscription: VariableSubscription, variable: VariableNode, value: Any) -> None:
+
+        def on_data_change(
+            subscription: VariableSubscription, variable: VariableNode, value: Any
+        ) -> None:
             updates.append((subscription.subscriber_id, value))
 
-        obj_var = ObjectVariableNode(
-            name=var_name, description=var_description
-        )
+        obj_var = ObjectVariableNode(name=var_name, description=var_description)
         num_var = get_random_numerical_node()
         obj_var.add_property(num_var)
         subscription_1 = DataChangeSubscription("subscriber_1", "corr_1")
@@ -223,23 +227,27 @@ class TestVariableNode:
     def test_delete_variable_node_subscription(
         self, var_name: str, var_description: str
     ) -> None:
-        num_var = get_random_numerical_node(var_name=var_name, var_description=var_description)
+        num_var = get_random_numerical_node(
+            var_name=var_name, var_description=var_description
+        )
         num_subscriptions = 5
 
         subscriptions = [
-            num_var.subscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}")) for i in range(num_subscriptions)
+            num_var.subscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}"))
+            for i in range(num_subscriptions)
         ]
-        duplicate_subscription = num_var.subscribe(VariableSubscription("subscriber_1", "corr_1"))
+        duplicate_subscription = num_var.subscribe(
+            VariableSubscription("subscriber_1", "corr_1")
+        )
 
         assert len(num_var.get_subscriptions()) == num_subscriptions
         assert all(subscriptions)
         assert not duplicate_subscription
 
         unsubscriptions = [
-            num_var.unsubscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}")) for i in range(num_subscriptions)
+            num_var.unsubscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}"))
+            for i in range(num_subscriptions)
         ]
 
         assert len(num_var.get_subscriptions()) == 0
         assert all(unsubscriptions)
-
-        

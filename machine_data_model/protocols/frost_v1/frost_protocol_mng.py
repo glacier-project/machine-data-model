@@ -174,7 +174,10 @@ class FrostProtocolMng(ProtocolMng):
         header = msg.header
 
         if not self._is_version_supported(header.version):
-            return
+            return _create_error_response(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+
+        if header.type != MsgType.RESPONSE:
+            return _create_error_response(msg, ErrorMessages.INVALID_RESPONSE)
 
         # Resume methods waiting for a response
         if msg.correlation_id in self._running_methods:
@@ -182,6 +185,7 @@ class FrostProtocolMng(ProtocolMng):
             if not cm.handle_message(msg.correlation_id, msg):
                 return _create_error_response(msg, ErrorMessages.BAD_RESPONSE)
             return self._resume_composite_method(msg.correlation_id)
+        return None
 
     def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
         """
