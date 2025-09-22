@@ -1,0 +1,41 @@
+"""
+Example demonstrating the tracing functionality in DataModel.
+
+This example shows how to enable tracing for variable changes and export
+the trace data for analysis, similar to VCD files in hardware simulations.
+"""
+
+import time
+from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.variable_node import NumericalVariableNode
+
+
+def main() -> None:
+    # Create a DataModel with tracing enabled
+    data_model = DataModel(name="TracingExample", enable_tracing=True)
+
+    # Add some variables
+    temp_var = NumericalVariableNode(id="temperature", name="temp", value=20.0)
+    pressure_var = NumericalVariableNode(id="pressure", name="press", value=1.0)
+
+    data_model.root.add_child(temp_var)
+    data_model.root.add_child(pressure_var)
+
+    # Register nodes
+    data_model._register_nodes(data_model.root)
+
+    # Simulate some changes
+    print("Simulating variable changes...")
+    for i in range(5):
+        data_model.write_variable("temperature", 20.0 + i * 5.0)
+        time.sleep(0.1)  # Small delay for different timestamps
+        data_model.write_variable("pressure", 1.0 + i * 0.1)
+
+    # Export the trace
+    data_model.export_trace("simulation_trace.csv")
+    print("Trace exported to simulation_trace.csv")
+    print(f"Total trace entries: {len(data_model._trace_log)}")
+
+
+if __name__ == "__main__":
+    main()

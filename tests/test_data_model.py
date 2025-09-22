@@ -181,3 +181,50 @@ class TestDataModel:
         ret = composite_node(*args)
 
         assert ret.return_values["var_out"]
+
+
+class TestDataModelTracing:
+    def test_tracing_disabled_by_default(self) -> None:
+        data_model = DataModel()
+        assert not data_model._enable_tracing
+        assert data_model._trace_log == []
+
+    def test_tracing_enabled(self) -> None:
+        data_model = DataModel(enable_tracing=True)
+        assert data_model._enable_tracing
+
+    def test_tracing_records_changes(self) -> None:
+        data_model = DataModel(enable_tracing=True)
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        data_model.write_variable("test_var", 20.0)
+
+        assert len(data_model._trace_log) == 1
+        entry = data_model._trace_log[0]
+        assert entry.variable_id == "test_var"
+        assert entry.old_value == 10.0
+        assert entry.new_value == 20.0
+        assert isinstance(entry.timestamp, float)
+
+    def test_export_trace(self, tmp_path) -> None:
+        data_model = DataModel(enable_tracing=True)
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        data_model.write_variable("test_var", 20.0)
+
+        filepath = tmp_path / "trace.csv"
+        data_model.export_trace(str(filepath))
+
+        with open(filepath) as f:
+            lines = f.readlines()
+
+        assert lines[0].strip() == "timestamp,variable_id,old_value,new_value"
+        assert len(lines) == 2
+        parts = lines[1].strip().split(",")
+        assert parts[1] == "test_var"
+        assert parts[2] == "10.0"
+        assert parts[3] == "20.0"

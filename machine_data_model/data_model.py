@@ -1,17 +1,31 @@
 from collections.abc import Callable
+import time
+from dataclasses import dataclass
+from typing import Any
 
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.nodes.data_model_node import DataModelNode
-from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
 
 
+@dataclass
+class TraceEntry:
+    timestamp: float
+    variable_id: str
+    old_value: Any
+    new_value: Any
+
+
 class DataModel:
+    """
+    A DataModel represents the structure and data of a machine data model.
+    """
+
     def __init__(
         self,
         name: str = "",
@@ -20,6 +34,7 @@ class DataModel:
         machine_model: str = "",
         description: str = "",
         root: FolderNode | None = None,
+        enable_tracing: bool = False,
     ):
         self._name = name
         self._machine_category = machine_category
@@ -31,6 +46,8 @@ class DataModel:
             if root is not None
             else FolderNode(name="root", description="Root folder of the data model")
         )
+        self._enable_tracing = enable_tracing
+        self._trace_log: list[TraceEntry] = []
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
         self._register_nodes(self._root)
@@ -206,8 +223,21 @@ class DataModel:
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
-            node.write(value)
-            return True
+            if self._enable_tracing:
+                old_value = node.read()
+                success = node.write(value)
+                if success:
+                    self._trace_log.append(
+                        TraceEntry(
+                            timestamp=time.time(),
+                            variable_id=variable_id,
+                            old_value=old_value,
+                            new_value=value,
+                        )
+                    )
+            else:
+                success = node.write(value)
+            return success
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def call_method(self, method_id: str) -> MethodExecutionResult:
@@ -234,6 +264,18 @@ class DataModel:
             node.unsubscribe(unsubscriber)
             return True
         raise ValueError(f"Variable Node '{target_node}' not found in data model")
+
+    def export_trace(self, filepath: str) -> None:
+        """
+        Export the trace log to a CSV file for analysis and plotting.
+        :param filepath: The path to the file where the trace will be exported.
+        """
+        with open(filepath, "w") as f:
+            f.write("timestamp,variable_id,old_value,new_value\n")
+            for entry in self._trace_log:
+                f.write(
+                    f"{entry.timestamp},{entry.variable_id},{entry.old_value},{entry.new_value}\n"
+                )
 
     def __str__(self) -> str:
         return (
