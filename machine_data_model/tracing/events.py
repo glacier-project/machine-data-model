@@ -402,7 +402,11 @@ def trace_variable_read(
     )
 
 
-def trace_method_start(method_id: str, args: dict[str, Any], source: str = "") -> float:
+def trace_method_start(
+    method_id: str,
+    args: dict[str, Any],
+    source: str = "",
+) -> float:
     """
     Trace method start and return start time for duration calculation.
 
@@ -431,7 +435,10 @@ def trace_method_start(method_id: str, args: dict[str, Any], source: str = "") -
 
 
 def trace_method_end(
-    method_id: str, returns: dict[str, Any], start_time: float, source: str = ""
+    method_id: str,
+    returns: dict[str, Any],
+    start_time: float,
+    source: str = "",
 ) -> None:
     """
     Trace method end with execution time.
@@ -462,7 +469,10 @@ def trace_method_end(
 
 
 def trace_wait_start(
-    variable_id: str, condition: str, expected_value: Any, source: str = ""
+    variable_id: str,
+    condition: str,
+    expected_value: Any,
+    source: str = "",
 ) -> float:
     """
     Trace wait start and return start time.
@@ -494,7 +504,11 @@ def trace_wait_start(
     return event.timestamp
 
 
-def trace_wait_end(variable_id: str, start_time: float, source: str = "") -> None:
+def trace_wait_end(
+    variable_id: str,
+    start_time: float,
+    source: str = "",
+) -> None:
     """
     Trace wait end with duration.
 

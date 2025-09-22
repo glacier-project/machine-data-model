@@ -14,6 +14,7 @@ from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.nodes.method_node import AsyncMethodNode
+from machine_data_model.tracing import trace_wait_start, trace_wait_end
 
 
 class LocalExecutionNode(ControlFlowNode):
@@ -379,12 +380,30 @@ class WaitConditionNode(LocalExecutionNode):
         else:
             raise ValueError(f"Invalid operator: {self._op}")
 
+        wait_key = f"wait_start_{self.node}_{scope.id()}"
+
         if not res:
+            # Condition not met - start waiting
             if scope.id() not in ref_variable.get_subscribers():
+                # First time waiting for this condition
+                start_time = trace_wait_start(
+                    self.node,
+                    f"{lhs} {self._op.value} {rhs}",
+                    rhs,
+                    source=scope.id()
+                )
+                scope.set_value(wait_key, start_time)
                 ref_variable.subscribe(scope.id())
             return execution_failure()
 
+        # Condition met - stop waiting
         ref_variable.unsubscribe(scope.id())
+        if wait_key in scope.locals():
+            # We were waiting, now we're done
+            start_time = scope.get_value(wait_key)
+            trace_wait_end(self.node, start_time, source=scope.id())
+            # Clean up the wait start time
+            del scope.locals()[wait_key]
         return execution_success()
 
     def __eq__(self, other: object) -> bool:

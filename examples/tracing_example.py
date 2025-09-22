@@ -15,6 +15,9 @@ from machine_data_model.tracing import (
     TraceLevel,
     export_traces_json,
 )
+from machine_data_model.behavior.local_execution_node import WaitConditionNode, WaitConditionOperator
+from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+import uuid
 
 
 def main() -> None:
