@@ -54,7 +54,11 @@ def _create_response_msg(msg: FrostMessage) -> FrostMessage:
         message_type=f"{msg.header.namespace.value}.{msg.header.msg_name.value}",
         target=msg.sender,
         correlation_id=msg.correlation_id or "",
-        payload={"node": getattr(msg.payload, 'node', None), "value": getattr(msg.payload, 'value', None), "ret": getattr(msg.payload, 'ret', None)},
+        payload={
+            "node": getattr(msg.payload, "node", None),
+            "value": getattr(msg.payload, "value", None),
+            "ret": getattr(msg.payload, "ret", None),
+        },
         source="FrostProtocolMng",
     )
 
@@ -89,7 +93,11 @@ def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessag
         message_type=f"{msg.header.namespace.value}.{msg.header.msg_name.value}",
         target=msg.sender,
         correlation_id=msg.correlation_id or "",
-        payload={"node": msg.payload.node, "error_code": ErrorCode.BAD_REQUEST.value, "error_message": error_message},
+        payload={
+            "node": msg.payload.node,
+            "error_code": ErrorCode.BAD_REQUEST.value,
+            "error_message": error_message,
+        },
         source="FrostProtocolMng",
     )
 
@@ -142,7 +150,10 @@ class FrostProtocolMng(ProtocolMng):
             message_type=f"{header.namespace.value}.{header.msg_name.value}",
             sender=msg.sender,
             correlation_id=msg.correlation_id or "",
-            payload={"node": getattr(msg.payload, 'node', None), "value": getattr(msg.payload, 'value', None)},
+            payload={
+                "node": getattr(msg.payload, "node", None),
+                "value": getattr(msg.payload, "value", None),
+            },
             send_time=0.0,  # We don't have send time for incoming messages
             source="FrostProtocolMng",
         )
