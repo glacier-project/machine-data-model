@@ -19,7 +19,12 @@ class VariableWriteEvent(TraceEvent):
     success: bool
 
     def __init__(
-        self, variable_id: str, old_value: Any, new_value: Any, success: bool, source: str = ""
+        self,
+        variable_id: str,
+        old_value: Any,
+        new_value: Any,
+        success: bool,
+        source: str = "",
     ):
         """
         Initialize a variable write event.
@@ -349,14 +354,18 @@ def trace_variable_write(
         source (str, optional):
             The source of the event. Defaults to "".
     """
-    event = VariableWriteEvent(
-        variable_id,
-        old_value,
-        new_value,
-        success,
-        source,
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.VARIABLE_WRITE):
+        return
+    collector.record_event(
+        VariableWriteEvent(
+            variable_id,
+            old_value,
+            new_value,
+            success,
+            source,
+        )
     )
-    get_global_collector().record_event(event)
 
 
 def trace_variable_read(
@@ -375,12 +384,17 @@ def trace_variable_read(
         source (str, optional):
             The source of the event. Defaults to "".
     """
-    event = VariableReadEvent(
-        variable_id,
-        value,
-        source,
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.VARIABLE_READ):
+        return
+
+    collector.record_event(
+        VariableReadEvent(
+            variable_id,
+            value,
+            source,
+        )
     )
-    get_global_collector().record_event(event)
 
 
 def trace_method_start(method_id: str, args: dict[str, Any], source: str = "") -> float:
@@ -398,12 +412,16 @@ def trace_method_start(method_id: str, args: dict[str, Any], source: str = "") -
     Returns:
         float: The timestamp when the method started.
     """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.METHOD_START):
+        return time.time()
+
     event = MethodStartEvent(
         method_id,
         args,
         source,
     )
-    get_global_collector().record_event(event)
+    collector.record_event(event)
     return event.timestamp
 
 
@@ -423,14 +441,19 @@ def trace_method_end(
         source (str, optional):
             The source of the event. Defaults to "".
     """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.METHOD_END):
+        return
+
     execution_time = time.time() - start_time
-    event = MethodEndEvent(
-        method_id,
-        returns,
-        execution_time,
-        source,
+    collector.record_event(
+        MethodEndEvent(
+            method_id,
+            returns,
+            execution_time,
+            source,
+        )
     )
-    get_global_collector().record_event(event)
 
 
 def trace_wait_start(
@@ -452,13 +475,17 @@ def trace_wait_start(
     Returns:
         float: The timestamp when the wait started.
     """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.WAIT_START):
+        return time.time()
+
     event = WaitStartEvent(
         variable_id,
         condition,
         expected_value,
         source,
     )
-    get_global_collector().record_event(event)
+    collector.record_event(event)
     return event.timestamp
 
 
@@ -474,13 +501,18 @@ def trace_wait_end(variable_id: str, start_time: float, source: str = "") -> Non
         source (str, optional):
             The source of the event. Defaults to "".
     """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.WAIT_END):
+        return
+
     wait_duration = time.time() - start_time
-    event = WaitEndEvent(
-        variable_id,
-        wait_duration,
-        source,
+    collector.record_event(
+        WaitEndEvent(
+            variable_id,
+            wait_duration,
+            source,
+        )
     )
-    get_global_collector().record_event(event)
 
 
 def trace_message_send(
@@ -508,6 +540,10 @@ def trace_message_send(
     Returns:
         float: The timestamp when the message was sent.
     """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.MESSAGE_SEND):
+        return time.time()
+
     event = MessageSendEvent(
         message_type,
         target,
@@ -515,7 +551,7 @@ def trace_message_send(
         payload,
         source,
     )
-    get_global_collector().record_event(event)
+    collector.record_event(event)
     return event.timestamp
 
 
@@ -544,13 +580,18 @@ def trace_message_receive(
         source (str, optional):
             The source of the event. Defaults to "".
     """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.MESSAGE_RECEIVE):
+        return
+
     latency = time.time() - send_time
-    event = MessageReceiveEvent(
-        message_type,
-        sender,
-        correlation_id,
-        payload,
-        latency,
-        source,
+    collector.record_event(
+        MessageReceiveEvent(
+            message_type,
+            sender,
+            correlation_id,
+            payload,
+            latency,
+            source,
+        )
     )
-    get_global_collector().record_event(event)

@@ -79,11 +79,11 @@ class TraceCollector:
         Record a trace event if tracing is enabled and level allows it.
         """
         # Filter based on trace level.
-        if self._should_record_event(event):
+        if self.should_record_event_type(event.event_type):
             self.events.append(event)
 
-    def _should_record_event(self, event: TraceEvent) -> bool:
-        """Determine if an event should be recorded based on current level."""
+    def should_record_event_type(self, event_type: TraceEventType) -> bool:
+        """Determine if an event type should be recorded based on current level."""
         # If tracing is disabled, do not record any events.
         if self.level == TraceLevel.NONE:
             return False
@@ -103,7 +103,7 @@ class TraceCollector:
 
         # Get minimum level required for this event type (default to FULL if
         # unknown).
-        min_level = event_min_levels.get(event.event_type, TraceLevel.FULL)
+        min_level = event_min_levels.get(event_type, TraceLevel.FULL)
 
         # Record if current level is >= required level
         return self.level.value >= min_level.value
