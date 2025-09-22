@@ -213,9 +213,7 @@ class DataModel:
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
-            value = node.read()
-            trace_variable_read(variable_id, value, source=self._name)
-            return value
+            return node.read()
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def write_variable(self, variable_id: str, value: Any) -> bool:
@@ -227,10 +225,7 @@ class DataModel:
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
-            old_value = node.read()
-            success = node.write(value)
-            trace_variable_write(variable_id, old_value, value, success, source=self._name)
-            return success
+            return node.write(value)
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def call_method(self, method_id: str) -> MethodExecutionResult:
@@ -243,7 +238,9 @@ class DataModel:
         if isinstance(node, MethodNode):
             start_time = trace_method_start(method_id, {}, source=self._name)
             result = node()
-            trace_method_end(method_id, result.return_values, start_time, source=self._name)
+            trace_method_end(
+                method_id, result.return_values, start_time, source=self._name
+            )
             return result
         raise ValueError(f"Method '{method_id}' not found in data model")
 

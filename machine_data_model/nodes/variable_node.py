@@ -12,6 +12,7 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
+from machine_data_model.tracing import trace_variable_read, trace_variable_write
 
 
 class VariableNode(DataModelNode):
@@ -66,6 +67,11 @@ class VariableNode(DataModelNode):
         value = self._read_value()
         # Execute the post-read callback and return the value.
         value = self._post_read_value(value)
+        # Trace the variable read operation
+        trace_variable_read(
+            variable_id=self.id,
+            value=value,
+        )
         # Return the read value.
         return value
 
@@ -88,10 +94,27 @@ class VariableNode(DataModelNode):
             # Restore previous value if validation fails.
             value = self._update_value(prev_value)
             assert value == prev_value
+
+            # Trace the failed variable write operation.
+            trace_variable_write(
+                variable_id=self.id,
+                old_value=prev_value,
+                new_value=value,
+                success=False,
+            )
+
             return False
 
         # Notify subscribers if the update was successful.
         self.notify_subscribers()
+
+        # Trace the successful variable write operation.
+        trace_variable_write(
+            variable_id=self.id,
+            old_value=prev_value,
+            new_value=value,
+            success=True,
+        )
 
         # Return True if the value was successfully updated and validated.
         return True
