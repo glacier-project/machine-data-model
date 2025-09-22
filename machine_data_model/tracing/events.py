@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 import time
 
-from .core import TraceEvent, TraceEventType, get_global_collector
+from .tracing_core import TraceEvent, TraceEventType, get_global_collector
 
 
 @dataclass

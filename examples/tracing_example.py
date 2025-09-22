@@ -10,8 +10,11 @@ import time
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.nodes.method_node import MethodNode
-from machine_data_model.tracing import clear_traces, TraceLevel
-from machine_data_model.tracing.core import export_traces_json
+from machine_data_model.tracing import (
+    clear_traces,
+    TraceLevel,
+    export_traces_json,
+)
 
 
 def main() -> None:

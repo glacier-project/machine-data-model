@@ -6,7 +6,7 @@ including variable changes, method executions, communication events, and control
 """
 
 # Import everything from core module
-from .core import (
+from .tracing_core import (
     # Core classes
     TraceEvent,
     TraceEventType,
