@@ -1,7 +1,13 @@
 import json
+import uuid
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.behavior.local_execution_node import (
+    WaitConditionNode,
+    WaitConditionOperator,
+)
+from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.tracing import (
     get_global_collector,
     clear_traces,
@@ -126,3 +132,55 @@ class TestDataModelTracing:
 
         # Verify the method actually executed correctly
         assert result.return_values == {"return": 10}
+
+    def test_tracing_records_wait_conditions(self) -> None:
+        clear_traces()
+        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+
+        # Create a variable to wait on
+        counter_var = NumericalVariableNode(id="counter", name="counter", value=0)
+        data_model.root.add_child(counter_var)
+        data_model._register_nodes(data_model.root)
+
+        # Create a wait condition that waits for counter >= 5
+        wait_condition = WaitConditionNode(
+            variable_node="counter",
+            rhs=5,
+            op=WaitConditionOperator.GE,
+        )
+        wait_condition.set_ref_node(counter_var)
+
+        # Create a control flow scope
+        scope = ControlFlowScope(str(uuid.uuid4()))
+
+        # First execution - condition not met, should start waiting
+        result1 = wait_condition.execute(scope)
+        assert not result1.success  # Should fail because condition not met
+
+        # Check that WAIT_START was recorded
+        collector = get_global_collector()
+        wait_start_events = collector.get_events(TraceEventType.WAIT_START)
+        assert len(wait_start_events) == 1
+
+        start_event = wait_start_events[0]
+        assert start_event.details["variable_id"] == "counter"
+        assert start_event.details["condition"] == "0 >= 5"  # Full condition string
+        assert start_event.details["expected_value"] == 5
+        assert isinstance(start_event.timestamp, float)
+
+        # Update the variable to meet the condition
+        data_model.write_variable("counter", 7)
+
+        # Execute again - condition met, should stop waiting
+        result2 = wait_condition.execute(scope)
+        assert result2.success  # Should succeed now
+
+        # Check that WAIT_END was recorded
+        wait_end_events = collector.get_events(TraceEventType.WAIT_END)
+        assert len(wait_end_events) == 1
+
+        end_event = wait_end_events[0]
+        assert end_event.details["variable_id"] == "counter"
+        assert isinstance(end_event.details["wait_duration"], float)
+        assert end_event.details["wait_duration"] > 0
+        assert isinstance(end_event.timestamp, float)

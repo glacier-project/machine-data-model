@@ -10,7 +10,10 @@ import time
 import uuid
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
-from machine_data_model.behavior.local_execution_node import WaitConditionNode, WaitConditionOperator
+from machine_data_model.behavior.local_execution_node import (
+    WaitConditionNode,
+    WaitConditionOperator,
+)
 from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.tracing import (
     clear_traces,
@@ -59,7 +62,9 @@ def main() -> None:
     result1 = wait_condition.execute(scope)
     print(f"   Result: success={result1.success}")
     print(f"   Counter value: {counter_var.read()}")
-    print(f"   Is scope subscribed to counter? {scope.id() in counter_var.get_subscribers()}")
+    print(
+        f"   Is scope subscribed to counter? {scope.id() in counter_var.get_subscribers()}"
+    )
 
     # Check current traces
     collector = get_global_collector()
@@ -94,24 +99,7 @@ def main() -> None:
     events = collector.get_events()
     print(f"\nFinal trace events: {len(events)}")
     for i, event in enumerate(events, 1):
-        print(f"   {i}. {event.event_type.value}: {event.details}")
-
-    # Export the trace
-    trace_file = "wait_condition_trace.json"
-    export_traces_json(trace_file)
-    print(f"\nTrace exported to {trace_file}")
-
-    # Show the trace file contents
-    if os.path.exists(trace_file):
-        print("\nTrace file contents:")
-        with open(trace_file, "r") as f:
-            print(f.read())
-
-        # Clean up
-        os.remove(trace_file)
-        print(f"\nCleaned up {trace_file}")
-    else:
-        print(f"Warning: {trace_file} was not created")
+        print(f"   {i:2}. {event.event_type.value:16}: {event.details}")
 
 
 if __name__ == "__main__":

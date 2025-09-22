@@ -387,10 +387,10 @@ class WaitConditionNode(LocalExecutionNode):
             if scope.id() not in ref_variable.get_subscribers():
                 # First time waiting for this condition
                 start_time = trace_wait_start(
-                    self.node,
-                    f"{lhs} {self._op.value} {rhs}",
-                    rhs,
-                    source=scope.id()
+                    variable_id=ref_variable.id,
+                    condition=f"{lhs} {self._op.value} {rhs}",
+                    expected_value=rhs,
+                    source=scope.id(),
                 )
                 scope.set_value(wait_key, start_time)
                 ref_variable.subscribe(scope.id())
@@ -401,7 +401,11 @@ class WaitConditionNode(LocalExecutionNode):
         if wait_key in scope.locals():
             # We were waiting, now we're done
             start_time = scope.get_value(wait_key)
-            trace_wait_end(self.node, start_time, source=scope.id())
+            trace_wait_end(
+                variable_id=ref_variable.id,
+                start_time=start_time,
+                source=scope.id(),
+            )
             # Clean up the wait start time
             del scope.locals()[wait_key]
         return execution_success()
