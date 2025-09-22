@@ -14,14 +14,7 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
-from machine_data_model.tracing import (
-    trace_variable_write,
-    trace_variable_read,
-    trace_method_start,
-    trace_method_end,
-    set_global_trace_level,
-    TraceLevel,
-)
+from machine_data_model.tracing import set_global_trace_level, TraceLevel
 
 
 class DataModel:
@@ -236,12 +229,7 @@ class DataModel:
         """
         node = self.get_node(method_id)
         if isinstance(node, MethodNode):
-            start_time = trace_method_start(method_id, {}, source=self._name)
-            result = node()
-            trace_method_end(
-                method_id, result.return_values, start_time, source=self._name
-            )
-            return result
+            return node()
         raise ValueError(f"Method '{method_id}' not found in data model")
 
     def subscribe(self, target_node: str, subscriber: str) -> bool:
