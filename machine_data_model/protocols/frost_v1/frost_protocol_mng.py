@@ -26,6 +26,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
 from machine_data_model.protocols.protocol_mng import ProtocolMng, Message
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
+from machine_data_model.tracing import trace_message_receive, trace_message_send
 import uuid
 import copy
 
@@ -39,7 +40,7 @@ def _create_response_msg(msg: FrostMessage) -> FrostMessage:
     :return: A new `FrostMessage` with the modified header and payload.
     """
     msg.header.type = MsgType.RESPONSE
-    return FrostMessage(
+    response_msg = FrostMessage(
         sender=msg.target,
         target=msg.sender,
         identifier=str(uuid.uuid4()),
@@ -47,6 +48,17 @@ def _create_response_msg(msg: FrostMessage) -> FrostMessage:
         payload=msg.payload,
         correlation_id=msg.correlation_id,
     )
+
+    # Trace message sending
+    trace_message_send(
+        message_type=f"{msg.header.namespace.value}.{msg.header.msg_name.value}",
+        target=msg.sender,
+        correlation_id=msg.correlation_id or "",
+        payload={"node": getattr(msg.payload, 'node', None), "value": getattr(msg.payload, 'value', None), "ret": getattr(msg.payload, 'ret', None)},
+        source="FrostProtocolMng",
+    )
+
+    return response_msg
 
 
 def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessage:
@@ -59,7 +71,7 @@ def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessag
     :return: An `ErrorPayload` containing the error details.
     """
     msg.header.type = MsgType.RESPONSE
-    return FrostMessage(
+    error_msg = FrostMessage(
         sender=msg.target,
         target=msg.sender,
         identifier=str(uuid.uuid4()),
@@ -71,6 +83,17 @@ def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessag
         ),
         correlation_id=msg.correlation_id,
     )
+
+    # Trace error message sending
+    trace_message_send(
+        message_type=f"{msg.header.namespace.value}.{msg.header.msg_name.value}",
+        target=msg.sender,
+        correlation_id=msg.correlation_id or "",
+        payload={"node": msg.payload.node, "error_code": ErrorCode.BAD_REQUEST.value, "error_message": error_message},
+        source="FrostProtocolMng",
+    )
+
+    return error_msg
 
 
 class FrostProtocolMng(ProtocolMng):
@@ -113,6 +136,16 @@ class FrostProtocolMng(ProtocolMng):
             raise ValueError("msg must be an instance of FrostMessage")
         msg = copy.deepcopy(msg)
         header = msg.header
+
+        # Trace message reception
+        trace_message_receive(
+            message_type=f"{header.namespace.value}.{header.msg_name.value}",
+            sender=msg.sender,
+            correlation_id=msg.correlation_id or "",
+            payload={"node": getattr(msg.payload, 'node', None), "value": getattr(msg.payload, 'value', None)},
+            send_time=0.0,  # We don't have send time for incoming messages
+            source="FrostProtocolMng",
+        )
 
         if not self._is_version_supported(header.version):
             return _create_error_response(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
@@ -265,7 +298,7 @@ class FrostProtocolMng(ProtocolMng):
         """
         if msg.header.msg_name == ProtocolMsgName.REGISTER:
             # Acknowledge registration.
-            return FrostMessage(
+            response_msg = FrostMessage(
                 sender=msg.target,
                 target=msg.sender,
                 identifier=str(uuid.uuid4()),
@@ -278,9 +311,20 @@ class FrostProtocolMng(ProtocolMng):
                 payload=ProtocolPayload(),
             )
 
+            # Trace message sending
+            trace_message_send(
+                message_type=f"{MsgNamespace.PROTOCOL.value}.{ProtocolMsgName.REGISTER.value}",
+                target=msg.sender,
+                correlation_id=msg.correlation_id or "",
+                payload={},
+                source="FrostProtocolMng",
+            )
+
+            return response_msg
+
         if msg.header.msg_name == ProtocolMsgName.UNREGISTER:
             # Acknowledge unregistration.
-            return FrostMessage(
+            response_msg = FrostMessage(
                 sender=msg.target,
                 target=msg.sender,
                 identifier=str(uuid.uuid4()),
@@ -292,6 +336,17 @@ class FrostProtocolMng(ProtocolMng):
                 ),
                 payload=ProtocolPayload(),
             )
+
+            # Trace message sending
+            trace_message_send(
+                message_type=f"{MsgNamespace.PROTOCOL.value}.{ProtocolMsgName.UNREGISTER.value}",
+                target=msg.sender,
+                correlation_id=msg.correlation_id or "",
+                payload={},
+                source="FrostProtocolMng",
+            )
+
+            return response_msg
 
         return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
 
@@ -360,21 +415,31 @@ class FrostProtocolMng(ProtocolMng):
         if subscriber in self._running_methods:
             return self.resume_composite_method(subscriber, node, value)
 
-        # append update message
-        self._update_messages.append(
-            FrostMessage(
-                sender=self._data_model.name,
-                target=subscriber,
-                identifier=str(uuid.uuid4()),
-                header=FrostHeader(
-                    version=self._protocol_version,
-                    type=MsgType.RESPONSE,
-                    namespace=MsgNamespace.VARIABLE,
-                    msg_name=VariableMsgName.UPDATE,
-                ),
-                payload=VariablePayload(node=node.qualified_name, value=value),
-            )
+        # Create update message
+        update_msg = FrostMessage(
+            sender=self._data_model.name,
+            target=subscriber,
+            identifier=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.UPDATE,
+            ),
+            payload=VariablePayload(node=node.qualified_name, value=value),
         )
+
+        # Trace message sending
+        trace_message_send(
+            message_type=f"{MsgNamespace.VARIABLE.value}.{VariableMsgName.UPDATE.value}",
+            target=subscriber,
+            correlation_id="",  # Update messages don't have correlation IDs
+            payload={"node": node.qualified_name, "value": value},
+            source="FrostProtocolMng",
+        )
+
+        # append update message
+        self._update_messages.append(update_msg)
 
     # def _handle_node_message(self, msg: FrostMessage) -> FrostMessage:
     #     """

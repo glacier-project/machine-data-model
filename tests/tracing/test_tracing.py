@@ -133,6 +133,65 @@ class TestDataModelTracing:
         # Verify the method actually executed correctly
         assert result.return_values == {"return": 10}
 
+    def test_tracing_records_message_send_and_receive(self) -> None:
+        clear_traces()
+        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+
+        # Create a simple variable for testing
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        # Create a mock protocol manager to test message tracing
+        from machine_data_model.protocols.frost_v1.frost_protocol_mng import FrostProtocolMng
+        from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+        from machine_data_model.protocols.frost_v1.frost_header import FrostHeader, MsgType, MsgNamespace, VariableMsgName
+        from machine_data_model.protocols.frost_v1.frost_payload import VariablePayload
+
+        protocol_mng = FrostProtocolMng(data_model)
+
+        # Create a read request message
+        read_msg = FrostMessage(
+            sender="client",
+            target="server",
+            identifier="test-id",
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.READ,
+            ),
+            payload=VariablePayload(node="test_var"),
+        )
+
+        # Handle the request - this should generate MESSAGE_RECEIVE and MESSAGE_SEND events
+        response = protocol_mng.handle_request(read_msg)
+
+        collector = get_global_collector()
+
+        # Check MESSAGE_RECEIVE event
+        receive_events = collector.get_events(TraceEventType.MESSAGE_RECEIVE)
+        assert len(receive_events) == 1
+        receive_event = receive_events[0]
+        assert receive_event.details["message_type"] == "VARIABLE.READ"
+        assert receive_event.details["sender"] == "client"
+        assert isinstance(receive_event.timestamp, float)
+
+        # Check MESSAGE_SEND event (response)
+        send_events = collector.get_events(TraceEventType.MESSAGE_SEND)
+        assert len(send_events) == 1
+        send_event = send_events[0]
+        assert send_event.details["message_type"] == "VARIABLE.READ"
+        assert send_event.details["target"] == "client"
+        assert send_event.details["payload"]["value"] == 10.0
+        assert isinstance(send_event.timestamp, float)
+
+        # Verify response is correct
+        assert response is not None
+        assert isinstance(response, FrostMessage)
+        assert isinstance(response.payload, VariablePayload)
+        assert response.payload.value == 10.0
+
     def test_tracing_records_wait_conditions(self) -> None:
         clear_traces()
         data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
