@@ -1,7 +1,9 @@
 import json
+from pathlib import Path
+from typing import Any
 import uuid
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
@@ -68,7 +70,7 @@ class TestDataModelTracing:
         assert value == 15.0
         assert isinstance(event.timestamp, float)
 
-    def test_export_trace(self, tmp_path) -> None:
+    def test_export_trace(self, tmp_path: Path) -> None:
         clear_traces()
         data_model = DataModel(trace_level=TraceLevel.VARIABLES)
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
@@ -300,9 +302,13 @@ class TestDataModelTracing:
         var.subscribe("subscriber_2")
 
         # Set up a callback to capture notifications
-        notifications = []
+        notifications: list[tuple[str, Any]] = []
 
-        def test_callback(subscriber_id, variable_node, value):
+        def test_callback(
+            subscriber_id: str,
+            _: VariableNode,
+            value: Any,
+        ) -> None:
             notifications.append((subscriber_id, value))
 
         var.set_subscription_callback(test_callback)

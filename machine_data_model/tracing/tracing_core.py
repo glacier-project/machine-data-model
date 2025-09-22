@@ -147,10 +147,10 @@ class TraceCollector:
 
         # Get minimum level required for this event type (default to FULL if
         # unknown).
-        min_level = event_min_levels.get(event_type, TraceLevel.FULL)
+        min_level: TraceLevel = event_min_levels.get(event_type, TraceLevel.FULL)
 
         # Record if current level is >= required level
-        return self.level.value >= min_level.value
+        return bool(self.level.value >= min_level.value)
 
     def get_events(
         self,
