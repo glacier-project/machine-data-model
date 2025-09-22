@@ -336,6 +336,123 @@ class MessageReceiveEvent(TraceEvent):
         self.latency = latency
 
 
+@dataclass
+class SubscribeEvent(TraceEvent):
+    """Event for subscription to a variable."""
+
+    variable_id: str
+    subscriber_id: str
+
+    def __init__(
+        self,
+        variable_id: str,
+        subscriber_id: str,
+        source: str = "",
+    ):
+        """
+        Initialize a subscribe event.
+
+        Args:
+            variable_id (str):
+                The ID of the variable being subscribed to.
+            subscriber_id (str):
+                The ID of the subscriber.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.SUBSCRIBE,
+            source=source,
+            details={
+                "variable_id": variable_id,
+                "subscriber_id": subscriber_id,
+            },
+        )
+        self.variable_id = variable_id
+        self.subscriber_id = subscriber_id
+
+
+@dataclass
+class UnsubscribeEvent(TraceEvent):
+    """Event for unsubscription from a variable."""
+
+    variable_id: str
+    subscriber_id: str
+
+    def __init__(
+        self,
+        variable_id: str,
+        subscriber_id: str,
+        source: str = "",
+    ):
+        """
+        Initialize an unsubscribe event.
+
+        Args:
+            variable_id (str):
+                The ID of the variable being unsubscribed from.
+            subscriber_id (str):
+                The ID of the subscriber.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.UNSUBSCRIBE,
+            source=source,
+            details={
+                "variable_id": variable_id,
+                "subscriber_id": subscriber_id,
+            },
+        )
+        self.variable_id = variable_id
+        self.subscriber_id = subscriber_id
+
+
+@dataclass
+class NotificationEvent(TraceEvent):
+    """Event for notification sent to subscribers."""
+
+    variable_id: str
+    subscriber_id: str
+    value: Any
+
+    def __init__(
+        self,
+        variable_id: str,
+        subscriber_id: str,
+        value: Any,
+        source: str = "",
+    ):
+        """
+        Initialize a notification event.
+
+        Args:
+            variable_id (str):
+                The ID of the variable that changed.
+            subscriber_id (str):
+                The ID of the subscriber being notified.
+            value (Any):
+                The new value of the variable.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.NOTIFICATION,
+            source=source,
+            details={
+                "variable_id": variable_id,
+                "subscriber_id": subscriber_id,
+                "value": value,
+            },
+        )
+        self.variable_id = variable_id
+        self.subscriber_id = subscriber_id
+        self.value = value
+
+
 # Convenience functions for easy tracing
 def trace_variable_write(
     variable_id: str,
@@ -611,6 +728,97 @@ def trace_message_receive(
             correlation_id,
             payload,
             latency,
+            source,
+        )
+    )
+
+
+def trace_subscribe(
+    variable_id: str,
+    subscriber_id: str,
+    source: str = "",
+) -> None:
+    """
+    Trace a subscription operation.
+
+    Args:
+        variable_id (str):
+            The ID of the variable being subscribed to.
+        subscriber_id (str):
+            The ID of the subscriber.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.SUBSCRIBE):
+        return
+
+    collector.record_event(
+        SubscribeEvent(
+            variable_id,
+            subscriber_id,
+            source,
+        )
+    )
+
+
+def trace_unsubscribe(
+    variable_id: str,
+    subscriber_id: str,
+    source: str = "",
+) -> None:
+    """
+    Trace an unsubscription operation.
+
+    Args:
+        variable_id (str):
+            The ID of the variable being unsubscribed from.
+        subscriber_id (str):
+            The ID of the subscriber.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.UNSUBSCRIBE):
+        return
+
+    collector.record_event(
+        UnsubscribeEvent(
+            variable_id,
+            subscriber_id,
+            source,
+        )
+    )
+
+
+def trace_notification(
+    variable_id: str,
+    subscriber_id: str,
+    value: Any,
+    source: str = "",
+) -> None:
+    """
+    Trace a notification sent to a subscriber.
+
+    Args:
+        variable_id (str):
+            The ID of the variable that changed.
+        subscriber_id (str):
+            The ID of the subscriber being notified.
+        value (Any):
+            The new value of the variable.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.NOTIFICATION):
+        return
+
+    collector.record_event(
+        NotificationEvent(
+            variable_id,
+            subscriber_id,
+            value,
             source,
         )
     )

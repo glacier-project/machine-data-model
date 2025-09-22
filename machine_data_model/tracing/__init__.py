@@ -29,6 +29,9 @@ from .events import (
     WaitEndEvent,
     MessageSendEvent,
     MessageReceiveEvent,
+    SubscribeEvent,
+    UnsubscribeEvent,
+    NotificationEvent,
     # Convenience functions
     trace_variable_write,
     trace_variable_read,
@@ -38,6 +41,9 @@ from .events import (
     trace_wait_end,
     trace_message_send,
     trace_message_receive,
+    trace_subscribe,
+    trace_unsubscribe,
+    trace_notification,
 )
 
 __all__ = [
@@ -55,6 +61,9 @@ __all__ = [
     "WaitEndEvent",
     "MessageSendEvent",
     "MessageReceiveEvent",
+    "SubscribeEvent",
+    "UnsubscribeEvent",
+    "NotificationEvent",
     # Convenience functions
     "trace_variable_write",
     "trace_variable_read",
@@ -64,6 +73,9 @@ __all__ = [
     "trace_wait_end",
     "trace_message_send",
     "trace_message_receive",
+    "trace_subscribe",
+    "trace_unsubscribe",
+    "trace_notification",
     # Global collector functions
     "get_global_collector",
     "set_global_trace_level",

@@ -43,6 +43,9 @@ class TraceEventType(Enum):
     WAIT_END = "wait_end"
     MESSAGE_SEND = "message_send"
     MESSAGE_RECEIVE = "message_receive"
+    SUBSCRIBE = "subscribe"
+    UNSUBSCRIBE = "unsubscribe"
+    NOTIFICATION = "notification"
     CONTROL_FLOW_STEP = "control_flow_step"
 
 
@@ -136,6 +139,9 @@ class TraceCollector:
             TraceEventType.MESSAGE_RECEIVE: TraceLevel.COMMUNICATION,
             TraceEventType.WAIT_START: TraceLevel.COMMUNICATION,
             TraceEventType.WAIT_END: TraceLevel.COMMUNICATION,
+            TraceEventType.SUBSCRIBE: TraceLevel.COMMUNICATION,
+            TraceEventType.UNSUBSCRIBE: TraceLevel.COMMUNICATION,
+            TraceEventType.NOTIFICATION: TraceLevel.COMMUNICATION,
             TraceEventType.CONTROL_FLOW_STEP: TraceLevel.FULL,
         }
 

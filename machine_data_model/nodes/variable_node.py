@@ -12,7 +12,13 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
-from machine_data_model.tracing import trace_variable_read, trace_variable_write
+from machine_data_model.tracing import (
+    trace_variable_read,
+    trace_variable_write,
+    trace_subscribe,
+    trace_unsubscribe,
+    trace_notification,
+)
 
 
 class VariableNode(DataModelNode):
@@ -152,6 +158,11 @@ class VariableNode(DataModelNode):
         if subscriber_id in self._subscribers:
             return
         self._subscribers.append(subscriber_id)
+        # Trace the subscription operation
+        trace_subscribe(
+            variable_id=self.id,
+            subscriber_id=subscriber_id,
+        )
 
     def unsubscribe(self, subscriber_id: str) -> None:
         """
@@ -162,6 +173,11 @@ class VariableNode(DataModelNode):
         if subscriber_id not in self._subscribers:
             return
         self._subscribers.remove(subscriber_id)
+        # Trace the unsubscription operation
+        trace_unsubscribe(
+            variable_id=self.id,
+            subscriber_id=subscriber_id,
+        )
 
     def set_subscription_callback(
         self, callback: Callable[[str, "VariableNode", Any], None]
@@ -185,6 +201,12 @@ class VariableNode(DataModelNode):
             self.parent.notify_subscribers()
         for subscriber in self._subscribers:
             self._subscription_callback(subscriber, self, value)
+            # Trace the notification operation
+            trace_notification(
+                variable_id=self.id,
+                subscriber_id=subscriber,
+                value=value,
+            )
 
     @abstractmethod
     def _read_value(self) -> Any:
@@ -643,22 +665,6 @@ class ObjectVariableNode(VariableNode):
         for property_name, property_value in value.items():
             self._properties[property_name]._update_value(property_value)
         return self._read_value()
-
-    def subscribe(self, subscriber_id: str) -> None:
-        """
-        Subscribe a subscriber to the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.append(subscriber_id)
-
-    def unsubscribe(self, subscriber_id: str) -> None:
-        """
-        Unsubscribe a subscriber from the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.remove(subscriber_id)
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """

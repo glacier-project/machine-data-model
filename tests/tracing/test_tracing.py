@@ -184,3 +184,88 @@ class TestDataModelTracing:
         assert isinstance(end_event.details["wait_duration"], float)
         assert end_event.details["wait_duration"] > 0
         assert isinstance(end_event.timestamp, float)
+
+    def test_tracing_records_subscriptions(self) -> None:
+        clear_traces()
+        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        # Subscribe to the variable
+        var.subscribe("subscriber_1")
+
+        collector = get_global_collector()
+        subscribe_events = collector.get_events(TraceEventType.SUBSCRIBE)
+        assert len(subscribe_events) == 1
+        event = subscribe_events[0]
+        assert event.details["variable_id"] == "test_var"
+        assert event.details["subscriber_id"] == "subscriber_1"
+        assert isinstance(event.timestamp, float)
+
+    def test_tracing_records_unsubscriptions(self) -> None:
+        clear_traces()
+        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        # Subscribe and then unsubscribe
+        var.subscribe("subscriber_1")
+        var.unsubscribe("subscriber_1")
+
+        collector = get_global_collector()
+        unsubscribe_events = collector.get_events(TraceEventType.UNSUBSCRIBE)
+        assert len(unsubscribe_events) == 1
+        event = unsubscribe_events[0]
+        assert event.details["variable_id"] == "test_var"
+        assert event.details["subscriber_id"] == "subscriber_1"
+        assert isinstance(event.timestamp, float)
+
+    def test_tracing_records_notifications(self) -> None:
+        clear_traces()
+        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        # Subscribe to the variable
+        var.subscribe("subscriber_1")
+        var.subscribe("subscriber_2")
+
+        # Set up a callback to capture notifications
+        notifications = []
+        def test_callback(subscriber_id, variable_node, value):
+            notifications.append((subscriber_id, value))
+
+        var.set_subscription_callback(test_callback)
+
+        # Write to the variable to trigger notifications
+        data_model.write_variable("test_var", 20.0)
+
+        collector = get_global_collector()
+        notification_events = collector.get_events(TraceEventType.NOTIFICATION)
+        assert len(notification_events) == 2  # One for each subscriber
+
+        # Check first notification
+        event1 = notification_events[0]
+        assert event1.details["variable_id"] == "test_var"
+        assert event1.details["subscriber_id"] in ["subscriber_1", "subscriber_2"]
+        assert event1.details["value"] == 20.0
+        assert isinstance(event1.timestamp, float)
+
+        # Check second notification
+        event2 = notification_events[1]
+        assert event2.details["variable_id"] == "test_var"
+        assert event2.details["subscriber_id"] in ["subscriber_1", "subscriber_2"]
+        assert event2.details["value"] == 20.0
+        assert isinstance(event2.timestamp, float)
+
+        # Ensure different subscribers were notified
+        assert event1.details["subscriber_id"] != event2.details["subscriber_id"]
+
+        # Verify callbacks were called
+        assert len(notifications) == 2
+        subscriber_ids = [n[0] for n in notifications]
+        assert "subscriber_1" in subscriber_ids
+        assert "subscriber_2" in subscriber_ids
