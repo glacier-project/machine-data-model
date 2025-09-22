@@ -1,5 +1,10 @@
 """
-Specific trace event classes for different types of operations.
+Specific trace event classes and convenience functions.
+
+This module defines concrete event classes for different types of traceable operations
+in the GLACIER machine data model, including variable access, method execution,
+wait conditions, and message passing. It also provides optimized convenience functions
+for easy tracing integration throughout the codebase.
 """
 
 from dataclasses import dataclass
