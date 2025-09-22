@@ -7,6 +7,7 @@ from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.tracing import trace_control_flow_step
 
 
 class ControlFlow:
@@ -63,6 +64,14 @@ class ControlFlow:
                 node.node = scope.resolve_template_variable(node.node)
 
             result = node.execute(scope)
+            # Trace the control flow step
+            trace_control_flow_step(
+                node_id=node.node,
+                node_type=type(node).__name__,
+                execution_result=result.success,
+                program_counter=pc,
+                source=scope.id(),
+            )
             if result.messages:
                 messages.extend(result.messages)
             if not result.success:

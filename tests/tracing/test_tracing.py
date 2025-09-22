@@ -328,3 +328,59 @@ class TestDataModelTracing:
         subscriber_ids = [n[0] for n in notifications]
         assert "subscriber_1" in subscriber_ids
         assert "subscriber_2" in subscriber_ids
+
+    def test_tracing_records_control_flow_steps(self) -> None:
+        clear_traces()
+        data_model = DataModel(trace_level=TraceLevel.FULL)
+
+        # Create a variable for testing
+        var = NumericalVariableNode(id="test_var", name="test_var", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        # Create control flow nodes
+        from machine_data_model.behavior.local_execution_node import ReadVariableNode, WriteVariableNode
+        from machine_data_model.behavior.control_flow import ControlFlow
+        from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+
+        read_node = ReadVariableNode(variable_node="test_var", store_as="read_value")
+        read_node.set_ref_node(var)
+        read_node.get_data_model_node = lambda path: data_model.get_node(path)
+
+        write_node = WriteVariableNode(variable_node="test_var", value=20.0)
+        write_node.set_ref_node(var)
+        write_node.get_data_model_node = lambda path: data_model.get_node(path)
+
+        # Create control flow with the nodes
+        control_flow = ControlFlow([read_node, write_node])
+
+        # Create scope and execute
+        scope = ControlFlowScope("test_scope")
+        messages = control_flow.execute(scope)
+
+        # Check control flow step events
+        collector = get_global_collector()
+        control_flow_events = collector.get_events(TraceEventType.CONTROL_FLOW_STEP)
+        assert len(control_flow_events) == 2  # One for each node
+
+        # Check first event (read node)
+        read_event = control_flow_events[0]
+        assert read_event.details["node_id"] == "test_var"
+        assert read_event.details["node_type"] == "ReadVariableNode"
+        assert read_event.details["execution_result"] == True
+        assert read_event.details["program_counter"] == 0
+        assert read_event.source == "test_scope"
+        assert isinstance(read_event.timestamp, float)
+
+        # Check second event (write node)
+        write_event = control_flow_events[1]
+        assert write_event.details["node_id"] == "test_var"
+        assert write_event.details["node_type"] == "WriteVariableNode"
+        assert write_event.details["execution_result"] == True
+        assert write_event.details["program_counter"] == 1
+        assert write_event.source == "test_scope"
+        assert isinstance(write_event.timestamp, float)
+
+        # Verify the control flow executed correctly
+        assert scope.get_value("read_value") == 10.0
+        assert data_model.read_variable("test_var") == 20.0

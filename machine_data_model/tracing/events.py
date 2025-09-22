@@ -453,6 +453,55 @@ class NotificationEvent(TraceEvent):
         self.value = value
 
 
+@dataclass
+class ControlFlowStepEvent(TraceEvent):
+    """Event for control flow step execution."""
+
+    node_id: str
+    node_type: str
+    execution_result: bool
+    program_counter: int
+
+    def __init__(
+        self,
+        node_id: str,
+        node_type: str,
+        execution_result: bool,
+        program_counter: int,
+        source: str = "",
+    ):
+        """
+        Initialize a control flow step event.
+
+        Args:
+            node_id (str):
+                The ID of the node being executed.
+            node_type (str):
+                The type of the node (e.g., "ReadVariableNode", "CallMethodNode").
+            execution_result (bool):
+                Whether the node execution was successful.
+            program_counter (int):
+                The current program counter position in the control flow.
+            source (str, optional):
+                The source of the event. Defaults to "".
+        """
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.CONTROL_FLOW_STEP,
+            source=source,
+            details={
+                "node_id": node_id,
+                "node_type": node_type,
+                "execution_result": execution_result,
+                "program_counter": program_counter,
+            },
+        )
+        self.node_id = node_id
+        self.node_type = node_type
+        self.execution_result = execution_result
+        self.program_counter = program_counter
+
+
 # Convenience functions for easy tracing
 def trace_variable_write(
     variable_id: str,
@@ -819,6 +868,43 @@ def trace_notification(
             variable_id,
             subscriber_id,
             value,
+            source,
+        )
+    )
+
+
+def trace_control_flow_step(
+    node_id: str,
+    node_type: str,
+    execution_result: bool,
+    program_counter: int,
+    source: str = "",
+) -> None:
+    """
+    Trace a control flow step execution.
+
+    Args:
+        node_id (str):
+            The ID of the node being executed.
+        node_type (str):
+            The type of the node (e.g., "ReadVariableNode", "CallMethodNode").
+        execution_result (bool):
+            Whether the node execution was successful.
+        program_counter (int):
+            The current program counter position in the control flow.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_STEP):
+        return
+
+    collector.record_event(
+        ControlFlowStepEvent(
+            node_id,
+            node_type,
+            execution_result,
+            program_counter,
             source,
         )
     )
