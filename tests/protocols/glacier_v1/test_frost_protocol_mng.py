@@ -406,7 +406,7 @@ class TestGlacierProtocolMng:
         request.header.msg_name = MethodMsgName.COMPLETED
         request.payload.ret["remote_return_1"] = 45
 
-        response = manager.handle_request(request)
+        response = manager.handle_response(request)
         assert isinstance(response, FrostMessage)
         assert response.header.type == MsgType.RESPONSE
         assert isinstance(response.payload, MethodPayload)
@@ -460,7 +460,7 @@ class TestGlacierProtocolMng:
         request.header.type = MsgType.RESPONSE
         request.payload.value = method.returns[0].read()
 
-        response = manager.handle_request(request)
+        response = manager.handle_response(request)
         assert isinstance(response, FrostMessage)
         assert response.header.type == MsgType.RESPONSE
         assert isinstance(response.payload, MethodPayload)
@@ -514,7 +514,7 @@ class TestGlacierProtocolMng:
         request.header.type = MsgType.RESPONSE
         assert request.payload.value == method.parameters[0].read()
 
-        response = manager.handle_request(request)
+        response = manager.handle_response(request)
         assert isinstance(response, FrostMessage)
         assert response.header.type == MsgType.RESPONSE
         assert isinstance(response.payload, MethodPayload)

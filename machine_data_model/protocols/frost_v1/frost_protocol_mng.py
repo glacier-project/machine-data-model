@@ -99,11 +99,25 @@ class FrostProtocolMng(ProtocolMng):
         self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
         self._protocol_version = (1, 0, 0)
 
-    @override
-    def handle_request(self, msg: Message) -> Message | None:
+    # Validate msg type and protocol version
+    def _validate_message(self, msg: Message) -> bool:
         """
-        Handles a message encoded with the Frost protocol and updates the
-        machine data model accordingly.
+        Validates the provided message to ensure it is a FrostMessage and
+        checks if the protocol version is supported.
+
+        :param msg: The message to be validated.
+        :return: True if the message is valid and the version is supported, otherwise False.
+        """
+
+        if not isinstance(msg, FrostMessage):
+            return False
+
+        return self._is_version_supported(msg.header.version)
+
+    @override
+    def handle_request(self, msg: Message) -> Message:
+        """
+        Handles a Frost request message and updates the data model accordingly.
 
         :param msg: The message to be handled.
         :return: A response message based on the validation and handling of the input message.
@@ -111,18 +125,15 @@ class FrostProtocolMng(ProtocolMng):
 
         if not isinstance(msg, FrostMessage):
             raise ValueError("msg must be an instance of FrostMessage")
+
         msg = copy.deepcopy(msg)
         header = msg.header
 
         if not self._is_version_supported(header.version):
             return _create_error_response(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
 
-        # Resume methods waiting for a response
-        if msg.correlation_id in self._running_methods:
-            cm, _ = self._running_methods[msg.correlation_id]
-            if not cm.handle_message(msg.correlation_id, msg):
-                return _create_error_response(msg, ErrorMessages.BAD_RESPONSE)
-            return self._resume_composite_method(msg.correlation_id)
+        if header.type != MsgType.REQUEST:
+            return _create_error_response(msg, ErrorMessages.INVALID_REQUEST)
 
         # Handle PROTOCOL messages separately.
         if header.namespace == MsgNamespace.PROTOCOL:
@@ -146,6 +157,28 @@ class FrostProtocolMng(ProtocolMng):
 
         # Return invalid namespace.
         return _create_error_response(msg, ErrorMessages.INVALID_NAMESPACE)
+
+    def handle_response(self, msg: FrostMessage) -> Message | None:
+        """
+        Handles a Frost response message received in response to a request sent by the data model. This includes resuming composite methods waiting for a response.
+
+        :param msg: The response message to be handled.
+        :return: A response message if a composite method is completed, otherwise None.
+        """
+        if not isinstance(msg, FrostMessage):
+            raise ValueError("msg must be an instance of FrostMessage")
+        msg = copy.deepcopy(msg)
+        header = msg.header
+
+        if not self._is_version_supported(header.version):
+            return
+
+        # Resume methods waiting for a response
+        if msg.correlation_id in self._running_methods:
+            cm, _ = self._running_methods[msg.correlation_id]
+            if not cm.handle_message(msg.correlation_id, msg):
+                return _create_error_response(msg, ErrorMessages.BAD_RESPONSE)
+            return self._resume_composite_method(msg.correlation_id)
 
     def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
         """
