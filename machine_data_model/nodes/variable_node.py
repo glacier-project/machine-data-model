@@ -12,6 +12,9 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 
 
 class VariableNode(DataModelNode):
@@ -49,10 +52,10 @@ class VariableNode(DataModelNode):
         self._pre_update_value: Callable[[Any], Any] = lambda value: value
         self._post_update_value: Callable[[Any, Any], bool] = lambda prev, curr: True
         # List of subscribers and related callbacks.
-        self._subscribers: list[str] = []
-        self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
-            lambda subscriber, node, value: None
-        )
+        self._subscriptions: list[VariableSubscription] = []
+        self._subscription_callback: Callable[
+            [VariableSubscription, "VariableNode", Any], None
+        ] = lambda subscription, node, value: None
 
     def read(self) -> Any:
         """
@@ -110,38 +113,38 @@ class VariableNode(DataModelNode):
 
         :return: True if the variable node has subscribers, False otherwise.
         """
-        return bool(self._subscribers)
+        return bool(self._subscriptions)
 
-    def get_subscribers(self) -> list[str]:
+    def get_subscriptions(self) -> list[VariableSubscription]:
         """
-        Get the list of subscribers for the variable node.
+        Get the list of subscriptions for the variable node.
 
-        :return: A list of subscriber IDs.
+        :return: A list of subscriptions.
         """
-        return self._subscribers
+        return self._subscriptions
 
-    def subscribe(self, subscriber_id: str) -> None:
+    def subscribe(self, subscription: VariableSubscription) -> None:
         """
         Subscribe a subscriber to the variable node.
 
         :param subscriber_id: The ID of the subscriber.
         """
-        if subscriber_id in self._subscribers:
+        if subscription in self._subscriptions:
             return
-        self._subscribers.append(subscriber_id)
+        self._subscriptions.append(subscription)
 
-    def unsubscribe(self, subscriber_id: str) -> None:
+    def unsubscribe(self, subscription: VariableSubscription) -> None:
         """
         Unsubscribe a subscriber from the variable node.
 
         :param subscriber_id: The ID of the subscriber.
         """
-        if subscriber_id not in self._subscribers:
+        if subscription not in self._subscriptions:
             return
-        self._subscribers.remove(subscriber_id)
+        self._subscriptions.remove(subscription)
 
     def set_subscription_callback(
-        self, callback: Callable[[str, "VariableNode", Any], None]
+        self, callback: Callable[[VariableSubscription, "VariableNode", Any], None]
     ) -> None:
         """
         Set a callback to be executed when notifying subscribers.
@@ -160,8 +163,10 @@ class VariableNode(DataModelNode):
         # Pass the value to the callback.
         if isinstance(self.parent, VariableNode):
             self.parent.notify_subscribers()
-        for subscriber in self._subscribers:
-            self._subscription_callback(subscriber, self, value)
+        for subscription in self._subscriptions:
+            if not subscription.should_notify(value):
+                continue
+            self._subscription_callback(subscription, self, value)
 
     @abstractmethod
     def _read_value(self) -> Any:

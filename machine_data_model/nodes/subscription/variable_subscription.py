@@ -35,6 +35,25 @@ class VariableSubscription:
         """
         return True
 
+    def __eq__(self, other: object) -> bool:
+        if other is self:
+            return True
+        if not isinstance(other, VariableSubscription):
+            return False
+        return (
+            self.subscriber_id == other.subscriber_id
+            and self.correlation_id == other.correlation_id
+        )
+
+    def __str__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(subscriber_id={self.subscriber_id!r}, "
+            f"correlation_id={self.correlation_id!r})"
+        )
+
+    def __repr__(self) -> str:
+        return str(self)
+
 
 class DataChangeSubscription(VariableSubscription):
     """Subscription for data change events. It notifies when the variable's value changes beyond a specified deadband.
