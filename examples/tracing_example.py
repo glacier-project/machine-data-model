@@ -47,6 +47,10 @@ def main() -> None:
         data_model.write_variable("temperature", 20.0 + i * 5.0)
         time.sleep(0.1)  # Small delay for different timestamps
         data_model.write_variable("pressure", 1.0 + i * 0.1)
+        # Also read the variables to demonstrate read tracing
+        temp_value = data_model.read_variable("temperature")
+        pressure_value = data_model.read_variable("pressure")
+        print(f"  Read: temperature={temp_value}, pressure={pressure_value}")
 
     # Export the trace.
     trace_file = "simulation_trace.json"

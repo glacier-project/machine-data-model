@@ -246,8 +246,22 @@ def trace_variable_write(
     get_global_collector().record_event(event)
 
 
-def trace_variable_read(variable_id: str, value: Any, source: str = "") -> None:
-    """Trace a variable read operation."""
+def trace_variable_read(
+    variable_id: str,
+    value: Any,
+    source: str = "",
+) -> None:
+    """
+    Trace a variable read operation.
+
+    Args:
+        variable_id (str):
+            The ID of the variable being read.
+        value (Any):
+            The value of the variable.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
     event = VariableReadEvent(
         variable_id,
         value,

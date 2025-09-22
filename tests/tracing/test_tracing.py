@@ -42,6 +42,24 @@ class TestDataModelTracing:
         assert event.details["new_value"] == 20.0
         assert isinstance(event.timestamp, float)
 
+    def test_tracing_records_reads(self) -> None:
+        clear_traces()
+        data_model = DataModel(trace_level=TraceLevel.VARIABLES)
+        var = NumericalVariableNode(id="test_var", name="test", value=15.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        value = data_model.read_variable("test_var")
+
+        collector = get_global_collector()
+        variable_events = collector.get_events(TraceEventType.VARIABLE_READ)
+        assert len(variable_events) == 1
+        event = variable_events[0]
+        assert event.details["variable_id"] == "test_var"
+        assert event.details["value"] == 15.0
+        assert value == 15.0
+        assert isinstance(event.timestamp, float)
+
     def test_export_trace(self, tmp_path) -> None:
         clear_traces()
         data_model = DataModel(trace_level=TraceLevel.VARIABLES)

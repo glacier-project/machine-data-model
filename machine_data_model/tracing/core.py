@@ -6,12 +6,10 @@ including variable changes, method executions, communication events, and control
 """
 
 from dataclasses import dataclass
-from logging import warning
 from typing import Any, List, Optional, Dict
 from enum import Enum
 
 import json
-import csv
 
 
 class TraceLevel(Enum):

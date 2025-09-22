@@ -16,6 +16,7 @@ from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableN
 from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
 from machine_data_model.tracing import (
     trace_variable_write,
+    trace_variable_read,
     set_global_trace_level,
     TraceLevel,
 )
@@ -210,7 +211,9 @@ class DataModel:
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
-            return node.read()
+            value = node.read()
+            trace_variable_read(variable_id, value, source=self._name)
+            return value
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def write_variable(self, variable_id: str, value: Any) -> bool:
