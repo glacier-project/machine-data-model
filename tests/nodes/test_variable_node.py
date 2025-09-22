@@ -1,15 +1,18 @@
 import random
 from enum import Enum
+from typing import Any
 
 import pytest
 from unitsnet_py.units.length import LengthUnits
 
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
+from machine_data_model.nodes.subscription.variable_subscription import DataChangeSubscription, VariableSubscription
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
     ObjectVariableNode,
     StringVariableNode,
+    VariableNode,
 )
 from tests import (
     NUM_TESTS,
@@ -172,28 +175,6 @@ class TestVariableNode:
         assert obj_var.has_property(num_var.name)
         assert obj_var.get_property(num_var.name) == num_var
 
-    # def test_object_variable_node_subscribe(
-    #     self, var_name: str, var_description: str
-    # ) -> None:
-    #     str_prop = StringVariableNode(name="b", description="b", value="c")
-    #     obj_var = ObjectVariableNode(
-    #         name=var_name, description=var_description, properties={"b": str_prop}
-    #     )
-
-    #     num_var = NumericalVariableNode(
-    #         name="a", description="b", value=-1, measure_unit=LengthUnits.Meter
-    #     )
-    #     obj_var.add_property(num_var)
-
-    #     subscription = VariableSubscription("subscriber_1", "corr_1")
-    #     obj_var.subscribe(subscription)
-    #     num_var.write(10)
-
-    #     assert obj_var.name == var_name
-    #     assert obj_var.description == var_description
-    #     assert obj_var.has_property("a")
-    #     assert obj_var.value["a"] == 10
-
     def test_object_variable_node_getattr(
         self, var_name: str, var_description: str
     ) -> None:
@@ -213,3 +194,52 @@ class TestVariableNode:
         obj_var.add_property(num_var)
 
         assert obj_var.example.value == num_var.value
+
+    def test_variable_node_subscription(
+        self, var_name: str, var_description: str
+    ) -> None:
+        updates = []
+        def on_data_change(subscription: VariableSubscription, variable: VariableNode, value: Any) -> None:
+            updates.append((subscription.subscriber_id, value))
+
+        obj_var = ObjectVariableNode(
+            name=var_name, description=var_description
+        )
+        num_var = get_random_numerical_node()
+        obj_var.add_property(num_var)
+        subscription_1 = DataChangeSubscription("subscriber_1", "corr_1")
+        subscription_2 = DataChangeSubscription("subscriber_2", "corr_2")
+        obj_var.subscribe(subscription_1)
+        obj_var.set_subscription_callback(on_data_change)
+        num_var.subscribe(subscription_2)
+        num_var.set_subscription_callback(on_data_change)
+
+        num_var.write(10)
+
+        assert len(updates) == 2
+        assert updates[0] == ("subscriber_2", num_var.read())
+        assert updates[1] == ("subscriber_1", obj_var.read())
+
+    def test_delete_variable_node_subscription(
+        self, var_name: str, var_description: str
+    ) -> None:
+        num_var = get_random_numerical_node(var_name=var_name, var_description=var_description)
+        num_subscriptions = 5
+
+        subscriptions = [
+            num_var.subscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}")) for i in range(num_subscriptions)
+        ]
+        duplicate_subscription = num_var.subscribe(VariableSubscription("subscriber_1", "corr_1"))
+
+        assert len(num_var.get_subscriptions()) == num_subscriptions
+        assert all(subscriptions)
+        assert not duplicate_subscription
+
+        unsubscriptions = [
+            num_var.unsubscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}")) for i in range(num_subscriptions)
+        ]
+
+        assert len(num_var.get_subscriptions()) == 0
+        assert all(unsubscriptions)
+
+        

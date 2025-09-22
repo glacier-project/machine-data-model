@@ -97,6 +97,7 @@ class TestCompositeMethod:
 
         assert not ret.messages
         assert len(wait_node.get_subscriptions()) == 0
+        assert ret.return_values
         for node in c_method.returns:
             assert node.read() == ret.return_values[node.name]
 

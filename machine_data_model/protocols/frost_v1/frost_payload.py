@@ -34,7 +34,7 @@ class VariablePayload(FrostPayload):
 
 
 @dataclass(init=True, slots=True)
-class SubscriptionPayload(FrostPayload):
+class SubscriptionPayload(VariablePayload):
     """
     Represents the payload of a subscription-related message.
 
@@ -44,8 +44,9 @@ class SubscriptionPayload(FrostPayload):
     :cvar node: The node associated with the message payload (inherited).
     """
 
-    subscription_type: EventType = EventType.ANY
-
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.ANY
 
 @dataclass(init=True, slots=True)
 class DataChangeSubscriptionPayload(SubscriptionPayload):
@@ -64,14 +65,18 @@ class DataChangeSubscriptionPayload(SubscriptionPayload):
     deadband: float = 0.0
     is_percent: bool = False
 
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.DATA_CHANGE
+
 
 @dataclass(init=True, slots=True)
-class RangeSubscriptionPayload(SubscriptionPayload):
+class InRangeSubscriptionPayload(SubscriptionPayload):
     """
-    Represents the payload of a range subscription message.
+    Represents the payload of an in-range subscription message.
 
     This class extends the subscription payload and includes attributes specific to
-    range subscriptions.
+    in-range subscriptions.
 
     :cvar node: The node associated with the message payload (inherited).
     :cvar low: The lower bound of the range.
@@ -80,6 +85,27 @@ class RangeSubscriptionPayload(SubscriptionPayload):
 
     low: float = 0.0
     high: float = 0.0
+
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.IN_RANGE
+    
+@dataclass(init=True, slots=True)
+class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
+    """
+    Represents the payload of an out-of-range subscription message.
+
+    This class extends the subscription payload and includes attributes specific to
+    out-of-range subscriptions.
+
+    :cvar node: The node associated with the message payload (inherited).
+    :cvar low: The lower bound of the range.
+    :cvar high: The upper bound of the range.
+    """
+
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.OUT_OF_RANGE
 
 
 @dataclass(init=True, slots=True)

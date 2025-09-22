@@ -12,6 +12,7 @@ from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.subscription.variable_subscription import EventType, VariableSubscription
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     StringVariableNode,
@@ -32,11 +33,17 @@ from machine_data_model.protocols.frost_v1.frost_header import (
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_payload import (
+    SubscriptionPayload,
     VariablePayload,
     MethodPayload,
     ProtocolPayload,
     ErrorPayload,
+    DataChangeSubscriptionPayload,
+    InRangeSubscriptionPayload,
+    OutOfRangeSubscriptionPayload
+
 )
+from tests.nodes.subscription import get_random_subscription, get_random_data_change_subscription, get_random_in_range_subscription, get_random_out_of_range_subscription
 
 
 @pytest.fixture
@@ -191,14 +198,15 @@ class TestGlacierProtocolMng:
             assert isinstance(res, FrostMessage)
             assert not isinstance(res.payload, ErrorPayload)
 
-    @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_variable_subscribe(
-        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
+        self, manager: FrostProtocolMng, sender: str, target: str
     ) -> None:
         var_name = "folder1/o_variable2"
         node = manager.get_data_model().get_node(var_name)
         assert isinstance(node, ObjectVariableNode)
         value = get_value(node)
+
+        payload = SubscriptionPayload(node=var_name)
         msg = FrostMessage(
             sender=sender,
             target=target,
@@ -209,7 +217,7 @@ class TestGlacierProtocolMng:
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.SUBSCRIBE,
             ),
-            payload=VariablePayload(node=var_name, value=value),
+            payload=payload,
         )
         response = manager.handle_request(msg)
 
@@ -224,16 +232,18 @@ class TestGlacierProtocolMng:
 
         node["s_variable3"].write("Hello")
         node["s_variable4"].write("Confirm")
+
         update_messages = manager.get_update_messages()
-        assert isinstance(update_messages, list)
-        update = update_messages.pop(0)
-        assert isinstance(update.payload, VariablePayload)
-        assert isinstance(update.payload.value, dict)
-        assert update.payload.value["s_variable3"] == "Hello"
-        update = update_messages.pop(0)
-        assert isinstance(update.payload, VariablePayload)
-        assert isinstance(update.payload.value, dict)
-        assert update.payload.value["s_variable4"] == "Confirm"
+
+        assert len(update_messages) == 2
+        for update in update_messages:
+            assert update.header.type == MsgType.RESPONSE
+            assert update.correlation_id == msg.correlation_id
+            assert update.target == sender
+            assert isinstance(update.payload, VariablePayload)
+            assert isinstance(update.payload.value, dict)
+        assert update_messages[0].payload.value["s_variable3"] == "Hello"
+        assert update_messages[1].payload.value["s_variable4"] == "Confirm"
 
     @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_method_call_request(
