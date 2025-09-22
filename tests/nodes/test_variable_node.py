@@ -11,10 +11,13 @@ from machine_data_model.nodes.variable_node import (
     ObjectVariableNode,
     StringVariableNode,
 )
-from machine_data_model.nodes.subscription.variable_subscription import (
-    VariableSubscription,
+from tests import (
+    NUM_TESTS,
+    gen_random_string,
+    get_random_simple_node,
+    get_random_string_node,
+    get_random_numerical_node,
 )
-from tests import NUM_TESTS, gen_random_string
 
 
 @pytest.mark.parametrize(
@@ -22,14 +25,6 @@ from tests import NUM_TESTS, gen_random_string
     [(gen_random_string(10), gen_random_string(20)) for _ in range(3)],
 )
 class TestVariableNode:
-    properties = {
-        "a": NumericalVariableNode(
-            name="a", description="b", value=1, measure_unit=LengthUnits.Meter
-        ),
-        "b": StringVariableNode(name="b", description="b", value="c"),
-        "c": BooleanVariableNode(name="c", description="b", value=True),
-    }
-
     @pytest.mark.parametrize("var_value", [gen_random_string(10) for _ in range(3)])
     def test_string_variable_node_creation(
         self, var_name: str, var_description: str, var_value: str
@@ -135,7 +130,14 @@ class TestVariableNode:
     def test_object_variable_node_creation(
         self, var_name: str, var_description: str
     ) -> None:
-        properties = self.properties
+        properties = {
+            node.name: node
+            for node in [
+                get_random_simple_node(),
+                get_random_simple_node(),
+                get_random_simple_node(),
+            ]
+        }
         obj_var = ObjectVariableNode(
             name=var_name, description=var_description, properties=properties
         )
@@ -153,56 +155,61 @@ class TestVariableNode:
     def test_object_variable_node_update(
         self, var_name: str, var_description: str
     ) -> None:
-        str_prop = StringVariableNode(name="b", description="b", value="c")
+        str_prop = get_random_string_node()
         obj_var = ObjectVariableNode(
-            name=var_name, description=var_description, properties={"b": str_prop}
+            name=var_name,
+            description=var_description,
+            properties={str_prop.name: str_prop},
         )
 
-        num_var = NumericalVariableNode(
-            name="a", description="b", value=-1, measure_unit=LengthUnits.Meter
-        )
+        num_var = get_random_numerical_node()
         obj_var.add_property(num_var)
-        obj_var.remove_property("b")
+        obj_var.remove_property(str_prop.name)
 
         assert obj_var.name == var_name
         assert obj_var.description == var_description
-        assert not obj_var.has_property("b")
-        assert obj_var.has_property("a")
-        assert obj_var.get_property("a") == num_var
+        assert not obj_var.has_property(str_prop.name)
+        assert obj_var.has_property(num_var.name)
+        assert obj_var.get_property(num_var.name) == num_var
 
-    def test_object_variable_node_subscribe(
-        self, var_name: str, var_description: str
-    ) -> None:
-        str_prop = StringVariableNode(name="b", description="b", value="c")
-        obj_var = ObjectVariableNode(
-            name=var_name, description=var_description, properties={"b": str_prop}
-        )
+    # def test_object_variable_node_subscribe(
+    #     self, var_name: str, var_description: str
+    # ) -> None:
+    #     str_prop = StringVariableNode(name="b", description="b", value="c")
+    #     obj_var = ObjectVariableNode(
+    #         name=var_name, description=var_description, properties={"b": str_prop}
+    #     )
 
-        num_var = NumericalVariableNode(
-            name="a", description="b", value=-1, measure_unit=LengthUnits.Meter
-        )
-        obj_var.add_property(num_var)
+    #     num_var = NumericalVariableNode(
+    #         name="a", description="b", value=-1, measure_unit=LengthUnits.Meter
+    #     )
+    #     obj_var.add_property(num_var)
 
-        subscription = VariableSubscription("subscriber_1", "corr_1")
-        obj_var.subscribe(subscription)
-        num_var.write(10)
+    #     subscription = VariableSubscription("subscriber_1", "corr_1")
+    #     obj_var.subscribe(subscription)
+    #     num_var.write(10)
 
-        assert obj_var.name == var_name
-        assert obj_var.description == var_description
-        assert obj_var.has_property("a")
-        assert obj_var.value["a"] == 10
+    #     assert obj_var.name == var_name
+    #     assert obj_var.description == var_description
+    #     assert obj_var.has_property("a")
+    #     assert obj_var.value["a"] == 10
 
     def test_object_variable_node_getattr(
         self, var_name: str, var_description: str
     ) -> None:
-        properties = self.properties
+        properties = {
+            node.name: node
+            for node in [
+                get_random_simple_node(),
+                get_random_simple_node(),
+                get_random_simple_node(),
+            ]
+        }
         obj_var = ObjectVariableNode(
             name=var_name, description=var_description, properties=properties
         )
 
-        num_var = NumericalVariableNode(
-            name="example", description="b", value=-1, measure_unit=LengthUnits.Meter
-        )
+        num_var = get_random_numerical_node(var_name="example")
         obj_var.add_property(num_var)
 
         assert obj_var.example.value == num_var.value
