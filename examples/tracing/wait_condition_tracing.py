@@ -5,8 +5,6 @@ This example shows how wait conditions are traced when they start waiting
 for a variable to meet a condition and when the wait completes.
 """
 
-import os
-import time
 import uuid
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
@@ -18,19 +16,18 @@ from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.tracing import (
     clear_traces,
     TraceLevel,
-    export_traces_json,
     get_global_collector,
 )
 
+if __name__ == "__main__":
 
-def main() -> None:
     # Clear any previous traces
     clear_traces()
 
     # Create a DataModel with tracing enabled for all events
     data_model = DataModel(
         name="WaitConditionExample",
-        trace_level=TraceLevel.FULL,  # Enable all tracing including wait conditions
+        trace_level=TraceLevel.FULL,
     )
 
     # Create a variable that we'll wait on
@@ -100,7 +97,3 @@ def main() -> None:
     print(f"\nFinal trace events: {len(events)}")
     for i, event in enumerate(events, 1):
         print(f"   {i:2}. {event.event_type.value:16}: {event.details}")
-
-
-if __name__ == "__main__":
-    main()

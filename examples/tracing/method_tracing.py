@@ -1,8 +1,8 @@
 """
-Example demonstrating the tracing functionality in DataModel.
+Example demonstrating method execution tracing in DataModel.
 
-This example shows how to enable tracing for variable changes, reads, and method calls,
-and export the trace data for analysis, similar to VCD files in hardware simulations.
+This example shows how to enable tracing for method calls and their execution,
+including start/end times and return values.
 """
 
 import os
@@ -15,22 +15,20 @@ from machine_data_model.tracing import (
     TraceLevel,
     export_traces_json,
 )
-from machine_data_model.behavior.local_execution_node import WaitConditionNode, WaitConditionOperator
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
-import uuid
 
 
-def main() -> None:
+if __name__ == "__main__":
+
     # Clear any previous traces
     clear_traces()
 
-    # Create a DataModel with tracing enabled for variables and methods.
+    # Create a DataModel with tracing enabled for methods.
     data_model = DataModel(
-        name="TracingExample",
+        name="MethodTracingExample",
         trace_level=TraceLevel.METHODS,  # This includes VARIABLES and METHODS
     )
 
-    # Add some variables
+    # Add some variables that will be used as parameters
     temp_var = NumericalVariableNode(
         id="temperature",
         name="temp",
@@ -65,45 +63,15 @@ def main() -> None:
     # Register nodes
     data_model._register_nodes(data_model.root)
 
-    # Simulate some changes and method calls
-    print("Simulating variable changes and method calls...")
+    # Simulate method calls with different parameters
+    print("Simulating method calls...")
     for i in range(3):
-        # Update variables
+        # Update variables first (these will also be traced)
         data_model.write_variable("temperature", 20.0 + i * 5.0)
         time.sleep(0.1)  # Small delay for different timestamps
         data_model.write_variable("pressure", 1.0 + i * 0.1)
 
-        # Read the variables
-        temp_value = data_model.read_variable("temperature")
-        pressure_value = data_model.read_variable("pressure")
-        print(f"  Read: temperature={temp_value}, pressure={pressure_value}")
-
         # Call the method
         result = data_model.call_method("calculate_avg")
         avg_value = result.return_values["result"]
-        print(f"  Method result: average={avg_value}")
-
-    # Export the trace.
-    trace_file = "simulation_trace.json"
-    export_traces_json(trace_file)
-    print(f"Trace exported to {trace_file}")
-
-    # Verify the file was created and show some stats
-    if os.path.exists(trace_file):
-        file_size = os.path.getsize(trace_file)
-        print(f"Trace file size: {file_size} bytes")
-
-        print("Sample trace data:")
-        with open(trace_file, "r") as f:
-            data = f.read(1000)
-            print(data + "...\n")
-
-        # Clean up
-        os.remove(trace_file)
-        print(f"Cleaned up {trace_file}")
-    else:
-        print(f"Warning: {trace_file} was not created")
-
-
-if __name__ == "__main__":
-    main()
+        print(f"  Method call {i+1}: average={avg_value}")
