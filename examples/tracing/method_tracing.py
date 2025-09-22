@@ -5,7 +5,6 @@ This example shows how to enable tracing for method calls and their execution,
 including start/end times and return values.
 """
 
-import os
 import time
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
@@ -13,7 +12,6 @@ from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.tracing import (
     clear_traces,
     TraceLevel,
-    export_traces_json,
 )
 
 

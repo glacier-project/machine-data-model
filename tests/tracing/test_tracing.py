@@ -47,7 +47,7 @@ class TestDataModelTracing:
         assert event.details["variable_id"] == "test_var"
         assert event.details["old_value"] == 10.0
         assert event.details["new_value"] == 20.0
-        assert event.details["success"] == True
+        assert event.details["success"]
         assert isinstance(event.timestamp, float)
 
     def test_tracing_records_reads(self) -> None:
@@ -88,7 +88,7 @@ class TestDataModelTracing:
         assert data[0]["details"]["variable_id"] == "test_var"
         assert data[0]["details"]["old_value"] == 10.0
         assert data[0]["details"]["new_value"] == 20.0
-        assert data[0]["details"]["success"] == True
+        assert data[0]["details"]["success"]
         assert "test_var" in data[0]["details"].values()
 
     def test_tracing_records_method_calls(self) -> None:
@@ -143,9 +143,16 @@ class TestDataModelTracing:
         data_model._register_nodes(data_model.root)
 
         # Create a mock protocol manager to test message tracing
-        from machine_data_model.protocols.frost_v1.frost_protocol_mng import FrostProtocolMng
+        from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
+            FrostProtocolMng,
+        )
         from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-        from machine_data_model.protocols.frost_v1.frost_header import FrostHeader, MsgType, MsgNamespace, VariableMsgName
+        from machine_data_model.protocols.frost_v1.frost_header import (
+            FrostHeader,
+            MsgType,
+            MsgNamespace,
+            VariableMsgName,
+        )
         from machine_data_model.protocols.frost_v1.frost_payload import VariablePayload
 
         protocol_mng = FrostProtocolMng(data_model)
@@ -294,6 +301,7 @@ class TestDataModelTracing:
 
         # Set up a callback to capture notifications
         notifications = []
+
         def test_callback(subscriber_id, variable_node, value):
             notifications.append((subscriber_id, value))
 
@@ -339,7 +347,10 @@ class TestDataModelTracing:
         data_model._register_nodes(data_model.root)
 
         # Create control flow nodes
-        from machine_data_model.behavior.local_execution_node import ReadVariableNode, WriteVariableNode
+        from machine_data_model.behavior.local_execution_node import (
+            ReadVariableNode,
+            WriteVariableNode,
+        )
         from machine_data_model.behavior.control_flow import ControlFlow
         from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 
@@ -356,7 +367,7 @@ class TestDataModelTracing:
 
         # Create scope and execute
         scope = ControlFlowScope("test_scope")
-        messages = control_flow.execute(scope)
+        control_flow.execute(scope)
 
         # Check control flow step events
         collector = get_global_collector()
@@ -367,7 +378,7 @@ class TestDataModelTracing:
         read_event = control_flow_events[0]
         assert read_event.details["node_id"] == "test_var"
         assert read_event.details["node_type"] == "ReadVariableNode"
-        assert read_event.details["execution_result"] == True
+        assert read_event.details["execution_result"]
         assert read_event.details["program_counter"] == 0
         assert read_event.source == "test_scope"
         assert isinstance(read_event.timestamp, float)
@@ -376,7 +387,7 @@ class TestDataModelTracing:
         write_event = control_flow_events[1]
         assert write_event.details["node_id"] == "test_var"
         assert write_event.details["node_type"] == "WriteVariableNode"
-        assert write_event.details["execution_result"] == True
+        assert write_event.details["execution_result"]
         assert write_event.details["program_counter"] == 1
         assert write_event.source == "test_scope"
         assert isinstance(write_event.timestamp, float)

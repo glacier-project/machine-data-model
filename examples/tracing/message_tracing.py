@@ -24,12 +24,10 @@ from machine_data_model.protocols.frost_v1.frost_header import (
     MsgType,
     MsgNamespace,
     VariableMsgName,
-    MethodMsgName,
     ProtocolMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
-    MethodPayload,
     ProtocolPayload,
 )
 from machine_data_model.tracing import (

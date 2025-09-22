@@ -132,7 +132,7 @@ Here is the release process:
 3. Merge to `main` and Tag:
     - Once the develop branch is stable, merge it into `main`:
       1. `git checkout main`
-      2. `git merge --no-ff develop`  
+      2. `git merge --no-ff develop`
     - Tag the release on `main`: `git tag -a v<version-number> -m "Release v<version-number>"`
     - Ask the user to push the changes to the `main` branch, including tags: `git push origin main --tags`
 4. Merge back to `develop`:
