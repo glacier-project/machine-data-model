@@ -1,0 +1,346 @@
+"""
+Specific trace event classes for different types of operations.
+"""
+
+from dataclasses import dataclass
+from typing import Any
+import time
+
+from .core import TraceEvent, TraceEventType, get_global_collector
+
+
+@dataclass
+class VariableWriteEvent(TraceEvent):
+    """Event for variable value changes."""
+
+    variable_id: str
+    old_value: Any
+    new_value: Any
+
+    def __init__(
+        self, variable_id: str, old_value: Any, new_value: Any, source: str = ""
+    ):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.VARIABLE_WRITE,
+            source=source,
+            details={
+                "variable_id": variable_id,
+                "old_value": old_value,
+                "new_value": new_value,
+            },
+        )
+        self.variable_id = variable_id
+        self.old_value = old_value
+        self.new_value = new_value
+
+
+@dataclass
+class VariableReadEvent(TraceEvent):
+    """Event for variable reads."""
+
+    variable_id: str
+    value: Any
+
+    def __init__(self, variable_id: str, value: Any, source: str = ""):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.VARIABLE_READ,
+            source=source,
+            details={"variable_id": variable_id, "value": value},
+        )
+        self.variable_id = variable_id
+        self.value = value
+
+
+@dataclass
+class MethodStartEvent(TraceEvent):
+    """Event for method execution start."""
+
+    method_id: str
+    args: dict[str, Any]
+
+    def __init__(self, method_id: str, args: dict[str, Any], source: str = ""):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.METHOD_START,
+            source=source,
+            details={"method_id": method_id, "args": args},
+        )
+        self.method_id = method_id
+        self.args = args
+
+
+@dataclass
+class MethodEndEvent(TraceEvent):
+    """Event for method execution completion."""
+
+    method_id: str
+    returns: dict[str, Any]
+    execution_time: float
+
+    def __init__(
+        self,
+        method_id: str,
+        returns: dict[str, Any],
+        execution_time: float,
+        source: str = "",
+    ):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.METHOD_END,
+            source=source,
+            details={
+                "method_id": method_id,
+                "returns": returns,
+                "execution_time": execution_time,
+            },
+        )
+        self.method_id = method_id
+        self.returns = returns
+        self.execution_time = execution_time
+
+
+@dataclass
+class WaitStartEvent(TraceEvent):
+    """Event for wait condition start."""
+
+    variable_id: str
+    condition: str
+    expected_value: Any
+
+    def __init__(
+        self, variable_id: str, condition: str, expected_value: Any, source: str = ""
+    ):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.WAIT_START,
+            source=source,
+            details={
+                "variable_id": variable_id,
+                "condition": condition,
+                "expected_value": expected_value,
+            },
+        )
+        self.variable_id = variable_id
+        self.condition = condition
+        self.expected_value = expected_value
+
+
+@dataclass
+class WaitEndEvent(TraceEvent):
+    """Event for wait condition completion."""
+
+    variable_id: str
+    wait_duration: float
+
+    def __init__(self, variable_id: str, wait_duration: float, source: str = ""):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.WAIT_END,
+            source=source,
+            details={"variable_id": variable_id, "wait_duration": wait_duration},
+        )
+        self.variable_id = variable_id
+        self.wait_duration = wait_duration
+
+
+@dataclass
+class MessageSendEvent(TraceEvent):
+    """Event for message sending."""
+
+    message_type: str
+    target: str
+    correlation_id: str
+    payload: dict[str, Any]
+
+    def __init__(
+        self,
+        message_type: str,
+        target: str,
+        correlation_id: str,
+        payload: dict[str, Any],
+        source: str = "",
+    ):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.MESSAGE_SEND,
+            source=source,
+            details={
+                "message_type": message_type,
+                "target": target,
+                "correlation_id": correlation_id,
+                "payload": payload,
+            },
+        )
+        self.message_type = message_type
+        self.target = target
+        self.correlation_id = correlation_id
+        self.payload = payload
+
+
+@dataclass
+class MessageReceiveEvent(TraceEvent):
+    """Event for message receiving."""
+
+    message_type: str
+    sender: str
+    correlation_id: str
+    payload: dict[str, Any]
+    latency: float
+
+    def __init__(
+        self,
+        message_type: str,
+        sender: str,
+        correlation_id: str,
+        payload: dict[str, Any],
+        latency: float,
+        source: str = "",
+    ):
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.MESSAGE_RECEIVE,
+            source=source,
+            details={
+                "message_type": message_type,
+                "sender": sender,
+                "correlation_id": correlation_id,
+                "payload": payload,
+                "latency": latency,
+            },
+        )
+        self.message_type = message_type
+        self.sender = sender
+        self.correlation_id = correlation_id
+        self.payload = payload
+        self.latency = latency
+
+
+# Convenience functions for easy tracing
+def trace_variable_write(
+    variable_id: str,
+    old_value: Any,
+    new_value: Any,
+    source: str = "",
+) -> None:
+    """
+    Trace a variable write operation.
+
+    Args:
+        variable_id (str):
+            The ID of the variable being written.
+        old_value (Any):
+            The old value of the variable.
+        new_value (Any):
+            The new value of the variable.
+        source (str, optional):
+            The source of the event. Defaults to "".
+    """
+    event = VariableWriteEvent(
+        variable_id,
+        old_value,
+        new_value,
+        source,
+    )
+    get_global_collector().record_event(event)
+
+
+def trace_variable_read(variable_id: str, value: Any, source: str = "") -> None:
+    """Trace a variable read operation."""
+    event = VariableReadEvent(
+        variable_id,
+        value,
+        source,
+    )
+    get_global_collector().record_event(event)
+
+
+def trace_method_start(method_id: str, args: dict[str, Any], source: str = "") -> float:
+    """Trace method start and return start time for duration calculation."""
+    event = MethodStartEvent(
+        method_id,
+        args,
+        source,
+    )
+    get_global_collector().record_event(event)
+    return event.timestamp
+
+
+def trace_method_end(
+    method_id: str, returns: dict[str, Any], start_time: float, source: str = ""
+) -> None:
+    """Trace method end with execution time."""
+    execution_time = time.time() - start_time
+    event = MethodEndEvent(
+        method_id,
+        returns,
+        execution_time,
+        source,
+    )
+    get_global_collector().record_event(event)
+
+
+def trace_wait_start(
+    variable_id: str, condition: str, expected_value: Any, source: str = ""
+) -> float:
+    """Trace wait start and return start time."""
+    event = WaitStartEvent(
+        variable_id,
+        condition,
+        expected_value,
+        source,
+    )
+    get_global_collector().record_event(event)
+    return event.timestamp
+
+
+def trace_wait_end(variable_id: str, start_time: float, source: str = "") -> None:
+    """Trace wait end with duration."""
+    wait_duration = time.time() - start_time
+    event = WaitEndEvent(
+        variable_id,
+        wait_duration,
+        source,
+    )
+    get_global_collector().record_event(event)
+
+
+def trace_message_send(
+    message_type: str,
+    target: str,
+    correlation_id: str,
+    payload: dict[str, Any],
+    source: str = "",
+) -> float:
+    """Trace message send and return send time."""
+    event = MessageSendEvent(
+        message_type,
+        target,
+        correlation_id,
+        payload,
+        source,
+    )
+    get_global_collector().record_event(event)
+    return event.timestamp
+
+
+def trace_message_receive(
+    message_type: str,
+    sender: str,
+    correlation_id: str,
+    payload: dict[str, Any],
+    send_time: float,
+    source: str = "",
+) -> None:
+    """Trace message receive with latency."""
+    latency = time.time() - send_time
+    event = MessageReceiveEvent(
+        message_type,
+        sender,
+        correlation_id,
+        payload,
+        latency,
+        source,
+    )
+    get_global_collector().record_event(event)

@@ -8,11 +8,19 @@ the trace data for analysis, similar to VCD files in hardware simulations.
 import time
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.tracing import clear_traces, TraceLevel
+from machine_data_model.tracing.core import export_traces_json
 
 
 def main() -> None:
-    # Create a DataModel with tracing enabled
-    data_model = DataModel(name="TracingExample", enable_tracing=True)
+    # Clear any previous traces
+    clear_traces()
+
+    # Create a DataModel with tracing enabled.
+    data_model = DataModel(
+        name="TracingExample",
+        trace_level=TraceLevel.VARIABLES,
+    )
 
     # Add some variables
     temp_var = NumericalVariableNode(id="temperature", name="temp", value=20.0)
@@ -31,10 +39,9 @@ def main() -> None:
         time.sleep(0.1)  # Small delay for different timestamps
         data_model.write_variable("pressure", 1.0 + i * 0.1)
 
-    # Export the trace
-    data_model.export_trace("simulation_trace.csv")
-    print("Trace exported to simulation_trace.csv")
-    print(f"Total trace entries: {len(data_model._trace_log)}")
+    # Export the trace.
+    export_traces_json("simulation_trace.json")
+    print("Trace also exported to simulation_trace.json")
 
 
 if __name__ == "__main__":
