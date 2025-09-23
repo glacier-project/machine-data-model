@@ -36,9 +36,6 @@ def print_trace_events(events: List[TraceEvent], title: str = "Trace Events") ->
         print("No events recorded.")
         return
 
-    print(f"\n{title} ({len(events)} total):")
-    print("=" * 80)
-
     # Find the ideal time scale to display relative timestamps.
     first_event_time = events[0].timestamp
     last_event_time = events[-1].timestamp
@@ -56,18 +53,17 @@ def print_trace_events(events: List[TraceEvent], title: str = "Trace Events") ->
         time_unit = "s"
         time_scale = 1
 
-    start_time = events[0].timestamp
+    runtime = (last_event_time - first_event_time) * time_scale
+
+    print(f"\n{title} ({len(events)} total, runtime: {runtime:8.2f} {time_unit}):")
     for i, event in enumerate(events, 1):
-        rel_event_time_us = (event.timestamp - start_time) * time_scale
+        event_time = (event.timestamp - first_event_time) * time_scale
         print(
             f"{i:2d}. {event.event_type.value:18} "
-            f"({rel_event_time_us:8.2f} {time_unit})"
+            f"({event_time:8.2f} {time_unit}, "
+            f"source: '{event.source}', data_model: '{event.data_model_id}')"
         )
-
-        # Format event-specific details
         _print_event_details(event)
-        print(f"    Source: {event.source} (DataModel ID: {event.data_model_id})")
-    print("=" * 80)
 
 
 def _print_event_details(event: TraceEvent) -> None:
