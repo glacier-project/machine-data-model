@@ -52,7 +52,19 @@ class TraceEventType(Enum):
 
 @dataclass
 class TraceEvent(ABC):
-    """Base class for all trace events."""
+    """
+    Base class for all trace events.
+
+    Attributes:
+        timestamp (float):
+            The time when the event occurred, as seconds since epoch.
+        event_type (TraceEventType):
+            The type of event that occurred.
+        source (str):
+            The source or context where the event originated (e.g., node path, method name).
+        data_model_id (str):
+            The identifier of the data model this event belongs to, for multi-model scenarios.
+    """
 
     timestamp: float
     event_type: TraceEventType

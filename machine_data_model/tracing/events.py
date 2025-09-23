@@ -16,7 +16,19 @@ from .tracing_core import TraceEvent, TraceEventType, get_global_collector
 
 @dataclass
 class VariableWriteEvent(TraceEvent):
-    """Event for variable value changes."""
+    """
+    Event for variable value changes.
+
+    Attributes:
+        variable_id (str):
+            The unique identifier of the variable being written.
+        old_value (Any):
+            The previous value of the variable before the write operation.
+        new_value (Any):
+            The new value assigned to the variable.
+        success (bool):
+            Indicates whether the write operation was successful.
+    """
 
     variable_id: str
     old_value: Any
@@ -72,7 +84,15 @@ class VariableWriteEvent(TraceEvent):
 
 @dataclass
 class VariableReadEvent(TraceEvent):
-    """Event for variable reads."""
+    """
+    Event for variable reads.
+
+    Attributes:
+        variable_id (str):
+            The unique identifier of the variable being read.
+        value (Any):
+            The current value retrieved from the variable.
+    """
 
     variable_id: str
     value: Any
@@ -112,7 +132,15 @@ class VariableReadEvent(TraceEvent):
 
 @dataclass
 class MethodStartEvent(TraceEvent):
-    """Event for method execution start."""
+    """
+    Event for method execution start.
+
+    Attributes:
+        method_id (str):
+            The unique identifier of the method being executed.
+        args (dict[str, Any]):
+            The arguments passed to the method, as a dictionary mapping parameter names to values.
+    """
 
     method_id: str
     args: dict[str, Any]
@@ -156,7 +184,17 @@ class MethodStartEvent(TraceEvent):
 
 @dataclass
 class MethodEndEvent(TraceEvent):
-    """Event for method execution completion."""
+    """
+    Event for method execution completion.
+
+    Attributes:
+        method_id (str):
+            The unique identifier of the method that completed execution.
+        returns (dict[str, Any]):
+            The return values from the method, as a dictionary mapping return parameter names to values.
+        execution_time (float):
+            The time taken to execute the method, in seconds.
+    """
 
     method_id: str
     returns: dict[str, Any]
@@ -206,7 +244,17 @@ class MethodEndEvent(TraceEvent):
 
 @dataclass
 class WaitStartEvent(TraceEvent):
-    """Event for wait condition start."""
+    """
+    Event for wait condition start.
+
+    Attributes:
+        variable_id (str):
+            The unique identifier of the variable being monitored for the wait condition.
+        condition (str):
+            A string representation of the wait condition (e.g., "temperature > 25").
+        expected_value (Any):
+            The expected value that will satisfy the wait condition.
+    """
 
     variable_id: str
     condition: str
@@ -256,7 +304,15 @@ class WaitStartEvent(TraceEvent):
 
 @dataclass
 class WaitEndEvent(TraceEvent):
-    """Event for wait condition completion."""
+    """
+    Event for wait condition completion.
+
+    Attributes:
+        variable_id (str):
+            The unique identifier of the variable that satisfied the wait condition.
+        wait_duration (float):
+            The total time spent waiting for the condition to be met, in seconds.
+    """
 
     variable_id: str
     wait_duration: float
@@ -300,7 +356,19 @@ class WaitEndEvent(TraceEvent):
 
 @dataclass
 class MessageSendEvent(TraceEvent):
-    """Event for message sending."""
+    """
+    Event for message sending.
+
+    Attributes:
+        message_type (str):
+            The type of message being sent (e.g., "METHOD_CALL", "VARIABLE_READ").
+        target (str):
+            The identifier of the recipient or target of the message.
+        correlation_id (str):
+            A unique identifier that correlates request and response messages.
+        payload (dict[str, Any]):
+            The message payload containing the actual data being transmitted.
+    """
 
     message_type: str
     target: str
@@ -356,7 +424,21 @@ class MessageSendEvent(TraceEvent):
 
 @dataclass
 class MessageReceiveEvent(TraceEvent):
-    """Event for message receiving."""
+    """
+    Event for message receiving.
+
+    Attributes:
+        message_type (str):
+            The type of message being received (e.g., "METHOD_RESPONSE", "VARIABLE_VALUE").
+        sender (str):
+            The identifier of the sender of the message.
+        correlation_id (str):
+            A unique identifier that correlates this response with its original request.
+        payload (dict[str, Any]):
+            The message payload containing the received data.
+        latency (float):
+            The round-trip time from when the request was sent to when the response was received, in seconds.
+    """
 
     message_type: str
     sender: str
@@ -418,7 +500,15 @@ class MessageReceiveEvent(TraceEvent):
 
 @dataclass
 class SubscribeEvent(TraceEvent):
-    """Event for subscription to a variable."""
+    """
+    Event for subscription to a variable.
+
+    Attributes:
+        variable_id (str):
+            The unique identifier of the variable being subscribed to.
+        subscriber_id (str):
+            The unique identifier of the entity subscribing to the variable.
+    """
 
     variable_id: str
     subscriber_id: str
@@ -462,7 +552,15 @@ class SubscribeEvent(TraceEvent):
 
 @dataclass
 class UnsubscribeEvent(TraceEvent):
-    """Event for unsubscription from a variable."""
+    """
+    Event for unsubscription from a variable.
+
+    Attributes:
+        variable_id (str):
+            The unique identifier of the variable being unsubscribed from.
+        subscriber_id (str):
+            The unique identifier of the entity unsubscribing from the variable.
+    """
 
     variable_id: str
     subscriber_id: str
@@ -506,7 +604,17 @@ class UnsubscribeEvent(TraceEvent):
 
 @dataclass
 class NotificationEvent(TraceEvent):
-    """Event for notification sent to subscribers."""
+    """
+    Event for notification sent to subscribers.
+
+    Attributes:
+        variable_id (str):
+            The unique identifier of the variable that changed and triggered the notification.
+        subscriber_id (str):
+            The unique identifier of the subscriber receiving the notification.
+        value (Any):
+            The new value of the variable that triggered the notification.
+    """
 
     variable_id: str
     subscriber_id: str
@@ -556,7 +664,19 @@ class NotificationEvent(TraceEvent):
 
 @dataclass
 class ControlFlowStepEvent(TraceEvent):
-    """Event for control flow step execution."""
+    """
+    Event for control flow step execution.
+
+    Attributes:
+        node_id (str):
+            The unique identifier of the node being executed in the control flow.
+        node_type (str):
+            The type of the control flow node (e.g., "ReadVariableNode", "CallMethodNode").
+        execution_result (bool):
+            Indicates whether the node execution was successful.
+        program_counter (int):
+            The position of this step in the control flow sequence (0-based index).
+    """
 
     node_id: str
     node_type: str
