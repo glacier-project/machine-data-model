@@ -279,6 +279,7 @@ class TestFrostProtocolMng:
         assert isinstance(response.payload, VariablePayload)
         assert response.payload.node == var_name
         assert response.payload.value == value
+        assert msg.correlation_id == response.correlation_id
 
         # Test subscription updates
         node["s_variable3"].write("Hello")

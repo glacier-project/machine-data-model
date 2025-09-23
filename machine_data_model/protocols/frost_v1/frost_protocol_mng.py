@@ -410,36 +410,17 @@ class FrostProtocolMng(ProtocolMng):
             )
 
         # append update message
-        self._update_messages.append(
-            FrostMessage(
-                sender=self._data_model.name,
-                target=subscription.subscriber_id,
-                identifier=str(uuid.uuid4()),
-                header=FrostHeader(
-                    version=self._protocol_version,
-                    type=MsgType.RESPONSE,
-                    namespace=MsgNamespace.VARIABLE,
-                    msg_name=VariableMsgName.UPDATE,
-                ),
-                payload=VariablePayload(node=node.qualified_name, value=value),
-            )
+        msg = FrostMessage(
+            correlation_id=subscription.correlation_id,
+            sender=self._data_model.name,
+            target=subscription.subscriber_id,
+            identifier=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.UPDATE,
+            ),
+            payload=VariablePayload(node=node.qualified_name, value=value),
         )
-
-    # def _handle_node_message(self, msg: FrostMessage) -> FrostMessage:
-    #     """
-    #     This method handles a message withing the NODE namespace.
-    #     :param msg: The message to be handled.
-    #     :return: A response message.
-    #     """
-    #     assert msg.header.namespace == MsgNamespace.NODE
-    #     # if msg.header.msg_name == NodeMsgName.GET_INFO:
-    #     #     pass
-    #     # if msg.header.msg_name == NodeMsgName.GET_CHILDREN:
-    #     #     pass
-    #     # if msg.header.msg_name == NodeMsgName.GET_VARIABLES:
-    #     #     pass
-    #     # if msg.header.msg_name == NodeMsgName.GET_METHODS:
-    #     #     pass
-    #     #
-    #     # return error
-    #     pass
+        self._update_messages.append(msg)
