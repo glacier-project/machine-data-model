@@ -55,7 +55,7 @@ class TraceEvent:
 
     timestamp: float
     event_type: TraceEventType
-    source: str  # Component/node that generated the event
+    source: str
     details: Dict[str, Any]
 
     def to_dict(self) -> Dict[str, Any]:

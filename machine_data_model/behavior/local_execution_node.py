@@ -390,7 +390,7 @@ class WaitConditionNode(LocalExecutionNode):
                     variable_id=ref_variable.id,
                     condition=f"{lhs} {self._op.value} {rhs}",
                     expected_value=rhs,
-                    source=scope.id(),
+                    source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
                 )
                 scope.set_value(wait_key, start_time)
                 ref_variable.subscribe(scope.id())
@@ -404,7 +404,7 @@ class WaitConditionNode(LocalExecutionNode):
             trace_wait_end(
                 variable_id=ref_variable.id,
                 start_time=start_time,
-                source=scope.id(),
+                source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
             )
             # Clean up the wait start time
             del scope.locals()[wait_key]

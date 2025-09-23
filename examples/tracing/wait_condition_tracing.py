@@ -96,4 +96,4 @@ if __name__ == "__main__":
     events = collector.get_events()
     print(f"\nFinal trace events: {len(events)}")
     for i, event in enumerate(events, 1):
-        print(f"   {i:2}. {event.event_type.value:16}: {event.details}")
+        print(f"   {i:2}. {event.event_type.value:16}: {event.details} (source: {event.source})")

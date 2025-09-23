@@ -269,6 +269,7 @@ class MethodNode(DataModelNode):
         start_time = trace_method_start(
             method_id=self.id,
             args=kwargs,
+            source=self.qualified_name,
         )
 
         self._pre_call(**kwargs)
@@ -282,6 +283,7 @@ class MethodNode(DataModelNode):
             method_id=self.id,
             returns=ret,
             start_time=start_time,
+            source=self.qualified_name,
         )
 
         return MethodExecutionResult(return_values=ret)

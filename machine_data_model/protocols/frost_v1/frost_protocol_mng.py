@@ -59,7 +59,7 @@ def _create_response_msg(msg: FrostMessage) -> FrostMessage:
             "value": getattr(msg.payload, "value", None),
             "ret": getattr(msg.payload, "ret", None),
         },
-        source="FrostProtocolMng",
+        source=response_msg.identifier,
     )
 
     return response_msg
@@ -98,7 +98,7 @@ def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessag
             "error_code": ErrorCode.BAD_REQUEST.value,
             "error_message": error_message,
         },
-        source="FrostProtocolMng",
+        source=error_msg.identifier,
     )
 
     return error_msg
@@ -154,8 +154,8 @@ class FrostProtocolMng(ProtocolMng):
                 "node": getattr(msg.payload, "node", None),
                 "value": getattr(msg.payload, "value", None),
             },
-            send_time=0.0,  # We don't have send time for incoming messages
-            source="FrostProtocolMng",
+            send_time=0.0,
+            source=msg.identifier,
         )
 
         if not self._is_version_supported(header.version):
@@ -328,7 +328,7 @@ class FrostProtocolMng(ProtocolMng):
                 target=msg.sender,
                 correlation_id=msg.correlation_id or "",
                 payload={},
-                source="FrostProtocolMng",
+                source=response_msg.identifier,
             )
 
             return response_msg
@@ -354,7 +354,7 @@ class FrostProtocolMng(ProtocolMng):
                 target=msg.sender,
                 correlation_id=msg.correlation_id or "",
                 payload={},
-                source="FrostProtocolMng",
+                source=response_msg.identifier,
             )
 
             return response_msg
@@ -446,7 +446,7 @@ class FrostProtocolMng(ProtocolMng):
             target=subscriber,
             correlation_id="",  # Update messages don't have correlation IDs
             payload={"node": node.qualified_name, "value": value},
-            source="FrostProtocolMng",
+            source=update_msg.identifier,
         )
 
         # append update message

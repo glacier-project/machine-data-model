@@ -77,6 +77,7 @@ class VariableNode(DataModelNode):
         trace_variable_read(
             variable_id=self.id,
             value=value,
+            source=self.qualified_name,
         )
         # Return the read value.
         return value
@@ -107,6 +108,7 @@ class VariableNode(DataModelNode):
                 old_value=prev_value,
                 new_value=value,
                 success=False,
+                source=self.qualified_name,
             )
 
             return False
@@ -162,6 +164,7 @@ class VariableNode(DataModelNode):
         trace_subscribe(
             variable_id=self.id,
             subscriber_id=subscriber_id,
+            source=self.qualified_name,
         )
 
     def unsubscribe(self, subscriber_id: str) -> None:
@@ -177,6 +180,7 @@ class VariableNode(DataModelNode):
         trace_unsubscribe(
             variable_id=self.id,
             subscriber_id=subscriber_id,
+            source=self.qualified_name,
         )
 
     def set_subscription_callback(
@@ -206,6 +210,7 @@ class VariableNode(DataModelNode):
                 variable_id=self.id,
                 subscriber_id=subscriber,
                 value=value,
+                source=self.qualified_name,
             )
 
     @abstractmethod
