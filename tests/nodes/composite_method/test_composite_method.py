@@ -26,7 +26,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
     VariablePayload,
 )
-from tests import get_dummy_method_node
+from tests import NUM_TESTS, get_dummy_method_node
 from tests.nodes.composite_method import get_non_blocking_cf, get_blocking_cf
 from tests.test_data_model import get_template_data_model
 
@@ -59,7 +59,10 @@ class TestCompositeMethod:
     @pytest.mark.parametrize(
         "method_nodes",
         [
-            [get_dummy_method_node(method_types=[AsyncMethodNode]) for _ in range(3)],
+            [
+                get_dummy_method_node(method_types=[AsyncMethodNode])
+                for _ in range(NUM_TESTS)
+            ],
         ],
     )
     def test_non_blocking_composite_method(
@@ -76,7 +79,10 @@ class TestCompositeMethod:
     @pytest.mark.parametrize(
         "method_nodes",
         [
-            [get_dummy_method_node(method_types=[AsyncMethodNode]) for _ in range(3)],
+            [
+                get_dummy_method_node(method_types=[AsyncMethodNode])
+                for _ in range(NUM_TESTS)
+            ],
         ],
     )
     def test_blocking_composite_method(

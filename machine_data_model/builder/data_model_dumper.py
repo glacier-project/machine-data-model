@@ -317,7 +317,6 @@ def _call_remote_method_node_representer(
         "tag:yaml.org,2002:CallRemoteMethodNode",
         {
             "method": node.node,
-            "sender_id": node.sender_id,
             "remote_id": node.remote_id,
             "args": node.args,
             "kwargs": node.kwargs,
@@ -338,7 +337,6 @@ def _read_remote_variable_node_representer(
         "tag:yaml.org,2002:ReadRemoteVariableNode",
         {
             "variable": node.node,
-            "sender_id": node.sender_id,
             "remote_id": node.remote_id,
             "store_as": node.store_as,
         },
@@ -358,7 +356,6 @@ def _write_remote_variable_node_representer(
         "tag:yaml.org,2002:WriteRemoteVariableNode",
         {
             "variable": node.node,
-            "sender_id": node.sender_id,
             "remote_id": node.remote_id,
             "value": node.value,
         },
