@@ -66,7 +66,7 @@ def print_trace_events(events: List[TraceEvent], title: str = "Trace Events") ->
 
         # Format event-specific details
         _print_event_details(event)
-        print(f"    Source: {event.source}")
+        print(f"    Source: {event.source} (DataModel ID: {event.data_model_id})")
     print("=" * 80)
 
 

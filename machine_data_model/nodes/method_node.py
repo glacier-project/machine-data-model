@@ -270,6 +270,7 @@ class MethodNode(DataModelNode):
             method_id=self.id,
             args=kwargs,
             source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
         )
 
         self._pre_call(**kwargs)
@@ -284,6 +285,7 @@ class MethodNode(DataModelNode):
             returns=ret,
             start_time=start_time,
             source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
         )
 
         return MethodExecutionResult(return_values=ret)

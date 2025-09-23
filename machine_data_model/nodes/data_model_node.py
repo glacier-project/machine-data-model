@@ -1,6 +1,10 @@
 import uuid
+import weakref
 from abc import ABC, abstractmethod
-from typing import Iterator, Mapping, Sequence
+from typing import Iterator, Mapping, Sequence, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from machine_data_model.data_model import DataModel
 
 
 class DataModelNode(ABC):
@@ -39,6 +43,7 @@ class DataModelNode(ABC):
         self._description = "" if description is None else description
         assert isinstance(self._description, str), "Description must be a string"
         self.parent: DataModelNode | None = None
+        self._data_model: weakref.ReferenceType["DataModel"] | None = None
 
     @property
     def id(self) -> str:
@@ -80,6 +85,15 @@ class DataModelNode(ABC):
         :return: The description of the node.
         """
         return self._description
+
+    @property
+    def data_model(self) -> "DataModel | None":
+        """
+        Gets the data model that contains this node.
+
+        :return: The data model containing this node, or None if not set.
+        """
+        return self._data_model() if self._data_model is not None else None
 
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]

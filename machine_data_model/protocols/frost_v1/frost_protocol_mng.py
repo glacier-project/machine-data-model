@@ -60,6 +60,7 @@ def _create_response_msg(msg: FrostMessage) -> FrostMessage:
             "ret": getattr(msg.payload, "ret", None),
         },
         source=response_msg.sender,
+        data_model_id="",  # TODO: Pass from caller
     )
 
     return response_msg

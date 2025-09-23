@@ -30,6 +30,7 @@ class VariableWriteEvent(TraceEvent):
         new_value: Any,
         success: bool,
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a variable write event.
@@ -45,11 +46,14 @@ class VariableWriteEvent(TraceEvent):
                 Whether the write operation was successful.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.VARIABLE_WRITE,
             source=source,
+            data_model_id=data_model_id,
         )
         self.variable_id = variable_id
         self.old_value = old_value
@@ -73,7 +77,9 @@ class VariableReadEvent(TraceEvent):
     variable_id: str
     value: Any
 
-    def __init__(self, variable_id: str, value: Any, source: str = ""):
+    def __init__(
+        self, variable_id: str, value: Any, source: str = "", data_model_id: str = ""
+    ):
         """
         Initialize a variable read event.
 
@@ -84,11 +90,14 @@ class VariableReadEvent(TraceEvent):
                 The value of the variable.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.VARIABLE_READ,
             source=source,
+            data_model_id=data_model_id,
         )
         self.variable_id = variable_id
         self.value = value
@@ -108,7 +117,13 @@ class MethodStartEvent(TraceEvent):
     method_id: str
     args: dict[str, Any]
 
-    def __init__(self, method_id: str, args: dict[str, Any], source: str = ""):
+    def __init__(
+        self,
+        method_id: str,
+        args: dict[str, Any],
+        source: str = "",
+        data_model_id: str = "",
+    ):
         """
         Initialize a method start event.
 
@@ -119,11 +134,14 @@ class MethodStartEvent(TraceEvent):
                 The arguments passed to the method.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.METHOD_START,
             source=source,
+            data_model_id=data_model_id,
         )
         self.method_id = method_id
         self.args = args
@@ -150,6 +168,7 @@ class MethodEndEvent(TraceEvent):
         returns: dict[str, Any],
         execution_time: float,
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a method end event.
@@ -163,11 +182,14 @@ class MethodEndEvent(TraceEvent):
                 The time taken to execute the method.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.METHOD_END,
             source=source,
+            data_model_id=data_model_id,
         )
         self.method_id = method_id
         self.returns = returns
@@ -191,7 +213,12 @@ class WaitStartEvent(TraceEvent):
     expected_value: Any
 
     def __init__(
-        self, variable_id: str, condition: str, expected_value: Any, source: str = ""
+        self,
+        variable_id: str,
+        condition: str,
+        expected_value: Any,
+        source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a wait start event.
@@ -205,11 +232,14 @@ class WaitStartEvent(TraceEvent):
                 The expected value for the condition.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.WAIT_START,
             source=source,
+            data_model_id=data_model_id,
         )
         self.variable_id = variable_id
         self.condition = condition
@@ -231,7 +261,13 @@ class WaitEndEvent(TraceEvent):
     variable_id: str
     wait_duration: float
 
-    def __init__(self, variable_id: str, wait_duration: float, source: str = ""):
+    def __init__(
+        self,
+        variable_id: str,
+        wait_duration: float,
+        source: str = "",
+        data_model_id: str = "",
+    ):
         """
         Initialize a wait end event.
 
@@ -242,11 +278,14 @@ class WaitEndEvent(TraceEvent):
                 The duration of the wait.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.WAIT_END,
             source=source,
+            data_model_id=data_model_id,
         )
         self.variable_id = variable_id
         self.wait_duration = wait_duration
@@ -275,6 +314,7 @@ class MessageSendEvent(TraceEvent):
         correlation_id: str,
         payload: dict[str, Any],
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a message send event.
@@ -290,11 +330,14 @@ class MessageSendEvent(TraceEvent):
                 The message payload.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.MESSAGE_SEND,
             source=source,
+            data_model_id=data_model_id,
         )
         self.message_type = message_type
         self.target = target
@@ -329,6 +372,7 @@ class MessageReceiveEvent(TraceEvent):
         payload: dict[str, Any],
         latency: float,
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a message receive event.
@@ -346,11 +390,14 @@ class MessageReceiveEvent(TraceEvent):
                 The latency of the message delivery.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.MESSAGE_RECEIVE,
             source=source,
+            data_model_id=data_model_id,
         )
         self.message_type = message_type
         self.sender = sender
@@ -381,6 +428,7 @@ class SubscribeEvent(TraceEvent):
         variable_id: str,
         subscriber_id: str,
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a subscribe event.
@@ -392,11 +440,14 @@ class SubscribeEvent(TraceEvent):
                 The ID of the subscriber.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.SUBSCRIBE,
             source=source,
+            data_model_id=data_model_id,
         )
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
@@ -421,6 +472,7 @@ class UnsubscribeEvent(TraceEvent):
         variable_id: str,
         subscriber_id: str,
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize an unsubscribe event.
@@ -429,14 +481,17 @@ class UnsubscribeEvent(TraceEvent):
             variable_id (str):
                 The ID of the variable being unsubscribed from.
             subscriber_id (str):
-                The ID of the subscriber.
+                The ID of the unsubscriber.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.UNSUBSCRIBE,
             source=source,
+            data_model_id=data_model_id,
         )
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
@@ -463,6 +518,7 @@ class NotificationEvent(TraceEvent):
         subscriber_id: str,
         value: Any,
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a notification event.
@@ -476,11 +532,14 @@ class NotificationEvent(TraceEvent):
                 The new value of the variable.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.NOTIFICATION,
             source=source,
+            data_model_id=data_model_id,
         )
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
@@ -511,6 +570,7 @@ class ControlFlowStepEvent(TraceEvent):
         execution_result: bool,
         program_counter: int,
         source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a control flow step event.
@@ -526,11 +586,14 @@ class ControlFlowStepEvent(TraceEvent):
                 The current program counter position in the control flow.
             source (str, optional):
                 The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
         """
         super().__init__(
             timestamp=time.time(),
             event_type=TraceEventType.CONTROL_FLOW_STEP,
             source=source,
+            data_model_id=data_model_id,
         )
         self.node_id = node_id
         self.node_type = node_type
@@ -554,6 +617,7 @@ def trace_variable_write(
     new_value: Any,
     success: bool,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace a variable write operation.
@@ -569,6 +633,8 @@ def trace_variable_write(
             Whether the write operation was successful.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.VARIABLE_WRITE):
@@ -580,6 +646,7 @@ def trace_variable_write(
             new_value,
             success,
             source,
+            data_model_id,
         )
     )
 
@@ -588,6 +655,7 @@ def trace_variable_read(
     variable_id: str,
     value: Any,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace a variable read operation.
@@ -599,6 +667,8 @@ def trace_variable_read(
             The value of the variable.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.VARIABLE_READ):
@@ -609,6 +679,7 @@ def trace_variable_read(
             variable_id,
             value,
             source,
+            data_model_id,
         )
     )
 
@@ -617,6 +688,7 @@ def trace_method_start(
     method_id: str,
     args: dict[str, Any],
     source: str = "",
+    data_model_id: str = "",
 ) -> float:
     """
     Trace method start and return start time for duration calculation.
@@ -628,6 +700,8 @@ def trace_method_start(
             The arguments passed to the method.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
 
     Returns:
         float: The timestamp when the method started.
@@ -640,6 +714,7 @@ def trace_method_start(
         method_id,
         args,
         source,
+        data_model_id,
     )
     collector.record_event(event)
     return event.timestamp
@@ -650,6 +725,7 @@ def trace_method_end(
     returns: dict[str, Any],
     start_time: float,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace method end with execution time.
@@ -663,6 +739,8 @@ def trace_method_end(
             The timestamp when the method started.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.METHOD_END):
@@ -675,6 +753,7 @@ def trace_method_end(
             returns,
             execution_time,
             source,
+            data_model_id,
         )
     )
 
@@ -684,6 +763,7 @@ def trace_wait_start(
     condition: str,
     expected_value: Any,
     source: str = "",
+    data_model_id: str = "",
 ) -> float:
     """
     Trace wait start and return start time.
@@ -697,6 +777,8 @@ def trace_wait_start(
             The expected value for the condition.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
 
     Returns:
         float: The timestamp when the wait started.
@@ -710,6 +792,7 @@ def trace_wait_start(
         condition,
         expected_value,
         source,
+        data_model_id,
     )
     collector.record_event(event)
     return event.timestamp
@@ -719,6 +802,7 @@ def trace_wait_end(
     variable_id: str,
     start_time: float,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace wait end with duration.
@@ -730,6 +814,8 @@ def trace_wait_end(
             The timestamp when the wait started.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.WAIT_END):
@@ -741,6 +827,7 @@ def trace_wait_end(
             variable_id,
             wait_duration,
             source,
+            data_model_id,
         )
     )
 
@@ -751,6 +838,7 @@ def trace_message_send(
     correlation_id: str,
     payload: dict[str, Any],
     source: str = "",
+    data_model_id: str = "",
 ) -> float:
     """
     Trace message send and return send time.
@@ -766,6 +854,8 @@ def trace_message_send(
             The message payload.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
 
     Returns:
         float: The timestamp when the message was sent.
@@ -780,6 +870,7 @@ def trace_message_send(
         correlation_id,
         payload,
         source,
+        data_model_id,
     )
     collector.record_event(event)
     return event.timestamp
@@ -792,6 +883,7 @@ def trace_message_receive(
     payload: dict[str, Any],
     send_time: float,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace message receive with latency.
@@ -809,6 +901,8 @@ def trace_message_receive(
             The timestamp when the message was sent.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.MESSAGE_RECEIVE):
@@ -823,6 +917,7 @@ def trace_message_receive(
             payload,
             latency,
             source,
+            data_model_id,
         )
     )
 
@@ -831,6 +926,7 @@ def trace_subscribe(
     variable_id: str,
     subscriber_id: str,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace a subscription operation.
@@ -842,6 +938,8 @@ def trace_subscribe(
             The ID of the subscriber.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.SUBSCRIBE):
@@ -852,6 +950,7 @@ def trace_subscribe(
             variable_id,
             subscriber_id,
             source,
+            data_model_id,
         )
     )
 
@@ -860,6 +959,7 @@ def trace_unsubscribe(
     variable_id: str,
     subscriber_id: str,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace an unsubscription operation.
@@ -871,6 +971,8 @@ def trace_unsubscribe(
             The ID of the subscriber.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.UNSUBSCRIBE):
@@ -881,6 +983,7 @@ def trace_unsubscribe(
             variable_id,
             subscriber_id,
             source,
+            data_model_id,
         )
     )
 
@@ -890,6 +993,7 @@ def trace_notification(
     subscriber_id: str,
     value: Any,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace a notification sent to a subscriber.
@@ -903,6 +1007,8 @@ def trace_notification(
             The new value of the variable.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.NOTIFICATION):
@@ -914,6 +1020,7 @@ def trace_notification(
             subscriber_id,
             value,
             source,
+            data_model_id,
         )
     )
 
@@ -924,6 +1031,7 @@ def trace_control_flow_step(
     execution_result: bool,
     program_counter: int,
     source: str = "",
+    data_model_id: str = "",
 ) -> None:
     """
     Trace a control flow step execution.
@@ -939,6 +1047,8 @@ def trace_control_flow_step(
             The current program counter position in the control flow.
         source (str, optional):
             The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_STEP):
@@ -951,5 +1061,6 @@ def trace_control_flow_step(
             execution_result,
             program_counter,
             source,
+            data_model_id,
         )
     )

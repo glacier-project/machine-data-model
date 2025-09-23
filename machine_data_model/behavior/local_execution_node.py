@@ -391,6 +391,9 @@ class WaitConditionNode(LocalExecutionNode):
                     condition=f"{lhs} {self._op.value} {rhs}",
                     expected_value=rhs,
                     source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
+                    data_model_id=ref_variable.data_model.name
+                    if ref_variable.data_model
+                    else "",
                 )
                 scope.set_value(wait_key, start_time)
                 ref_variable.subscribe(scope.id())
@@ -405,6 +408,9 @@ class WaitConditionNode(LocalExecutionNode):
                 variable_id=ref_variable.id,
                 start_time=start_time,
                 source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
+                data_model_id=ref_variable.data_model.name
+                if ref_variable.data_model
+                else "",
             )
             # Clean up the wait start time
             del scope.locals()[wait_key]

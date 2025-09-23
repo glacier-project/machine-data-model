@@ -57,6 +57,7 @@ class TraceEvent(ABC):
     timestamp: float
     event_type: TraceEventType
     source: str
+    data_model_id: str
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization."""
@@ -64,8 +65,14 @@ class TraceEvent(ABC):
             "timestamp": self.timestamp,
             "event_type": self.event_type.value,
             "source": self.source,
+            "data_model_id": self.data_model_id,
             "details": self._get_details(),
         }
+
+    @property
+    def details(self) -> Dict[str, Any]:
+        """Get event-specific details."""
+        return self._get_details()
 
     @abstractmethod
     def _get_details(self) -> Dict[str, Any]:

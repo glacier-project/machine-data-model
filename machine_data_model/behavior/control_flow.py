@@ -71,6 +71,7 @@ class ControlFlow:
                 execution_result=result.success,
                 program_counter=pc,
                 source=scope.id(),
+                data_model_id="",  # TODO: Get from scope or context
             )
             if result.messages:
                 messages.extend(result.messages)

@@ -5,6 +5,7 @@ machine data model.
 
 from collections.abc import Callable
 from typing import Any
+import weakref
 
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -77,6 +78,7 @@ class DataModel:
         :param node: The node to register in the data model.
         """
         self._nodes[node.id] = node
+        node._data_model = weakref.ref(self)
 
     def _resolve_local_cfg_nodes(self, node: DataModelNode) -> None:
         if not isinstance(node, CompositeMethodNode):

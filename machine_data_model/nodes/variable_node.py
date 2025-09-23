@@ -78,6 +78,7 @@ class VariableNode(DataModelNode):
             variable_id=self.id,
             value=value,
             source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
         )
         # Return the read value.
         return value
@@ -109,6 +110,7 @@ class VariableNode(DataModelNode):
                 new_value=value,
                 success=False,
                 source=self.qualified_name,
+                data_model_id=self.data_model.name if self.data_model else "",
             )
 
             return False
@@ -123,6 +125,7 @@ class VariableNode(DataModelNode):
             new_value=value,
             success=True,
             source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
         )
 
         # Return True if the value was successfully updated and validated.
@@ -166,6 +169,7 @@ class VariableNode(DataModelNode):
             variable_id=self.id,
             subscriber_id=subscriber_id,
             source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
         )
 
     def unsubscribe(self, subscriber_id: str) -> None:
@@ -182,6 +186,7 @@ class VariableNode(DataModelNode):
             variable_id=self.id,
             subscriber_id=subscriber_id,
             source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
         )
 
     def set_subscription_callback(
@@ -212,6 +217,7 @@ class VariableNode(DataModelNode):
                 subscriber_id=subscriber,
                 value=value,
                 source=self.qualified_name,
+                data_model_id=self.data_model.name if self.data_model else "",
             )
 
     @abstractmethod

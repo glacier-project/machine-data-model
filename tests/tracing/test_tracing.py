@@ -35,7 +35,7 @@ class TestDataModelTracing:
 
     def test_tracing_records_changes(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.VARIABLES)
+        data_model = DataModel(name="test_dm", trace_level=TraceLevel.VARIABLES)
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
@@ -50,6 +50,7 @@ class TestDataModelTracing:
         assert event.details["old_value"] == 10.0
         assert event.details["new_value"] == 20.0
         assert event.details["success"]
+        assert event.data_model_id == "test_dm"
         assert isinstance(event.timestamp, float)
 
     def test_tracing_records_reads(self) -> None:
@@ -401,3 +402,68 @@ class TestDataModelTracing:
         # Verify the control flow executed correctly
         assert scope.get_value("read_value") == 10.0
         assert data_model.read_variable("test_var") == 20.0
+
+
+class TestDataModelReferences:
+    """Test data model reference functionality using weak references."""
+
+    def test_node_data_model_reference(self) -> None:
+        """Test that nodes correctly reference their containing data model."""
+        data_model = DataModel(name="test_dm")
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+        data_model.root.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        # Node should reference the data model
+        assert var.data_model is data_model
+        assert var.data_model is not None
+        assert var.data_model.name == "test_dm"
+
+    def test_node_without_data_model(self) -> None:
+        """Test that nodes without data model registration return None."""
+        var = NumericalVariableNode(id="test_var", name="test", value=10.0)
+
+        # Node should not have a data model reference
+        assert var.data_model is None
+
+    def test_multiple_data_models(self) -> None:
+        """Test that nodes correctly reference their respective data models."""
+        dm1 = DataModel(name="dm1")
+        dm2 = DataModel(name="dm2")
+
+        var1 = NumericalVariableNode(id="var1", name="var1", value=1.0)
+        var2 = NumericalVariableNode(id="var2", name="var2", value=2.0)
+
+        dm1.root.add_child(var1)
+        dm2.root.add_child(var2)
+
+        dm1._register_nodes(dm1.root)
+        dm2._register_nodes(dm2.root)
+
+        # Each node should reference the correct data model
+        assert var1.data_model is dm1
+        assert var2.data_model is dm2
+        assert var1.data_model is not None
+        assert var2.data_model is not None
+        assert var1.data_model.name == "dm1"
+        assert var2.data_model.name == "dm2"
+
+    def test_nested_nodes_data_model_reference(self) -> None:
+        """Test that nested nodes correctly reference their data model."""
+        from machine_data_model.nodes.folder_node import FolderNode
+
+        data_model = DataModel(name="nested_dm")
+        folder = FolderNode(name="folder")
+        var = NumericalVariableNode(id="nested_var", name="nested", value=5.0)
+
+        data_model.root.add_child(folder)
+        folder.add_child(var)
+        data_model._register_nodes(data_model.root)
+
+        # Both folder and variable should reference the data model
+        assert folder.data_model is data_model
+        assert var.data_model is data_model
+        assert folder.data_model is not None
+        assert var.data_model is not None
+        assert folder.data_model.name == "nested_dm"
+        assert var.data_model.name == "nested_dm"
