@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
@@ -74,8 +75,11 @@ class DataModel:
             return
 
         for cf_node in node.cfg.nodes():
-            if not isinstance(cf_node, LocalExecutionNode):
+            if isinstance(cf_node, RemoteExecutionNode):
+                cf_node.sender_id = self._name
                 continue
+
+            assert isinstance(cf_node, LocalExecutionNode)
 
             if cf_node.is_node_static():
                 ref_node = self.get_node(cf_node.node)
@@ -84,7 +88,6 @@ class DataModel:
             else:
                 # set get_node function to resolve the node at runtime
                 cf_node.get_data_model_node = self.get_node
-        return
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
         """

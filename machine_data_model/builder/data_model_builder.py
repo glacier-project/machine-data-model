@@ -365,7 +365,6 @@ class DataModelBuilder:
         data = loader.construct_mapping(node, deep=True)
         return CallRemoteMethodNode(
             method_node=data["method"],
-            sender_id=data["sender_id"],
             remote_id=data["remote_id"],
             args=data.get("args", []),
             kwargs=data.get("kwargs", {}),
@@ -377,7 +376,6 @@ class DataModelBuilder:
         data = loader.construct_mapping(node, deep=True)
         return ReadRemoteVariableNode(
             variable_node=data["variable"],
-            sender_id=data["sender_id"],
             remote_id=data["remote_id"],
             store_as=data.get("store_as", ""),
         )
@@ -388,7 +386,6 @@ class DataModelBuilder:
         data = loader.construct_mapping(node, deep=True)
         return WriteRemoteVariableNode(
             variable_node=data["variable"],
-            sender_id=data["sender_id"],
             remote_id=data["remote_id"],
             value=data["value"],
         )

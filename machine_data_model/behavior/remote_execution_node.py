@@ -32,20 +32,18 @@ class RemoteExecutionNode(ControlFlowNode):
     """
     Represents a remote execution node in the control flow graph. When executed,
     it sends a request message to a remote node and waits for a response.
-    :ivar _sender_id: The identifier of the sender node.
-    :ivar _remote_id: The identifier of the remote node.
-    :ivar _node_path: The path of the remote node to execute.
+    :ivar remote_id: The identifier of the remote node.
+    :ivar node: The qualified name of the node to interact with on the remote node.
     """
 
     def __init__(
         self,
-        node_path: str,
-        sender_id: str,
+        node: str,
         remote_id: str,
         successors: list[ControlFlowNode] | None = None,
     ):
-        super().__init__(node_path, successors)
-        self.sender_id: str = sender_id
+        super().__init__(node, successors)
+        self.sender_id: str = "undefined"
         self.remote_id: str = remote_id
 
     @abstractmethod
@@ -136,13 +134,12 @@ class CallRemoteMethodNode(RemoteExecutionNode):
     def __init__(
         self,
         method_node: str,
-        sender_id: str,
         remote_id: str,
         args: list[Any],
         kwargs: dict[str, Any],
         successors: list[ControlFlowNode] | None = None,
     ):
-        super().__init__(method_node, sender_id, remote_id, successors)
+        super().__init__(method_node, remote_id, successors)
         self.args = args
         self.kwargs = kwargs
 
@@ -211,12 +208,11 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
     def __init__(
         self,
         variable_node: str,
-        sender_id: str,
         remote_id: str,
         store_as: str = "",
         successors: list[ControlFlowNode] | None = None,
     ):
-        super().__init__(variable_node, sender_id, remote_id, successors)
+        super().__init__(variable_node, remote_id, successors)
         self.store_as = store_as
 
     def _validate_response(
@@ -279,12 +275,11 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
     def __init__(
         self,
         variable_node: str,
-        sender_id: str,
         remote_id: str,
         value: Any,
         successors: list[ControlFlowNode] | None = None,
     ):
-        super().__init__(variable_node, sender_id, remote_id, successors)
+        super().__init__(variable_node, remote_id, successors)
         self.value = value
 
     def _validate_response(
@@ -343,13 +338,12 @@ class WaitRemoteEventNode(RemoteExecutionNode):
     def __init__(
         self,
         variable_node: str,
-        sender_id: str,
         remote_id: str,
         rhs: Any,
         op: WaitConditionOperator,
         successors: list[ControlFlowNode] | None = None,
     ):
-        super().__init__(variable_node, sender_id, remote_id, successors)
+        super().__init__(variable_node, remote_id, successors)
         self._rhs = rhs
         self._op = op
 

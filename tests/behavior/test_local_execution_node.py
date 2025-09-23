@@ -157,9 +157,9 @@ class TestLocalExecutionNode:
             method_node=method_node.qualified_name,
             args=[],
             kwargs=kwargs,
-            sender_id=sender,
             remote_id=target,
         )
+        c_remote_node.sender_id = sender
         ret = c_remote_node.execute(scope)
         msgs = ret.messages
 
@@ -196,9 +196,9 @@ class TestLocalExecutionNode:
             method_node=method_node.qualified_name,
             args=[],
             kwargs=kwargs,
-            sender_id=sender,
             remote_id=target,
         )
+        c_remote_node.sender_id = sender
         ret = c_remote_node.execute(scope)
         msg = ret.messages[0]
 
@@ -238,10 +238,10 @@ class TestLocalExecutionNode:
 
         r_remote_node = ReadRemoteVariableNode(
             variable_node=variable_node.qualified_name,
-            sender_id=sender,
             remote_id=target,
             store_as=store_as,
         )
+        r_remote_node.sender_id = sender
         ret = r_remote_node.execute(scope)
         msgs = ret.messages
 
@@ -279,10 +279,10 @@ class TestLocalExecutionNode:
 
         r_remote_node = ReadRemoteVariableNode(
             variable_node=variable_node.qualified_name,
-            sender_id=sender,
             remote_id=target,
             store_as=store_as,
         )
+        r_remote_node.sender_id = sender
         ret = r_remote_node.execute(scope)
         msg = ret.messages[0]
 
@@ -319,10 +319,10 @@ class TestLocalExecutionNode:
 
         w_remote_node = WriteRemoteVariableNode(
             variable_node=variable_node.qualified_name,
-            sender_id=sender,
             remote_id=target,
             value=variable_name,
         )
+        w_remote_node.sender_id = sender
         ret = w_remote_node.execute(scope)
         msgs = ret.messages
 
@@ -361,10 +361,10 @@ class TestLocalExecutionNode:
 
         w_remote_node = WriteRemoteVariableNode(
             variable_node=variable_node.qualified_name,
-            sender_id=sender,
             remote_id=target,
             value=variable_name,
         )
+        w_remote_node.sender_id = sender
         ret = w_remote_node.execute(scope)
         msg = ret.messages[0]
 
