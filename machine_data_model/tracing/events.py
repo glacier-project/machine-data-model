@@ -8,7 +8,7 @@ for easy tracing integration throughout the codebase.
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict
 import time
 
 from .tracing_core import TraceEvent, TraceEventType, get_global_collector
@@ -50,17 +50,20 @@ class VariableWriteEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.VARIABLE_WRITE,
             source=source,
-            details={
-                "variable_id": variable_id,
-                "old_value": old_value,
-                "new_value": new_value,
-                "success": success,
-            },
         )
         self.variable_id = variable_id
         self.old_value = old_value
         self.new_value = new_value
         self.success = success
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get variable write event details."""
+        return {
+            "variable_id": self.variable_id,
+            "old_value": self.old_value,
+            "new_value": self.new_value,
+            "success": self.success,
+        }
 
 
 @dataclass
@@ -86,10 +89,16 @@ class VariableReadEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.VARIABLE_READ,
             source=source,
-            details={"variable_id": variable_id, "value": value},
         )
         self.variable_id = variable_id
         self.value = value
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get variable read event details."""
+        return {
+            "variable_id": self.variable_id,
+            "value": self.value,
+        }
 
 
 @dataclass
@@ -115,10 +124,16 @@ class MethodStartEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.METHOD_START,
             source=source,
-            details={"method_id": method_id, "args": args},
         )
         self.method_id = method_id
         self.args = args
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get method start event details."""
+        return {
+            "method_id": self.method_id,
+            "args": self.args,
+        }
 
 
 @dataclass
@@ -153,15 +168,18 @@ class MethodEndEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.METHOD_END,
             source=source,
-            details={
-                "method_id": method_id,
-                "returns": returns,
-                "execution_time": execution_time,
-            },
         )
         self.method_id = method_id
         self.returns = returns
         self.execution_time = execution_time
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get method end event details."""
+        return {
+            "method_id": self.method_id,
+            "returns": self.returns,
+            "execution_time": self.execution_time,
+        }
 
 
 @dataclass
@@ -192,15 +210,18 @@ class WaitStartEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.WAIT_START,
             source=source,
-            details={
-                "variable_id": variable_id,
-                "condition": condition,
-                "expected_value": expected_value,
-            },
         )
         self.variable_id = variable_id
         self.condition = condition
         self.expected_value = expected_value
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get wait start event details."""
+        return {
+            "variable_id": self.variable_id,
+            "condition": self.condition,
+            "expected_value": self.expected_value,
+        }
 
 
 @dataclass
@@ -226,10 +247,16 @@ class WaitEndEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.WAIT_END,
             source=source,
-            details={"variable_id": variable_id, "wait_duration": wait_duration},
         )
         self.variable_id = variable_id
         self.wait_duration = wait_duration
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get wait end event details."""
+        return {
+            "variable_id": self.variable_id,
+            "wait_duration": self.wait_duration,
+        }
 
 
 @dataclass
@@ -268,17 +295,20 @@ class MessageSendEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.MESSAGE_SEND,
             source=source,
-            details={
-                "message_type": message_type,
-                "target": target,
-                "correlation_id": correlation_id,
-                "payload": payload,
-            },
         )
         self.message_type = message_type
         self.target = target
         self.correlation_id = correlation_id
         self.payload = payload
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get message send event details."""
+        return {
+            "message_type": self.message_type,
+            "target": self.target,
+            "correlation_id": self.correlation_id,
+            "payload": self.payload,
+        }
 
 
 @dataclass
@@ -321,19 +351,22 @@ class MessageReceiveEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.MESSAGE_RECEIVE,
             source=source,
-            details={
-                "message_type": message_type,
-                "sender": sender,
-                "correlation_id": correlation_id,
-                "payload": payload,
-                "latency": latency,
-            },
         )
         self.message_type = message_type
         self.sender = sender
         self.correlation_id = correlation_id
         self.payload = payload
         self.latency = latency
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get message receive event details."""
+        return {
+            "message_type": self.message_type,
+            "sender": self.sender,
+            "correlation_id": self.correlation_id,
+            "payload": self.payload,
+            "latency": self.latency,
+        }
 
 
 @dataclass
@@ -364,13 +397,16 @@ class SubscribeEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.SUBSCRIBE,
             source=source,
-            details={
-                "variable_id": variable_id,
-                "subscriber_id": subscriber_id,
-            },
         )
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get subscribe event details."""
+        return {
+            "variable_id": self.variable_id,
+            "subscriber_id": self.subscriber_id,
+        }
 
 
 @dataclass
@@ -401,13 +437,16 @@ class UnsubscribeEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.UNSUBSCRIBE,
             source=source,
-            details={
-                "variable_id": variable_id,
-                "subscriber_id": subscriber_id,
-            },
         )
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get unsubscribe event details."""
+        return {
+            "variable_id": self.variable_id,
+            "subscriber_id": self.subscriber_id,
+        }
 
 
 @dataclass
@@ -442,15 +481,18 @@ class NotificationEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.NOTIFICATION,
             source=source,
-            details={
-                "variable_id": variable_id,
-                "subscriber_id": subscriber_id,
-                "value": value,
-            },
         )
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
         self.value = value
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get notification event details."""
+        return {
+            "variable_id": self.variable_id,
+            "subscriber_id": self.subscriber_id,
+            "value": self.value,
+        }
 
 
 @dataclass
@@ -489,17 +531,20 @@ class ControlFlowStepEvent(TraceEvent):
             timestamp=time.time(),
             event_type=TraceEventType.CONTROL_FLOW_STEP,
             source=source,
-            details={
-                "node_id": node_id,
-                "node_type": node_type,
-                "execution_result": execution_result,
-                "program_counter": program_counter,
-            },
         )
         self.node_id = node_id
         self.node_type = node_type
         self.execution_result = execution_result
         self.program_counter = program_counter
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get control flow step event details."""
+        return {
+            "node_id": self.node_id,
+            "node_type": self.node_type,
+            "execution_result": self.execution_result,
+            "program_counter": self.program_counter,
+        }
 
 
 # Convenience functions for easy tracing

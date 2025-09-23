@@ -8,6 +8,7 @@ including variable changes, method executions, communication events, and control
 from dataclasses import dataclass
 from typing import Any, List, Optional, Dict
 from enum import Enum
+from abc import ABC, abstractmethod
 
 import json
 
@@ -50,13 +51,12 @@ class TraceEventType(Enum):
 
 
 @dataclass
-class TraceEvent:
+class TraceEvent(ABC):
     """Base class for all trace events."""
 
     timestamp: float
     event_type: TraceEventType
     source: str
-    details: Dict[str, Any]
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization."""
@@ -64,8 +64,13 @@ class TraceEvent:
             "timestamp": self.timestamp,
             "event_type": self.event_type.value,
             "source": self.source,
-            "details": self.details,
+            "details": self._get_details(),
         }
+
+    @abstractmethod
+    def _get_details(self) -> Dict[str, Any]:
+        """Get event-specific details. Must be implemented by subclasses."""
+        pass
 
 
 class TraceCollector:
