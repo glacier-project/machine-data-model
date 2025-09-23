@@ -1,8 +1,9 @@
 """
 Tracing module for GLACIER machine data model.
 
-This module provides comprehensive tracing capabilities for CPS simulation verification,
-including variable changes, method executions, communication events, and control flow.
+This module provides comprehensive tracing capabilities for CPS simulation
+verification, including variable changes, method executions, communication
+events, and control flow.
 """
 
 from dataclasses import dataclass
@@ -17,8 +18,9 @@ class TraceLevel(Enum):
     """
     Enumeration of tracing detail levels.
 
-    Defines the granularity of tracing information collected, from no tracing
-    to full control flow tracking. Higher levels include all events from lower levels.
+    Defines the granularity of tracing information collected, from no tracing to
+    full control flow tracking. Higher levels include all events from lower
+    levels.
     """
 
     NONE = 0  # No tracing
@@ -33,7 +35,8 @@ class TraceEventType(Enum):
     Enumeration of traceable event types.
 
     Defines all possible types of events that can be traced in the system,
-    including variable operations, method calls, communication, and control flow.
+    including variable operations, method calls, communication, and control
+    flow.
     """
 
     VARIABLE_WRITE = "variable_write"
@@ -61,9 +64,11 @@ class TraceEvent(ABC):
         event_type (TraceEventType):
             The type of event that occurred.
         source (str):
-            The source or context where the event originated (e.g., node path, method name).
+            The source or context where the event originated (e.g., node path,
+            method name).
         data_model_id (str):
-            The identifier of the data model this event belongs to, for multi-model scenarios.
+            The identifier of the data model this event belongs to, for
+            multi-model scenarios.
     """
 
     timestamp: float
@@ -96,9 +101,9 @@ class TraceCollector:
     """
     Central collector for trace events.
 
-    Provides configurable tracing levels and multiple export formats.
-    Manages the collection, filtering, and export of trace events for
-    CPS simulation verification.
+    Provides configurable tracing levels and multiple export formats. Manages
+    the collection, filtering, and export of trace events for CPS simulation
+    verification.
     """
 
     def __init__(self, level: TraceLevel = TraceLevel.VARIABLES):

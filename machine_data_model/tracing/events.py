@@ -1,10 +1,10 @@
 """
 Specific trace event classes and convenience functions.
 
-This module defines concrete event classes for different types of traceable operations
-in the GLACIER machine data model, including variable access, method execution,
-wait conditions, and message passing. It also provides optimized convenience functions
-for easy tracing integration throughout the codebase.
+This module defines concrete event classes for different types of traceable
+operations in the GLACIER machine data model, including variable access, method
+execution, wait conditions, and message passing. It also provides optimized
+convenience functions for easy tracing integration throughout the codebase.
 """
 
 from dataclasses import dataclass
@@ -98,7 +98,11 @@ class VariableReadEvent(TraceEvent):
     value: Any
 
     def __init__(
-        self, variable_id: str, value: Any, source: str = "", data_model_id: str = ""
+        self,
+        variable_id: str,
+        value: Any,
+        source: str = "",
+        data_model_id: str = "",
     ):
         """
         Initialize a variable read event.
@@ -139,7 +143,8 @@ class MethodStartEvent(TraceEvent):
         method_id (str):
             The unique identifier of the method being executed.
         args (dict[str, Any]):
-            The arguments passed to the method, as a dictionary mapping parameter names to values.
+            The arguments passed to the method, as a dictionary mapping
+            parameter names to values.
     """
 
     method_id: str
@@ -191,7 +196,8 @@ class MethodEndEvent(TraceEvent):
         method_id (str):
             The unique identifier of the method that completed execution.
         returns (dict[str, Any]):
-            The return values from the method, as a dictionary mapping return parameter names to values.
+            The return values from the method, as a dictionary mapping return
+            parameter names to values.
         execution_time (float):
             The time taken to execute the method, in seconds.
     """
@@ -249,9 +255,11 @@ class WaitStartEvent(TraceEvent):
 
     Attributes:
         variable_id (str):
-            The unique identifier of the variable being monitored for the wait condition.
+            The unique identifier of the variable being monitored for the wait
+            condition.
         condition (str):
-            A string representation of the wait condition (e.g., "temperature > 25").
+            A string representation of the wait condition (e.g., "temperature >
+            25").
         expected_value (Any):
             The expected value that will satisfy the wait condition.
     """
@@ -309,9 +317,11 @@ class WaitEndEvent(TraceEvent):
 
     Attributes:
         variable_id (str):
-            The unique identifier of the variable that satisfied the wait condition.
+            The unique identifier of the variable that satisfied the wait
+            condition.
         wait_duration (float):
-            The total time spent waiting for the condition to be met, in seconds.
+            The total time spent waiting for the condition to be met, in
+            seconds.
     """
 
     variable_id: str
@@ -361,7 +371,8 @@ class MessageSendEvent(TraceEvent):
 
     Attributes:
         message_type (str):
-            The type of message being sent (e.g., "METHOD_CALL", "VARIABLE_READ").
+            The type of message being sent (e.g., "METHOD_CALL",
+            "VARIABLE_READ").
         target (str):
             The identifier of the recipient or target of the message.
         correlation_id (str):
@@ -429,15 +440,18 @@ class MessageReceiveEvent(TraceEvent):
 
     Attributes:
         message_type (str):
-            The type of message being received (e.g., "METHOD_RESPONSE", "VARIABLE_VALUE").
+            The type of message being received (e.g., "METHOD_RESPONSE",
+            "VARIABLE_VALUE").
         sender (str):
             The identifier of the sender of the message.
         correlation_id (str):
-            A unique identifier that correlates this response with its original request.
+            A unique identifier that correlates this response with its original
+            request.
         payload (dict[str, Any]):
             The message payload containing the received data.
         latency (float):
-            The round-trip time from when the request was sent to when the response was received, in seconds.
+            The round-trip time from when the request was sent to when the
+            response was received, in seconds.
     """
 
     message_type: str
@@ -609,7 +623,8 @@ class NotificationEvent(TraceEvent):
 
     Attributes:
         variable_id (str):
-            The unique identifier of the variable that changed and triggered the notification.
+            The unique identifier of the variable that changed and triggered the
+            notification.
         subscriber_id (str):
             The unique identifier of the subscriber receiving the notification.
         value (Any):
@@ -669,13 +684,16 @@ class ControlFlowStepEvent(TraceEvent):
 
     Attributes:
         node_id (str):
-            The unique identifier of the node being executed in the control flow.
+            The unique identifier of the node being executed in the control
+            flow.
         node_type (str):
-            The type of the control flow node (e.g., "ReadVariableNode", "CallMethodNode").
+            The type of the control flow node (e.g., "ReadVariableNode",
+            "CallMethodNode").
         execution_result (bool):
             Indicates whether the node execution was successful.
         program_counter (int):
-            The position of this step in the control flow sequence (0-based index).
+            The position of this step in the control flow sequence (0-based
+            index).
     """
 
     node_id: str
@@ -699,7 +717,8 @@ class ControlFlowStepEvent(TraceEvent):
             node_id (str):
                 The ID of the node being executed.
             node_type (str):
-                The type of the node (e.g., "ReadVariableNode", "CallMethodNode").
+                The type of the node (e.g., "ReadVariableNode",
+                "CallMethodNode").
             execution_result (bool):
                 Whether the node execution was successful.
             program_counter (int):
