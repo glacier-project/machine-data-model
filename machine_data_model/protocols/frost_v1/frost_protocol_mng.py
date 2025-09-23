@@ -31,78 +31,52 @@ import uuid
 import copy
 
 
-def _create_response_msg(msg: FrostMessage) -> FrostMessage:
+def _create_response_msg(
+    msg: FrostMessage,
+    error_message: ErrorMessages | None = None,
+) -> FrostMessage:
     """
-    Creates a response message based on an incoming `FrostMessage`.
+    Creates a response message based on the provided message.
 
-    :param msg: The original `FrostMessage` that will be used to create the response.
+    Args:
+        msg (FrostMessage):
+            The original FrostMessage that will be used to create the response.
+        error_message (ErrorMessages | None):
+            The error message to include in the response, if any.
 
-    :return: A new `FrostMessage` with the modified header and payload.
+    Returns:
+        FrostMessage:
+            A new FrostMessage that is a response to the original message.
     """
-    msg.header.type = MsgType.RESPONSE
-    response_msg = FrostMessage(
-        sender=msg.target,
-        target=msg.sender,
-        identifier=str(uuid.uuid4()),
-        header=msg.header,
-        payload=msg.payload,
-        correlation_id=msg.correlation_id,
-    )
+    # Set the sender and target for the response message.
+    _sender = msg.target
+    _target = msg.sender
 
-    # Trace message sending
-    trace_message_send(
-        message_type=f"{msg.header.namespace.value}.{msg.header.msg_name.value}",
-        target=msg.sender,
-        correlation_id=msg.correlation_id or "",
-        payload={
-            "node": getattr(msg.payload, "node", None),
-            "value": getattr(msg.payload, "value", None),
-            "ret": getattr(msg.payload, "ret", None),
-        },
-        source=response_msg.sender,
-        data_model_id="",  # TODO: Pass from caller
-    )
+    # Make a deep copy of the header to avoid modifying the original message.
+    _header = copy.deepcopy(msg.header)
 
-    return response_msg
+    # By default, use the original payload.
+    _payload = msg.payload
 
-
-def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessage:
-    """
-    Creates an error response with the specified error message.
-
-    :param payload: The payload that contains the node information.
-    :param error_message: The specific error message to include in the response.
-
-    :return: An `ErrorPayload` containing the error details.
-    """
-    msg.header.type = MsgType.RESPONSE
-    error_msg = FrostMessage(
-        sender=msg.target,
-        target=msg.sender,
-        identifier=str(uuid.uuid4()),
-        header=msg.header,
-        payload=ErrorPayload(
+    # If we receive an error message, create an ErrorPayload.
+    if error_message is not None:
+        _payload = ErrorPayload(
             node=msg.payload.node,
             error_code=ErrorCode.BAD_REQUEST,
             error_message=error_message,
-        ),
+        )
+
+    # Set the message type to RESPONSE.
+    _header.type = MsgType.RESPONSE
+
+    return FrostMessage(
+        sender=_sender,
+        target=_target,
+        identifier=str(uuid.uuid4()),
+        header=_header,
+        payload=_payload,
         correlation_id=msg.correlation_id,
     )
-
-    # Trace error message sending
-    trace_message_send(
-        message_type=f"{msg.header.namespace.value}.{msg.header.msg_name.value}",
-        target=msg.sender,
-        correlation_id=msg.correlation_id or "",
-        payload={
-            "node": msg.payload.node,
-            "error_code": ErrorCode.BAD_REQUEST.value,
-            "error_message": error_message,
-        },
-        source=error_msg.sender,
-    )
-
-    return error_msg
 
 
 class FrostProtocolMng(ProtocolMng):
@@ -160,14 +134,19 @@ class FrostProtocolMng(ProtocolMng):
         )
 
         if not self._is_version_supported(header.version):
-            return _create_error_response(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+            response = _create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+            return self._trace_and_return_response(response, msg)
 
         # Resume methods waiting for a response
         if msg.correlation_id in self._running_methods:
             cm, _ = self._running_methods[msg.correlation_id]
             if not cm.handle_message(msg.correlation_id, msg):
-                return _create_error_response(msg, ErrorMessages.BAD_RESPONSE)
-            return self._resume_composite_method(msg.correlation_id)
+                response = _create_response_msg(msg, ErrorMessages.BAD_RESPONSE)
+                return self._trace_and_return_response(response, msg)
+            response = self._resume_composite_method(msg.correlation_id)
+            if response is not None:
+                return self._trace_and_return_response(response, msg)
+            return response
 
         # Handle PROTOCOL messages separately.
         if header.namespace == MsgNamespace.PROTOCOL:
@@ -175,22 +154,60 @@ class FrostProtocolMng(ProtocolMng):
 
         node = self._data_model.get_node(msg.payload.node)
         if node is None:
-            return _create_error_response(msg, ErrorMessages.NODE_NOT_FOUND)
-
+            response = _create_response_msg(msg, ErrorMessages.NODE_NOT_FOUND)
+            return self._trace_and_return_response(response, msg)
         # Handle VARIABLE messages.
         if header.namespace == MsgNamespace.VARIABLE:
             if not isinstance(node, VariableNode):
-                return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
-            return self._handle_variable_message(msg, node)
-
+                response = _create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._trace_and_return_response(response, msg)
+            response = self._handle_variable_message(msg, node)
+            return self._trace_and_return_response(response, msg)
         # Handle METHOD messages.
         if header.namespace == MsgNamespace.METHOD:
             if not isinstance(node, MethodNode):
-                return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
-            return self._handle_method_message(msg, node)
-
+                response = _create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._trace_and_return_response(response, msg)
+            response = self._handle_method_message(msg, node)
+            return self._trace_and_return_response(response, msg)
         # Return invalid namespace.
-        return _create_error_response(msg, ErrorMessages.INVALID_NAMESPACE)
+        response = _create_response_msg(msg, ErrorMessages.INVALID_NAMESPACE)
+        return self._trace_and_return_response(response, msg)
+
+    def _trace_and_return_response(
+        self,
+        response: FrostMessage,
+        msg: FrostMessage,
+        payload_override: dict[str, Any] | None = None,
+    ) -> FrostMessage:
+        """
+        Traces a response message and returns it.
+
+        :param response: The response message to trace and return.
+        :param msg: The original message for context.
+        :param payload_override: Optional payload to use for tracing instead of deriving from response.
+        :return: The response message.
+        """
+        header = msg.header
+        if payload_override is not None:
+            payload = payload_override
+        elif isinstance(response.payload, ErrorPayload):
+            payload = {"error": response.payload.error_message}
+        else:
+            payload = {
+                "node": getattr(msg.payload, "node", None),
+                "value": getattr(response.payload, "value", None),
+                "ret": getattr(response.payload, "ret", None),
+            }
+
+        trace_message_send(
+            message_type=f"{header.namespace.value}.{header.msg_name.value}",
+            target=msg.sender,
+            correlation_id=msg.correlation_id or "",
+            payload=payload,
+            source=response.sender,
+        )
+        return response
 
     def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
         """
@@ -216,14 +233,14 @@ class FrostProtocolMng(ProtocolMng):
         assert msg.header.namespace == MsgNamespace.METHOD
 
         if not isinstance(msg.payload, MethodPayload):
-            return _create_error_response(msg, ErrorMessages.BAD_REQUEST)
+            return _create_response_msg(msg, ErrorMessages.BAD_REQUEST)
 
         if msg.header.msg_name == MethodMsgName.INVOKE:
             return self._invoke_method(
                 msg, method_node, msg.payload.args, msg.payload.kwargs
             )
 
-        return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
+        return _create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
     def _invoke_method(
         self,
@@ -263,7 +280,9 @@ class FrostProtocolMng(ProtocolMng):
         return _create_response_msg(msg)
 
     def _handle_variable_message(
-        self, msg: FrostMessage, variable_node: VariableNode
+        self,
+        msg: FrostMessage,
+        variable_node: VariableNode,
     ) -> FrostMessage:
         """
         Handles a message within the VARIABLE namespace.
@@ -275,31 +294,31 @@ class FrostProtocolMng(ProtocolMng):
 
         assert msg.header.namespace == MsgNamespace.VARIABLE
 
+        # Check payload type
         if not isinstance(msg.payload, VariablePayload):
-            return _create_error_response(msg, ErrorMessages.BAD_REQUEST)
+            return _create_response_msg(msg, ErrorMessages.BAD_REQUEST)
 
+        # Handle different message types
         if msg.header.msg_name == VariableMsgName.READ:
             value = variable_node.read()
             msg.payload.value = value
-            return _create_response_msg(msg)
-        if msg.header.msg_name == VariableMsgName.WRITE:
-            if variable_node.write(msg.payload.value):
-                return _create_response_msg(msg)
-            return _create_error_response(msg, ErrorMessages.NOT_ALLOWED)
-        if msg.header.msg_name == VariableMsgName.SUBSCRIBE:
+        elif msg.header.msg_name == VariableMsgName.WRITE:
+            if not variable_node.write(msg.payload.value):
+                return _create_response_msg(msg, ErrorMessages.NOT_ALLOWED)
+        elif msg.header.msg_name == VariableMsgName.SUBSCRIBE:
             # Add the sender as a subscriber to the variable node.
             variable_node.subscribe(msg.sender)
-            # Return a response message confirming the subscription.
-            return _create_response_msg(msg)
-        if msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
+        elif msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
             variable_node.unsubscribe(msg.sender)
             # TODO: Think about reading when SUBSCRIBING
             msg.payload.value = variable_node.read()
-            return _create_response_msg(msg)
-        if msg.header.msg_name == VariableMsgName.UPDATE:
-            return _create_response_msg(msg)
+        elif msg.header.msg_name == VariableMsgName.UPDATE:
+            # UPDATE is handled, just return success response
+            pass
+        else:
+            return _create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
-        return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
+        return _create_response_msg(msg)
 
     def _handle_protocol_message(self, msg: FrostMessage) -> FrostMessage:
         """
@@ -360,7 +379,7 @@ class FrostProtocolMng(ProtocolMng):
 
             return response_msg
 
-        return _create_error_response(msg, ErrorMessages.NOT_SUPPORTED)
+        return _create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
     def get_update_messages(self) -> Sequence[FrostMessage]:
         """
