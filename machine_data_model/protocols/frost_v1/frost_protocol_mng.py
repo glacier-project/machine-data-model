@@ -59,7 +59,7 @@ def _create_response_msg(msg: FrostMessage) -> FrostMessage:
             "value": getattr(msg.payload, "value", None),
             "ret": getattr(msg.payload, "ret", None),
         },
-        source=response_msg.identifier,
+        source=response_msg.sender,
     )
 
     return response_msg
@@ -98,7 +98,7 @@ def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessag
             "error_code": ErrorCode.BAD_REQUEST.value,
             "error_message": error_message,
         },
-        source=error_msg.identifier,
+        source=error_msg.sender,
     )
 
     return error_msg
@@ -155,7 +155,7 @@ class FrostProtocolMng(ProtocolMng):
                 "value": getattr(msg.payload, "value", None),
             },
             send_time=0.0,
-            source=msg.identifier,
+            source=msg.sender,
         )
 
         if not self._is_version_supported(header.version):
@@ -328,7 +328,7 @@ class FrostProtocolMng(ProtocolMng):
                 target=msg.sender,
                 correlation_id=msg.correlation_id or "",
                 payload={},
-                source=response_msg.identifier,
+                source=response_msg.sender,
             )
 
             return response_msg
@@ -354,7 +354,7 @@ class FrostProtocolMng(ProtocolMng):
                 target=msg.sender,
                 correlation_id=msg.correlation_id or "",
                 payload={},
-                source=response_msg.identifier,
+                source=response_msg.sender,
             )
 
             return response_msg
