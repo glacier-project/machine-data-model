@@ -85,14 +85,14 @@ class FrostProtocolMng(ProtocolMng):
         )
 
         if not self._is_version_supported(msg.header.version):
-            return self._handle_error_message(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+            return self._create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
 
         # Resume methods waiting for a response
         if msg.correlation_id in self._running_methods:
             cm, _ = self._running_methods[msg.correlation_id]
 
             if not cm.handle_message(msg.correlation_id, msg):
-                return self._handle_error_message(msg, ErrorMessages.BAD_RESPONSE)
+                return self._create_response_msg(msg, ErrorMessages.BAD_RESPONSE)
 
             return self._resume_composite_method(msg.correlation_id)
 
@@ -102,24 +102,24 @@ class FrostProtocolMng(ProtocolMng):
 
         node = self._data_model.get_node(msg.payload.node)
         if node is None:
-            return self._handle_error_message(msg, ErrorMessages.NODE_NOT_FOUND)
+            return self._create_response_msg(msg, ErrorMessages.NODE_NOT_FOUND)
 
         # Handle VARIABLE messages.
         if msg.header.namespace == MsgNamespace.VARIABLE:
             if not isinstance(node, VariableNode):
-                return self._handle_error_message(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
             return self._handle_variable_message(msg, node)
 
         # Handle METHOD messages.
         if msg.header.namespace == MsgNamespace.METHOD:
             if not isinstance(node, MethodNode):
-                return self._handle_error_message(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
             return self._handle_method_message(msg, node)
 
         # Return invalid namespace.
-        return self._handle_error_message(msg, ErrorMessages.INVALID_NAMESPACE)
+        return self._create_response_msg(msg, ErrorMessages.INVALID_NAMESPACE)
 
     def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
         """
@@ -144,10 +144,10 @@ class FrostProtocolMng(ProtocolMng):
         assert msg.header.namespace == MsgNamespace.METHOD
 
         if not isinstance(msg.payload, MethodPayload):
-            return self._handle_error_message(msg, ErrorMessages.BAD_REQUEST)
+            return self._create_response_msg(msg, ErrorMessages.BAD_REQUEST)
 
         if msg.header.msg_name != MethodMsgName.INVOKE:
-            return self._handle_error_message(msg, ErrorMessages.NOT_SUPPORTED)
+            return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
         return self._invoke_method(
             msg,
@@ -282,25 +282,6 @@ class FrostProtocolMng(ProtocolMng):
             return self._trace_and_return_response(response_msg, msg)
 
         return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
-
-    def _handle_error_message(
-        self,
-        msg: FrostMessage,
-        error: ErrorMessages,
-    ) -> FrostMessage:
-        """
-        Handles an error message and creates a response message with the error.
-
-        Args:
-            msg (FrostMessage):
-                The original message that caused the error.
-            error (ErrorMessages):
-                The error to be included in the response.
-        Returns:
-            FrostMessage:
-                A response message containing the error.
-        """
-        return self._create_response_msg(msg, error)
 
     def get_update_messages(self) -> Sequence[FrostMessage]:
         """
