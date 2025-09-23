@@ -363,11 +363,9 @@ class TestDataModelTracing:
 
         read_node = ReadVariableNode(variable_node="test_var", store_as="read_value")
         read_node.set_ref_node(var)
-        read_node.get_data_model_node = lambda path: data_model.get_node(path)
 
         write_node = WriteVariableNode(variable_node="test_var", value=20.0)
         write_node.set_ref_node(var)
-        write_node.get_data_model_node = lambda path: data_model.get_node(path)
 
         # Create control flow with the nodes
         control_flow = ControlFlow([read_node, write_node])

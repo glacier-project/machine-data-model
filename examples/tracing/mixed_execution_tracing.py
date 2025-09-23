@@ -111,17 +111,19 @@ def remote_machine_process(
     # Register cleanup function
     atexit.register(cleanup_remote_process)
 
+    INIT_TEMP = 25.5
+
     # Initialize remote machine
     remote_machine = DataModel(name="RemoteMachine", trace_level=TraceLevel.FULL)
     remote_temp = NumericalVariableNode(
-        id="temperature", name="temperature", value=25.5
+        id="temperature",
+        name="temperature",
+        value=INIT_TEMP,
     )
     remote_machine.root.add_child(remote_temp)
     remote_machine._register_nodes(remote_machine.root)
 
-    print(
-        f"Remote machine initialized with temperature: {remote_machine.read_variable('temperature')}"
-    )
+    print(f"Remote machine initialized with temperature: {INIT_TEMP}")
 
     # Process requests
     while True:
@@ -185,16 +187,20 @@ def local_machine_process(
     # Register cleanup function
     atexit.register(cleanup_local_process)
 
+    INIT_TEMP = 0.0
+
     try:
         # Initialize local machine
         local_machine = DataModel(name="LocalMachine", trace_level=TraceLevel.FULL)
-        local_temp = NumericalVariableNode(id="local_temp", name="local_temp", value=0)
+        local_temp = NumericalVariableNode(
+            id="local_temp",
+            name="local_temp",
+            value=INIT_TEMP,
+        )
         local_machine.root.add_child(local_temp)
         local_machine._register_nodes(local_machine.root)
 
-        print(
-            f"Local machine initialized with temperature: {local_machine.read_variable('local_temp')}"
-        )
+        print(f"Local machine initialized with temperature: {INIT_TEMP}")
 
         # Control flow: read remote temperature, store locally
         read_remote_temp = ReadRemoteVariableNode(
@@ -209,9 +215,13 @@ def local_machine_process(
             value="$local_temp",
         )
         write_local_temp.set_ref_node(local_temp)
-        write_local_temp.get_data_model_node = lambda path: local_machine.get_node(path)
 
-        control_flow = ControlFlow([read_remote_temp, write_local_temp])
+        control_flow = ControlFlow(
+            [
+                read_remote_temp,
+                write_local_temp,
+            ]
+        )
 
         # Execute: Phase 1 - Send request
         print("Local machine: Starting control flow execution")
@@ -240,14 +250,10 @@ def local_machine_process(
                     f"Local machine: Received response for {response_msg.payload.node}"
                 )
 
-                # Handle the response
-                read_node = control_flow.nodes()[0]
-                if isinstance(read_node, ReadRemoteVariableNode):
-                    handled = read_node.handle_response(scope, response_msg)
-                    print(f"Local machine: Response handled: {handled}")
-                    response_received = True
-                else:
-                    print("Local machine: Error - not a ReadRemoteVariableNode")
+                # Handle the response.
+                handled = read_remote_temp.handle_response(scope, response_msg)
+                print(f"Local machine: Response handled: {handled}")
+                response_received = True
 
             time.sleep(0.01)  # Small delay
 

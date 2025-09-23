@@ -35,38 +35,27 @@ if __name__ == "__main__":
     )
 
     # Add variables for the control flow operations
-    counter_var = NumericalVariableNode(
-        id="counter",
-        name="counter",
-        value=0,
-    )
-    result_var = NumericalVariableNode(
-        id="result",
-        name="result",
-        value=0.0,
-    )
-
+    counter_var = NumericalVariableNode(id="counter", name="counter", value=0)
+    result_var = NumericalVariableNode(id="result", name="result", value=0.0)
+    # Add variables to the root node.
     data_model.root.add_child(counter_var)
     data_model.root.add_child(result_var)
 
-    # Register nodes
+    # Register nodes.
     data_model._register_nodes(data_model.root)
 
     # Create control flow nodes
     # Node 1: Read the counter variable
     read_counter = ReadVariableNode(variable_node="counter", store_as="current_count")
     read_counter.set_ref_node(counter_var)
-    read_counter.get_data_model_node = lambda path: data_model.get_node(path)
 
     # Node 2: Write a fixed value to result
     write_result = WriteVariableNode(variable_node="result", value=42.0)
     write_result.set_ref_node(result_var)
-    write_result.get_data_model_node = lambda path: data_model.get_node(path)
 
     # Node 3: Write a fixed value to counter (increment simulation)
     increment_counter = WriteVariableNode(variable_node="counter", value=5.0)
     increment_counter.set_ref_node(counter_var)
-    increment_counter.get_data_model_node = lambda path: data_model.get_node(path)
 
     # Create the control flow graph
     control_flow = ControlFlow([read_counter, write_result, increment_counter])
