@@ -25,6 +25,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
     FrostPayload,
 )
+from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 
@@ -111,10 +112,16 @@ def remote_machine_process(
     # Register cleanup function
     atexit.register(cleanup_remote_process)
 
+    # Clear any existing traces.
+    clear_traces()
+
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
+
     INIT_TEMP = 25.5
 
     # Initialize remote machine
-    remote_machine = DataModel(name="RemoteMachine", trace_level=TraceLevel.FULL)
+    remote_machine = DataModel(name="RemoteMachine")
     remote_temp = NumericalVariableNode(
         id="temperature",
         name="temperature",
@@ -187,11 +194,17 @@ def local_machine_process(
     # Register cleanup function
     atexit.register(cleanup_local_process)
 
+    # Clear any existing traces.
+    clear_traces()
+
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
+
     INIT_TEMP = 0.0
 
     try:
         # Initialize local machine
-        local_machine = DataModel(name="LocalMachine", trace_level=TraceLevel.FULL)
+        local_machine = DataModel(name="LocalMachine")
         local_temp = NumericalVariableNode(
             id="local_temp",
             name="local_temp",
@@ -279,9 +292,6 @@ def local_machine_process(
 
 
 if __name__ == "__main__":
-    # Clear any existing traces
-    clear_traces()
-
     # Set up multiprocessing
     multiprocessing.set_start_method("spawn")  # Required for some systems
 

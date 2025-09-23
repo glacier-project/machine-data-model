@@ -20,6 +20,7 @@ from machine_data_model.tracing import (
     TraceLevel,
     get_global_collector,
 )
+from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 
@@ -28,11 +29,11 @@ if __name__ == "__main__":
     # Clear any previous traces
     clear_traces()
 
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
+
     # Create a DataModel with FULL tracing enabled (includes control flow)
-    data_model = DataModel(
-        name="ControlFlowTracingExample",
-        trace_level=TraceLevel.FULL,
-    )
+    data_model = DataModel(name="ControlFlowTracingExample")
 
     # Add variables for the control flow operations
     counter_var = NumericalVariableNode(id="counter", name="counter", value=0)

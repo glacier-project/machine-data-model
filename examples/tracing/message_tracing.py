@@ -33,6 +33,7 @@ from machine_data_model.tracing import (
     TraceLevel,
     clear_traces,
     get_global_collector,
+    set_global_trace_level
 )
 from support import print_trace_events
 
@@ -42,9 +43,12 @@ if __name__ == "__main__":
     # Clear any existing traces
     clear_traces()
 
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
+
     # Create a data model with COMMUNICATION level tracing enabled
     print("Creating data model with COMMUNICATION level tracing...")
-    data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+    data_model = DataModel("MessageTracingExample")
 
     # Create some test variables
     temperature = NumericalVariableNode(

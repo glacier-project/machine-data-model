@@ -12,7 +12,7 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.tracing import clear_traces, TraceLevel
-from machine_data_model.tracing.tracing_core import get_global_collector
+from machine_data_model.tracing.tracing_core import get_global_collector, set_global_trace_level
 from support import print_trace_events
 
 
@@ -21,7 +21,6 @@ def create_temperature_controller(name: str) -> DataModel:
     # Create DataModel with full tracing enabled
     data_model = DataModel(
         name=name,
-        trace_level=TraceLevel.FULL,  # Enable all tracing
     )
 
     # Add temperature sensor variable
@@ -73,6 +72,9 @@ def create_temperature_controller(name: str) -> DataModel:
 if __name__ == "__main__":
     # Clear any previous traces
     clear_traces()
+
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
 
     print("Creating two temperature controller data models...")
 

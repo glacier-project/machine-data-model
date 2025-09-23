@@ -15,7 +15,6 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
-from machine_data_model.tracing import set_global_trace_level, TraceLevel
 
 
 class DataModel:
@@ -31,7 +30,6 @@ class DataModel:
         machine_model: str = "",
         description: str = "",
         root: FolderNode | None = None,
-        trace_level: TraceLevel = TraceLevel.NONE,
     ):
         self._name = name
         self._machine_category = machine_category
@@ -43,7 +41,6 @@ class DataModel:
             if root is not None
             else FolderNode(name="root", description="Root folder of the data model")
         )
-        set_global_trace_level(trace_level)
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
         self._register_nodes(self._root)

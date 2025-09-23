@@ -10,7 +10,7 @@ import time
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.tracing import clear_traces, TraceLevel
-from machine_data_model.tracing.tracing_core import get_global_collector
+from machine_data_model.tracing.tracing_core import get_global_collector, set_global_trace_level
 from support import print_trace_events
 
 if __name__ == "__main__":
@@ -18,11 +18,11 @@ if __name__ == "__main__":
     # Clear any previous traces
     clear_traces()
 
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
+
     # Create a DataModel with tracing enabled for variables.
-    data_model = DataModel(
-        name="VariableTracingExample",
-        trace_level=TraceLevel.VARIABLES,  # Enable variable tracing only
-    )
+    data_model = DataModel(name="VariableTracingExample")
 
     # Add some variables
     temp_var = NumericalVariableNode(

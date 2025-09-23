@@ -106,13 +106,13 @@ class TraceCollector:
     verification.
     """
 
-    def __init__(self, level: TraceLevel = TraceLevel.VARIABLES):
+    def __init__(self, level: TraceLevel = TraceLevel.NONE):
         """
         Initialize the trace collector.
 
         Args:
             level (TraceLevel, optional):
-                The initial tracing level. Defaults to TraceLevel.VARIABLES.
+                The initial tracing level. Defaults to TraceLevel.NONE.
         """
         self.level = level
         self.events: List[TraceEvent] = []

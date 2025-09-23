@@ -16,6 +16,7 @@ from machine_data_model.tracing import (
     TraceEventType,
     TraceLevel,
     export_traces_json,
+    set_global_trace_level,
 )
 
 
@@ -29,13 +30,14 @@ class TestDataModelTracing:
 
     def test_tracing_enabled(self) -> None:
         clear_traces()
-        _ = DataModel(trace_level=TraceLevel.VARIABLES)
+        _ = DataModel()
         collector = get_global_collector()
-        assert collector.level == TraceLevel.VARIABLES
+        assert collector.level == TraceLevel.NONE
 
     def test_tracing_records_changes(self) -> None:
         clear_traces()
-        data_model = DataModel(name="test_dm", trace_level=TraceLevel.VARIABLES)
+        set_global_trace_level(TraceLevel.VARIABLES)
+        data_model = DataModel(name="test_dm")
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
@@ -55,7 +57,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_reads(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.VARIABLES)
+        set_global_trace_level(TraceLevel.VARIABLES)
+        data_model = DataModel()
         var = NumericalVariableNode(id="test_var", name="test", value=15.0)
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
@@ -73,7 +76,8 @@ class TestDataModelTracing:
 
     def test_export_trace(self, tmp_path: Path) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.VARIABLES)
+        set_global_trace_level(TraceLevel.VARIABLES)
+        data_model = DataModel()
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
@@ -96,7 +100,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_method_calls(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.METHODS)
+        set_global_trace_level(TraceLevel.METHODS)
+        data_model = DataModel()
 
         # Create return value node
         return_var = NumericalVariableNode(id="return", name="return", value=0)
@@ -138,7 +143,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_message_send_and_receive(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        set_global_trace_level(TraceLevel.COMMUNICATION)
+        data_model = DataModel()
 
         # Create a simple variable for testing
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
@@ -204,7 +210,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_wait_conditions(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        set_global_trace_level(TraceLevel.COMMUNICATION)
+        data_model = DataModel()
 
         # Create a variable to wait on
         counter_var = NumericalVariableNode(id="counter", name="counter", value=0)
@@ -256,7 +263,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_subscriptions(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        set_global_trace_level(TraceLevel.COMMUNICATION)
+        data_model = DataModel()
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
@@ -274,7 +282,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_unsubscriptions(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        set_global_trace_level(TraceLevel.COMMUNICATION)
+        data_model = DataModel()
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
@@ -293,7 +302,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_notifications(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.COMMUNICATION)
+        set_global_trace_level(TraceLevel.COMMUNICATION)
+        data_model = DataModel()
         var = NumericalVariableNode(id="test_var", name="test", value=10.0)
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
@@ -346,7 +356,8 @@ class TestDataModelTracing:
 
     def test_tracing_records_control_flow_steps(self) -> None:
         clear_traces()
-        data_model = DataModel(trace_level=TraceLevel.FULL)
+        set_global_trace_level(TraceLevel.FULL)
+        data_model = DataModel()
 
         # Create a variable for testing
         var = NumericalVariableNode(id="test_var", name="test_var", value=10.0)

@@ -20,6 +20,7 @@ from machine_data_model.tracing import (
 )
 
 # Import the utility function
+from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 if __name__ == "__main__":
@@ -27,11 +28,11 @@ if __name__ == "__main__":
     # Clear any previous traces
     clear_traces()
 
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
+
     # Create a DataModel with tracing enabled for all events
-    data_model = DataModel(
-        name="WaitConditionExample",
-        trace_level=TraceLevel.FULL,
-    )
+    data_model = DataModel(name="WaitConditionExample")
 
     # Create a variable that we'll wait on
     counter_var = NumericalVariableNode(

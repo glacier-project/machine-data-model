@@ -14,6 +14,7 @@ from machine_data_model.tracing import (
     TraceLevel,
     get_global_collector,
 )
+from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 
@@ -22,11 +23,11 @@ if __name__ == "__main__":
     # Clear any previous traces
     clear_traces()
 
+    # Set the tracing level to FULL to capture all events.
+    set_global_trace_level(TraceLevel.FULL)
+
     # Create a DataModel with tracing enabled for methods.
-    data_model = DataModel(
-        name="MethodTracingExample",
-        trace_level=TraceLevel.METHODS,
-    )
+    data_model = DataModel(name="MethodTracingExample")
 
     # Add some variables that will be used as parameters
     temp_var = NumericalVariableNode(
