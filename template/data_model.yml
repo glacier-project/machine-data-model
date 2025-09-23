@@ -65,7 +65,6 @@ root:
           cfg:
             - !!CallRemoteMethodNode
               method: "/remote/method/path"
-              sender_id: "sender_id"
               remote_id: "remote_id"
         - !!CompositeMethodNode
           name: "remote_read"
@@ -79,7 +78,6 @@ root:
           cfg:
             - !!ReadRemoteVariableNode
               variable: "/remote/variable/path"
-              sender_id: "sender_id"
               remote_id: "remote_id"
               store_as: "return_variable_1"
         - !!CompositeMethodNode
@@ -94,9 +92,23 @@ root:
           cfg:
             - !!WriteRemoteVariableNode
               variable: "/remote/variable/path"
-              sender_id: "sender_id"
               remote_id: "remote_id"
               value: "$parameter_1"
+        - !!CompositeMethodNode
+          name: "remote_wait"
+          description: "remote_wait_description"
+          parameters:
+            - !!NumericalVariableNode
+              name: "rhs"
+              measure_unit: "LengthUnits.Meter"
+              initial_value: 35
+          returns: []
+          cfg:
+            - !!WaitRemoteEventNode
+              variable: "/remote/variable/path"
+              remote_id: "remote_id"
+              rhs: "$rhs"
+              operator: "=="
     - !!FolderNode
       name: "dynamic_cfg"
       description: "folder_description_dynamic_cfg"

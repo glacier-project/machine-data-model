@@ -331,8 +331,8 @@ class WaitRemoteEventNode(RemoteExecutionNode):
     Represents a remote event wait node in the control flow graph. When executed,
     it sends a request message to a remote node to subscribe to an event and waits for a response.
 
-    :ivar _rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
-    :ivar _op: The comparison operator.
+    :ivar rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
+    :ivar op: The comparison operator.
     """
 
     def __init__(
@@ -344,8 +344,8 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         successors: list[ControlFlowNode] | None = None,
     ):
         super().__init__(variable_node, remote_id, successors)
-        self._rhs = rhs
-        self._op = op
+        self.rhs = rhs
+        self.op = op
 
     @override
     def _validate_response(
@@ -365,22 +365,22 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             return False
 
         lhs = response.payload.value
-        rhs = resolve_value(self._rhs, scope)
+        rhs = resolve_value(self.rhs, scope)
 
-        if self._op == WaitConditionOperator.EQ:
+        if self.op == WaitConditionOperator.EQ:
             res = lhs == rhs
-        elif self._op == WaitConditionOperator.NE:
+        elif self.op == WaitConditionOperator.NE:
             res = lhs != rhs
-        elif self._op == WaitConditionOperator.LT:
+        elif self.op == WaitConditionOperator.LT:
             res = lhs < rhs
-        elif self._op == WaitConditionOperator.GT:
+        elif self.op == WaitConditionOperator.GT:
             res = lhs > rhs
-        elif self._op == WaitConditionOperator.LE:
+        elif self.op == WaitConditionOperator.LE:
             res = lhs <= rhs
-        elif self._op == WaitConditionOperator.GE:
+        elif self.op == WaitConditionOperator.GE:
             res = lhs >= rhs
         else:
-            raise ValueError(f"Invalid operator: {self._op}")
+            raise ValueError(f"Invalid operator: {self.op}")
 
         return res
 
@@ -405,6 +405,4 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         if not isinstance(other, WaitRemoteEventNode):
             return False
 
-        return (
-            super().__eq__(other) and self._rhs == other._rhs and self._op == other._op
-        )
+        return super().__eq__(other) and self.rhs == other.rhs and self.op == other.op

@@ -526,3 +526,8 @@ class TestGlacierProtocolMng:
         assert isinstance(response_2.payload, MethodPayload)
         assert len(response_2.payload.ret) == 0
         assert not manager.get_update_messages()
+
+    def test_remote_wait_event(
+        self, manager: FrostProtocolMng, sender: str, target: str
+    ) -> None:
+        pass

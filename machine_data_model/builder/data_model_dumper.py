@@ -29,6 +29,7 @@ from machine_data_model.behavior.remote_execution_node import (
     ReadRemoteVariableNode,
     WriteRemoteVariableNode,
     CallRemoteMethodNode,
+    WaitRemoteEventNode,
 )
 
 
@@ -364,6 +365,26 @@ def _write_remote_variable_node_representer(
     )
 
 
+def _wait_remote_event_node_representer(
+    dumper: yaml.Dumper, node: WaitRemoteEventNode
+) -> yaml.nodes.MappingNode:
+    """
+    Represent a WaitRemoteEventNode as a YAML mapping node.
+    :param dumper: The YAML dumper instance.
+    :param node: The WaitRemoteEventNode instance to represent.
+    :return: A YAML mapping node representing the WaitRemoteEventNode.
+    """
+    return dumper.represent_mapping(
+        "tag:yaml.org,2002:WaitRemoteEventNode",
+        {
+            "variable": node.node,
+            "remote_id": node.remote_id,
+            "rhs": node.rhs,
+            "operator": node.op.value,
+        },
+    )
+
+
 # Register the representers for the custom classes
 yaml.add_representer(DataModel, _data_model_representer)
 yaml.add_representer(FolderNode, _folder_node_representer)
@@ -382,6 +403,7 @@ yaml.add_representer(CallMethodNode, _call_method_node_representer)
 yaml.add_representer(CallRemoteMethodNode, _call_remote_method_node_representer)
 yaml.add_representer(ReadRemoteVariableNode, _read_remote_variable_node_representer)
 yaml.add_representer(WriteRemoteVariableNode, _write_remote_variable_node_representer)
+yaml.add_representer(WaitRemoteEventNode, _wait_remote_event_node_representer)
 
 
 class DataModelDumper:
