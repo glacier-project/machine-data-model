@@ -28,13 +28,15 @@ from tests import (
 
 @pytest.mark.parametrize(
     "var_name, var_description",
-    [(gen_random_string(10), gen_random_string(20)) for _ in range(3)],
+    [(gen_random_string(10), gen_random_string(20)) for _ in range(NUM_TESTS)],
 )
 class TestVariableNode:
-    @pytest.mark.parametrize("var_value", [gen_random_string(10) for _ in range(3)])
     def test_string_variable_node_creation(
-        self, var_name: str, var_description: str, var_value: str
+        self,
+        var_name: str,
+        var_description: str,
     ) -> None:
+        var_value = gen_random_string()
         str_var = StringVariableNode(
             name=var_name, description=var_description, value=var_value
         )
@@ -43,12 +45,11 @@ class TestVariableNode:
         assert str_var.description == var_description
         assert str_var.value == var_value
 
-    @pytest.mark.parametrize("var_value", [gen_random_string(10) for _ in range(3)])
     def test_string_variable_node_write(
-        self, var_name: str, var_description: str, var_value: str
+        self, var_name: str, var_description: str
     ) -> None:
         str_var = StringVariableNode(
-            name=var_name, description=var_description, value=var_value
+            name=var_name, description=var_description, value=gen_random_string()
         )
 
         new_value = gen_random_string(10)
@@ -83,9 +84,6 @@ class TestVariableNode:
         assert not bool_var.value
 
     @pytest.mark.parametrize(
-        "var_value", [random.uniform(0, 1000) for i in range(NUM_TESTS)]
-    )
-    @pytest.mark.parametrize(
         "unit",
         [
             LengthUnits.Meter,
@@ -95,8 +93,9 @@ class TestVariableNode:
         ],
     )
     def test_numeric_variable_node_creation(
-        self, var_name: str, var_description: str, var_value: float, unit: Enum | str
+        self, var_name: str, var_description: str, unit: Enum | str
     ) -> None:
+        var_value = random.uniform(0, 1000)
         numeric_var = NumericalVariableNode(
             name=var_name,
             description=var_description,
@@ -109,9 +108,6 @@ class TestVariableNode:
         assert numeric_var.value == var_value
 
     @pytest.mark.parametrize(
-        "var_value", [random.uniform(0, 1000) for i in range(NUM_TESTS)]
-    )
-    @pytest.mark.parametrize(
         "unit",
         [
             LengthUnits.Meter,
@@ -121,8 +117,9 @@ class TestVariableNode:
         ],
     )
     def test_numeric_variable_node_write(
-        self, var_name: str, var_description: str, var_value: float, unit: Enum | str
+        self, var_name: str, var_description: str, unit: Enum | str
     ) -> None:
+        var_value = random.uniform(0, 1000)
         numeric_var = NumericalVariableNode(
             name=var_name, description=var_description, value=-1, measure_unit=unit
         )

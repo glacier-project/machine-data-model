@@ -86,11 +86,12 @@ class TestLocalExecutionNode:
 
         assert r_variable_node.node == variable_node.qualified_name
         assert r_variable_node.store_as == variable_node.name
-        assert ret
+        assert ret.success
+        assert len(ret.messages) == 0
         assert variable_node.read() == scope.get_value(variable_node.name)
 
     @pytest.mark.parametrize(
-        "variable_node,value",
+        "variable_node, value",
         [
             [get_random_numerical_node(), random.randint(0, 100)],
             [get_random_boolean_node(), random.choice([True, False])],
@@ -105,11 +106,12 @@ class TestLocalExecutionNode:
         ret = w_variable_node.execute(scope)
 
         assert w_variable_node.node == variable_node.qualified_name
-        assert ret
+        assert ret.success
+        assert len(ret.messages) == 0
         assert variable_node.read() == value
 
     @pytest.mark.parametrize(
-        "variable_node,rhs",
+        "variable_node, rhs",
         [
             [get_random_numerical_node(), random.randint(0, 100)],
             [get_random_boolean_node(), random.choice([True, False])],
@@ -136,8 +138,8 @@ class TestLocalExecutionNode:
             comparison_result = eval(f"{variable_node.read()}" + op + f"{rhs}")
 
         assert w_variable_node.node == variable_node.qualified_name
-        print("Comparison result: ", f'"{variable_node.read()}"' + op + f'"{rhs}"')
         assert ret.success == comparison_result
+        assert len(ret.messages) == 0
 
     @pytest.mark.parametrize(
         "method_node",
@@ -175,7 +177,6 @@ class TestLocalExecutionNode:
         )
         assert isinstance(msg.payload, MethodPayload)
         assert msg.payload.node == method_node.qualified_name
-        # check args and kwargs
         assert msg.payload.args == []
         assert msg.payload.kwargs == kwargs
 
@@ -214,9 +215,10 @@ class TestLocalExecutionNode:
 
         # try resume the execution
         ret = c_remote_node.execute(scope)
+
+        # check that the execution is terminated successfully
         assert ret.success
         assert not ret.messages
-        # check that the return values are set in the scope
         for param in method_node.returns:
             assert param.read() == scope.get_value(param.name)
 

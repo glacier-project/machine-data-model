@@ -10,21 +10,28 @@ from machine_data_model.nodes.subscription.variable_subscription import (
 from tests import NUM_TESTS, gen_random_simple_value, gen_random_float, gen_random_bool
 
 
+@pytest.mark.parametrize(
+    "subscription_id, correlation_id", [("subscriber_1", "corr_1")]
+)
 class TestSubscription:
     @pytest.mark.parametrize(
         "value", [gen_random_simple_value() for _ in range(NUM_TESTS)]
     )
-    def test_base_subscription(self, value: Any) -> None:
-        subscription = VariableSubscription("subscriber_1", "corr_1")
+    def test_base_subscription(
+        self, value: Any, subscription_id: str, correlation_id: str
+    ) -> None:
+        subscription = VariableSubscription(subscription_id, correlation_id)
 
-        assert subscription.subscriber_id == "subscriber_1"
-        assert subscription.correlation_id == "corr_1"
+        assert subscription.subscriber_id == subscription_id
+        assert subscription.correlation_id == correlation_id
         assert subscription.should_notify(value)
         assert subscription.get_event_type() == EventType.ANY
 
     @pytest.mark.parametrize("values", [[gen_random_float() for _ in range(NUM_TESTS)]])
-    def test_data_change_subscription(self, values: list[float]) -> None:
-        subscription = DataChangeSubscription("subscriber_1", "corr_1")
+    def test_data_change_subscription(
+        self, values: list[float], subscription_id: str, correlation_id: str
+    ) -> None:
+        subscription = DataChangeSubscription(subscription_id, correlation_id)
 
         assert subscription.get_event_type() == EventType.DATA_CHANGE
         prev_value = None
@@ -38,9 +45,11 @@ class TestSubscription:
         "value, deadband",
         [(gen_random_float(), gen_random_float()) for _ in range(NUM_TESTS)],
     )
-    def test_data_change_deadband(self, value: float, deadband: float) -> None:
+    def test_data_change_deadband(
+        self, subscription_id: str, correlation_id: str, value: float, deadband: float
+    ) -> None:
         subscription = DataChangeSubscription(
-            "subscriber_1", "corr_1", deadband=deadband
+            subscription_id, correlation_id, deadband=deadband
         )
 
         expected_notifications = [True] + [gen_random_bool() for _ in range(NUM_TESTS)]
@@ -59,8 +68,8 @@ class TestSubscription:
                     + (deadband * gen_random_float(0.0, 0.99)) * random.choice([-1, 1])
                 )
 
-        assert subscription.subscriber_id == "subscriber_1"
-        assert subscription.correlation_id == "corr_1"
+        assert subscription.subscriber_id == subscription_id
+        assert subscription.correlation_id == correlation_id
         assert subscription.get_event_type() == EventType.DATA_CHANGE
         assert subscription.deadband == deadband
         assert not subscription.is_percent
@@ -71,9 +80,11 @@ class TestSubscription:
         "value, deadband",
         [(gen_random_float(), gen_random_float(1, 20)) for _ in range(NUM_TESTS)],
     )
-    def test_data_change_percent_deadband(self, value: float, deadband: float) -> None:
+    def test_data_change_percent_deadband(
+        self, subscription_id: str, correlation_id: str, value: float, deadband: float
+    ) -> None:
         subscription = DataChangeSubscription(
-            "subscriber_1", "corr_1", deadband=deadband, is_percent=True
+            subscription_id, correlation_id, deadband=deadband, is_percent=True
         )
 
         expected_notifications = [True] + [gen_random_bool() for _ in range(NUM_TESTS)]
@@ -100,8 +111,8 @@ class TestSubscription:
                     test_values[last_notify_idx] + change * random.choice([-1, 1])
                 )
 
-        assert subscription.subscriber_id == "subscriber_1"
-        assert subscription.correlation_id == "corr_1"
+        assert subscription.subscriber_id == subscription_id
+        assert subscription.correlation_id == correlation_id
         assert subscription.get_event_type() == EventType.DATA_CHANGE
         assert subscription.deadband == deadband
         assert subscription.is_percent
@@ -121,6 +132,8 @@ class TestSubscription:
     @pytest.mark.parametrize("check_type", [EventType.IN_RANGE, EventType.OUT_OF_RANGE])
     def test_subscription_range(
         self,
+        subscription_id: str,
+        correlation_id: str,
         values: list[float],
         low_limit: float,
         high_limit: float,
