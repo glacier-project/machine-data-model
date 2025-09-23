@@ -12,6 +12,7 @@ from machine_data_model.behavior.control_flow_scope import (
     ControlFlowStatus,
     ControlFlowScope,
 )
+from machine_data_model.behavior.local_execution_node import WaitConditionOperator
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
@@ -23,6 +24,7 @@ from machine_data_model.protocols.frost_v1.frost_header import (
 from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
     VariablePayload,
+    SubscriptionPayload,
 )
 
 
@@ -326,4 +328,85 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
 
 
 class WaitRemoteEventNode(RemoteExecutionNode):
-    pass
+    """
+    Represents a remote event wait node in the control flow graph. When executed,
+    it sends a request message to a remote node to subscribe to an event and waits for a response.
+
+    :ivar _rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
+    :ivar _op: The comparison operator.
+    """
+
+    def __init__(
+        self,
+        variable_node: str,
+        sender_id: str,
+        remote_id: str,
+        rhs: Any,
+        op: WaitConditionOperator,
+        successors: list[ControlFlowNode] | None = None,
+    ):
+        super().__init__(variable_node, sender_id, remote_id, successors)
+        self._rhs = rhs
+        self._op = op
+
+    @override
+    def _validate_response(
+        self, scope: ControlFlowScope, response: FrostMessage
+    ) -> bool:
+        if not response.header.matches(
+            _type=MsgType.RESPONSE,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.UPDATE,
+        ):
+            return False
+
+        if (
+            not isinstance(response.payload, SubscriptionPayload)
+            or response.payload.node != self.node
+        ):
+            return False
+
+        lhs = response.payload.value
+        rhs = resolve_value(self._rhs, scope)
+
+        if self._op == WaitConditionOperator.EQ:
+            res = lhs == rhs
+        elif self._op == WaitConditionOperator.NE:
+            res = lhs != rhs
+        elif self._op == WaitConditionOperator.LT:
+            res = lhs < rhs
+        elif self._op == WaitConditionOperator.GT:
+            res = lhs > rhs
+        elif self._op == WaitConditionOperator.LE:
+            res = lhs <= rhs
+        elif self._op == WaitConditionOperator.GE:
+            res = lhs >= rhs
+        else:
+            raise ValueError(f"Invalid operator: {self._op}")
+
+        return res
+
+    def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
+        return FrostMessage(
+            correlation_id=scope.id(),
+            sender=self.sender_id,
+            target=self.remote_id,
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE,
+            ),
+            payload=SubscriptionPayload(node=self.node),
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, WaitRemoteEventNode):
+            return False
+
+        return (
+            super().__eq__(other) and self._rhs == other._rhs and self._op == other._op
+        )

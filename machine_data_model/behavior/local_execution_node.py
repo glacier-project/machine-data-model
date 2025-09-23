@@ -316,6 +316,9 @@ class WaitConditionNode(LocalExecutionNode):
     of a variable with a constant value or another variable.
     It returns immediately if the condition is met, otherwise it subscribes to the variable
     and waits for the value to change.
+
+    :ivar _rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
+    :ivar _op: The comparison operator.
     """
 
     def __init__(
