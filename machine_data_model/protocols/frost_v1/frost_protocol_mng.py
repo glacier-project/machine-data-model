@@ -121,15 +121,32 @@ class FrostProtocolMng(ProtocolMng):
         # Return invalid namespace.
         return self._create_response_msg(msg, ErrorMessages.INVALID_NAMESPACE)
 
-    def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
+    def get_update_messages(self) -> Sequence[FrostMessage]:
         """
-        Checks if the provided version is supported by the protocol.
+        Returns the list of update messages.
 
-        :param version: The protocol version to be checked.
-        :return: True if the version is supported, otherwise False.
+        :return: A list of `FrostMessage` objects representing the updates.
         """
+        return self._update_messages
 
-        return version == self._protocol_version
+    def clear_update_messages(self) -> None:
+        """
+        Clears the list of update messages.
+        """
+        self._update_messages.clear()
+
+    def resume_composite_method(
+        self, subscriber: str, node: VariableNode, value: Any
+    ) -> None:
+        """
+        Resume the execution of a composite method waiting for the specified subscriber.
+        :param subscriber: The subscriber to resume.
+        :param node: The variable node that triggered the update.
+        :param value: The new value of the variable node.
+        """
+        response = self._resume_composite_method(subscriber)
+        if response:
+            self._update_messages.append(response)
 
     def _handle_method_message(
         self, msg: FrostMessage, method_node: MethodNode
@@ -155,6 +172,16 @@ class FrostProtocolMng(ProtocolMng):
             msg.payload.args,
             msg.payload.kwargs,
         )
+
+    def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
+        """
+        Checks if the provided version is supported by the protocol.
+
+        :param version: The protocol version to be checked.
+        :return: True if the version is supported, otherwise False.
+        """
+
+        return version == self._protocol_version
 
     def _invoke_method(
         self,
@@ -283,20 +310,6 @@ class FrostProtocolMng(ProtocolMng):
 
         return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
-    def get_update_messages(self) -> Sequence[FrostMessage]:
-        """
-        Returns the list of update messages.
-
-        :return: A list of `FrostMessage` objects representing the updates.
-        """
-        return self._update_messages
-
-    def clear_update_messages(self) -> None:
-        """
-        Clears the list of update messages.
-        """
-        self._update_messages.clear()
-
     def _resume_composite_method(self, scope_id: str) -> FrostMessage | None:
         """
         Resume the execution of a composite method with the specified scope id.
@@ -320,19 +333,6 @@ class FrostProtocolMng(ProtocolMng):
         assert isinstance(msg.payload, MethodPayload)
         msg.payload.ret = ret.return_values
         return self._create_response_msg(msg)
-
-    def resume_composite_method(
-        self, subscriber: str, node: VariableNode, value: Any
-    ) -> None:
-        """
-        Resume the execution of a composite method waiting for the specified subscriber.
-        :param subscriber: The subscriber to resume.
-        :param node: The variable node that triggered the update.
-        :param value: The new value of the variable node.
-        """
-        response = self._resume_composite_method(subscriber)
-        if response:
-            self._update_messages.append(response)
 
     def _update_variable_callback(
         self, subscriber: str, node: VariableNode, value: Any
