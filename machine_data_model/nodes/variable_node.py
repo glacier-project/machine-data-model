@@ -122,6 +122,7 @@ class VariableNode(DataModelNode):
             old_value=prev_value,
             new_value=value,
             success=True,
+            source=self.qualified_name,
         )
 
         # Return True if the value was successfully updated and validated.
