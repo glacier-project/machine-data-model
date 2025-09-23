@@ -5,16 +5,13 @@ This example shows how to enable tracing for variable changes and reads,
 and export the trace data for analysis, similar to VCD files in hardware simulations.
 """
 
-import os
 import time
+
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
-from machine_data_model.tracing import (
-    clear_traces,
-    TraceLevel,
-    export_traces_json,
-)
-
+from machine_data_model.tracing import clear_traces, TraceLevel
+from machine_data_model.tracing.tracing_core import get_global_collector
+from support import print_trace_events
 
 if __name__ == "__main__":
 
@@ -58,23 +55,7 @@ if __name__ == "__main__":
         pressure_value = data_model.read_variable("pressure")
         print(f"  Read: temperature={temp_value}, pressure={pressure_value}")
 
-    # Export the trace.
-    trace_file = "variable_trace.json"
-    export_traces_json(trace_file)
-    print(f"Trace exported to {trace_file}")
-
-    # Verify the file was created and show some stats
-    if os.path.exists(trace_file):
-        file_size = os.path.getsize(trace_file)
-        print(f"Trace file size: {file_size} bytes")
-
-        print("Sample trace data:")
-        with open(trace_file, "r") as f:
-            data = f.read(1000)
-            print(data + "...\n")
-
-        # Clean up
-        os.remove(trace_file)
-        print(f"Cleaned up {trace_file}")
-    else:
-        print(f"Warning: {trace_file} was not created")
+    # Display final trace events
+    collector = get_global_collector()
+    events = collector.get_events()
+    print_trace_events(events)

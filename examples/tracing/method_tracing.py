@@ -12,7 +12,9 @@ from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.tracing import (
     clear_traces,
     TraceLevel,
+    get_global_collector,
 )
+from support import print_trace_events
 
 
 if __name__ == "__main__":
@@ -23,7 +25,7 @@ if __name__ == "__main__":
     # Create a DataModel with tracing enabled for methods.
     data_model = DataModel(
         name="MethodTracingExample",
-        trace_level=TraceLevel.METHODS,  # This includes VARIABLES and METHODS
+        trace_level=TraceLevel.METHODS,
     )
 
     # Add some variables that will be used as parameters
@@ -73,3 +75,8 @@ if __name__ == "__main__":
         result = data_model.call_method("calculate_avg")
         avg_value = result.return_values["result"]
         print(f"  Method call {i+1}: average={avg_value}")
+
+    # Display final trace events
+    collector = get_global_collector()
+    events = collector.get_events()
+    print_trace_events(events)

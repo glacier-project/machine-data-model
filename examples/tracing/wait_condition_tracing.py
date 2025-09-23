@@ -19,6 +19,9 @@ from machine_data_model.tracing import (
     get_global_collector,
 )
 
+# Import the utility function
+from support import print_trace_events
+
 if __name__ == "__main__":
 
     # Clear any previous traces
@@ -63,13 +66,6 @@ if __name__ == "__main__":
         f"   Is scope subscribed to counter? {scope.id() in counter_var.get_subscribers()}"
     )
 
-    # Check current traces
-    collector = get_global_collector()
-    events = collector.get_events()
-    print(f"   Trace events so far: {len(events)}")
-    for event in events:
-        print(f"     - {event.event_type.value}: {event.details}")
-
     # Increment counter a few times but not enough to meet condition
     print("\n2. Incrementing counter to 3 (still < 5)...")
     data_model.write_variable("counter", 3)
@@ -92,8 +88,7 @@ if __name__ == "__main__":
     print(f"   Result: success={result3.success}")
     print(f"   Is still subscribed? {scope.id() in counter_var.get_subscribers()}")
 
-    # Check final traces
+    # Display final trace events
+    collector = get_global_collector()
     events = collector.get_events()
-    print(f"\nFinal trace events: {len(events)}")
-    for i, event in enumerate(events, 1):
-        print(f"   {i:2}. {event.event_type.value:16}: {event.details} (source: {event.source})")
+    print_trace_events(events)

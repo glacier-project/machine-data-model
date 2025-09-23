@@ -10,20 +10,22 @@ The example creates variables, subscribes to them, writes values to trigger
 notifications, and demonstrates how the tracing system captures these events.
 """
 
-import json
-import os
+from typing import Any
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 from machine_data_model.tracing import (
     TraceLevel,
-    export_traces_json,
     clear_traces,
     get_global_collector,
-    TraceEventType,
 )
+from support import print_trace_events
 
 
-def notification_callback(subscriber_id: str, variable_node, value):
+def notification_callback(
+    subscriber_id: str,
+    variable_node: VariableNode,
+    value: Any,
+) -> None:
     """
     Example callback function for subscription notifications.
 
@@ -107,58 +109,7 @@ if __name__ == "__main__":
 
     print("\n=== Tracing Results ===")
 
-    # Get the global collector and display results
+    # Display final trace events
     collector = get_global_collector()
-
-    # Show subscription events
-    subscribe_events = collector.get_events(TraceEventType.SUBSCRIBE)
-    print(f"\nSubscription Events ({len(subscribe_events)}):")
-    for event in subscribe_events:
-        details = event.details
-        print(f"  - {details['subscriber_id']} subscribed to {details['variable_id']}")
-
-    # Show unsubscription events
-    unsubscribe_events = collector.get_events(TraceEventType.UNSUBSCRIBE)
-    print(f"\nUnsubscription Events ({len(unsubscribe_events)}):")
-    for event in unsubscribe_events:
-        details = event.details
-        print(
-            f"  - {details['subscriber_id']} unsubscribed from {details['variable_id']}"
-        )
-
-    # Show notification events
-    notification_events = collector.get_events(TraceEventType.NOTIFICATION)
-    print(f"\nNotification Events ({len(notification_events)}):")
-    for event in notification_events:
-        details = event.details
-        print(
-            f"  - {details['subscriber_id']} notified: {details['variable_id']} = {details['value']}"
-        )
-
-    # Export traces to JSON file
-    print("\n=== Exporting Traces ===")
-    export_traces_json("subscription_tracing_example.json")
-    print("Traces exported to 'subscription_tracing_example.json'")
-
-    # Display a summary of the JSON structure
-    print("\n=== JSON Export Preview ===")
-    with open("subscription_tracing_example.json", "r") as f:
-        traces = json.load(f)
-
-    # Group events by type for summary
-    event_summary = {}
-    for trace in traces:
-        event_type = trace["event_type"]
-        if event_type not in event_summary:
-            event_summary[event_type] = 0
-        event_summary[event_type] += 1
-
-    print("Event Summary:")
-    for event_type, count in event_summary.items():
-        print(f"  {event_type}: {count} events")
-
-    # Clean up the exported file
-    os.remove("subscription_tracing_example.json")
-    print("Cleaned up exported trace file.")
-
-    print("\nExample completed successfully!")
+    events = collector.get_events()
+    print_trace_events(events)

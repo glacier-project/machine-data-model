@@ -11,7 +11,6 @@ The example creates a protocol manager, sends various types of messages,
 and demonstrates how the tracing system captures MESSAGE_SEND and MESSAGE_RECEIVE events.
 """
 
-import json
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
@@ -32,15 +31,13 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
 )
 from machine_data_model.tracing import (
     TraceLevel,
-    export_traces_json,
     clear_traces,
     get_global_collector,
-    TraceEventType,
 )
+from support import print_trace_events
 
 
-def main():
-    """Main example function demonstrating message send and receive tracing."""
+if __name__ == "__main__":
 
     # Clear any existing traces
     clear_traces()
@@ -92,6 +89,7 @@ def main():
 
     response = protocol_mng.handle_request(read_msg)
     assert isinstance(response, FrostMessage)
+    assert isinstance(response.payload, VariablePayload)
     print(f"   Response: temperature = {response.payload.value}°C")
 
     # 2. Variable Write Request
@@ -150,63 +148,7 @@ def main():
     response = protocol_mng.handle_request(invalid_msg)
     print("   Response: error response generated")
 
-    print("\n=== Tracing Results ===")
-
-    # Get the global collector and display results
+    # Display final trace events.
     collector = get_global_collector()
-
-    # Show MESSAGE_RECEIVE events
-    receive_events = collector.get_events(TraceEventType.MESSAGE_RECEIVE)
-    print(f"\nMessage Receive Events ({len(receive_events)}):")
-    for event in receive_events:
-        details = event.details
-        print(f"  - RECEIVED: {details['message_type']} from {details['sender']}")
-        print(f"    Correlation ID: {details['correlation_id']}")
-        print(f"    Payload: {details['payload']}")
-
-    # Show MESSAGE_SEND events
-    send_events = collector.get_events(TraceEventType.MESSAGE_SEND)
-    print(f"\nMessage Send Events ({len(send_events)}):")
-    for event in send_events:
-        details = event.details
-        print(f"  - SENT: {details['message_type']} to {details['target']}")
-        print(f"    Correlation ID: {details['correlation_id']}")
-        print(f"    Payload: {details['payload']}")
-
-    # Export traces to JSON file
-    print("\n=== Exporting Traces ===")
-    export_traces_json("message_tracing_example.json")
-    print("Traces exported to 'message_tracing_example.json'")
-
-    # Display a summary of the JSON structure
-    print("\n=== JSON Export Preview ===")
-    with open("message_tracing_example.json", "r") as f:
-        traces = json.load(f)
-
-    # Group events by type for summary
-    event_summary = {}
-    for trace in traces:
-        event_type = trace["event_type"]
-        if event_type not in event_summary:
-            event_summary[event_type] = 0
-        event_summary[event_type] += 1
-
-    print("Event Summary:")
-    for event_type, count in event_summary.items():
-        print(f"  {event_type}: {count} events")
-
-    # Clean up the exported file
-    import os
-
-    os.remove("message_tracing_example.json")
-    print("Cleaned up exported trace file.")
-
-    print("\nExample completed successfully!")
-    print("\nThis example demonstrates how the tracing system captures:")
-    print("- MESSAGE_RECEIVE events for all incoming protocol messages")
-    print("- MESSAGE_SEND events for all outgoing responses and notifications")
-    print("- Complete message metadata including type, sender, target, and payload")
-
-
-if __name__ == "__main__":
-    main()
+    events = collector.get_events()
+    print_trace_events(events)
