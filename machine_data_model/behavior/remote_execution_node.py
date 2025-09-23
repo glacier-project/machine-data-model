@@ -95,7 +95,7 @@ class RemoteExecutionNode(ControlFlowNode):
             execution_result=scope.status != ControlFlowStatus.WAITING_FOR_RESPONSE,
             program_counter=scope.get_pc(),
             source=scope.id(),
-            data_model_id="",  # TODO: Determine appropriate data model ID for remote operations
+            data_model_id=self.remote_id,
         )
 
         # Check if we are already waiting for a response.
