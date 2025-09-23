@@ -4,16 +4,18 @@ from typing import Any
 
 import pytest
 
+from machine_data_model.behavior.local_execution_node import WaitConditionOperator
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
     ReadRemoteVariableNode,
+    WaitRemoteEventNode,
     WriteRemoteVariableNode,
 )
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
 from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
-from machine_data_model.nodes.variable_node import VariableNode
+from machine_data_model.nodes.variable_node import StringVariableNode, VariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
     MsgNamespace,
     MsgType,
@@ -274,3 +276,69 @@ class TestRemoteExecutionNode:
         ret = w_remote_node.execute(scope)
         assert ret.success
         assert not ret.messages
+
+    @pytest.mark.parametrize(
+        "variable_node, rhs",
+        [
+            [get_random_numerical_node(), random.randint(0, 100)],
+            [get_random_boolean_node(), random.choice([True, False])],
+            [get_random_string_node(), random.choice(["a", "b", "c"])],
+        ],
+    )
+    @pytest.mark.parametrize(
+        "op",
+        [enum_op for enum_op in WaitConditionOperator],
+    )
+    def test_wait_remote_event_node(
+        self, variable_node: VariableNode, rhs: Any, op: WaitConditionOperator
+    ) -> None:
+        scope = ControlFlowScope(str(uuid.uuid4()))
+        sender = "local"
+        target = "remote"
+        w_remote_event_node = WaitRemoteEventNode(
+            variable_node=variable_node.qualified_name,
+            rhs=rhs,
+            op=op,
+            sender_id=sender,
+            remote_id=target,
+        )
+
+        ret = w_remote_event_node.execute(scope)
+        if isinstance(variable_node, StringVariableNode):
+            comparison_result = eval(f'"{variable_node.read()}"' + op + f'"{rhs}"')
+        else:
+            comparison_result = eval(f"{variable_node.read()}" + op + f"{rhs}")
+
+        assert not ret.success
+        assert len(ret.messages) == 1
+        msg = ret.messages[0]
+
+        assert msg.sender == sender
+        assert msg.target == target
+        assert msg.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.SUBSCRIBE,
+        )
+        assert isinstance(msg.payload, VariablePayload)
+        assert msg.payload.node == variable_node.qualified_name
+        assert msg.payload.value is None
+
+        # create a valid response message
+        msg.sender = target
+        msg.target = sender
+        msg.header.type = MsgType.RESPONSE
+        msg.header.msg_name = VariableMsgName.UPDATE
+        msg.payload.value = variable_node.read()
+
+        is_condition_met = w_remote_event_node.handle_response(scope, msg)
+
+        assert is_condition_met == comparison_result
+        if is_condition_met:
+            ret = w_remote_event_node.execute(scope)
+            assert ret.success
+            assert not ret.messages
+        else:
+            ret = w_remote_event_node.execute(scope)
+            assert not ret.success
+            assert len(ret.messages) == 0

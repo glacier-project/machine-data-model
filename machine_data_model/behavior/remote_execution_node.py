@@ -102,9 +102,13 @@ class RemoteExecutionNode(ControlFlowNode):
 
         # create the request message
         msg = self._create_request(scope)
-        scope.active_request = msg.correlation_id
+
+        if msg.correlation_id == scope.active_request:
+            # msg already sent, waiting for response
+            return execution_failure()
 
         # send the request message
+        scope.active_request = msg.correlation_id
         return ExecutionNodeResult(False, [msg])
 
     def __eq__(self, other: object) -> bool:
