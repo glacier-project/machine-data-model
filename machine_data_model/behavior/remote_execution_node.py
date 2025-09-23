@@ -359,7 +359,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             return False
 
         if (
-            not isinstance(response.payload, SubscriptionPayload)
+            not isinstance(response.payload, VariablePayload)
             or response.payload.node != self.node
         ):
             return False
