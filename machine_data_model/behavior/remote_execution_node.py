@@ -24,6 +24,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
     VariablePayload,
 )
+from machine_data_model.tracing.events import trace_control_flow_step
 
 
 class RemoteExecutionNode(ControlFlowNode):
@@ -87,10 +88,21 @@ class RemoteExecutionNode(ControlFlowNode):
 
     @override
     def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
+        # Trace the control flow step for request initiation
+        trace_control_flow_step(
+            node_id=self.node,
+            node_type=type(self).__name__,
+            execution_result=scope.status != ControlFlowStatus.WAITING_FOR_RESPONSE,
+            program_counter=scope.get_pc(),
+            source=scope.id(),
+            data_model_id="",  # TODO: Determine appropriate data model ID for remote operations
+        )
+
+        # Check if we are already waiting for a response.
         if scope.status == ControlFlowStatus.WAITING_FOR_RESPONSE:
             return execution_failure()
 
-        # check if the response has been received
+        # Check if we have received a response.
         if (
             scope.status == ControlFlowStatus.RESPONSE_RECEIVED
             and not scope.active_request
@@ -98,11 +110,11 @@ class RemoteExecutionNode(ControlFlowNode):
             scope.status = ControlFlowStatus.RUNNING
             return execution_success()
 
-        # create the request message
+        # Create the request message.
         msg = self._create_request(scope)
         scope.active_request = msg.correlation_id
 
-        # send the request message
+        # Send the request message.
         return ExecutionNodeResult(False, [msg])
 
     def __eq__(self, other: object) -> bool:
