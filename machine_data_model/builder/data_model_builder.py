@@ -56,15 +56,6 @@ def _build_kwargs(
     for key, value in data.items():
         kwargs[str(key)] = value
     return kwargs
-    if unexpected_keys:
-        raise ValueError(
-            f"Unexpected keys: {', '.join(map(str, unexpected_keys))}. "
-            f"Allowed keys: {', '.join(default_kwargs.keys())}"
-        )
-
-    kwargs = default_kwargs.copy()
-    kwargs.update(data)
-    return kwargs
 
 
 def _get_folder(loader: yaml.FullLoader, node: yaml.MappingNode) -> FolderNode:
@@ -75,7 +66,12 @@ def _get_folder(loader: yaml.FullLoader, node: yaml.MappingNode) -> FolderNode:
     :return: The constructed folder node.
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {"id": None, "name": "", "description": "", "children": []}
+    default_kwargs: dict[str, Any] = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "children": [],
+    }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["children"] = {child.name: child for child in kwargs["children"]}
 
@@ -172,7 +168,7 @@ def _get_object_variable(
     :return: The constructed object variable node.
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "id": None,
         "name": "",
         "description": "",
@@ -195,7 +191,7 @@ def _get_method_node(
     :return: The constructed method node.
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "id": None,
         "name": "",
         "description": "",
@@ -410,7 +406,7 @@ def _get_composite_method_node(
     :return: The constructed composite method node.
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "id": None,
         "name": "",
         "description": "",
@@ -423,7 +419,7 @@ def _get_composite_method_node(
     return CompositeMethodNode(**kwargs)
 
 
-def _register_yaml_constructors():
+def _register_yaml_constructors() -> None:
     """Register all YAML constructors for data model building."""
     constructors = {
         FolderNode: _get_folder,

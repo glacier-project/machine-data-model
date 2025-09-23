@@ -61,7 +61,7 @@ def _create_error_response(msg: FrostMessage, error_message: str) -> FrostMessag
 
     :return: An `ErrorPayload` containing the error details.
     """
-    msg.header.type = MsgType.RESPONSE
+    msg.header.type = MsgType.ERROR
     return FrostMessage(
         sender=msg.target,
         target=msg.sender,

@@ -367,6 +367,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         lhs = response.payload.value
         rhs = resolve_value(self.rhs, scope)
 
+        res: bool
         if self.op == WaitConditionOperator.EQ:
             res = lhs == rhs
         elif self.op == WaitConditionOperator.NE:
