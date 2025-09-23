@@ -95,8 +95,8 @@ root:
               remote_id: "remote_id"
               value: "$parameter_1"
         - !!CompositeMethodNode
-          name: "remote_wait"
-          description: "remote_wait_description"
+          name: "remote_wait_event"
+          description: "remote_wait_event_description"
           parameters:
             - !!NumericalVariableNode
               name: "rhs"
