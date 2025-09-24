@@ -749,6 +749,126 @@ class ControlFlowStepEvent(TraceEvent):
         }
 
 
+@dataclass
+class ControlFlowStartEvent(TraceEvent):
+    """
+    Event for control flow execution start.
+
+    Attributes:
+        control_flow_id (str):
+            The unique identifier of the control flow being executed.
+        total_steps (int):
+            The total number of steps in the control flow.
+    """
+
+    control_flow_id: str
+    total_steps: int
+
+    def __init__(
+        self,
+        control_flow_id: str,
+        total_steps: int,
+        source: str = "",
+        data_model_id: str = "",
+    ):
+        """
+        Initialize a control flow start event.
+
+        Args:
+            control_flow_id (str):
+                The ID of the control flow being executed.
+            total_steps (int):
+                The total number of steps in the control flow.
+            source (str, optional):
+                The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
+        """
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.CONTROL_FLOW_START,
+            source=source,
+            data_model_id=data_model_id,
+        )
+        self.control_flow_id = control_flow_id
+        self.total_steps = total_steps
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get control flow start event details."""
+        return {
+            "control_flow_id": self.control_flow_id,
+            "total_steps": self.total_steps,
+        }
+
+
+@dataclass
+class ControlFlowEndEvent(TraceEvent):
+    """
+    Event for control flow execution end.
+
+    Attributes:
+        control_flow_id (str):
+            The unique identifier of the control flow that completed.
+        success (bool):
+            Indicates whether the control flow execution was successful.
+        executed_steps (int):
+            The number of steps that were actually executed.
+        final_pc (int):
+            The final program counter position at the end of execution.
+    """
+
+    control_flow_id: str
+    success: bool
+    executed_steps: int
+    final_pc: int
+
+    def __init__(
+        self,
+        control_flow_id: str,
+        success: bool,
+        executed_steps: int,
+        final_pc: int,
+        source: str = "",
+        data_model_id: str = "",
+    ):
+        """
+        Initialize a control flow end event.
+
+        Args:
+            control_flow_id (str):
+                The ID of the control flow that completed.
+            success (bool):
+                Whether the control flow execution was successful.
+            executed_steps (int):
+                The number of steps that were executed.
+            final_pc (int):
+                The final program counter position.
+            source (str, optional):
+                The source of the event. Defaults to "".
+            data_model_id (str, optional):
+                The ID of the data model this event belongs to. Defaults to "".
+        """
+        super().__init__(
+            timestamp=time.time(),
+            event_type=TraceEventType.CONTROL_FLOW_END,
+            source=source,
+            data_model_id=data_model_id,
+        )
+        self.control_flow_id = control_flow_id
+        self.success = success
+        self.executed_steps = executed_steps
+        self.final_pc = final_pc
+
+    def _get_details(self) -> Dict[str, Any]:
+        """Get control flow end event details."""
+        return {
+            "control_flow_id": self.control_flow_id,
+            "success": self.success,
+            "executed_steps": self.executed_steps,
+            "final_pc": self.final_pc,
+        }
+
+
 # Convenience functions for easy tracing
 def trace_variable_write(
     variable_id: str,
@@ -1199,6 +1319,80 @@ def trace_control_flow_step(
             node_type,
             execution_result,
             program_counter,
+            source,
+            data_model_id,
+        )
+    )
+
+
+def trace_control_flow_start(
+    control_flow_id: str,
+    total_steps: int,
+    source: str = "",
+    data_model_id: str = "",
+) -> None:
+    """
+    Trace a control flow execution start.
+
+    Args:
+        control_flow_id (str):
+            The ID of the control flow being executed.
+        total_steps (int):
+            The total number of steps in the control flow.
+        source (str, optional):
+            The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
+    """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_START):
+        return
+
+    collector.record_event(
+        ControlFlowStartEvent(
+            control_flow_id,
+            total_steps,
+            source,
+            data_model_id,
+        )
+    )
+
+
+def trace_control_flow_end(
+    control_flow_id: str,
+    success: bool,
+    executed_steps: int,
+    final_pc: int,
+    source: str = "",
+    data_model_id: str = "",
+) -> None:
+    """
+    Trace a control flow execution end.
+
+    Args:
+        control_flow_id (str):
+            The ID of the control flow that completed.
+            success (bool):
+            Whether the control flow execution was successful.
+        executed_steps (int):
+            The number of steps that were executed.
+        final_pc (int):
+            The final program counter position.
+        source (str, optional):
+            The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
+    """
+    collector = get_global_collector()
+    if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_END):
+        return
+
+    collector.record_event(
+        ControlFlowEndEvent(
+            control_flow_id,
+            success,
+            executed_steps,
+            final_pc,
             source,
             data_model_id,
         )

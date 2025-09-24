@@ -7,6 +7,7 @@ from machine_data_model.behavior.control_flow_scope import (
     ControlFlowScope,
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.tracing import trace_control_flow_start, trace_control_flow_end
 
 
 class ControlFlow:
@@ -55,21 +56,57 @@ class ControlFlow:
         :param scope: The scope of the control flow graph.
         :return: A list of Frost messages to be sent as a result of executing the control flow graph.
         """
+
+        data_model_id = "NO DATA MODEL"  # TODO: fix this
+
+        # Trace control flow start.
+        trace_control_flow_start(
+            control_flow_id=scope.id(),
+            total_steps=len(self._nodes),
+            source=scope.id(),
+            data_model_id=data_model_id,
+        )
+
         messages: list[FrostMessage] = []
         pc = scope.get_pc()
+        executed_steps = 0
+
         while pc < len(self._nodes):
             node = self._nodes[pc]
             if is_template_variable(node.node):
                 node.node = scope.resolve_template_variable(node.node)
 
             result = node.execute(scope)
+            executed_steps += 1
+
             if result.messages:
                 messages.extend(result.messages)
             if not result.success:
+                # Trace control flow end (failure)
+                trace_control_flow_end(
+                    control_flow_id=scope.id(),
+                    success=False,
+                    executed_steps=executed_steps,
+                    final_pc=pc,
+                    source=scope.id(),
+                    data_model_id=data_model_id,
+                )
                 return messages
             pc += 1
             scope.set_pc(pc)
+
         scope.deactivate()
+
+        # Trace control flow end (success)
+        trace_control_flow_end(
+            control_flow_id=scope.id(),
+            success=True,
+            executed_steps=executed_steps,
+            final_pc=pc,
+            source=scope.id(),
+            data_model_id=data_model_id,
+        )
+
         return messages
 
     def __eq__(self, other: object) -> bool:

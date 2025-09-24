@@ -33,6 +33,8 @@ from .events import (
     UnsubscribeEvent,
     NotificationEvent,
     ControlFlowStepEvent,
+    ControlFlowStartEvent,
+    ControlFlowEndEvent,
     # Convenience functions
     trace_variable_write,
     trace_variable_read,
@@ -46,6 +48,8 @@ from .events import (
     trace_unsubscribe,
     trace_notification,
     trace_control_flow_step,
+    trace_control_flow_start,
+    trace_control_flow_end,
 )
 
 __all__ = [
@@ -67,6 +71,8 @@ __all__ = [
     "UnsubscribeEvent",
     "NotificationEvent",
     "ControlFlowStepEvent",
+    "ControlFlowStartEvent",
+    "ControlFlowEndEvent",
     # Convenience functions
     "trace_variable_write",
     "trace_variable_read",
@@ -80,6 +86,8 @@ __all__ = [
     "trace_unsubscribe",
     "trace_notification",
     "trace_control_flow_step",
+    "trace_control_flow_start",
+    "trace_control_flow_end",
     # Global collector functions
     "get_global_collector",
     "set_global_trace_level",

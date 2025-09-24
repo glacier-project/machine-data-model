@@ -51,6 +51,8 @@ class TraceEventType(Enum):
     UNSUBSCRIBE = "unsubscribe"
     NOTIFICATION = "notification"
     CONTROL_FLOW_STEP = "control_flow_step"
+    CONTROL_FLOW_START = "control_flow_start"
+    CONTROL_FLOW_END = "control_flow_end"
 
 
 @dataclass
