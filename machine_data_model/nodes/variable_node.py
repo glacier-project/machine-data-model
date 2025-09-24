@@ -96,40 +96,25 @@ class VariableNode(DataModelNode):
         value = self._pre_update_value(value)
         # Update the value of the variable with the new value.
         value = self._update_value(value)
-        # If validation fails (post-update), restore the previous value and
-        # return False.
-        if not self._post_update_value(prev_value, value):
-            # Restore previous value if validation fails.
-            value = self._update_value(prev_value)
-            assert value == prev_value
-
-            # Trace the failed variable write operation.
-            trace_variable_write(
-                variable_id=self.id,
-                old_value=prev_value,
-                new_value=value,
-                success=False,
-                source=self.qualified_name,
-                data_model_id=self.data_model.name if self.data_model else "",
-            )
-
-            return False
-
-        # Notify subscribers if the update was successful.
-        self.notify_subscribers()
-
-        # Trace the successful variable write operation.
+        # Perform the post-update operations and get the success status.
+        success = self._post_update_value(prev_value, value)
+        # Trace the variable write operation.
         trace_variable_write(
             variable_id=self.id,
             old_value=prev_value,
             new_value=value,
-            success=True,
+            success=success,
             source=self.qualified_name,
             data_model_id=self.data_model.name if self.data_model else "",
         )
-
-        # Return True if the value was successfully updated and validated.
-        return True
+        # Notify subscribers if the update was successful, otherwise restore
+        # the previous value.
+        if success:
+            self.notify_subscribers()
+        else:
+            value = self._update_value(prev_value)
+            assert value == prev_value
+        return success
 
     @property
     def value(self) -> Any:
