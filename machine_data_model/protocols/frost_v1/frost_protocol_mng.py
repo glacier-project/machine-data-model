@@ -75,10 +75,7 @@ class FrostProtocolMng(ProtocolMng):
             message_type=f"{msg.header.namespace.value}.{msg.header.msg_name.value}",
             sender=msg.sender,
             correlation_id=msg.correlation_id or "",
-            payload={
-                "node": getattr(msg.payload, "node", None),
-                "value": getattr(msg.payload, "value", None),
-            },
+            payload=self._get_tracing_payload(msg),
             send_time=0.0,
             source=msg.sender,
             data_model_id=self._data_model.name,
