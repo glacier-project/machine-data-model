@@ -65,6 +65,13 @@ class RemoteExecutionNode(ControlFlowNode):
         """
         pass
 
+    def _create_cleanup_msg(self, scope: ControlFlowScope) -> FrostMessage | None:
+        """Create a cleanup message to send to the remote target after the node has been executed.
+        :param scope: The scope of the control flow graph.
+        :return: The cleanup message to send to the remote node, or None if no cleanup is needed.
+        """
+        pass
+
     def handle_response(self, scope: ControlFlowScope, response: FrostMessage) -> bool:
         """Handle the response message received from the remote node.
         :param scope: The scope of the control flow graph.
@@ -73,7 +80,7 @@ class RemoteExecutionNode(ControlFlowNode):
         """
         if (
             response.correlation_id != scope.active_request
-            or response.sender != self.remote_id
+            or response.sender != resolve_value(self.remote_id, scope)
             or self.sender_id != response.target
         ):
             return False
@@ -96,6 +103,9 @@ class RemoteExecutionNode(ControlFlowNode):
             and not scope.active_request
         ):
             scope.status = ControlFlowStatus.RUNNING
+            msg = self._create_cleanup_msg(scope)
+            if msg:
+                return execution_success([msg])
             return execution_success()
 
         # create the request message
@@ -154,10 +164,9 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         ):
             return False
 
-        if (
-            not isinstance(response.payload, MethodPayload)
-            or response.payload.node != self.node
-        ):
+        if not isinstance(
+            response.payload, MethodPayload
+        ) or response.payload.node != resolve_value(self.node, scope):
             return False
 
         # add all return values to the scope
@@ -170,7 +179,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         return FrostMessage(
             correlation_id=scope.id(),
             sender=self.sender_id,
-            target=self.remote_id,
+            target=resolve_value(self.remote_id, scope),
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -178,7 +187,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
                 msg_name=MethodMsgName.INVOKE,
             ),
             payload=MethodPayload(
-                node=self.node,
+                node=resolve_value(self.node, scope),
                 args=[resolve_value(arg, scope) for arg in self.args],
                 kwargs={k: resolve_value(v, scope) for k, v in self.kwargs.items()},
             ),
@@ -225,10 +234,9 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         ):
             return False
 
-        if (
-            not isinstance(response.payload, VariablePayload)
-            or response.payload.node != self.node
-        ):
+        if not isinstance(
+            response.payload, VariablePayload
+        ) or response.payload.node != resolve_value(self.node, scope):
             return False
 
         scope.set_value(
@@ -242,7 +250,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         return FrostMessage(
             correlation_id=scope.id(),
             sender=self.sender_id,
-            target=self.remote_id,
+            target=resolve_value(self.remote_id, scope),
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -250,7 +258,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
                 msg_name=VariableMsgName.READ,
             ),
             payload=VariablePayload(
-                node=self.node,
+                node=resolve_value(self.node, scope),
             ),
         )
 
@@ -292,10 +300,9 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         ):
             return False
 
-        if (
-            not isinstance(response.payload, VariablePayload)
-            or response.payload.node != self.node
-        ):
+        if not isinstance(
+            response.payload, VariablePayload
+        ) or response.payload.node != resolve_value(self.node, scope):
             return False
 
         return True
@@ -304,7 +311,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         return FrostMessage(
             correlation_id=scope.id(),
             sender=self.sender_id,
-            target=self.remote_id,
+            target=resolve_value(self.remote_id, scope),
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -358,10 +365,9 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         ):
             return False
 
-        if (
-            not isinstance(response.payload, VariablePayload)
-            or response.payload.node != self.node
-        ):
+        if not isinstance(
+            response.payload, VariablePayload
+        ) or response.payload.node != resolve_value(self.node, scope):
             return False
 
         lhs = response.payload.value
@@ -389,15 +395,21 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         return FrostMessage(
             correlation_id=scope.id(),
             sender=self.sender_id,
-            target=self.remote_id,
+            target=resolve_value(self.remote_id, scope),
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.SUBSCRIBE,
             ),
-            payload=SubscriptionPayload(node=self.node),
+            payload=SubscriptionPayload(node=resolve_value(self.node, scope)),
         )
+
+    @override
+    def _create_cleanup_msg(self, scope: ControlFlowScope) -> FrostMessage:
+        msg = self._create_request(scope)
+        msg.header.msg_name = VariableMsgName.UNSUBSCRIBE
+        return msg
 
     def __eq__(self, other: object) -> bool:
         if self is other:
