@@ -29,30 +29,23 @@ from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 
-def cleanup_remote_process():
-    """Cleanup function called when remote process terminates."""
-    print("\n=== Remote process cleanup ===")
+def cleanup_process(machine_name: str):
+    """
+    Cleanup function called when a process terminates.
+
+    Args:
+        machine_name (str, optional):
+            Name of the machine ("RemoteMachine" or "LocalMachine").
+            Defaults to "RemoteMachine".
+    """
+    print(f"\n=== {machine_name} cleanup ===")
     collector = get_global_collector()
     events = collector.get_events()
     if events:
-        print("Trace Events from remote process:")
-        print_trace_events(events)
+        print_trace_events(events, f"Trace Events from {machine_name}")
     else:
-        print("No trace events from remote process")
-    print("Remote process cleanup completed.")
-
-
-def cleanup_local_process():
-    """Cleanup function called when local process terminates."""
-    print("\n=== Local process cleanup ===")
-    collector = get_global_collector()
-    events = collector.get_events()
-    if events:
-        print("Trace Events from local process:")
-        print_trace_events(events)
-    else:
-        print("No trace events from local process")
-    print("Local process cleanup completed.")
+        print(f"No trace events from {machine_name}")
+    print(f"=== {machine_name} cleanup complete ===")
 
 
 def serialize_frost_message(msg: FrostMessage) -> Dict[str, Any]:
@@ -110,7 +103,7 @@ def remote_machine_process(
 ):
     """Process function for the remote machine."""
     # Register cleanup function
-    atexit.register(cleanup_remote_process)
+    atexit.register(lambda: cleanup_process("RemoteMachine"))
 
     # Clear any existing traces.
     clear_traces()
@@ -130,7 +123,10 @@ def remote_machine_process(
     remote_machine.root.add_child(remote_temp)
     remote_machine._register_nodes(remote_machine.root)
 
-    print(f"Remote machine initialized with temperature: {INIT_TEMP}")
+    def machine_log(msg: str):
+        print(f"[RemoteMachine] {msg}")
+
+    machine_log(f"Initialized with temperature: {INIT_TEMP}")
 
     # Process requests
     while True:
@@ -141,23 +137,21 @@ def remote_machine_process(
 
                 # Check if this is an exit signal
                 if isinstance(request_data, dict) and request_data.get("exit"):
-                    print("Remote machine received exit signal")
+                    machine_log("Exit!")
                     break
 
                 request_msg = deserialize_frost_message(request_data)
 
-                print(
-                    f"Remote machine received request for: {request_msg.payload.node}"
-                )
+                machine_log(f"Received request for: {request_msg.payload.node}")
 
                 # Process the request
                 var_name = request_msg.payload.node
                 try:
                     value = remote_machine.read_variable(var_name)
-                    print(f"Remote machine read {var_name} = {value}")
+                    machine_log(f"Read {var_name} = {value}")
                 except Exception as e:
                     value = None
-                    print(f"Remote machine error reading {var_name}: {e}")
+                    machine_log(f"Error reading {var_name}: {e}")
 
                 # Create response
                 response_msg = FrostMessage(
@@ -176,12 +170,12 @@ def remote_machine_process(
                 # Send response
                 response_data = serialize_frost_message(response_msg)
                 response_queue.put(response_data)
-                print(f"Remote machine sent response for {var_name}")
+                machine_log(f"Sent response for {var_name}")
 
             time.sleep(0.01)  # Small delay to prevent busy waiting
 
         except Exception as e:
-            print(f"Remote machine error: {e}")
+            machine_log(f"Error: {e}")
             break
 
 
@@ -192,7 +186,7 @@ def local_machine_process(
 ):
     """Process function for the local machine."""
     # Register cleanup function
-    atexit.register(cleanup_local_process)
+    atexit.register(lambda: cleanup_process("LocalMachine"))
 
     # Clear any existing traces.
     clear_traces()
@@ -201,6 +195,9 @@ def local_machine_process(
     set_global_trace_level(TraceLevel.FULL)
 
     INIT_TEMP = 0.0
+
+    def machine_log(msg: str):
+        print(f"[LocalMachine ] {msg}")
 
     try:
         # Initialize local machine
@@ -213,7 +210,7 @@ def local_machine_process(
         local_machine.root.add_child(local_temp)
         local_machine._register_nodes(local_machine.root)
 
-        print(f"Local machine initialized with temperature: {INIT_TEMP}")
+        machine_log(f"Initialized with temperature: {INIT_TEMP}")
 
         # Control flow: read remote temperature, store locally
         read_remote_temp = ReadRemoteVariableNode(
@@ -237,17 +234,17 @@ def local_machine_process(
         )
 
         # Execute: Phase 1 - Send request
-        print("Local machine: Starting control flow execution")
+        machine_log("Starting control flow execution")
         scope = ControlFlowScope("temp_sync")
         messages = control_flow.execute(scope)
 
-        print(f"Local machine: Sent {len(messages)} messages")
+        machine_log(f"Sent {len(messages)} messages")
 
         # Send request to remote machine
         if messages:
             request_data = serialize_frost_message(messages[0])
             request_queue.put(request_data)
-            print(f"Local machine: Sent request for {messages[0].payload.node}")
+            machine_log(f"Sent request for {messages[0].payload.node}")
 
         # Wait for response
         response_received = False
@@ -259,34 +256,33 @@ def local_machine_process(
                 response_data = response_queue.get_nowait()
                 response_msg = deserialize_frost_message(response_data)
 
-                print(
-                    f"Local machine: Received response for {response_msg.payload.node}"
-                )
+                machine_log(f"Received response for {response_msg.payload.node}")
 
                 # Handle the response.
                 handled = read_remote_temp.handle_response(scope, response_msg)
-                print(f"Local machine: Response handled: {handled}")
+                machine_log(f"Response handled: {handled}")
                 response_received = True
 
             time.sleep(0.01)  # Small delay
 
         if not response_received:
-            print("Local machine: Timeout waiting for response")
+            machine_log("Timeout waiting for response")
             result_dict["error"] = "Timeout waiting for response"
             return
 
         # Execute: Phase 2 - Process response and write locally
-        print("Local machine: Processing response and writing locally")
+        machine_log("Processing response and writing locally")
         messages2 = control_flow.execute(scope)
-        print(f"Local machine: Sent {len(messages2)} messages in phase 2")
+        machine_log(f"Sent {len(messages2)} messages in phase 2")
 
         # Store final results
         result_dict["local_temp"] = local_machine.read_variable("local_temp")
         result_dict["success"] = True
-        print(f"Local machine: Final local temperature: {result_dict['local_temp']}")
+        machine_log(f"Final local temperature: {result_dict['local_temp']}")
+        machine_log("Exit!")
 
     except Exception as e:
-        print(f"Local machine error: {e}")
+        machine_log(f"Error: {e}")
         result_dict["error"] = str(e)
         result_dict["success"] = False
 
@@ -304,7 +300,11 @@ if __name__ == "__main__":
 
     # Start remote machine process
     remote_process = multiprocessing.Process(
-        target=remote_machine_process, args=(request_queue, response_queue)
+        target=remote_machine_process,
+        args=(
+            request_queue,
+            response_queue,
+        ),
     )
     remote_process.start()
 
@@ -313,7 +313,12 @@ if __name__ == "__main__":
 
     # Start local machine process
     local_process = multiprocessing.Process(
-        target=local_machine_process, args=(request_queue, response_queue, result_dict)
+        target=local_machine_process,
+        args=(
+            request_queue,
+            response_queue,
+            result_dict,
+        ),
     )
     local_process.start()
 
@@ -321,7 +326,6 @@ if __name__ == "__main__":
     local_process.join(timeout=10.0)
 
     # Signal remote process to exit by sending a special message
-    print("Signaling remote process to exit...")
     request_queue.put({"exit": True})
 
     # Wait for remote process to complete
@@ -337,7 +341,6 @@ if __name__ == "__main__":
     if "success" in result_dict and result_dict["success"]:
         print("\nDistributed tracing completed successfully!")
         print(f"Final local temperature: {result_dict['local_temp']}")
-
         print(
             "\nNote: Trace events are displayed by cleanup functions when processes terminate."
         )

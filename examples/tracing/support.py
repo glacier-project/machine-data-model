@@ -55,7 +55,7 @@ def print_trace_events(events: List[TraceEvent], title: str = "Trace Events") ->
 
     runtime = (last_event_time - first_event_time) * time_scale
 
-    print(f"\n{title} ({len(events)} total, runtime: {runtime:8.2f} {time_unit}):")
+    print(f"{title} ({len(events)} total, runtime: {runtime:8.2f} {time_unit}):")
     for i, event in enumerate(events, 1):
         event_time = (event.timestamp - first_event_time) * time_scale
         print(
