@@ -1,4 +1,11 @@
+"""
+A module defining the DataModel class and its associated methods for managing a
+machine data model.
+"""
+
 from collections.abc import Callable
+from typing import Any
+import weakref
 
 from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
@@ -6,7 +13,6 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
 )
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.nodes.data_model_node import DataModelNode
-from typing import Any
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
@@ -16,6 +22,10 @@ from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResu
 
 
 class DataModel:
+    """
+    A DataModel represents the structure and data of a machine data model.
+    """
+
     def __init__(
         self,
         name: str = "",
@@ -69,6 +79,7 @@ class DataModel:
         :param node: The node to register in the data model.
         """
         self._nodes[node.id] = node
+        node._data_model = weakref.ref(self)
 
     def _resolve_local_cfg_nodes(self, node: DataModelNode) -> None:
         if not isinstance(node, CompositeMethodNode):
@@ -212,8 +223,7 @@ class DataModel:
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
-            node.write(value)
-            return True
+            return node.write(value)
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def call_method(self, method_id: str) -> MethodExecutionResult:

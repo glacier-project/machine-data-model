@@ -157,6 +157,16 @@ class ControlFlowScope:
         """
         self.set_all_values(**{var_name: value})
 
+    def delete_value(self, var_name: str) -> None:
+        """
+        Deletes a local variable from the scope.
+
+        :param var_name: The name of the local variable.
+        """
+        var_name = resolve_string_in_scope(var_name, self)
+        if var_name in self._locals:
+            del self._locals[var_name]
+
     def get_pc(self) -> int:
         """
         Get the program counter of the scope.

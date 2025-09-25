@@ -5,6 +5,7 @@ from typing_extensions import override
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import VariableNode
+from machine_data_model.tracing import trace_method_start, trace_method_end
 from dataclasses import dataclass
 
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
@@ -262,11 +263,28 @@ class MethodNode(DataModelNode):
 
         kwargs = self._resolve_arguments(*args, **kwargs)
 
+        # Trace method start
+        start_time = trace_method_start(
+            method_id=self.id,
+            args=kwargs,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+
         self._pre_call(**kwargs)
         ret_c = self._callback(**kwargs)
         ret = self._build_return_dict(ret_c)
 
         self._post_call(ret)
+
+        # Trace method end
+        trace_method_end(
+            method_id=self.id,
+            returns=ret,
+            start_time=start_time,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
 
         return MethodExecutionResult(return_values=ret)
 

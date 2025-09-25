@@ -12,6 +12,13 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
+from machine_data_model.tracing import (
+    trace_variable_read,
+    trace_variable_write,
+    trace_subscribe,
+    trace_unsubscribe,
+    trace_notification,
+)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
@@ -69,6 +76,13 @@ class VariableNode(DataModelNode):
         value = self._read_value()
         # Execute the post-read callback and return the value.
         value = self._post_read_value(value)
+        # Trace the variable read operation
+        trace_variable_read(
+            variable_id=self.id,
+            value=value,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
         # Return the read value.
         return value
 
@@ -85,19 +99,25 @@ class VariableNode(DataModelNode):
         value = self._pre_update_value(value)
         # Update the value of the variable with the new value.
         value = self._update_value(value)
-        # If validation fails (post-update), restore the previous value and
-        # return False.
-        if not self._post_update_value(prev_value, value):
-            # Restore previous value if validation fails.
+        # Perform the post-update operations and get the success status.
+        success = self._post_update_value(prev_value, value)
+        # Trace the variable write operation.
+        trace_variable_write(
+            variable_id=self.id,
+            old_value=prev_value,
+            new_value=value,
+            success=success,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+        # Notify subscribers if the update was successful, otherwise restore
+        # the previous value.
+        if success:
+            self.notify_subscribers()
+        else:
             value = self._update_value(prev_value)
             assert value == prev_value
-            return False
-
-        # Notify subscribers if the update was successful.
-        self.notify_subscribers()
-
-        # Return True if the value was successfully updated and validated.
-        return True
+        return success
 
     @property
     def value(self) -> Any:
@@ -132,6 +152,13 @@ class VariableNode(DataModelNode):
         """
         if subscription in self._subscriptions:
             return False
+        # Trace the subscription operation
+        trace_subscribe(
+            variable_id=self.id,
+            subscriber_id=subscription.subscriber_id,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
         self._subscriptions.append(subscription)
         return True
 
@@ -178,6 +205,13 @@ class VariableNode(DataModelNode):
 
         if subscription is None or subscription not in self._subscriptions:
             return False
+        # Trace the unsubscription operation
+        trace_unsubscribe(
+            variable_id=self.id,
+            subscriber_id=subscription.subscriber_id,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
         self._subscriptions.remove(subscription)
         return True
 
@@ -201,6 +235,14 @@ class VariableNode(DataModelNode):
         for subscription in self._subscriptions:
             if not subscription.should_notify(value):
                 continue
+            # Trace the notification operation.
+            trace_notification(
+                variable_id=self.id,
+                subscriber_id=subscription.subscriber_id,
+                value=value,
+                source=self.qualified_name,
+                data_model_id=self.data_model.name if self.data_model else "",
+            )
             self._subscription_callback(subscription, self, value)
 
         # If the parent is a VariableNode, notify its subscribers as well.

@@ -19,6 +19,8 @@ from machine_data_model.nodes.subscription.variable_subscription import (
 )
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.nodes.method_node import AsyncMethodNode
+from machine_data_model.tracing import trace_wait_start, trace_wait_end
+from machine_data_model.tracing.events import trace_control_flow_step
 
 
 class LocalExecutionNode(ControlFlowNode):
@@ -140,6 +142,18 @@ class ReadVariableNode(LocalExecutionNode):
             ref_variable, VariableNode
         ), f"Node {ref_variable} is not a VariableNode"
 
+        # Trace the control flow step.
+        trace_control_flow_step(
+            node_id=self.node,
+            node_type=type(self).__name__,
+            execution_result=True,
+            program_counter=scope.get_pc(),
+            source=scope.id(),
+            data_model_id=(
+                ref_variable.data_model.name if ref_variable.data_model else ""
+            ),
+        )
+
         value = ref_variable.read()
         name = self.store_as if self.store_as else ref_variable.name
         scope.set_value(name, value)
@@ -196,6 +210,18 @@ class WriteVariableNode(LocalExecutionNode):
         """
         ref_variable = self._get_ref_node(scope)
         assert isinstance(ref_variable, VariableNode)
+
+        # Trace the control flow step.
+        trace_control_flow_step(
+            node_id=self.node,
+            node_type=type(self).__name__,
+            execution_result=True,
+            program_counter=scope.get_pc(),
+            source=scope.id(),
+            data_model_id=(
+                ref_variable.data_model.name if ref_variable.data_model else ""
+            ),
+        )
 
         value = resolve_value(self._value, scope)
         ref_variable.write(value)
@@ -258,6 +284,16 @@ class CallMethodNode(LocalExecutionNode):
         """
         ref_method = self._get_ref_node(scope)
         assert isinstance(ref_method, AsyncMethodNode)
+
+        # Trace the control flow step.
+        trace_control_flow_step(
+            node_id=self.node,
+            node_type=type(self).__name__,
+            execution_result=True,
+            program_counter=scope.get_pc(),
+            source=scope.id(),
+            data_model_id=(ref_method.data_model.name if ref_method.data_model else ""),
+        )
 
         # resolve variables in the scope
         args = [resolve_value(arg, scope) for arg in self._args]
@@ -365,31 +401,82 @@ class WaitConditionNode(LocalExecutionNode):
         rhs = resolve_value(self._rhs, scope)
         lhs = ref_variable.read()
         if self._op == WaitConditionOperator.EQ:
-            res = lhs == rhs
+            result = lhs == rhs
         elif self._op == WaitConditionOperator.NE:
-            res = lhs != rhs
+            result = lhs != rhs
         elif self._op == WaitConditionOperator.LT:
-            res = lhs < rhs
+            result = lhs < rhs
         elif self._op == WaitConditionOperator.GT:
-            res = lhs > rhs
+            result = lhs > rhs
         elif self._op == WaitConditionOperator.LE:
-            res = lhs <= rhs
+            result = lhs <= rhs
         elif self._op == WaitConditionOperator.GE:
-            res = lhs >= rhs
+            result = lhs >= rhs
         else:
             raise ValueError(f"Invalid operator: {self._op}")
+
+        # Build the key that will be used to store the start time of the wait
+        # inside the scope.
+        wait_key = f"wait_start_{self.node}_{scope.id()}"
+
+        # Save the outcome for tracing.
+        outcome = execution_success() if result else execution_failure()
+
+        # Trace the control flow step.
+        trace_control_flow_step(
+            node_id=self.node,
+            node_type=type(self).__name__,
+            execution_result=outcome.success,
+            program_counter=scope.get_pc(),
+            source=scope.id(),
+            data_model_id=(
+                ref_variable.data_model.name if ref_variable.data_model else ""
+            ),
+        )
 
         if self._subscription is None:
             self._subscription = VariableSubscription(subscriber_id=scope.id())
         subscription = self._subscription
 
-        if not res:
+        # Condition not met - start waiting
+        if not result:
             if subscription not in ref_variable.get_subscriptions():
+                # First time waiting for this condition
+                start_time = trace_wait_start(
+                    variable_id=ref_variable.id,
+                    condition=f"{lhs} {self._op.value} {rhs}",
+                    expected_value=rhs,
+                    source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
+                    data_model_id=(
+                        ref_variable.data_model.name if ref_variable.data_model else ""
+                    ),
+                )
+                # Store the start time of the wait inside the scope.
+                scope.set_value(wait_key, start_time)
+                # Subscribe to the variable to be notified when its value
+                # changes.
                 ref_variable.subscribe(subscription)
-            return execution_failure()
 
-        ref_variable.unsubscribe(subscription)
-        return execution_success()
+        # Condition met - stop waiting
+        else:
+            # Unsubscribe if we were subscribed.
+            ref_variable.unsubscribe(subscription)
+            # If the wait key is in the scope, it means we were waiting.
+            if scope.has_value(wait_key):
+                start_time = scope.get_value(wait_key)
+                trace_wait_end(
+                    variable_id=ref_variable.id,
+                    start_time=start_time,
+                    source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
+                    data_model_id=(
+                        ref_variable.data_model.name if ref_variable.data_model else ""
+                    ),
+                )
+                # Remove the wait key from the scope.
+                scope.delete_value(wait_key)
+
+        # Return the outcome.
+        return outcome
 
     def __eq__(self, other: object) -> bool:
         if self is other:
