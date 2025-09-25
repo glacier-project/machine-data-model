@@ -249,9 +249,7 @@ class MethodNode(DataModelNode):
         yield from self._parameters
         yield from self._returns
 
-    def __call__(
-        self, *args: list[Any], **kwargs: dict[str, Any]
-    ) -> MethodExecutionResult:
+    def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
         """
         Call the method with the specified arguments.
 

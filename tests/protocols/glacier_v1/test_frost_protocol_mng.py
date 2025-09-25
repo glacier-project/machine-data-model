@@ -499,6 +499,7 @@ class TestFrostProtocolMng:
         original_msg, initial_response, method = setup_remote_method_test(
             manager, sender, target, method_path
         )
+        node_path = method.cfg.nodes()[0].node
 
         # Verify remote request was created
         request = assert_remote_request_created(
@@ -506,7 +507,7 @@ class TestFrostProtocolMng:
             MsgType.REQUEST,
             MsgNamespace.VARIABLE,
             VariableMsgName.SUBSCRIBE,
-            method.cfg.nodes()[0].node,
+            node_path,
         )
         assert isinstance(request.payload, SubscriptionPayload)
 
@@ -522,4 +523,13 @@ class TestFrostProtocolMng:
         assert final_response.header.msg_name == MethodMsgName.COMPLETED
         assert isinstance(final_response.payload, MethodPayload)
         assert len(final_response.payload.ret) == 0
-        assert not manager.get_update_messages()
+
+        # check that the unsubscribe message was created
+        assert manager.get_update_messages()
+        msg = manager.get_update_messages()[0]
+        assert msg.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.UNSUBSCRIBE,
+        )
+        assert msg.payload.node == node_path

@@ -1,5 +1,67 @@
+import re
 from typing import Any
 from enum import IntEnum
+
+template_re = re.compile(r"\$\{([^}]+)\}")
+
+
+def is_template_variable(string: str) -> bool:
+    """Check if the string is a template variable of the form `${variable_name}`.
+
+    :param string: The string to check.
+    :return: True if the string is a template variable, False otherwise.
+    """
+    return bool(template_re.fullmatch(string))
+
+
+def contains_template_variables(string: str) -> bool:
+    """Check if the string contains any template variable of the form `${variable_name}`.
+
+    :param string: The string to check.
+    :return: True if the string contains at least one template variable, False otherwise.
+    """
+    return bool(template_re.search(string))
+
+
+def resolve_string_in_scope(string: str, scope: "ControlFlowScope") -> Any:
+    """Resolve all template variables in the string using the provided scope.
+    A template variable is defined as `${variable_name}` and will be replaced by the value of `variable_name` in the scope.
+
+    :param string: The string containing template variables to resolve.
+    :param scope: The scope to use for resolving template variables.
+    :return: The string with all template variables resolved. If the entire string is a single template variable, the value of that variable is returned directly.
+    """
+    if not contains_template_variables(string):
+        return string
+
+    if is_template_variable(string):
+        match = template_re.fullmatch(string)
+        assert match is not None
+        return scope.get_value(match.group(1))
+
+    matches = list(template_re.finditer(string))
+    for match in reversed(matches):
+        variable_name = match.group(1)
+        span = match.span()
+
+        # substitute the variable with its value in the scope
+        variable_value = str(scope.get_value(variable_name))
+        string = string[: span[0]] + variable_value + string[span[1] :]
+
+    return string
+
+
+def resolve_value(value: Any, scope: "ControlFlowScope") -> Any:
+    """
+    Resolve the value of a variable in the scope. If the value is a string containing template variables, it is resolved using the scope. Otherwise, the value is returned as is.
+
+    :param value: The value to resolve.
+    :param scope: The scope to use for resolving template variables.
+    :return: The resolved value.
+    """
+    if isinstance(value, str) and contains_template_variables(value):
+        return resolve_string_in_scope(value, scope)
+    return value
 
 
 class ControlFlowStatus(IntEnum):
@@ -60,7 +122,18 @@ class ControlFlowScope:
             raise ValueError("Attempt to set values on an inactive scope")
 
         for key, value in kwargs.items():
+            key = resolve_string_in_scope(key, self)
             self._locals[key] = value
+
+    def has_value(self, var_name: str) -> bool:
+        """
+        Checks if a local variable exists in the scope.
+
+        :param var_name: The name of the local variable.
+        :return: True if the local variable exists, False otherwise.
+        """
+        var_name = resolve_string_in_scope(var_name, self)
+        return var_name in self._locals
 
     def get_value(self, var_name: str) -> Any:
         """
@@ -68,31 +141,12 @@ class ControlFlowScope:
 
         :param var_name: The name of the local variable.
         :return: The value of the local variable.
+        :raises KeyError: If the local variable does not exist in the scope.
         """
+        var_name = resolve_string_in_scope(var_name, self)
+        if var_name not in self._locals:
+            raise KeyError(f"Variable '{var_name}' not found in scope {self.locals()}")
         return self._locals[var_name]
-
-    def resolve_template_variable(self, string: str) -> Any:
-        """
-        Resolve a string that may contain variable references in the scope.
-
-        :param string: The string to resolve.
-        :return: The resolved string with variable references replaced by their values.
-        """
-        res = string
-        before = ""
-        after = ""
-        result = ""
-        while "${" in res and "}" in res:
-            before = res.split("${")[0]
-            result = res.split("${", 1)[1]
-            after = result.split("}", 1)[1]
-            result = result.split("}")[0]
-            assert self._locals[
-                result
-            ], f"Variable '{result}' not found in scope {self._locals}"
-            result = str(self._locals[result][0])
-            res = before + result + after
-        return res
 
     def set_value(self, var_name: str, value: Any) -> None:
         """

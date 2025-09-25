@@ -3,14 +3,16 @@ from enum import Enum
 
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
-    is_variable,
-    resolve_value,
     ExecutionNodeResult,
     execution_success,
     execution_failure,
-    is_template_variable,
 )
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.behavior.control_flow_scope import (
+    ControlFlowScope,
+    contains_template_variables,
+    resolve_string_in_scope,
+    resolve_value,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
@@ -56,11 +58,7 @@ class LocalExecutionNode(ControlFlowNode):
 
         :return: True if the node is static, otherwise False.
         """
-        return (
-            self.node is not None
-            and not is_variable(self.node)
-            and not is_template_variable(self.node)
-        )
+        return self.node is not None and not contains_template_variables(self.node)
 
     def set_ref_node(self, ref_node: DataModelNode) -> None:
         """
@@ -90,12 +88,7 @@ class LocalExecutionNode(ControlFlowNode):
         """
         if self.is_node_static() and self._ref_node is not None:
             return self._ref_node
-        node_path = ""
-        if is_variable(self.node):
-            node_path = resolve_value(self.node, scope)
-            assert node_path != "", f"Invalid template variable: {self.node}"
-        else:
-            node_path = self.node
+        node_path = resolve_string_in_scope(self.node, scope)
 
         assert self.get_data_model_node is not None
         x = self.get_data_model_node(node_path)

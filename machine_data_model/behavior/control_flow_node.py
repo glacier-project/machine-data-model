@@ -1,40 +1,39 @@
-from typing import Any
 from abc import ABC, abstractmethod
 from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 
-def is_variable(value: Any) -> bool:
-    """
-    Check if the value is a variable that must be resolved in the scope.
-    A variable is considered to be a string starting with '$'.
+# def is_variable(value: Any) -> bool:
+#     """
+#     Check if the value is a variable that must be resolved in the scope.
+#     A variable is considered to be a string starting with '$'.
 
-    :param value: The value to check.
-    :return: True if the value is a variable, otherwise False.
-    """
-    return isinstance(value, str) and value.startswith("$")
-
-
-def is_template_variable(value: Any) -> bool:
-    """
-    Check if the value is a template variable that must be resolved in the scope.
-    A template variable is considered to be a string starting with '${' and ending with '}'.
-
-    :param value: The value to check.
-    :return: True if the value is a template variable, otherwise False.
-    """
-    return isinstance(value, str) and "${" in value and "}" in value
+#     :param value: The value to check.
+#     :return: True if the value is a variable, otherwise False.
+#     """
+#     return isinstance(value, str) and value.startswith("$")
 
 
-def resolve_value(value: Any, scope: ControlFlowScope) -> Any:
-    """
-    Resolve the value of a variable in the scope. If the value is a string starting with '$',
-    it is considered a variable and the value is resolved from the scope. Otherwise, the value
-    is returned as is.
-    """
-    if is_variable(value):
-        return scope.get_value(value[1:])
-    return value
+# def is_template_variable(value: Any) -> bool:
+#     """
+#     Check if the value is a template variable that must be resolved in the scope.
+#     A template variable is considered to be a string starting with '${' and ending with '}'.
+
+#     :param value: The value to check.
+#     :return: True if the value is a template variable, otherwise False.
+#     """
+#     return isinstance(value, str) and "${" in value and "}" in value
+
+
+# def resolve_value(value: Any, scope: ControlFlowScope) -> Any:
+#     """
+#     Resolve the value of a variable in the scope. If the value is a string starting with '$',
+#     it is considered a variable and the value is resolved from the scope. Otherwise, the value
+#     is returned as is.
+#     """
+#     if is_variable(value):
+#         return scope.get_value(value[1:])
+#     return value
 
 
 class ExecutionNodeResult:

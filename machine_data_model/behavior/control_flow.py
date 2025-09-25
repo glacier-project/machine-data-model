@@ -1,11 +1,8 @@
 from typing import Sequence
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
-    is_template_variable,
 )
-from machine_data_model.behavior.control_flow_scope import (
-    ControlFlowScope,
-)
+from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 
@@ -59,8 +56,9 @@ class ControlFlow:
         pc = scope.get_pc()
         while pc < len(self._nodes):
             node = self._nodes[pc]
-            if is_template_variable(node.node):
-                node.node = scope.resolve_template_variable(node.node)
+            # TODO: fix me here
+            # if contains_template_variables(node.node):
+            #     node.node = scope.get_value(node.node)
 
             result = node.execute(scope)
             if result.messages:

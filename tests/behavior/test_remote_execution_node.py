@@ -209,7 +209,7 @@ class TestRemoteExecutionNode:
         scope = ControlFlowScope(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
-        variable_name = f"${variable_node.name}"
+        variable_name = "${" + variable_node.name + "}"
         scope.set_value(variable_node.name, value)
 
         w_remote_node = WriteRemoteVariableNode(
@@ -337,7 +337,13 @@ class TestRemoteExecutionNode:
         if is_condition_met:
             ret = w_remote_event_node.execute(scope)
             assert ret.success
-            assert not ret.messages
+            assert ret.messages
+            assert len(ret.messages) == 1
+            assert ret.messages[0].header.matches(
+                _type=MsgType.REQUEST,
+                _namespace=MsgNamespace.VARIABLE,
+                _msg_name=VariableMsgName.UNSUBSCRIBE,
+            )
         else:
             ret = w_remote_event_node.execute(scope)
             assert not ret.success

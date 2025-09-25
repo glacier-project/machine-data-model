@@ -4,13 +4,14 @@ from typing_extensions import override
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
-    resolve_value,
     execution_failure,
     execution_success,
 )
 from machine_data_model.behavior.control_flow_scope import (
     ControlFlowStatus,
     ControlFlowScope,
+    resolve_string_in_scope,
+    resolve_value,
 )
 from machine_data_model.behavior.local_execution_node import WaitConditionOperator
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
@@ -80,7 +81,7 @@ class RemoteExecutionNode(ControlFlowNode):
         """
         if (
             response.correlation_id != scope.active_request
-            or response.sender != resolve_value(self.remote_id, scope)
+            or response.sender != resolve_string_in_scope(self.remote_id, scope)
             or self.sender_id != response.target
         ):
             return False
@@ -166,7 +167,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
         if not isinstance(
             response.payload, MethodPayload
-        ) or response.payload.node != resolve_value(self.node, scope):
+        ) or response.payload.node != resolve_string_in_scope(self.node, scope):
             return False
 
         # add all return values to the scope
@@ -179,7 +180,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         return FrostMessage(
             correlation_id=scope.id(),
             sender=self.sender_id,
-            target=resolve_value(self.remote_id, scope),
+            target=resolve_string_in_scope(self.remote_id, scope),
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -187,7 +188,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
                 msg_name=MethodMsgName.INVOKE,
             ),
             payload=MethodPayload(
-                node=resolve_value(self.node, scope),
+                node=resolve_string_in_scope(self.node, scope),
                 args=[resolve_value(arg, scope) for arg in self.args],
                 kwargs={k: resolve_value(v, scope) for k, v in self.kwargs.items()},
             ),
@@ -236,7 +237,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
         if not isinstance(
             response.payload, VariablePayload
-        ) or response.payload.node != resolve_value(self.node, scope):
+        ) or response.payload.node != resolve_string_in_scope(self.node, scope):
             return False
 
         scope.set_value(
@@ -250,7 +251,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         return FrostMessage(
             correlation_id=scope.id(),
             sender=self.sender_id,
-            target=resolve_value(self.remote_id, scope),
+            target=resolve_string_in_scope(self.remote_id, scope),
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
@@ -258,7 +259,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
                 msg_name=VariableMsgName.READ,
             ),
             payload=VariablePayload(
-                node=resolve_value(self.node, scope),
+                node=resolve_string_in_scope(self.node, scope),
             ),
         )
 
@@ -302,7 +303,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
 
         if not isinstance(
             response.payload, VariablePayload
-        ) or response.payload.node != resolve_value(self.node, scope):
+        ) or response.payload.node != resolve_string_in_scope(self.node, scope):
             return False
 
         return True
@@ -319,7 +320,8 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
                 msg_name=VariableMsgName.WRITE,
             ),
             payload=VariablePayload(
-                node=self.node, value=resolve_value(self.value, scope)
+                node=resolve_string_in_scope(self.node, scope),
+                value=resolve_value(self.value, scope),
             ),
         )
 
@@ -367,7 +369,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
 
         if not isinstance(
             response.payload, VariablePayload
-        ) or response.payload.node != resolve_value(self.node, scope):
+        ) or response.payload.node != resolve_string_in_scope(self.node, scope):
             return False
 
         lhs = response.payload.value
@@ -395,14 +397,14 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         return FrostMessage(
             correlation_id=scope.id(),
             sender=self.sender_id,
-            target=resolve_value(self.remote_id, scope),
+            target=resolve_string_in_scope(self.remote_id, scope),
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.SUBSCRIBE,
             ),
-            payload=SubscriptionPayload(node=resolve_value(self.node, scope)),
+            payload=SubscriptionPayload(node=resolve_string_in_scope(self.node, scope)),
         )
 
     @override
