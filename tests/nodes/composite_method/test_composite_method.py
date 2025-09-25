@@ -12,6 +12,9 @@ from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import VariableNode, NumericalVariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
     MsgType,
@@ -23,7 +26,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
     VariablePayload,
 )
-from tests import get_dummy_method_node
+from tests import NUM_TESTS, get_dummy_method_node
 from tests.nodes.composite_method import get_non_blocking_cf, get_blocking_cf
 from tests.test_data_model import get_template_data_model
 
@@ -56,7 +59,10 @@ class TestCompositeMethod:
     @pytest.mark.parametrize(
         "method_nodes",
         [
-            [get_dummy_method_node(method_types=[AsyncMethodNode]) for _ in range(3)],
+            [
+                get_dummy_method_node(method_types=[AsyncMethodNode])
+                for _ in range(NUM_TESTS)
+            ],
         ],
     )
     def test_non_blocking_composite_method(
@@ -73,7 +79,10 @@ class TestCompositeMethod:
     @pytest.mark.parametrize(
         "method_nodes",
         [
-            [get_dummy_method_node(method_types=[AsyncMethodNode]) for _ in range(3)],
+            [
+                get_dummy_method_node(method_types=[AsyncMethodNode])
+                for _ in range(NUM_TESTS)
+            ],
         ],
     )
     def test_blocking_composite_method(
@@ -86,7 +95,7 @@ class TestCompositeMethod:
         scope_id = ret.return_values[SCOPE_ID]
 
         assert not ret.messages
-        assert len(wait_node.get_subscribers()) > 0
+        assert len(wait_node.get_subscriptions()) > 0
 
         new_val = 0
         while node_val == new_val:
@@ -96,7 +105,8 @@ class TestCompositeMethod:
         ret = c_method.resume_execution(scope_id)
 
         assert not ret.messages
-        assert len(wait_node.get_subscribers()) == 0
+        assert len(wait_node.get_subscriptions()) == 0
+        assert ret.return_values
         for node in c_method.returns:
             assert node.read() == ret.return_values[node.name]
 
@@ -179,7 +189,7 @@ class TestCompositeMethod:
         current_value = node.read()
 
         def subscription_callback(
-            subscriber: str, node: VariableNode, value: Any
+            subscription: VariableSubscription, node: VariableNode, value: Any
         ) -> None:
             assert isinstance(dynamic_wait, CompositeMethodNode)
             res = dynamic_wait.resume_execution(ret.return_values[SCOPE_ID])
@@ -205,12 +215,12 @@ class TestCompositeMethod:
     def test_dynamic_resolution_name(self, name_resolution_node: str) -> None:
         data_model = get_template_data_model()
         dynamic_resolution = data_model.get_node(name_resolution_node)
-
         assert isinstance(dynamic_resolution, CompositeMethodNode)
+
         assert (
-            dynamic_resolution(
-                ["empty_folder"], ["n_variable_empty"]
-            ).return_values.get("result")
+            dynamic_resolution(*["empty_folder", "n_variable_empty"]).return_values.get(
+                "result"
+            )
             == 10
         ), "Failed on dynamic_resolution"
 

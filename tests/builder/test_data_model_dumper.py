@@ -10,7 +10,7 @@ from tests.test_data_model import get_template_data_model
     "data_model",
     [get_template_data_model()],
 )
-class TestDump:
+class TestDataModelDumper:
     def test_dump(self, data_model: DataModel) -> None:
         dumper = DataModelDumper(data_model)
         builder = DataModelBuilder()

@@ -3,15 +3,20 @@ from enum import Enum
 
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
-    is_variable,
-    resolve_value,
     ExecutionNodeResult,
     execution_success,
     execution_failure,
-    is_template_variable,
 )
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.behavior.control_flow_scope import (
+    ControlFlowScope,
+    contains_template_variables,
+    resolve_string_in_scope,
+    resolve_value,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.nodes.method_node import AsyncMethodNode
 
@@ -53,11 +58,7 @@ class LocalExecutionNode(ControlFlowNode):
 
         :return: True if the node is static, otherwise False.
         """
-        return (
-            self.node is not None
-            and not is_variable(self.node)
-            and not is_template_variable(self.node)
-        )
+        return self.node is not None and not contains_template_variables(self.node)
 
     def set_ref_node(self, ref_node: DataModelNode) -> None:
         """
@@ -87,12 +88,7 @@ class LocalExecutionNode(ControlFlowNode):
         """
         if self.is_node_static() and self._ref_node is not None:
             return self._ref_node
-        node_path = ""
-        if is_variable(self.node):
-            node_path = resolve_value(self.node, scope)
-            assert node_path != "", f"Invalid template variable: {self.node}"
-        else:
-            node_path = self.node
+        node_path = resolve_string_in_scope(self.node, scope)
 
         assert self.get_data_model_node is not None
         x = self.get_data_model_node(node_path)
@@ -313,6 +309,9 @@ class WaitConditionNode(LocalExecutionNode):
     of a variable with a constant value or another variable.
     It returns immediately if the condition is met, otherwise it subscribes to the variable
     and waits for the value to change.
+
+    :ivar _rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
+    :ivar _op: The comparison operator.
     """
 
     def __init__(
@@ -332,6 +331,7 @@ class WaitConditionNode(LocalExecutionNode):
         super().__init__(variable_node, successors)
         self._rhs = rhs
         self._op = op
+        self._subscription: VariableSubscription | None = None
 
     @property
     def rhs(self) -> Any:
@@ -379,12 +379,16 @@ class WaitConditionNode(LocalExecutionNode):
         else:
             raise ValueError(f"Invalid operator: {self._op}")
 
+        if self._subscription is None:
+            self._subscription = VariableSubscription(subscriber_id=scope.id())
+        subscription = self._subscription
+
         if not res:
-            if scope.id() not in ref_variable.get_subscribers():
-                ref_variable.subscribe(scope.id())
+            if subscription not in ref_variable.get_subscriptions():
+                ref_variable.subscribe(subscription)
             return execution_failure()
 
-        ref_variable.unsubscribe(scope.id())
+        ref_variable.unsubscribe(subscription)
         return execution_success()
 
     def __eq__(self, other: object) -> bool:

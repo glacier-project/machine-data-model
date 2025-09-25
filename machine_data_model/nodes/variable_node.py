@@ -12,6 +12,9 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 
 
 class VariableNode(DataModelNode):
@@ -49,10 +52,10 @@ class VariableNode(DataModelNode):
         self._pre_update_value: Callable[[Any], Any] = lambda value: value
         self._post_update_value: Callable[[Any, Any], bool] = lambda prev, curr: True
         # List of subscribers and related callbacks.
-        self._subscribers: list[str] = []
-        self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
-            lambda subscriber, node, value: None
-        )
+        self._subscriptions: list[VariableSubscription] = []
+        self._subscription_callback: Callable[
+            [VariableSubscription, "VariableNode", Any], None
+        ] = lambda subscription, node, value: None
 
     def read(self) -> Any:
         """
@@ -110,38 +113,76 @@ class VariableNode(DataModelNode):
 
         :return: True if the variable node has subscribers, False otherwise.
         """
-        return bool(self._subscribers)
+        return bool(self._subscriptions)
 
-    def get_subscribers(self) -> list[str]:
+    def get_subscriptions(self) -> list[VariableSubscription]:
         """
-        Get the list of subscribers for the variable node.
+        Get the list of subscriptions for the variable node.
 
-        :return: A list of subscriber IDs.
+        :return: A list of subscriptions.
         """
-        return self._subscribers
+        return self._subscriptions
 
-    def subscribe(self, subscriber_id: str) -> None:
+    def subscribe(self, subscription: VariableSubscription) -> bool:
         """
         Subscribe a subscriber to the variable node.
 
         :param subscriber_id: The ID of the subscriber.
+        :return: True if the subscription was added successfully, False otherwise.
         """
-        if subscriber_id in self._subscribers:
-            return
-        self._subscribers.append(subscriber_id)
+        if subscription in self._subscriptions:
+            return False
+        self._subscriptions.append(subscription)
+        return True
 
-    def unsubscribe(self, subscriber_id: str) -> None:
+    def _find_subscription(
+        self, subscription_id: str, correlation_id: str
+    ) -> VariableSubscription | None:
         """
-        Unsubscribe a subscriber from the variable node.
+        Find a subscription by subscriber ID and correlation ID.
 
-        :param subscriber_id: The ID of the subscriber.
+        :param subscription_id: The ID of the subscriber.
+        :param correlation_id: The correlation ID of the subscription.
+        :return: The subscription if found, None otherwise.
         """
-        if subscriber_id not in self._subscribers:
-            return
-        self._subscribers.remove(subscriber_id)
+        for sub in self._subscriptions:
+            if (
+                sub.subscriber_id == subscription_id
+                and sub.correlation_id == correlation_id
+            ):
+                return sub
+        return None
+
+    def unsubscribe(
+        self,
+        subscription_or_id: VariableSubscription | str,
+        correlation_id: str | None = None,
+    ) -> bool:
+        """
+        Delete a subscription from the variable node either by subscription object or by subscriber ID and correlation ID.
+
+        :param subscription_or_id: The subscription to remove, or the subscriber ID.
+        :param correlation_id: The correlation ID when removing by IDs.
+        :return: True if the subscription was removed successfully, False otherwise.
+        """
+        subscription: VariableSubscription | None
+        if (
+            isinstance(subscription_or_id, VariableSubscription)
+            and correlation_id is None
+        ):
+            subscription = subscription_or_id
+        elif isinstance(subscription_or_id, str) and isinstance(correlation_id, str):
+            subscription = self._find_subscription(subscription_or_id, correlation_id)
+        else:
+            raise TypeError("unsubscribe expects (VariableSubscription) or (str, str)")
+
+        if subscription is None or subscription not in self._subscriptions:
+            return False
+        self._subscriptions.remove(subscription)
+        return True
 
     def set_subscription_callback(
-        self, callback: Callable[[str, "VariableNode", Any], None]
+        self, callback: Callable[[VariableSubscription, "VariableNode", Any], None]
     ) -> None:
         """
         Set a callback to be executed when notifying subscribers.
@@ -157,11 +198,14 @@ class VariableNode(DataModelNode):
         """
         # Get the current value of the node.
         value = self._read_value()
-        # Pass the value to the callback.
+        for subscription in self._subscriptions:
+            if not subscription.should_notify(value):
+                continue
+            self._subscription_callback(subscription, self, value)
+
+        # If the parent is a VariableNode, notify its subscribers as well.
         if isinstance(self.parent, VariableNode):
             self.parent.notify_subscribers()
-        for subscriber in self._subscribers:
-            self._subscription_callback(subscriber, self, value)
 
     @abstractmethod
     def _read_value(self) -> Any:
@@ -620,22 +664,6 @@ class ObjectVariableNode(VariableNode):
         for property_name, property_value in value.items():
             self._properties[property_name]._update_value(property_value)
         return self._read_value()
-
-    def subscribe(self, subscriber_id: str) -> None:
-        """
-        Subscribe a subscriber to the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.append(subscriber_id)
-
-    def unsubscribe(self, subscriber_id: str) -> None:
-        """
-        Unsubscribe a subscriber from the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.remove(subscriber_id)
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """

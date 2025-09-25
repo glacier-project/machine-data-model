@@ -29,6 +29,7 @@ from machine_data_model.behavior.remote_execution_node import (
     ReadRemoteVariableNode,
     WriteRemoteVariableNode,
     CallRemoteMethodNode,
+    WaitRemoteEventNode,
 )
 
 
@@ -316,7 +317,6 @@ def _call_remote_method_node_representer(
         "tag:yaml.org,2002:CallRemoteMethodNode",
         {
             "method": node.node,
-            "sender_id": node.sender_id,
             "remote_id": node.remote_id,
             "args": node.args,
             "kwargs": node.kwargs,
@@ -337,7 +337,6 @@ def _read_remote_variable_node_representer(
         "tag:yaml.org,2002:ReadRemoteVariableNode",
         {
             "variable": node.node,
-            "sender_id": node.sender_id,
             "remote_id": node.remote_id,
             "store_as": node.store_as,
         },
@@ -357,9 +356,28 @@ def _write_remote_variable_node_representer(
         "tag:yaml.org,2002:WriteRemoteVariableNode",
         {
             "variable": node.node,
-            "sender_id": node.sender_id,
             "remote_id": node.remote_id,
             "value": node.value,
+        },
+    )
+
+
+def _wait_remote_event_node_representer(
+    dumper: yaml.Dumper, node: WaitRemoteEventNode
+) -> yaml.nodes.MappingNode:
+    """
+    Represent a WaitRemoteEventNode as a YAML mapping node.
+    :param dumper: The YAML dumper instance.
+    :param node: The WaitRemoteEventNode instance to represent.
+    :return: A YAML mapping node representing the WaitRemoteEventNode.
+    """
+    return dumper.represent_mapping(
+        "tag:yaml.org,2002:WaitRemoteEventNode",
+        {
+            "variable": node.node,
+            "remote_id": node.remote_id,
+            "rhs": node.rhs,
+            "operator": node.op.value,
         },
     )
 
@@ -382,6 +400,7 @@ yaml.add_representer(CallMethodNode, _call_method_node_representer)
 yaml.add_representer(CallRemoteMethodNode, _call_remote_method_node_representer)
 yaml.add_representer(ReadRemoteVariableNode, _read_remote_variable_node_representer)
 yaml.add_representer(WriteRemoteVariableNode, _write_remote_variable_node_representer)
+yaml.add_representer(WaitRemoteEventNode, _wait_remote_event_node_representer)
 
 
 class DataModelDumper:

@@ -15,6 +15,9 @@ from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from tests import get_random_folder_node
 
 
@@ -129,11 +132,11 @@ class TestDataModel:
 
         # Setup callback to handle subscriber notifications.
         def update_message_callback(
-            subscriber: str, node: VariableNode, value: Any
+            subscription: VariableSubscription, node: VariableNode, value: Any
         ) -> None:
             # For this test, we'll append the notification data to 'changes' (or
             # any tracking list).
-            changes.append((subscriber, node, value))
+            changes.append((subscription, node, value))
 
         # Create the data model and set up the root node.
         data_model = DataModel(name="dm", root=root)
@@ -146,21 +149,18 @@ class TestDataModel:
                 if isinstance(node, StringVariableNode)
             ]
         )
-        # Subscribe a "A" subscriber to the child node.
-        data_model.subscribe(child.id, "A")
-        # Subscribe a "B" subscriber to the child node.
-        data_model.subscribe(child.id, "B")
-        # Set the subscription callback (callback will handle the actual message
-        # creation and storage).
+        subscription_1 = VariableSubscription("subscriber_1", "corr_1")
+        data_model.subscribe(child.id, subscription_1)
+        subscription_2 = VariableSubscription("subscriber_2", "corr_2")
+        data_model.subscribe(child.id, subscription_2)
+
         child.set_subscription_callback(update_message_callback)
-        # Perform an update on the child node, triggering the deferred notify
-        # mechanism.
         child.write("Perfect!")
-        # Assert that the child node has subscribers.
+
         assert child.has_subscribers()
-        # Assert that the changes list contains the expected value.
-        assert ("A", child, "Perfect!") in changes
-        assert ("B", child, "Perfect!") in changes
+        assert len(changes) == 2
+        assert (subscription_1, child, "Perfect!") == changes[0]
+        assert (subscription_2, child, "Perfect!") == changes[1]
 
     def test_runtime_resolution_of_nodes(self, root: FolderNode) -> None:
         data_model = get_template_data_model()

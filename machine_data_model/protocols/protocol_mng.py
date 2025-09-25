@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 from typing_extensions import Any
 
 from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.protocols.message import Message
 
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -61,7 +64,7 @@ class ProtocolMng(ABC):
 
     @abstractmethod
     def _update_variable_callback(
-        self, subscriber: str, node: VariableNode, value: Any
+        self, subscription: VariableSubscription, node: VariableNode, value: Any
     ) -> None:
         """
         Handle the update and create the corresponding Message.
