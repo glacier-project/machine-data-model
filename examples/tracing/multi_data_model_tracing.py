@@ -12,7 +12,10 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.tracing import clear_traces, TraceLevel
-from machine_data_model.tracing.tracing_core import get_global_collector, set_global_trace_level
+from machine_data_model.tracing.tracing_core import (
+    get_global_collector,
+    set_global_trace_level,
+)
 from support import print_trace_events
 
 
@@ -69,7 +72,7 @@ def create_temperature_controller(name: str) -> DataModel:
     return data_model
 
 
-if __name__ == "__main__":
+def main() -> None:
     # Clear any previous traces
     clear_traces()
 
@@ -127,12 +130,20 @@ if __name__ == "__main__":
     print("MULTI-DATA MODEL TRACING RESULTS")
     print(f"{'='*80}")
     print(f"Total events: {len(events)}")
-    print(f"Controller A events: {sum(1 for e in events if e.data_model_id == 'Controller_A')}")
-    print(f"Controller B events: {sum(1 for e in events if e.data_model_id == 'Controller_B')}")
+    print(
+        f"Controller A events: {sum(1 for e in events if e.data_model_id == 'Controller_A')}"
+    )
+    print(
+        f"Controller B events: {sum(1 for e in events if e.data_model_id == 'Controller_B')}"
+    )
 
     print_trace_events(events, "Multi-Data Model Trace Events")
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("KEY INSIGHT: Each trace event includes data_model_id to distinguish")
     print("operations across multiple data models, enabling multi-model debugging!")
-    print("="*80)
+    print("=" * 80)
+
+
+if __name__ == "__main__":
+    main()

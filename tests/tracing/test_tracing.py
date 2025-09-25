@@ -5,6 +5,9 @@ import uuid
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
     WaitConditionOperator,
@@ -270,7 +273,7 @@ class TestDataModelTracing:
         data_model._register_nodes(data_model.root)
 
         # Subscribe to the variable
-        var.subscribe("subscriber_1")
+        var.subscribe(VariableSubscription("subscriber_1"))
 
         collector = get_global_collector()
         subscribe_events = collector.get_events(TraceEventType.SUBSCRIBE)
@@ -289,8 +292,9 @@ class TestDataModelTracing:
         data_model._register_nodes(data_model.root)
 
         # Subscribe and then unsubscribe
-        var.subscribe("subscriber_1")
-        var.unsubscribe("subscriber_1")
+        subscription = VariableSubscription("subscriber_1")
+        var.subscribe(subscription)
+        var.unsubscribe(subscription)
 
         collector = get_global_collector()
         unsubscribe_events = collector.get_events(TraceEventType.UNSUBSCRIBE)
@@ -309,18 +313,18 @@ class TestDataModelTracing:
         data_model._register_nodes(data_model.root)
 
         # Subscribe to the variable
-        var.subscribe("subscriber_1")
-        var.subscribe("subscriber_2")
+        var.subscribe(VariableSubscription("subscriber_1"))
+        var.subscribe(VariableSubscription("subscriber_2"))
 
         # Set up a callback to capture notifications
         notifications: list[tuple[str, Any]] = []
 
         def test_callback(
-            subscriber_id: str,
+            subscription: VariableSubscription,
             _: VariableNode,
             value: Any,
         ) -> None:
-            notifications.append((subscriber_id, value))
+            notifications.append((subscription.subscriber_id, value))
 
         var.set_subscription_callback(test_callback)
 

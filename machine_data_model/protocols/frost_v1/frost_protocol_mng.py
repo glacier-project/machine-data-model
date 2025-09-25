@@ -1,4 +1,4 @@
-from typing import Any, List, Sequence
+from typing import Any, List
 from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
@@ -7,6 +7,9 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
     MsgType,
@@ -57,11 +60,25 @@ class FrostProtocolMng(ProtocolMng):
         self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
         self._protocol_version = (1, 0, 0)
 
-    @override
-    def handle_request(self, msg: Message) -> Message | None:
+    # Validate msg type and protocol version
+    def _validate_message(self, msg: Message) -> bool:
         """
-        Handles a message encoded with the Frost protocol and updates the
-        machine data model accordingly.
+        Validates the provided message to ensure it is a FrostMessage and
+        checks if the protocol version is supported.
+
+        :param msg: The message to be validated.
+        :return: True if the message is valid and the version is supported, otherwise False.
+        """
+
+        if not isinstance(msg, FrostMessage):
+            return False
+
+        return self._is_version_supported(msg.header.version)
+
+    @override
+    def handle_request(self, msg: Message) -> Message:
+        """
+        Handles a Frost request message and updates the data model accordingly.
 
         :param msg: The message to be handled.
         :return: A response message based on the validation and handling of the input message.
@@ -84,14 +101,8 @@ class FrostProtocolMng(ProtocolMng):
         if not self._is_version_supported(msg.header.version):
             return self._create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
 
-        # Resume methods waiting for a response
-        if msg.correlation_id in self._running_methods:
-            cm, _ = self._running_methods[msg.correlation_id]
-
-            if not cm.handle_message(msg.correlation_id, msg):
-                return self._create_response_msg(msg, ErrorMessages.BAD_RESPONSE)
-
-            return self._resume_composite_method(msg.correlation_id)
+        if msg.header.type != MsgType.REQUEST:
+            return self._create_response_msg(msg, ErrorMessages.INVALID_REQUEST)
 
         # Handle PROTOCOL messages separately.
         if msg.header.namespace == MsgNamespace.PROTOCOL:
@@ -118,19 +129,45 @@ class FrostProtocolMng(ProtocolMng):
         # Return invalid namespace.
         return self._create_response_msg(msg, ErrorMessages.INVALID_NAMESPACE)
 
-    def get_update_messages(self) -> Sequence[FrostMessage]:
+    def handle_response(self, msg: FrostMessage) -> Message | None:
         """
-        Returns the list of update messages.
+        Handles a Frost response message received in response to a request sent
+        by the data model. This includes resuming composite methods waiting for
+        a response.
 
-        :return: A list of `FrostMessage` objects representing the updates.
+        :param msg: The response message to be handled.
+        :return: A response message if a composite method is completed,
+            otherwise None.
         """
-        return self._update_messages
+        if not isinstance(msg, FrostMessage):
+            raise ValueError("msg must be an instance of FrostMessage")
+        msg = copy.deepcopy(msg)
+        header = msg.header
+
+        if not self._is_version_supported(header.version):
+            return self._create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+
+        if header.type != MsgType.RESPONSE:
+            return self._create_response_msg(msg, ErrorMessages.INVALID_RESPONSE)
+
+        # Resume methods waiting for a response
+        if msg.correlation_id in self._running_methods:
+            cm, _ = self._running_methods[msg.correlation_id]
+            if cm.handle_message(msg.correlation_id, msg):
+                return self._resume_composite_method(msg.correlation_id)
+        return None
 
     def clear_update_messages(self) -> None:
         """
         Clears the list of update messages.
         """
         self._update_messages.clear()
+
+    def get_update_messages(self) -> List[FrostMessage]:
+        """
+        Returns the list of update messages.
+        """
+        return self._update_messages
 
     def resume_composite_method(
         self, subscriber: str, node: VariableNode, value: Any
@@ -238,7 +275,6 @@ class FrostProtocolMng(ProtocolMng):
         if not isinstance(msg.payload, VariablePayload):
             error = ErrorMessages.BAD_REQUEST
 
-        # Handle different message types.
         elif msg.header.msg_name == VariableMsgName.READ:
             value = variable_node.read()
             msg.payload.value = value
@@ -248,17 +284,21 @@ class FrostProtocolMng(ProtocolMng):
                 error = ErrorMessages.NOT_ALLOWED
 
         elif msg.header.msg_name == VariableMsgName.SUBSCRIBE:
-            # Add the sender as a subscriber to the variable node.
-            variable_node.subscribe(msg.sender)
+            subscription = VariableSubscription(
+                subscriber_id=msg.sender, correlation_id=msg.correlation_id
+            )
+            variable_node.subscribe(subscription)
 
         elif msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
-            variable_node.unsubscribe(msg.sender)
-            # TODO: Think about reading when SUBSCRIBING
-            msg.payload.value = variable_node.read()
+            subscription = VariableSubscription(
+                subscriber_id=msg.sender, correlation_id=msg.correlation_id
+            )
+            variable_node.unsubscribe(subscription)
 
         elif msg.header.msg_name == VariableMsgName.UPDATE:
             # UPDATE is handled, just return success response
             pass
+
         else:
             error = ErrorMessages.NOT_SUPPORTED
 
@@ -332,7 +372,10 @@ class FrostProtocolMng(ProtocolMng):
         return self._create_response_msg(msg)
 
     def _update_variable_callback(
-        self, subscriber: str, node: VariableNode, value: Any
+        self,
+        subscription: VariableSubscription,
+        node: VariableNode,
+        value: Any,
     ) -> None:
         """
         Handle the update and create the corresponding FrostMessage.
@@ -342,13 +385,16 @@ class FrostProtocolMng(ProtocolMng):
         target, and payload, and appends it to the list of update messages.
         """
 
-        if subscriber in self._running_methods:
-            return self.resume_composite_method(subscriber, node, value)
+        if subscription.correlation_id in self._running_methods:
+            return self.resume_composite_method(
+                subscription.correlation_id, node, value
+            )
 
-        # Create update message
-        update_msg = FrostMessage(
+        # append update message
+        response_msg = FrostMessage(
+            correlation_id=subscription.correlation_id,
             sender=self._data_model.name,
-            target=subscriber,
+            target=subscription.subscriber_id,
             identifier=str(uuid.uuid4()),
             header=FrostHeader(
                 version=self._protocol_version,
@@ -362,8 +408,8 @@ class FrostProtocolMng(ProtocolMng):
         # append update message.
         self._update_messages.append(
             self._trace_and_return_response(
-                update_msg,
-                update_msg,
+                response_msg,
+                response_msg,
             )
         )
 
@@ -476,22 +522,3 @@ class FrostProtocolMng(ProtocolMng):
                 "kwargs": message.payload.kwargs,
             }
         return {}
-
-    # def _handle_node_message(self, msg: FrostMessage) -> FrostMessage:
-    #     """
-    #     This method handles a message withing the NODE namespace.
-    #     :param msg: The message to be handled.
-    #     :return: A response message.
-    #     """
-    #     assert msg.header.namespace == MsgNamespace.NODE
-    #     # if msg.header.msg_name == NodeMsgName.GET_INFO:
-    #     #     pass
-    #     # if msg.header.msg_name == NodeMsgName.GET_CHILDREN:
-    #     #     pass
-    #     # if msg.header.msg_name == NodeMsgName.GET_VARIABLES:
-    #     #     pass
-    #     # if msg.header.msg_name == NodeMsgName.GET_METHODS:
-    #     #     pass
-    #     #
-    #     # return error
-    #     pass

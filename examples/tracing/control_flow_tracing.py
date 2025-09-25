@@ -24,7 +24,7 @@ from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 
-if __name__ == "__main__":
+def main() -> None:
 
     # Clear any previous traces
     clear_traces()
@@ -88,3 +88,7 @@ if __name__ == "__main__":
     collector = get_global_collector()
     events = collector.get_events()
     print_trace_events(events)
+
+
+if __name__ == "__main__":
+    main()

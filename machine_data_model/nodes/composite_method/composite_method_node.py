@@ -64,9 +64,7 @@ class CompositeMethodNode(MethodNode):
         self._scopes: dict[str, ControlFlowScope] = {}
         self.cfg = cfg if cfg is not None else ControlFlow()
 
-    def __call__(
-        self, *args: list[Any], **kwargs: dict[str, Any]
-    ) -> MethodExecutionResult:
+    def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
         """
         Call the method with the specified arguments.
 

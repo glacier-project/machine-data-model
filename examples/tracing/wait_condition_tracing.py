@@ -23,7 +23,8 @@ from machine_data_model.tracing import (
 from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
-if __name__ == "__main__":
+
+def main() -> None:
 
     # Clear any previous traces
     clear_traces()
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     print(f"   Result: success={result1.success}")
     print(f"   Counter value: {counter_var.read()}")
     print(
-        f"   Is scope subscribed to counter? {scope.id() in counter_var.get_subscribers()}"
+        f"   Is scope subscribed to counter? {scope.id() in counter_var.get_subscriptions()}"
     )
 
     # Increment counter a few times but not enough to meet condition
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     print("\n3. Executing wait condition again (counter = 3, still < 5)...")
     result2 = wait_condition.execute(scope)
     print(f"   Result: success={result2.success}")
-    print(f"   Is still subscribed? {scope.id() in counter_var.get_subscribers()}")
+    print(f"   Is still subscribed? {scope.id() in counter_var.get_subscriptions()}")
 
     # Now increment counter to meet the condition
     print("\n4. Incrementing counter to 7 (now >= 5)...")
@@ -87,9 +88,13 @@ if __name__ == "__main__":
     print("\n5. Executing wait condition (counter = 7, now >= 5)...")
     result3 = wait_condition.execute(scope)
     print(f"   Result: success={result3.success}")
-    print(f"   Is still subscribed? {scope.id() in counter_var.get_subscribers()}")
+    print(f"   Is still subscribed? {scope.id() in counter_var.get_subscriptions()}")
 
     # Display final trace events
     collector = get_global_collector()
     events = collector.get_events()
     print_trace_events(events)
+
+
+if __name__ == "__main__":
+    main()

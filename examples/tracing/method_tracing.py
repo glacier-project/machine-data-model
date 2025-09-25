@@ -18,7 +18,13 @@ from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 
-if __name__ == "__main__":
+def calculate_average(temp: float, press: float) -> float:
+    """Calculate a simple average of temperature and pressure."""
+    print(f"  Calculating average of temp={temp} and press={press}")
+    return (temp + press) / 2.0
+
+
+def main() -> None:
 
     # Clear any previous traces
     clear_traces()
@@ -46,10 +52,6 @@ if __name__ == "__main__":
 
     # Add a method that calculates something
     return_var = NumericalVariableNode(id="result", name="result", value=0.0)
-
-    def calculate_average(temp: float, press: float) -> float:
-        """Calculate a simple average of temperature and pressure."""
-        return (temp + press) / 2.0
 
     calc_method = MethodNode(
         id="calculate_avg",
@@ -81,3 +83,7 @@ if __name__ == "__main__":
     collector = get_global_collector()
     events = collector.get_events()
     print_trace_events(events)
+
+
+if __name__ == "__main__":
+    main()

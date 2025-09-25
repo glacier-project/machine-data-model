@@ -10,10 +10,14 @@ import time
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.tracing import clear_traces, TraceLevel
-from machine_data_model.tracing.tracing_core import get_global_collector, set_global_trace_level
+from machine_data_model.tracing.tracing_core import (
+    get_global_collector,
+    set_global_trace_level,
+)
 from support import print_trace_events
 
-if __name__ == "__main__":
+
+def main() -> None:
 
     # Clear any previous traces
     clear_traces()
@@ -59,3 +63,6 @@ if __name__ == "__main__":
     collector = get_global_collector()
     events = collector.get_events()
     print_trace_events(events)
+
+if __name__ == "__main__":
+    main()

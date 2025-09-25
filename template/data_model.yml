@@ -65,7 +65,6 @@ root:
           cfg:
             - !!CallRemoteMethodNode
               method: "/remote/method/path"
-              sender_id: "sender_id"
               remote_id: "remote_id"
         - !!CompositeMethodNode
           name: "remote_read"
@@ -79,7 +78,6 @@ root:
           cfg:
             - !!ReadRemoteVariableNode
               variable: "/remote/variable/path"
-              sender_id: "sender_id"
               remote_id: "remote_id"
               store_as: "return_variable_1"
         - !!CompositeMethodNode
@@ -94,9 +92,23 @@ root:
           cfg:
             - !!WriteRemoteVariableNode
               variable: "/remote/variable/path"
-              sender_id: "sender_id"
               remote_id: "remote_id"
-              value: "$parameter_1"
+              value: "${parameter_1}"
+        - !!CompositeMethodNode
+          name: "remote_wait_event"
+          description: "remote_wait_event_description"
+          parameters:
+            - !!NumericalVariableNode
+              name: "rhs"
+              measure_unit: "LengthUnits.Meter"
+              initial_value: 35
+          returns: []
+          cfg:
+            - !!WaitRemoteEventNode
+              variable: "/remote/variable/path"
+              remote_id: "remote_id"
+              rhs: "${rhs}"
+              operator: "=="
     - !!FolderNode
       name: "dynamic_cfg"
       description: "folder_description_dynamic_cfg"
@@ -114,7 +126,7 @@ root:
               measure_unit: "LengthUnits.Meter"
           cfg:
             - !!ReadVariableNode
-              variable: "$node_path"
+              variable: "${node_path}"
               store_as: "var_value"
         - !!CompositeMethodNode
           name: "dynamic_write"
@@ -129,8 +141,8 @@ root:
               initial_value: 25
           cfg:
             - !!WriteVariableNode
-              variable: "$node_path"
-              value: "$var_value"
+              variable: "${node_path}"
+              value: "${var_value}"
         - !!CompositeMethodNode
           name: "dynamic_call"
           description: "dynamic_call_description"
@@ -144,7 +156,7 @@ root:
               measure_unit: "LengthUnits.Meter"
           cfg:
             - !!CallMethodNode
-              method: "$method_path"
+              method: "${method_path}"
         - !!CompositeMethodNode
           name: "dynamic_wait"
           description: "dynamic_wait_description"
@@ -158,9 +170,9 @@ root:
               initial_value: 20
           cfg:
             - !!WaitConditionNode
-              variable: "$variable_path"
+              variable: "${variable_path}"
               operator: "!="
-              rhs: "$value"
+              rhs: "${value}"
 
     - !!FolderNode
       name: "folder2"
@@ -223,7 +235,7 @@ root:
               store_as: "my_var"
             - !!WriteVariableNode
               variable: "folder1/n_variable2"
-              value: "$my_var"
+              value: "${my_var}"
             - !!ReadVariableNode
               variable: "folder1/n_variable2"
               store_as: "n_variable13"
@@ -255,11 +267,11 @@ root:
               description: "variable_description7"
           cfg:
             - !!WaitConditionNode
-              variable: $node_path
+              variable: ${node_path}
               operator: "=="
-              rhs: $var_in
+              rhs: ${var_in}
             - !!ReadVariableNode
-              variable: $node_path
+              variable: ${node_path}
               store_as: "var_out"
         - !!CompositeMethodNode
           name: "simple_composite_method"

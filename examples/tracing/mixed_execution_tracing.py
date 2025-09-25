@@ -29,7 +29,7 @@ from machine_data_model.tracing.tracing_core import set_global_trace_level
 from support import print_trace_events
 
 
-def cleanup_process(machine_name: str):
+def cleanup_process(machine_name: str) -> None:
     """
     Cleanup function called when a process terminates.
 
@@ -100,7 +100,7 @@ def deserialize_frost_message(data: Dict[str, Any]) -> FrostMessage:
 
 def remote_machine_process(
     request_queue: multiprocessing.Queue, response_queue: multiprocessing.Queue
-):
+) -> None:
     """Process function for the remote machine."""
     # Register cleanup function
     atexit.register(lambda: cleanup_process("RemoteMachine"))
@@ -123,7 +123,7 @@ def remote_machine_process(
     remote_machine.root.add_child(remote_temp)
     remote_machine._register_nodes(remote_machine.root)
 
-    def machine_log(msg: str):
+    def machine_log(msg: str) -> None:
         print(f"[RemoteMachine] {msg}")
 
     machine_log(f"Initialized with temperature: {INIT_TEMP}")
@@ -183,7 +183,7 @@ def local_machine_process(
     request_queue: multiprocessing.Queue,
     response_queue: multiprocessing.Queue,
     result_dict: Dict[str, Any],
-):
+) -> None:
     """Process function for the local machine."""
     # Register cleanup function
     atexit.register(lambda: cleanup_process("LocalMachine"))
@@ -196,7 +196,7 @@ def local_machine_process(
 
     INIT_TEMP = 0.0
 
-    def machine_log(msg: str):
+    def machine_log(msg: str) -> None:
         print(f"[LocalMachine ] {msg}")
 
     try:
@@ -215,7 +215,6 @@ def local_machine_process(
         # Control flow: read remote temperature, store locally
         read_remote_temp = ReadRemoteVariableNode(
             variable_node="temperature",
-            sender_id="LocalMachine",
             remote_id="RemoteMachine",
             store_as="local_temp",
         )
@@ -287,13 +286,13 @@ def local_machine_process(
         result_dict["success"] = False
 
 
-if __name__ == "__main__":
+def main() -> None:
     # Set up multiprocessing
     multiprocessing.set_start_method("spawn")  # Required for some systems
 
     # Create queues for inter-process communication
-    request_queue = multiprocessing.Queue()
-    response_queue = multiprocessing.Queue()
+    request_queue: multiprocessing.Queue = multiprocessing.Queue()
+    response_queue: multiprocessing.Queue = multiprocessing.Queue()
     result_dict = multiprocessing.Manager().dict()
 
     print("Starting multiprocess distributed tracing example...")
@@ -349,3 +348,7 @@ if __name__ == "__main__":
         print(f"\nDistributed tracing failed: {error_msg}")
 
     print("\nMultiprocess example completed.")
+
+
+if __name__ == "__main__":
+    main()

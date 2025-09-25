@@ -33,12 +33,12 @@ from machine_data_model.tracing import (
     TraceLevel,
     clear_traces,
     get_global_collector,
-    set_global_trace_level
+    set_global_trace_level,
 )
 from support import print_trace_events
 
 
-if __name__ == "__main__":
+def main() -> None:
 
     # Clear any existing traces
     clear_traces()
@@ -156,3 +156,7 @@ if __name__ == "__main__":
     collector = get_global_collector()
     events = collector.get_events()
     print_trace_events(events)
+
+
+if __name__ == "__main__":
+    main()
