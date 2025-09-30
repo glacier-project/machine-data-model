@@ -58,6 +58,26 @@ class ControlFlow:
         """
         return self._composite_method_node
 
+    def get_data_model_id(self) -> str:
+        """
+        Get the data model ID of the composite method node that owns this control flow graph.
+
+        :return: The data model ID, or empty string if not available.
+        """
+        if self._composite_method_node and self._composite_method_node.data_model:
+            return self._composite_method_node.data_model.name
+        return ""
+
+    def get_composite_method_id(self) -> str:
+        """
+        Get the ID of the composite method node that owns this control flow graph.
+
+        :return: The composite method node ID, or empty string if not available.
+        """
+        if self._composite_method_node:
+            return self._composite_method_node.id
+        return ""
+
     def get_current_node(self, scope: ControlFlowScope) -> ControlFlowNode | None:
         """
         Get the current control flow node based on the program counter in the scope of the control flow graph.
@@ -80,7 +100,7 @@ class ControlFlow:
         :return: A list of Frost messages to be sent as a result of executing the control flow graph.
         """
 
-        data_model_id = "NO DATA MODEL"  # TODO: fix this
+        data_model_id = self.get_data_model_id()
 
         # Trace control flow start.
         trace_control_flow_start(

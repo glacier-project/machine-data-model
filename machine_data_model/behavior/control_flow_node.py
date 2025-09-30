@@ -103,6 +103,26 @@ class ControlFlowNode(ABC):
         """
         return self._parent_cfg
 
+    def get_data_model_id(self) -> str:
+        """
+        Get the data model ID of the composite method that owns the control flow graph.
+
+        :return: The data model ID, or empty string if not available.
+        """
+        if self._parent_cfg:
+            return self._parent_cfg.get_data_model_id()
+        return ""
+
+    def get_composite_method_id(self) -> str:
+        """
+        Get the ID of the composite method that owns the control flow graph.
+
+        :return: The composite method ID, or the node's own identifier if not available.
+        """
+        if self._parent_cfg:
+            return self._parent_cfg.get_composite_method_id()
+        return self.node
+
     @abstractmethod
     def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         """
