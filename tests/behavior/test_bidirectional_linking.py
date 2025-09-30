@@ -15,20 +15,20 @@ from machine_data_model.behavior.local_execution_node import (
 class TestBidirectionalLinking:
     """Test bidirectional references between CFG nodes and composite methods."""
 
-    def test_composite_method_has_cfg_reference(self):
+    def test_composite_method_has_cfg_reference(self) -> None:
         """Test that composite method nodes have a reference to their CFG."""
         method = CompositeMethodNode(id="test_method", name="Test Method")
 
         assert method.cfg is not None
         assert isinstance(method.cfg, ControlFlow)
 
-    def test_cfg_has_composite_method_reference(self):
+    def test_cfg_has_composite_method_reference(self) -> None:
         """Test that CFGs have a reference back to their composite method."""
         method = CompositeMethodNode(id="test_method", name="Test Method")
 
         assert method.cfg.composite_method_node is method
 
-    def test_cfg_nodes_have_parent_reference(self):
+    def test_cfg_nodes_have_parent_reference(self) -> None:
         """Test that CFG nodes have a reference to their parent CFG."""
         # Create a CFG with nodes
         node1 = ReadVariableNode(variable_node="var1")
@@ -39,7 +39,7 @@ class TestBidirectionalLinking:
         assert node1.parent_cfg is cfg
         assert node2.parent_cfg is cfg
 
-    def test_node_to_cfg_to_composite_method_traversal(self):
+    def test_node_to_cfg_to_composite_method_traversal(self) -> None:
         """Test traversal from a node to its parent CFG to the composite method."""
         method = CompositeMethodNode(id="test_method", name="Test Method")
 
@@ -60,7 +60,7 @@ class TestBidirectionalLinking:
         assert cfg is method.cfg
         assert composite_method is method
 
-    def test_provided_cfg_gets_composite_method_reference(self):
+    def test_provided_cfg_gets_composite_method_reference(self) -> None:
         """Test that when a CFG is provided to CompositeMethodNode, it gets the back reference."""
         # Create CFG first
         cfg = ControlFlow()
@@ -71,7 +71,7 @@ class TestBidirectionalLinking:
         assert method.cfg is cfg
         assert cfg.composite_method_node is method
 
-    def test_cfg_initialization_sets_parent_on_existing_nodes(self):
+    def test_cfg_initialization_sets_parent_on_existing_nodes(self) -> None:
         """Test that ControlFlow.__init__ sets parent references on nodes passed during construction."""
         # Create nodes without parent CFG
         node1 = ReadVariableNode(variable_node="var1")
@@ -85,16 +85,16 @@ class TestBidirectionalLinking:
 
         # Now nodes should have parent reference
         assert node1.parent_cfg is cfg
-        assert node2.parent_cfg is cfg
+        assert node2.parent_cfg is cfg  # type: ignore[unreachable]
 
-    def test_cfg_property_access(self):
+    def test_cfg_property_access(self) -> None:
         """Test that the composite_method_node property works correctly."""
         cfg = ControlFlow()
         method = CompositeMethodNode(id="test", cfg=cfg)
 
         assert cfg.composite_method_node is method
 
-    def test_node_parent_cfg_property_access(self):
+    def test_node_parent_cfg_property_access(self) -> None:
         """Test that the parent_cfg property works correctly."""
         node = ReadVariableNode(variable_node="test")
         cfg = ControlFlow(nodes=[node])
