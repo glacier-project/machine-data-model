@@ -1,10 +1,15 @@
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
 )
 from machine_data_model.behavior.control_flow_scope import ControlFlowScope
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import trace_control_flow_start, trace_control_flow_end
+
+if TYPE_CHECKING:
+    from machine_data_model.nodes.composite_method.composite_method_node import (
+        CompositeMethodNode,
+    )
 
 
 class ControlFlow:
@@ -14,15 +19,27 @@ class ControlFlow:
     Difference execution flows are not supported in this version of the control flow graph.
 
     :ivar _nodes: A list of control flow nodes in the control flow graph.
+    :ivar _composite_method_node: The composite method node that owns this control flow graph.
     """
 
-    def __init__(self, nodes: Sequence[ControlFlowNode] | None = None):
+    def __init__(
+        self,
+        nodes: Sequence[ControlFlowNode] | None = None,
+        composite_method_node: "CompositeMethodNode | None" = None,
+    ):
         """
         Initializes a new `ControlFlow` instance.
 
         :param nodes: A list of control flow nodes in the control flow graph.
+        :param composite_method_node: The composite method node that owns this control flow graph.
         """
         self._nodes = nodes if nodes is not None else []
+        self._composite_method_node = composite_method_node
+
+        # Set parent CFG reference on all nodes
+        for node in self._nodes:
+            if node._parent_cfg is None:
+                node._parent_cfg = self
 
     def nodes(self) -> Sequence[ControlFlowNode]:
         """
@@ -31,6 +48,15 @@ class ControlFlow:
         :return: The list of control flow nodes in the control flow graph.
         """
         return self._nodes
+
+    @property
+    def composite_method_node(self) -> "CompositeMethodNode | None":
+        """
+        Get the composite method node that owns this control flow graph.
+
+        :return: The composite method node, or None if not set.
+        """
+        return self._composite_method_node
 
     def get_current_node(self, scope: ControlFlowScope) -> ControlFlowNode | None:
         """
