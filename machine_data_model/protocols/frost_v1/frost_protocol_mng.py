@@ -24,11 +24,12 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     ErrorCode,
     MethodPayload,
     VariablePayload,
-    ProtocolPayload,
 )
 from machine_data_model.protocols.protocol_mng import ProtocolMng, Message
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
 from machine_data_model.tracing import trace_message_receive, trace_message_send
 import uuid
 import copy
@@ -59,6 +60,8 @@ class FrostProtocolMng(ProtocolMng):
         self._update_messages: List[FrostMessage] = []
         self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
         self._protocol_version = (1, 0, 0)
+        self._message_builder = FrostMessageBuilder()
+        self._message_builder.set_version(self._protocol_version)
 
     # Validate msg type and protocol version
     def _validate_message(self, msg: Message) -> bool:
@@ -311,39 +314,17 @@ class FrostProtocolMng(ProtocolMng):
         :param msg: The protocol message to handle.
         :return: A response message.
         """
+        self._message_builder.with_sender(msg.target).with_target(msg.sender)
         if msg.header.msg_name == ProtocolMsgName.REGISTER:
-            # Acknowledge registration.
-            response_msg = FrostMessage(
-                sender=msg.target,
-                target=msg.sender,
-                identifier=str(uuid.uuid4()),
-                header=FrostHeader(
-                    version=self._protocol_version,
-                    type=MsgType.RESPONSE,
-                    namespace=MsgNamespace.PROTOCOL,
-                    msg_name=ProtocolMsgName.REGISTER,
-                ),
-                payload=ProtocolPayload(),
-            )
+            self._message_builder.with_protocol_register_response_header().with_protocol_payload()
 
-            return self._trace_and_return_response(response_msg, msg)
+            return self._message_builder.build()
 
         if msg.header.msg_name == ProtocolMsgName.UNREGISTER:
             # Acknowledge unregistration.
-            response_msg = FrostMessage(
-                sender=msg.target,
-                target=msg.sender,
-                identifier=str(uuid.uuid4()),
-                header=FrostHeader(
-                    version=self._protocol_version,
-                    type=MsgType.RESPONSE,
-                    namespace=MsgNamespace.PROTOCOL,
-                    msg_name=ProtocolMsgName.UNREGISTER,
-                ),
-                payload=ProtocolPayload(),
-            )
+            self._message_builder.with_protocol_unregister_response_header().with_protocol_payload()
 
-            return self._trace_and_return_response(response_msg, msg)
+            return self._message_builder.build()
 
         return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
@@ -390,21 +371,15 @@ class FrostProtocolMng(ProtocolMng):
                 subscription.correlation_id, node, value
             )
 
-        # append update message
-        response_msg = FrostMessage(
-            correlation_id=subscription.correlation_id,
-            sender=self._data_model.name,
-            target=subscription.subscriber_id,
-            identifier=str(uuid.uuid4()),
-            header=FrostHeader(
-                version=self._protocol_version,
-                type=MsgType.RESPONSE,
-                namespace=MsgNamespace.VARIABLE,
-                msg_name=VariableMsgName.UPDATE,
-            ),
-            payload=VariablePayload(node=node.qualified_name, value=value),
+        self._message_builder.with_sender(self._data_model.name).with_target(
+            subscription.subscriber_id
+        ).with_correlation_id(subscription.correlation_id).with_identifier(
+            str(uuid.uuid4())
+        ).with_variable_update_header().with_variable_payload(
+            node=node.qualified_name,
+            value=value,
         )
-
+        response_msg = self._message_builder.build()
         # append update message.
         self._update_messages.append(
             self._trace_and_return_response(
@@ -432,36 +407,29 @@ class FrostProtocolMng(ProtocolMng):
                 A new FrostMessage that is a response to the original message.
         """
         # Set the sender and target for the response message.
-        _sender = msg.target
-        _target = msg.sender
+        self._message_builder.with_sender(msg.target).with_target(msg.sender)
 
         # Make a deep copy of the header to avoid modifying the original message.
-        _header = copy.deepcopy(msg.header)
+        temp_header = copy.deepcopy(msg.header)
 
         # By default, use the original payload.
-        _payload = msg.payload
+        self._message_builder.with_payload(msg.payload)
 
         # If we receive an error message, create an ErrorPayload.
         if error_message is not None:
-            _payload = ErrorPayload(
+            self._message_builder.with_error_payload(
                 node=msg.payload.node,
                 error_code=ErrorCode.BAD_REQUEST,
                 error_message=error_message,
             )
 
+        self._message_builder.with_identifier(str(uuid.uuid4()))
+        self._message_builder.with_correlation_id(msg.correlation_id)
         # Set the message type to RESPONSE.
-        _header.type = MsgType.RESPONSE
+        temp_header.type = MsgType.RESPONSE
+        self._message_builder.with_header(temp_header)
 
-        response = FrostMessage(
-            sender=_sender,
-            target=_target,
-            identifier=str(uuid.uuid4()),
-            header=_header,
-            payload=_payload,
-            correlation_id=msg.correlation_id,
-        )
-
-        return self._trace_and_return_response(response, msg)
+        return self._trace_and_return_response(self._message_builder.build(), msg)
 
     def _trace_and_return_response(
         self,
