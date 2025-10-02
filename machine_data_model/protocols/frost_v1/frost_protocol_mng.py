@@ -78,6 +78,15 @@ class FrostProtocolMng(ProtocolMng):
 
         return self._is_version_supported(msg.header.version)
 
+    def get_protocol_version(self) -> tuple[int, int, int]:
+        """
+        Returns the version of the Frost protocol in use.
+
+        :return: A tuple representing the major, minor, and patch version.
+        """
+
+        return self._protocol_version
+
     @override
     def handle_request(self, msg: Message) -> Message:
         """

@@ -368,7 +368,9 @@ class FrostMessageBuilder:
         self._payload = ProtocolPayload(node="")
         return self
 
-    def with_variable_payload(self, node: str, value: Any) -> "FrostMessageBuilder":
+    def with_variable_payload(
+        self, node: str, value: Any | None = None
+    ) -> "FrostMessageBuilder":
         """Sets the payload for a variable message."""
         self._payload = VariablePayload(node=node, value=value)
         return self
@@ -402,10 +404,19 @@ class FrostMessageBuilder:
         return self
 
     def with_method_payload(
-        self, node: str, args: list[Any], kwargs: dict[str, Any], ret: dict[str, Any]
+        self,
+        node: str,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
+        ret: dict[str, Any] | None = None,
     ) -> "FrostMessageBuilder":
         """Sets the payload for a method message."""
-        self._payload = MethodPayload(node=node, args=args, kwargs=kwargs, ret=ret)
+        self._payload = MethodPayload(
+            node=node,
+            args=args if args is not None else [],
+            kwargs=kwargs if kwargs is not None else {},
+            ret=ret if ret is not None else {},
+        )
         return self
 
     def with_error_payload(
