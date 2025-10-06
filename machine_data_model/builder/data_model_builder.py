@@ -21,6 +21,9 @@ from machine_data_model.nodes.composite_method.wait_condition_node import (
 from machine_data_model.nodes.composite_method.write_variable_node import (
     WriteVariableNode,
 )
+from machine_data_model.nodes.connectors.remote_resource_spec import (
+    OpcuaRemoteResourceSpec,
+)
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
 from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
@@ -76,7 +79,7 @@ class DataModelBuilder:
                 "children": {child.name: child for child in data.get("children", [])},
                 "connector_name": data.get("connector_name", None),
                 "remote_path": data.get("remote_path", None),
-                "namespace": data.get("namespace", None),
+                "remote_resource_spec": data.get("remote_resource_spec", None),
             }
         )
 
@@ -101,7 +104,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
-                "namespace": data.get("namespace", None),
+                "remote_resource_spec": data.get("remote_resource_spec", None),
             }
         )
 
@@ -125,7 +128,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
-                "namespace": data.get("namespace", None),
+                "remote_resource_spec": data.get("remote_resource_spec", None),
             }
         )
 
@@ -149,7 +152,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
-                "namespace": data.get("namespace", None),
+                "remote_resource_spec": data.get("remote_resource_spec", None),
             }
         )
 
@@ -174,7 +177,7 @@ class DataModelBuilder:
                 "notify_subscribers_only_if_value_changed": data.get(
                     "notify_subscribers_only_if_value_changed", None
                 ),
-                "namespace": data.get("namespace", None),
+                "remote_resource_spec": data.get("remote_resource_spec", None),
             }
         )
 
@@ -199,7 +202,7 @@ class DataModelBuilder:
                 "returns": [ret for ret in data.get("returns", [])],
                 "connector_name": data.get("connector_name", None),
                 "remote_path": data.get("remote_path", None),
-                "namespace": data.get("namespace", None),
+                "remote_resource_spec": data.get("remote_resource_spec", None),
             }
         )
         return method
@@ -354,6 +357,22 @@ class DataModelBuilder:
             password_env_var=data.get("password_env_var", None),
         )
 
+    def _get_opcua_remote_resource_spec(
+        self, loader: yaml.FullLoader, node: yaml.MappingNode
+    ) -> OpcuaRemoteResourceSpec:
+        """
+        Construct an object with node settings that are OPC UA specific.
+
+        :param loader: The yaml loader.
+        :param node: The yaml node.
+        :return: The object with the OPC UA node's settings.
+        """
+        data = loader.construct_mapping(node, deep=True)
+        return OpcuaRemoteResourceSpec(
+            node_id=data.get("node_id", None),
+            namespace=data.get("namespace", None),
+        )
+
     def _add_yaml_constructors(self) -> None:
         # TODO: change old !! tags to single ! tags
         yaml.FullLoader.add_constructor(
@@ -455,4 +474,8 @@ class DataModelBuilder:
         yaml.FullLoader.add_constructor(
             "tag:yaml.org,2002:OpcuaConnector",
             self._get_opcua_connector_node,
+        )
+        yaml.FullLoader.add_constructor(
+            "tag:yaml.org,2002:OpcuaRemoteResourceSpec",
+            self._get_opcua_remote_resource_spec,
         )

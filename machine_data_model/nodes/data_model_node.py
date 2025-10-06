@@ -4,8 +4,10 @@ from typing import Iterator, Mapping, Sequence, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
+    from .connectors.remote_resource_spec import RemoteResourceSpec
 else:
     AbstractConnector = Any
+    RemoteResourceSpec = Any
 
 
 class DataModelNode(ABC):
@@ -28,7 +30,7 @@ class DataModelNode(ABC):
         description: str | None = None,
         connector_name: str | None = None,
         remote_path: str | None = None,
-        namespace: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new `DataModelNode` instance.
@@ -57,7 +59,9 @@ class DataModelNode(ABC):
         self._connector_name: str | None = connector_name
         self._connector: AbstractConnector | None = None
         self._remote_path: str | None = remote_path
-        self._namespace: str | None = namespace
+        self._remote_resource_spec: RemoteResourceSpec | None = remote_resource_spec
+        if self._remote_resource_spec is not None:
+            self._remote_resource_spec.parent = self
 
     @property
     def id(self) -> str:
@@ -165,29 +169,28 @@ class DataModelNode(ABC):
 
     @property
     def remote_path(self) -> str | None:
-        """Remote path getter."""
-        return self._remote_path
+        """
+        Returns the remote path.
+        If the node doesn't have a remote path,
+        it tries to use the remote resource specs to retrieve it.
+        """
+        if self._remote_path is not None:
+            return self._remote_path
+
+        if self._remote_resource_spec is not None:
+            return self._remote_resource_spec.remote_path()
+
+        return None
 
     @property
-    def namespace(self) -> str | None:
-        """Remote namespace getter."""
-        return self._namespace
+    def remote_resource_spec(self) -> RemoteResourceSpec | None:
+        """Remote resource spec getter."""
+        return self._remote_resource_spec
 
-    def set_namespace(self, namespace: str | None) -> None:
-        """Remote namespace setter."""
-        self._namespace = namespace
-
-    @property
-    def qualified_name_with_namespace(self) -> str | None:
-        """
-        Recursively constructs and returns the qualified name with namespaces.
-        """
-        p_qualified_name_with_namespace = (
-            self.parent.qualified_name_with_namespace if self.parent else ""
-        )
-        if self.namespace is None:
-            return f"{p_qualified_name_with_namespace}/{self.name}"
-        return f"{p_qualified_name_with_namespace}/{self.namespace}:{self.name}"
+    @remote_resource_spec.setter
+    def remote_resource_spec(self, value: RemoteResourceSpec | None) -> None:
+        """Remote resource spec setter"""
+        self._remote_resource_spec = value
 
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]

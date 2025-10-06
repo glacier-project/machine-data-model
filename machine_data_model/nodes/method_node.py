@@ -4,7 +4,7 @@ from typing import Any, Iterator
 from typing_extensions import override
 
 from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
-from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
 from machine_data_model.nodes.variable_node import VariableNode
 
 
@@ -31,7 +31,7 @@ class MethodNode(DataModelNode):
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
         remote_path: str | None = None,
-        namespace: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initialize a new MethodNode instance.
@@ -50,7 +50,7 @@ class MethodNode(DataModelNode):
             description=description,
             connector_name=connector_name,
             remote_path=remote_path,
-            namespace=namespace,
+            remote_resource_spec=remote_resource_spec,
         )
         self._parameters: list[VariableNode] = (
             parameters if parameters is not None else []
@@ -364,7 +364,7 @@ class AsyncMethodNode(MethodNode):
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
         remote_path: str | None = None,
-        namespace: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initialize a new AsyncMethodNode instance.
@@ -385,7 +385,7 @@ class AsyncMethodNode(MethodNode):
             callback=callback,
             connector_name=connector_name,
             remote_path=remote_path,
-            namespace=namespace,
+            remote_resource_spec=remote_resource_spec,
         )
 
     def is_async(self) -> bool:

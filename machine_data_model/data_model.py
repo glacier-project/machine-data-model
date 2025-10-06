@@ -44,8 +44,8 @@ class DataModel:
         # set up the connector for each node
         # todo: this can be optimized by setting
         #       the connectors while registering the nodes
+        self._setup_inheritable_specs(self._root)
         for node in self._nodes.values():
-            self._set_node_namespace(node)
             self._set_node_connector(node)
             # subscribe to all the variable changes
             # > if it is an object, skip it: the subscription is done on the properties
@@ -114,19 +114,42 @@ class DataModel:
 
             # if the user overrides the remote path, don't set it as the qualified name
             if not node.is_remote_path_set():
-                node.set_remote_path(node.qualified_name_with_namespace)
+                if node.remote_resource_spec:
+                    remote_path = node.remote_resource_spec.remote_path()
+                    node.set_remote_path(remote_path)
+                else:
+                    node.set_remote_path(node.qualified_name)
 
-    def _set_node_namespace(self, node: DataModelNode) -> None:
+    def _setup_inheritable_specs(self, root: DataModelNode) -> None:
         """
-        Find the closest namespace to the node by moving upwards in the tree.
-        When/if found, set it as the node's namespace.
-        """
-        node_ptr: DataModelNode | None = node
-        while node_ptr is not None and node_ptr.namespace is None:
-            node_ptr = node_ptr.parent
+        Calls the recursive method which sets up all the nodes remote specs.
 
-        if node_ptr and node_ptr.namespace:
-            node.set_namespace(node_ptr.namespace)
+        :param root: the root of the data model
+        """
+        self._setup_child_inherited_specs(root, None)
+
+    def _setup_child_inherited_specs(
+        self, node: DataModelNode, parent: DataModelNode | None
+    ) -> None:
+        """
+        Recursively sets the remote resource specs for the current node
+        from its parent's specs.
+
+        :param node: node which needs to be set up
+        :param parent: parent of node, has inheritable specs
+        """
+        if parent and parent.remote_resource_spec:
+            inheritable_spec = parent.remote_resource_spec.inheritable_spec()
+            if node.remote_resource_spec:
+                node.remote_resource_spec = parent.remote_resource_spec.merge_specs(
+                    node.remote_resource_spec, inheritable_spec
+                )
+            else:
+                node.remote_resource_spec = inheritable_spec
+                node.remote_resource_spec.parent = node
+
+        for child in node:
+            self._setup_child_inherited_specs(child, node)
 
     @property
     def name(self) -> str:

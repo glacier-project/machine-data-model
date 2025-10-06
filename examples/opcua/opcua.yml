@@ -25,6 +25,16 @@ root:
   connector_name: "myOpcuaConnector1"
   children:
     - !!MethodNode
+      name: "Methods_Output_With_Node_Id"
+      description: "OPC-UA nodes can also specify the node_id to access the remote node"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        node_id: "ns=6;s=Methods_Output"
+      returns:
+        - !!StringVariableNode
+          name: "Result"
+          description: "Method output"
+    - !!MethodNode
       name: "Methods_Output_With_Remote_Path"
       remote_path: "/Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
       description: "The remote_path overrides the qualified name. Method with no input, returns the 'Output' string"
@@ -34,7 +44,9 @@ root:
           description: "Method output"
     - !!FolderNode
       name: "Boilers"
-      namespace: "4"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "4"
       description: "Boilers folder"
       children:
         - !!ObjectVariableNode
@@ -43,25 +55,35 @@ root:
           properties:
             - !!StringVariableNode
               name: "AssetId"
-              namespace: "2"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "2"
               description: "asset id"
 
             - !!ObjectVariableNode
               name: "ParameterSet"
-              namespace: "2"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "2"
               description: "parameter set"
               properties:
                 - !!NumericalVariableNode
                   name: "CurrentTemperature"
-                  namespace: "4"
+                  remote_resource_spec:
+                    !!OpcuaRemoteResourceSpec
+                    namespace: "4"
                   description: "current temperature"
                 - !!NumericalVariableNode
                   name: "OverheatedThresholdTemperature"
-                  namespace: "4"
+                  remote_resource_spec:
+                    !!OpcuaRemoteResourceSpec
+                    namespace: "4"
                   description: "overheated threshold temp"
     - !!FolderNode
       name: "OpcPlc"
-      namespace: "3"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "3"
       description: "Opc PLC"
       children:
         - !!FolderNode
@@ -70,16 +92,22 @@ root:
           children:
             - !!MethodNode
               name: "HeaterOff"
-              namespace: "4"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "4"
               description: "heater off"
             - !!MethodNode
-              name: "4:HeaterOn"
-              namespace: "4"
+              name: "HeaterOn"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "4"
               description: "heater on"
 
     - !!FolderNode
       name: "ReferenceTest"
-      namespace: "6"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "6"
       description: "Reference Test"
       children:
         - !!FolderNode
