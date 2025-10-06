@@ -337,7 +337,9 @@ class DataModelBuilder:
         return OpcuaConnector(
             name=data.get("name", None),
             ip=data.get("ip", "127.0.0.1"),
+            ip_env_var=data.get("ip_env_var", None),
             port=data.get("port", 4840),
+            port_env_var=data.get("port_env_var", None),
             security_policy=data.get("security_policy", None),
             host_name=data.get("host_name", None),
             client_app_uri=data.get("client_app_uri", None),
@@ -347,6 +349,7 @@ class DataModelBuilder:
                 "trust_store_certificates_paths", None
             ),
             username=data.get("username", None),
+            username_env_var=data.get("username_env_var", None),
             password=data.get("password", None),
             password_env_var=data.get("password_env_var", None),
         )

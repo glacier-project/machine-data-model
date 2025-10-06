@@ -2,10 +2,11 @@ import os
 from dataclasses import dataclass
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator, Any, TypeVar, Callable
+from typing import Iterator, Any, TypeVar, Callable, Type
 import logging
 
 TaskReturnType = TypeVar("TaskReturnType")
+YamlEntryType = int | str | float
 
 _logger = logging.getLogger(__name__)
 
@@ -30,32 +31,44 @@ class AbstractConnector(ABC):
         id: str | None = None,
         name: str | None = None,
         ip: str | None = None,
+        ip_env_var: str | None = None,
         port: int | None = None,
+        port_env_var: str | None = None,
         username: str | None = None,
+        username_env_var: str | None = None,
         password: str | None = None,
         password_env_var: str | None = None,
     ) -> None:
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str | None = name
-        self._ip: str | None = ip
-        self._port: int | None = port
-        self._username: str | None = username
 
-        if password is not None and password_env_var is not None:
-            raise ValueError(
-                f"Connector '{self.name}': only set one of the following attributes: 'password' or 'password_env_var'"
-            )
-
-        if password_env_var is not None and os.getenv(password_env_var) is None:
-            raise ValueError(
-                f"Connector '{self.name}': password environment variable '{password_env_var}' is not set"
-            )
-
-        self._password: str | None = (
-            os.environ.get(password_env_var)
-            if password_env_var is not None
-            else password
+        ip_value = self._get_yaml_entry_or_env_var_value(
+            "ip", str, ip, ip_env_var, env_var_overrides_yaml=True
         )
+        assert isinstance(ip_value, (str, type(None))), "ip must be a str or None"
+        self._ip: str | None = ip_value
+
+        port_value = self._get_yaml_entry_or_env_var_value(
+            "port", int, port, port_env_var, env_var_overrides_yaml=True
+        )
+        assert isinstance(port_value, (int, type(None))), "port must be a int or None"
+        self._port = port_value
+
+        username_value = self._get_yaml_entry_or_env_var_value(
+            "username", str, username, username_env_var
+        )
+        assert isinstance(
+            username_value, (str, type(None))
+        ), "username must be a str or None"
+        self._username = username_value
+
+        password_value = self._get_yaml_entry_or_env_var_value(
+            "password", str, password, password_env_var
+        )
+        assert isinstance(
+            password_value, (str, type(None))
+        ), "password must be a str or None"
+        self._password = password_value
 
     @property
     def id(self) -> str:
@@ -72,6 +85,48 @@ class AbstractConnector(ABC):
     @property
     def port(self) -> int | None:
         return self._port
+
+    def _get_yaml_entry_or_env_var_value(
+        self,
+        yaml_entry_name: str,
+        yaml_entry_type: Type[YamlEntryType],
+        yaml_entry: YamlEntryType | None,
+        env_var: str | None,
+        env_var_overrides_yaml: bool = False,
+    ) -> YamlEntryType | None:
+        """
+        Returns the content of the env_var environment variable when set,
+        otherwise it returns yaml_entry.
+
+        When env_var_overrides_yaml is False, the function can throw an error to indicate
+        that the user must either specify env_var or yaml_entry, but not both.
+
+        If env_var_overrides_yaml is True, the env_var environment variable content always overrides the yaml_entry,
+        without throwing exceptions.
+        > This can be useful when the yaml_entry has a default value.
+
+        > The function type casts the value to the yaml_entry_type type automatically.
+        """
+
+        if (
+            not env_var_overrides_yaml
+            and yaml_entry is not None
+            and env_var is not None
+        ):
+            raise ValueError(
+                f"Connector '{self.name}': only set one of the following attributes: '{yaml_entry_name}' or '{env_var}'"
+            )
+
+        if env_var is not None and os.getenv(env_var) is None:
+            raise ValueError(
+                f"Connector '{self.name}': environment variable '{env_var}' is not set"
+            )
+
+        value = os.environ.get(env_var) if env_var is not None else yaml_entry
+
+        if value is not None:
+            value = yaml_entry_type(value)
+        return value
 
     @abstractmethod
     def connect(self) -> bool:

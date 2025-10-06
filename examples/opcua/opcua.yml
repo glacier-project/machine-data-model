@@ -7,12 +7,15 @@ connectors:
   - !!OpcuaConnector
     name: "myOpcuaConnector1"
     ip: "127.0.0.1"
+    # ip_env_var: "env_var_with_ip"
     port: 50000
+    # port_env_var: "env_var_with_port"
     security_policy: "SecurityPolicyBasic256Sha256"
     # private_key_file_path: "certificates/peer-private-key-example-4.pem"
     # certificate_file_path: "certificates/peer-certificate-example-4.der"
     # trust_store_certificates_paths: ['certificates']
     # username: "username"
+    # username_env_var: "env_var_with_username"  # use either username or username_env_var
     # password: "password"
     # password_env_var: "env_var_with_pwd"  # use either password or password_env_var
 root:
