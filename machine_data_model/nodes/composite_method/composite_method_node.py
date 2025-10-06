@@ -62,7 +62,9 @@ class CompositeMethodNode(MethodNode):
             returns=returns,
         )
         self._scopes: dict[str, ControlFlowScope] = {}
-        self.cfg = cfg if cfg is not None else ControlFlow()
+        self.cfg = cfg if cfg is not None else ControlFlow(composite_method_node=self)
+        if cfg is not None and self.cfg._composite_method_node is None:
+            self.cfg._composite_method_node = self
 
     def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
         """
