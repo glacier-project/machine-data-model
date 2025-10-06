@@ -302,7 +302,11 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         node = None
         try:
-            node = await self._client.get_root_node().get_child(path)
+            if path.startswith("ns"):
+                # path is a node id
+                node = self._client.get_node(path)
+            else:
+                node = await self._client.get_root_node().get_child(path)
             assert isinstance(
                 node, asyncua.Node
             ), "Node read by remote OPC-UA server must be an asyncua.Node"
@@ -416,7 +420,8 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         if len(path_parts) == 1:
             method_id = path_parts[0]
-            result = await self._client.get_root_node().call_method(method_id, *params)
+            parent = await node.get_parent()
+            result = await parent.call_method(node.nodeid, *params)
             _logger.debug(
                 f"Called '{path}' using the root node and method_id = '{method_id}'. Return value is: {result!r}"
             )

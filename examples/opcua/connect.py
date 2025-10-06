@@ -120,6 +120,11 @@ try:
     assert isinstance(output_method_objects, MethodNode), "output_method_objects must be a method"
     result = output_method_objects()
     print("Result of the same method, but defined using remote_path: ", result)
+
+    output_method_with_node_id = data_model.get_node("Objects/Methods_Output_With_Node_Id")
+    assert isinstance(output_method_with_node_id, MethodNode), "output_method_with_node_id must be a method"
+    result = output_method_with_node_id()
+    print("Result of the same method, but defined using node_id: ", result)
 except Exception as e:
     print("ERROR:", e)
     data_model.close_connectors()
