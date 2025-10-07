@@ -169,3 +169,6 @@ dump/
 # OPC-UA Selfsigned certificates
 *.pem
 *.der
+
+# Environment variable files
+.envrc
