@@ -23,7 +23,6 @@ from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
     FrostProtocolMng,
 )
 from machine_data_model.protocols.frost_v1.frost_header import (
-    FrostHeader,
     MsgType,
     MsgNamespace,
     VariableMsgName,
@@ -35,8 +34,10 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     SubscriptionPayload,
     VariablePayload,
     MethodPayload,
-    ProtocolPayload,
     ErrorPayload,
+)
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
 )
 
 # Test data constants
@@ -67,29 +68,6 @@ def get_value(data_model_node: DataModelNode) -> Any:
     return None
 
 
-def create_frost_message(
-    sender: str,
-    target: str,
-    msg_type: MsgType,
-    namespace: MsgNamespace,
-    msg_name: Any,
-    payload: Any,
-) -> FrostMessage:
-    """Helper to create FrostMessage instances with common parameters."""
-    return FrostMessage(
-        sender=sender,
-        target=target,
-        identifier=str(uuid.uuid4()),
-        header=FrostHeader(
-            type=msg_type,
-            version=(1, 0, 0),
-            namespace=namespace,
-            msg_name=msg_name,
-        ),
-        payload=payload,
-    )
-
-
 def assert_response_matches_request(
     response: FrostMessage,
     request: FrostMessage,
@@ -112,14 +90,13 @@ def setup_remote_method_test(
     method = manager.get_data_model().get_node(method_path)
     assert isinstance(method, CompositeMethodNode)
 
-    msg = create_frost_message(
-        sender,
-        target,
-        MsgType.REQUEST,
-        MsgNamespace.METHOD,
-        MethodMsgName.INVOKE,
-        MethodPayload(node=method_path),
-    )
+    builder = FrostMessageBuilder()
+    builder.set_version(manager.get_protocol_version())
+    builder.with_sender(sender).with_target(
+        target
+    ).with_method_invoke_header().with_method_payload(node=method_path)
+    msg = builder.build()
+    assert isinstance(msg, FrostMessage)
 
     response = manager.handle_request(msg)
     assert isinstance(response, FrostMessage)
@@ -178,14 +155,13 @@ class TestFrostProtocolMng:
     def test_handle_variable_read_request(
         self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
     ) -> None:
-        msg = create_frost_message(
-            sender,
-            target,
-            MsgType.REQUEST,
-            MsgNamespace.VARIABLE,
-            VariableMsgName.READ,
-            VariablePayload(node=var_name),
-        )
+        builder = FrostMessageBuilder()
+        builder.set_version(manager.get_protocol_version())
+        builder.with_sender(sender).with_target(
+            target
+        ).with_variable_read_value_request_header().with_variable_payload(node=var_name)
+        msg = builder.build()
+        assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)
         assert isinstance(response, FrostMessage)
@@ -204,14 +180,16 @@ class TestFrostProtocolMng:
         assert isinstance(node, VariableNode)
         value = get_value(node)
 
-        msg = create_frost_message(
-            sender,
-            target,
-            MsgType.REQUEST,
-            MsgNamespace.VARIABLE,
-            VariableMsgName.WRITE,
-            VariablePayload(node=var_name, value=value),
+        builder = FrostMessageBuilder()
+        builder.set_version(manager.get_protocol_version())
+        builder.with_sender(sender).with_target(
+            target
+        ).with_variable_write_request_header().with_variable_payload(
+            node=var_name, value=value
         )
+
+        msg = builder.build()
+        assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)
         assert isinstance(response, FrostMessage)
@@ -226,30 +204,27 @@ class TestFrostProtocolMng:
         self, manager: FrostProtocolMng, sender: str, target: str
     ) -> None:
         node_path = "folder1/boolean"
-        write_messages = [
-            create_frost_message(
-                sender,
-                target,
-                MsgType.REQUEST,
-                MsgNamespace.VARIABLE,
-                VariableMsgName.WRITE,
-                VariablePayload(node=node_path, value=True),
-            ),
-            create_frost_message(
-                sender,
-                target,
-                MsgType.REQUEST,
-                MsgNamespace.VARIABLE,
-                VariableMsgName.WRITE,
-                VariablePayload(node=node_path, value=False),
-            ),
-        ]
+        builder = FrostMessageBuilder()
+        builder.set_version(manager.get_protocol_version())
+        builder.with_sender(sender).with_target(
+            target
+        ).with_variable_write_request_header().with_variable_payload(
+            node=node_path, value=True
+        )
+        write_messages = [builder.build()]
+        builder.with_sender(sender).with_target(
+            target
+        ).with_variable_write_request_header().with_variable_payload(
+            node=node_path, value=False
+        )
+        write_messages.append(builder.build())
 
         node = manager.get_data_model().get_node(node_path)
         assert isinstance(node, BooleanVariableNode)
 
         for i in range(11):
             for msg, value in zip(write_messages, [True, False]):
+                assert isinstance(msg, FrostMessage)
                 response = manager.handle_request(msg)
                 node.write(value)
                 assert isinstance(response, FrostMessage)
@@ -263,14 +238,15 @@ class TestFrostProtocolMng:
         assert isinstance(node, ObjectVariableNode)
         value = get_value(node)
 
-        msg = create_frost_message(
-            sender,
-            target,
-            MsgType.REQUEST,
-            MsgNamespace.VARIABLE,
-            VariableMsgName.SUBSCRIBE,
-            SubscriptionPayload(node=var_name),
+        builder = FrostMessageBuilder()
+        builder.set_version(manager.get_protocol_version())
+        builder.with_sender(sender).with_target(
+            target
+        ).with_variable_subscribe_request_header().with_subscription_payload(
+            node=var_name
         )
+        msg = builder.build()
+        assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)
         assert isinstance(response, FrostMessage)
@@ -308,14 +284,15 @@ class TestFrostProtocolMng:
         assert isinstance(node, VariableNode)
         param_value = get_value(node)
 
-        msg = create_frost_message(
-            sender,
-            target,
-            MsgType.REQUEST,
-            MsgNamespace.METHOD,
-            MethodMsgName.INVOKE,
-            MethodPayload(node=f"folder1/{method_name}", args=[param_value]),
+        builder = FrostMessageBuilder()
+        builder.set_version(manager.get_protocol_version())
+        builder.with_sender(sender).with_target(
+            target
+        ).with_method_invoke_header().with_method_payload(
+            node=f"folder1/{method_name}", args=[param_value]
         )
+        msg = builder.build()
+        assert isinstance(msg, FrostMessage)
 
         # Setup method node with callback
         def callback(in_var: Any) -> Any:
@@ -348,14 +325,15 @@ class TestFrostProtocolMng:
         wait_node = manager.get_data_model().get_node("/folder1/n_variable2")
         assert isinstance(wait_node, VariableNode)
 
-        msg = create_frost_message(
-            sender,
-            target,
-            MsgType.REQUEST,
-            MsgNamespace.METHOD,
-            MethodMsgName.INVOKE,
-            MethodPayload(node="/folder1/folder2/composite_method1"),
+        builder = FrostMessageBuilder()
+        builder.set_version(manager.get_protocol_version())
+        builder.with_sender(sender).with_target(
+            target
+        ).with_method_invoke_header().with_method_payload(
+            node="/folder1/folder2/composite_method1"
         )
+        msg = builder.build()
+        assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)
         assert isinstance(response, FrostMessage)
@@ -372,14 +350,13 @@ class TestFrostProtocolMng:
     def test_handle_protocol_register(
         self, manager: FrostProtocolMng, sender: str, target: str
     ) -> None:
-        msg = create_frost_message(
-            sender,
-            "bus",
-            MsgType.REQUEST,
-            MsgNamespace.PROTOCOL,
-            ProtocolMsgName.REGISTER,
-            ProtocolPayload(),
-        )
+        builder = FrostMessageBuilder()
+        builder.set_version(manager.get_protocol_version())
+        builder.with_sender(sender).with_target(
+            "bus"
+        ).with_protocol_register_request_header().with_protocol_payload()
+        msg = builder.build()
+        assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)
         assert isinstance(response, FrostMessage)
