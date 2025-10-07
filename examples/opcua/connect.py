@@ -93,7 +93,7 @@ assert current_value == val, "read() after write() and forced read() should be e
 assert current_value == initial_value, "current value and initial value should be equal"
 
 time.sleep(5)
-threshold.unsubscribe("thresholdUser")
+threshold.unsubscribe("thresholdUser", "c1")
 
 # call method
 print("----------------")
