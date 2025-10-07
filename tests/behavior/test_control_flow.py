@@ -1,7 +1,7 @@
 import pytest
 
-from machine_data_model.behavior.control_flow_scope import (
-    ControlFlowScope,
+from machine_data_model.behavior.execution_context import (
+    ExecutionContext,
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
 from tests import get_dummy_method_node
@@ -18,16 +18,16 @@ class TestControlFlow:
     def test_non_blocking_control_flow(
         self, method_nodes: list[AsyncMethodNode]
     ) -> None:
-        scope = ControlFlowScope(scope_id="test_scope")
+        context = ExecutionContext(context_id="test_context")
         cf = get_non_blocking_cf(method_nodes)
 
-        cf.execute(scope)
+        cf.execute(context)
 
-        assert not scope.is_active()
-        assert scope.get_pc() == len(cf.nodes())
+        assert not context.is_active()
+        assert context.get_pc() == len(cf.nodes())
         for node in method_nodes:
             for param in node.returns:
-                assert param.read() == scope.get_value(param.name)
+                assert param.read() == context.get_value(param.name)
 
     @pytest.mark.parametrize(
         "method_nodes",
@@ -36,13 +36,13 @@ class TestControlFlow:
         ],
     )
     def test_blocking_control_flow(self, method_nodes: list[AsyncMethodNode]) -> None:
-        scope = ControlFlowScope(scope_id="test_scope")
+        context = ExecutionContext(context_id="test_context")
         cf = get_blocking_cf(method_nodes)
 
-        cf.execute(scope)
+        cf.execute(context)
 
-        assert scope.is_active()
-        assert scope.get_pc() < len(cf.nodes())
+        assert context.is_active()
+        assert context.get_pc() < len(cf.nodes())
         for node in method_nodes:
             for param in node.returns:
-                assert param.read() == scope.get_value(param.name)
+                assert param.read() == context.get_value(param.name)

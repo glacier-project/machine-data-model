@@ -164,7 +164,7 @@ class TestDataModel:
 
     def test_runtime_resolution_of_nodes(self, root: FolderNode) -> None:
         data_model = get_template_data_model()
-        # scope = ControlFlowScope(str("test"))
+        # context = ExecutionContext(str("test"))
         assert isinstance(data_model, DataModel)
         r = data_model.get_node("folder1/folder2")
         assert isinstance(r, FolderNode)
@@ -175,7 +175,7 @@ class TestDataModel:
         ret = composite_node(*args)
 
         assert not ret.messages
-        assert ret.return_values["@scope_id"]
+        assert ret.return_values["@context_id"]
 
         data_model.write_variable("folder1/boolean", True)
         ret = composite_node(*args)

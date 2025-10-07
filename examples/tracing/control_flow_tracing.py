@@ -14,7 +14,7 @@ from machine_data_model.behavior.local_execution_node import (
     WriteVariableNode,
 )
 from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.tracing import (
     clear_traces,
     TraceLevel,
@@ -66,20 +66,20 @@ def main() -> None:
     for i in range(3):
         print(f"\nExecution {i+1}:")
 
-        # Create a new scope for each execution
-        scope = ControlFlowScope(f"execution_{i+1}")
+        # Create a new context for each execution.
+        context = ExecutionContext(f"execution_{i+1}")
 
         # Execute the control flow
-        messages = control_flow.execute(scope)
+        messages = control_flow.execute(context)
 
         # Show the results
         counter_value = data_model.read_variable("counter")
         result_value = data_model.read_variable("result")
-        scope_count = scope.get_value("current_count")
+        context_count = context.get_value("current_count")
 
         print(f"  Counter: {counter_value}")
         print(f"  Result: {result_value}")
-        print(f"  Scope current_count: {scope_count}")
+        print(f"  context current_count: {context_count}")
         print(f"  Messages sent: {len(messages)}")
 
         time.sleep(0.1)  # Small delay between executions
