@@ -24,7 +24,7 @@ async def main():
         print(f"{res=}")
         res = await res
         print(f"{res=}")
-        
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

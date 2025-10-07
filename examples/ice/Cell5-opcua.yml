@@ -78,7 +78,7 @@ root:
               name: "LastResult"
               description: "Lego image"
               measure_unit: "LengthUnits.Meter"
-              initial_value: False   
+              initial_value: False
         - !!FolderNode
           name: "Statistics"
           description: "Contains statistics of the Lego analyzed"

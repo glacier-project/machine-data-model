@@ -29,10 +29,10 @@ root:
           name: "DataBlocksGlobal"
           description: "DataBlocksInstance"
           children:
-            - !!FolderNode 
+            - !!FolderNode
               name: "DB_ROBOTS"
               description: "DB_ROBOTS"
-              children:            
+              children:
                 - !!BooleanVariableNode
                   name: "plcOperationRunning"
                   description: ice_data_cell4_control
@@ -133,7 +133,7 @@ root:
         #         - !!FolderNode
         #           name: "KUKAPositions"
         #           description: "KUKAPositions"
-        #           children: 
+        #           children:
         #             - !!NumericalVariableNode
         #               name: "0"
         #               description: "ice_data_cell4_state"
@@ -167,7 +167,7 @@ root:
         #     - !!FolderNode
         #       name: "DB_STATISTICS"
         #       description: "DB_STATISTICS"
-        #       children:        
+        #       children:
         #         - !!NumericalVariableNode
         #           name: "ABB_TASK_COUNT"
         #           description: "ice_data_cell4_kpi"

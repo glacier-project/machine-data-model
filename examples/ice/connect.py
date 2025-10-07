@@ -1,10 +1,8 @@
 import sys
-import time
 from pathlib import Path
 import logging
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.nodes.variable_node import VariableNode
 
 # change to logging.DEBUG to show debug messages
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
@@ -59,7 +57,7 @@ try:
     print(f"node type: {type(node)} - node: {node}")
     assert isinstance(node, VariableNode)
     node.set_subscription_callback(callback)
-    node.subscribe("test-callback")    
+    node.subscribe("test-callback")
     while True:
         value = node.read(force_remote_read=False)
         print(f"{value=}")
