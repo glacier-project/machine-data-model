@@ -48,6 +48,21 @@ def _security_policy_string_to_asyncua_policy(
     return policy
 
 
+async def get_input_arguments(node: asyncua.Node) -> asyncua.Node | None:
+    """
+    Given a method node, returns its input arguments.
+    If the method doesn't have input arguments, it returns None.
+    """
+    props = await node.get_properties()
+
+    for prop in props:
+        name = await prop.read_browse_name()
+        name = name.Name
+        if name == "InputArguments":
+            return prop
+    return None
+
+
 class OpcuaConnector(AbstractAsyncConnector):
     """
     Represents an OPCUA client
@@ -385,21 +400,9 @@ class OpcuaConnector(AbstractAsyncConnector):
             )
 
         # check if the node has inputs
-        props = await node.get_properties()
-        contains_inputs = False
-        for prop in props:
-            name = await prop.read_display_name()
-            name = name.Text
-            if name == "InputArguments":
-                contains_inputs = True
-                break
-
-        path_parts = path.lstrip("/").split("/")
-        input_arg_path = path + "/InputArguments"
+        method_inputs = await get_input_arguments(node)
         inputs = []
-        if contains_inputs:
-            method_inputs = await self._async_get_remote_node(input_arg_path)
-            assert method_inputs is not None, "method_inputs must be method inputs"
+        if method_inputs is not None:
             inputs = (
                 await method_inputs.read_value()
             )  # returns a list of Argument-Class
@@ -415,30 +418,12 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         _logger.debug(f"Converted parameters of '{path}' into VariantTypes: {params}")
 
-        if len(path_parts) == 0:
-            return None
-
-        if len(path_parts) == 1:
-            method_id = path_parts[0]
+        result = None
+        try:
             parent = await node.get_parent()
             result = await parent.call_method(node.nodeid, *params)
             _logger.debug(
-                f"Called '{path}' using the root node and method_id = '{method_id}'. Return value is: {result!r}"
-            )
-            return result
-
-        result = None
-        try:
-            parent_path = "/".join(path_parts[:-1])
-            method_id = path_parts[-1]
-            parent_node = await self._async_get_remote_node(parent_path)
-            if parent_node is None:
-                raise Exception(
-                    f"Couldn't call remote method using '{self._name}' connector: couldn't retrieve the parent node which contains the method '{path}'"
-                )
-            result = await parent_node.call_method(method_id, *params)
-            _logger.debug(
-                f"Called '{path}' using the parent node '{parent_path}' and method_id '{method_id}'. Return value is: {result!r}"
+                f"Called '{path}' using the parent node. Return value is: {result!r}"
             )
         except UaError as exp:
             _logger.error(exp)
