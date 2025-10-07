@@ -455,23 +455,25 @@ def _get_opcua_connector_node(
     :return: The constructed OPC-UA Connector.
     """
     data = loader.construct_mapping(node, deep=True)
-    return OpcuaConnector(
-        name=data.get("name", None),
-        ip=data.get("ip", "127.0.0.1"),
-        ip_env_var=data.get("ip_env_var", None),
-        port=data.get("port", 4840),
-        port_env_var=data.get("port_env_var", None),
-        security_policy=data.get("security_policy", None),
-        host_name=data.get("host_name", None),
-        client_app_uri=data.get("client_app_uri", None),
-        certificate_file_path=data.get("certificate_file_path", None),
-        private_key_file_path=data.get("private_key_file_path", None),
-        trust_store_certificates_paths=data.get("trust_store_certificates_paths", None),
-        username=data.get("username", None),
-        username_env_var=data.get("username_env_var", None),
-        password=data.get("password", None),
-        password_env_var=data.get("password_env_var", None),
-    )
+    default_kwargs = {
+        "name": None,
+        "ip": "127.0.0.1",
+        "ip_env_var": None,
+        "port": 4840,
+        "port_env_var": None,
+        "security_policy": None,
+        "host_name": None,
+        "client_app_uri": None,
+        "certificate_file_path": None,
+        "private_key_file_path": None,
+        "trust_store_certificates_paths": None,
+        "username": None,
+        "username_env_var": None,
+        "password": None,
+        "password_env_var": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return OpcuaConnector(**kwargs)
 
 
 def _get_opcua_remote_resource_spec(
@@ -485,10 +487,12 @@ def _get_opcua_remote_resource_spec(
     :return: The object with the OPC UA node's settings.
     """
     data = loader.construct_mapping(node, deep=True)
-    return OpcuaRemoteResourceSpec(
-        node_id=data.get("node_id", None),
-        namespace=data.get("namespace", None),
-    )
+    default_kwargs = {
+        "node_id": None,
+        "namespace": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return OpcuaRemoteResourceSpec(**kwargs)
 
 
 def _register_yaml_constructors() -> None:
