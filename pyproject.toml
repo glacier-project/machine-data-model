@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "machine-data-model"
-version = "0.0.1"
+version = "1.0.0"
 description = "Machine data model for the Glacier platform."
 authors = ["Sebastiano Gaiardelli <sebastiano.gaiardelli@univr.it>"]
 license = "BSD-2-Clause"
