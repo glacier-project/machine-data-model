@@ -1,9 +1,9 @@
 from abc import abstractmethod
 from collections.abc import Callable
 from enum import Enum
-from typing import Any, Iterator
-
+from typing import Any, Generator
 from typing_extensions import override
+
 from unitsnet_py.abstract_unit import AbstractMeasure
 
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -11,6 +11,16 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     MeasureBuilder,
     NoneMeasureUnits,
     get_measure_builder,
+)
+from machine_data_model.tracing import (
+    trace_variable_read,
+    trace_variable_write,
+    trace_subscribe,
+    trace_unsubscribe,
+    trace_notification,
+)
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
 )
 
 
@@ -49,10 +59,10 @@ class VariableNode(DataModelNode):
         self._pre_update_value: Callable[[Any], Any] = lambda value: value
         self._post_update_value: Callable[[Any, Any], bool] = lambda prev, curr: True
         # List of subscribers and related callbacks.
-        self._subscribers: list[str] = []
-        self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
-            lambda subscriber, node, value: None
-        )
+        self._subscriptions: list[VariableSubscription] = []
+        self._subscription_callback: Callable[
+            [VariableSubscription, "VariableNode", Any], None
+        ] = lambda subscription, node, value: None
 
     def read(self) -> Any:
         """
@@ -66,6 +76,13 @@ class VariableNode(DataModelNode):
         value = self._read_value()
         # Execute the post-read callback and return the value.
         value = self._post_read_value(value)
+        # Trace the variable read operation
+        trace_variable_read(
+            variable_id=self.id,
+            value=value,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
         # Return the read value.
         return value
 
@@ -82,27 +99,32 @@ class VariableNode(DataModelNode):
         value = self._pre_update_value(value)
         # Update the value of the variable with the new value.
         value = self._update_value(value)
-        # If validation fails (post-update), restore the previous value and
-        # return False.
-        if not self._post_update_value(prev_value, value):
-            # Restore previous value if validation fails.
-            self._update_value(prev_value)
-            return False
-
-        # Notify subscribers if the update was successful.
-        self.notify_subscribers()
-
-        # Return True if the value was successfully updated and validated.
-        return True
+        # Perform the post-update operations and get the success status.
+        success = self._post_update_value(prev_value, value)
+        # Trace the variable write operation.
+        trace_variable_write(
+            variable_id=self.id,
+            old_value=prev_value,
+            new_value=value,
+            success=success,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+        # Notify subscribers if the update was successful, otherwise restore
+        # the previous value.
+        if success:
+            self.notify_subscribers()
+        else:
+            value = self._update_value(prev_value)
+            assert value == prev_value
+        return success
 
     @property
     def value(self) -> Any:
-        # Getter for the 'value' property
         return self.read()
 
     @value.setter
     def value(self, value: Any) -> None:
-        # Setter for the 'value' property
         self.write(value)
 
     def has_subscribers(self) -> bool:
@@ -111,38 +133,90 @@ class VariableNode(DataModelNode):
 
         :return: True if the variable node has subscribers, False otherwise.
         """
-        return bool(self._subscribers)
+        return bool(self._subscriptions)
 
-    def get_subscribers(self) -> list[str]:
+    def get_subscriptions(self) -> list[VariableSubscription]:
         """
-        Get the list of subscribers for the variable node.
+        Get the list of subscriptions for the variable node.
 
-        :return: A list of subscriber IDs.
+        :return: A list of subscriptions.
         """
-        return self._subscribers
+        return self._subscriptions
 
-    def subscribe(self, subscriber_id: str) -> None:
+    def subscribe(self, subscription: VariableSubscription) -> bool:
         """
         Subscribe a subscriber to the variable node.
 
         :param subscriber_id: The ID of the subscriber.
+        :return: True if the subscription was added successfully, False otherwise.
         """
-        if subscriber_id in self._subscribers:
-            return
-        self._subscribers.append(subscriber_id)
+        if subscription in self._subscriptions:
+            return False
+        # Trace the subscription operation
+        trace_subscribe(
+            variable_id=self.id,
+            subscriber_id=subscription.subscriber_id,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+        self._subscriptions.append(subscription)
+        return True
 
-    def unsubscribe(self, subscriber_id: str) -> None:
+    def _find_subscription(
+        self, subscription_id: str, correlation_id: str
+    ) -> VariableSubscription | None:
         """
-        Unsubscribe a subscriber from the variable node.
+        Find a subscription by subscriber ID and correlation ID.
 
-        :param subscriber_id: The ID of the subscriber.
+        :param subscription_id: The ID of the subscriber.
+        :param correlation_id: The correlation ID of the subscription.
+        :return: The subscription if found, None otherwise.
         """
-        if subscriber_id not in self._subscribers:
-            return
-        self._subscribers.remove(subscriber_id)
+        for sub in self._subscriptions:
+            if (
+                sub.subscriber_id == subscription_id
+                and sub.correlation_id == correlation_id
+            ):
+                return sub
+        return None
+
+    def unsubscribe(
+        self,
+        subscription_or_id: VariableSubscription | str,
+        correlation_id: str | None = None,
+    ) -> bool:
+        """
+        Delete a subscription from the variable node either by subscription object or by subscriber ID and correlation ID.
+
+        :param subscription_or_id: The subscription to remove, or the subscriber ID.
+        :param correlation_id: The correlation ID when removing by IDs.
+        :return: True if the subscription was removed successfully, False otherwise.
+        """
+        subscription: VariableSubscription | None
+        if (
+            isinstance(subscription_or_id, VariableSubscription)
+            and correlation_id is None
+        ):
+            subscription = subscription_or_id
+        elif isinstance(subscription_or_id, str) and isinstance(correlation_id, str):
+            subscription = self._find_subscription(subscription_or_id, correlation_id)
+        else:
+            raise TypeError("unsubscribe expects (VariableSubscription) or (str, str)")
+
+        if subscription is None or subscription not in self._subscriptions:
+            return False
+        # Trace the unsubscription operation
+        trace_unsubscribe(
+            variable_id=self.id,
+            subscriber_id=subscription.subscriber_id,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+        self._subscriptions.remove(subscription)
+        return True
 
     def set_subscription_callback(
-        self, callback: Callable[[str, "VariableNode", Any], None]
+        self, callback: Callable[[VariableSubscription, "VariableNode", Any], None]
     ) -> None:
         """
         Set a callback to be executed when notifying subscribers.
@@ -158,11 +232,22 @@ class VariableNode(DataModelNode):
         """
         # Get the current value of the node.
         value = self._read_value()
-        # Pass the value to the callback.
+        for subscription in self._subscriptions:
+            if not subscription.should_notify(value):
+                continue
+            # Trace the notification operation.
+            trace_notification(
+                variable_id=self.id,
+                subscriber_id=subscription.subscriber_id,
+                value=value,
+                source=self.qualified_name,
+                data_model_id=self.data_model.name if self.data_model else "",
+            )
+            self._subscription_callback(subscription, self, value)
+
+        # If the parent is a VariableNode, notify its subscribers as well.
         if isinstance(self.parent, VariableNode):
             self.parent.notify_subscribers()
-        for subscriber in self._subscribers:
-            self._subscription_callback(subscriber, self, value)
 
     @abstractmethod
     def _read_value(self) -> Any:
@@ -172,7 +257,7 @@ class VariableNode(DataModelNode):
         pass
 
     @abstractmethod
-    def _update_value(self, value: Any) -> None:
+    def _update_value(self, value: Any) -> Any:
         """
         Update the value of the variable.
         """
@@ -210,7 +295,6 @@ class VariableNode(DataModelNode):
         """
         self._post_update_value = callback
 
-    @override
     def __getitem__(self, node_name: str) -> "VariableNode":
         """
         Raises an exception because child nodes are not supported.
@@ -222,7 +306,6 @@ class VariableNode(DataModelNode):
             f"{self.__class__.__name__} does not support child nodes"
         )
 
-    @override
     def __contains__(self, node_name: str) -> bool:
         """
         Always returns False, as this node does not have child nodes.
@@ -232,15 +315,22 @@ class VariableNode(DataModelNode):
         """
         return False
 
-    @override
-    def __iter__(self) -> Iterator["VariableNode"]:
+    def __iter__(self) -> Generator["VariableNode", None, None]:
         """
         Returns an empty iterator, as this node does not have child nodes.
 
         :return: An empty iterator.
         """
-        for _ in []:
-            yield _
+        yield from []
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, VariableNode):
+            return False
+
+        return self._eq_base(other) and self.read() == other.read()
 
 
 class NumericalVariableNode(VariableNode):
@@ -281,6 +371,7 @@ class NumericalVariableNode(VariableNode):
             )
         )
 
+    @override
     def _read_value(self) -> float:
         """
         Get the value of the numerical variable.
@@ -289,13 +380,23 @@ class NumericalVariableNode(VariableNode):
         """
         return self._value.base_value  # type: ignore[no-any-return]
 
-    def _update_value(self, value: float) -> None:
+    @override
+    def _update_value(self, value: float) -> float:
         """
         Update the value of the numerical variable.
 
         :param value: The new value of the numerical variable.
         """
         self._value = self._value.__class__(value, self._measure_unit)
+        return self._value.base_value  # type: ignore[no-any-return]
+
+    def get_measure_unit(self) -> Enum:
+        """
+        Get the measure unit of the numerical variable.
+
+        :return: The measure unit of the numerical variable.
+        """
+        return self._measure_unit
 
     def __str__(self) -> str:
         """
@@ -343,6 +444,7 @@ class StringVariableNode(VariableNode):
         super().__init__(id=id, name=name, description=description)
         self._value: str = value
 
+    @override
     def _read_value(self) -> str:
         """
         Get the value of the string variable.
@@ -351,7 +453,8 @@ class StringVariableNode(VariableNode):
         """
         return self._value
 
-    def _update_value(self, value: str) -> None:
+    @override
+    def _update_value(self, value: str) -> str:
         """
         Update the value of the string variable.
 
@@ -359,8 +462,8 @@ class StringVariableNode(VariableNode):
         """
         assert isinstance(value, str)
         self._value = value
+        return self._value
 
-    @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
         Raises a NotImplementedError, as StringVariableNode does not support child nodes.
@@ -370,7 +473,6 @@ class StringVariableNode(VariableNode):
         """
         raise NotImplementedError("StringVariableNode does not support child nodes")
 
-    @override
     def __contains__(self, node_name: str) -> bool:
         """
         Always returns False, as StringVariableNode does not support child nodes.
@@ -425,6 +527,7 @@ class BooleanVariableNode(VariableNode):
         super().__init__(id, name, description)
         self._value: bool = value
 
+    @override
     def _read_value(self) -> bool:
         """
         Get the value of the boolean variable.
@@ -433,7 +536,8 @@ class BooleanVariableNode(VariableNode):
         """
         return self._value
 
-    def _update_value(self, value: bool) -> None:
+    @override
+    def _update_value(self, value: bool) -> bool:
         """
         Update the value of the boolean variable.
 
@@ -441,8 +545,8 @@ class BooleanVariableNode(VariableNode):
         """
         assert isinstance(value, bool)
         self._value = value
+        return self._value
 
-    @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
         Raises NotImplementedError as BooleanVariableNode does not support child nodes.
@@ -452,7 +556,6 @@ class BooleanVariableNode(VariableNode):
         """
         raise NotImplementedError("BooleanVariableNode does not support child nodes")
 
-    @override
     def __contains__(self, node_name: str) -> bool:
         """
         Always returns False, as BooleanVariableNode does not support child nodes.
@@ -555,7 +658,30 @@ class ObjectVariableNode(VariableNode):
         """
         return self._properties[property_name]
 
-    def _read_value(self) -> Any:
+    def get_properties(self) -> dict[str, VariableNode]:
+        """
+        Get the properties of the object variable.
+
+        :return: A dictionary of property nodes.
+        """
+        return self._properties
+
+    def __getattr__(self, name: str) -> Any:
+        """
+        Get a property of the object variable using attribute access.
+
+        :param name: The name of the property to get.
+        :return: The property node.
+        :raises AttributeError: If the property does not exist.
+        """
+        if "_properties" in self.__dict__ and name in self._properties:
+            return self._properties[name]
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
+    @override
+    def _read_value(self) -> dict[str, Any]:
         """
         Get the value of the object variable.
 
@@ -567,7 +693,8 @@ class ObjectVariableNode(VariableNode):
                 value[property_name] = property_node.read()
         return value
 
-    def _update_value(self, value: dict) -> None:
+    @override
+    def _update_value(self, value: dict[str, Any]) -> dict[str, Any]:
         """
         Update the value of the object variable.
 
@@ -578,36 +705,8 @@ class ObjectVariableNode(VariableNode):
         ), "The value must contain all properties of the object variable"
         for property_name, property_value in value.items():
             self._properties[property_name]._update_value(property_value)
+        return self._read_value()
 
-    def subscribe(self, subscriber_id: str) -> None:
-        """
-        Subscribe a subscriber to the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.append(subscriber_id)
-
-    def unsubscribe(self, subscriber_id: str) -> None:
-        """
-        Unsubscribe a subscriber from the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.remove(subscriber_id)
-
-    @override
-    def notify_subscribers(self) -> None:
-        """
-        Notify all subscribed entities about an update or change. This will
-        execute the subscription callback for each subscriber.
-        """
-        # Get the current value of the node.
-        value = self._read_value()
-        # Pass the value to the callback.
-        for subscriber in self._subscribers:
-            self._subscription_callback(subscriber, self, value)
-
-    @override
     def __getitem__(self, property_name: str) -> VariableNode:
         """
         Get a property of the object variable.
@@ -617,7 +716,6 @@ class ObjectVariableNode(VariableNode):
         """
         return self.get_property(property_name)
 
-    @override
     def __contains__(self, property_name: str) -> bool:
         """
         Check if the object variable has a property.
@@ -627,8 +725,7 @@ class ObjectVariableNode(VariableNode):
         """
         return self.has_property(property_name)
 
-    @override
-    def __iter__(self) -> Iterator[VariableNode]:
+    def __iter__(self) -> Generator[VariableNode, None, None]:
         """
         Iterate over the properties of the object variable.
 

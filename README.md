@@ -251,7 +251,7 @@ allowing for user-defined interactions with the data model.
 
 The protocol manager is a component that acts as an interface between the data model
 and the different protocols used to communicate with the data model.
-Currently, the library supports the [FROST](https://github.com/esd-univr/frost.git)
+Currently, the library supports the [FROST](https://github.com/glacier-project/frost.git)
 protocol, which is a protocol for communication between machines and
 applications in the manufacturing domain.
 
@@ -275,7 +275,7 @@ More information about the protocol manager can be found in the directory
 #### Building the library
 
 ```bash
-git clone https://github.com/esd-univr/machine-data-model.git
+git clone https://github.com/glacier-project/machine-data-model.git
 cd machine-data-model
 poetry build
 python3.11 -m pip install dist/machine_data_model-0.0.1-py3-none-any.whl

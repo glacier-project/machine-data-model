@@ -1,5 +1,6 @@
-from machine_data_model.protocols.protocol_mng import Message
-from dataclasses import dataclass
+import uuid
+from machine_data_model.protocols.message import Message
+from dataclasses import dataclass, field
 from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
 from machine_data_model.protocols.frost_v1.frost_payload import FrostPayload
 
@@ -11,13 +12,15 @@ class FrostMessage(Message):
 
     :ivar sender: The sender of the message.
     :ivar target: The target of the message.
-    :ivar identifier: The unique identifier of the message.
     :ivar header: The header containing message metadata.
     :ivar payload: The payload or data sent with the message.
+    :ivar identifier: The unique identifier of the message.
+    :ivar correlation_id: The correlation ID for tracking the message.
     """
 
     sender: str
     target: str
-    identifier: str
     header: FrostHeader
     payload: FrostPayload
+    identifier: str = field(default_factory=lambda: str(uuid.uuid4()))
+    correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
