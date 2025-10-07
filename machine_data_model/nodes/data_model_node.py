@@ -1,8 +1,10 @@
 import uuid
+import weakref
 from abc import ABC, abstractmethod
 from typing import Iterator, Mapping, Sequence, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from machine_data_model.data_model import DataModel
     from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
     from .connectors.remote_resource_spec import RemoteResourceSpec
 else:
@@ -54,6 +56,7 @@ class DataModelNode(ABC):
         self._description = "" if description is None else description
         assert isinstance(self._description, str), "Description must be a string"
         self.parent: DataModelNode | None = None
+        self._data_model: weakref.ReferenceType["DataModel"] | None = None
 
         # -- connector management
         self._connector_name: str | None = connector_name
@@ -192,6 +195,15 @@ class DataModelNode(ABC):
         """Remote resource spec setter"""
         self._remote_resource_spec = value
 
+    @property
+    def data_model(self) -> "DataModel | None":
+        """
+        Gets the data model that contains this node.
+
+        :return: The data model containing this node, or None if not set.
+        """
+        return self._data_model() if self._data_model is not None else None
+
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]
     ) -> None:
@@ -236,15 +248,7 @@ class DataModelNode(ABC):
         """
         pass
 
-    def __eq__(self, other: object) -> bool:
-        """
-        Check if two nodes are equal based on their IDs.
-
-        :param other: The other node to compare with.
-        :return: True if the nodes are equal, False otherwise.
-        """
-        if not isinstance(other, DataModelNode):
-            return False
+    def _eq_base(self, other: "DataModelNode") -> bool:
         return (
             self.id == other.id
             and self.name == other.name

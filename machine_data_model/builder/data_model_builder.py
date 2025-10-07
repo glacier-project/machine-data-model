@@ -1,38 +1,529 @@
 import os
 from collections.abc import Callable
+from typing import Any, Hashable
 
 import yaml
 from machine_data_model.nodes.connectors.opcua_connector import OpcuaConnector
 
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.composite_method.call_method_node import CallMethodNode
-from machine_data_model.nodes.composite_method.composite_method_node import (
-    CompositeMethodNode,
-)
-from machine_data_model.nodes.composite_method.control_flow import ControlFlow
-from machine_data_model.nodes.composite_method.control_flow_node import ControlFlowNode
-from machine_data_model.nodes.composite_method.read_variable_node import (
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.control_flow_node import ControlFlowNode
+from machine_data_model.behavior.local_execution_node import (
+    CallMethodNode,
     ReadVariableNode,
-)
-from machine_data_model.nodes.composite_method.wait_condition_node import (
     WaitConditionNode,
+    WriteVariableNode,
     get_condition_operator,
 )
-from machine_data_model.nodes.composite_method.write_variable_node import (
-    WriteVariableNode,
+from machine_data_model.behavior.remote_execution_node import (
+    CallRemoteMethodNode,
+    ReadRemoteVariableNode,
+    WaitRemoteEventNode,
+    WriteRemoteVariableNode,
+)
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
 )
 from machine_data_model.nodes.connectors.remote_resource_spec import (
     OpcuaRemoteResourceSpec,
 )
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
-from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
+from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
     ObjectVariableNode,
     StringVariableNode,
 )
+
+
+def _build_kwargs(
+    data: dict[Hashable, Any], default_kwargs: dict[str, Any]
+) -> dict[str, Any]:
+    """
+    Build kwargs by merging data with default values and validating keys.
+
+    :param data: Input data from YAML
+    :param default_kwargs: Default values for all allowed keys
+    :return: Merged kwargs dictionary
+    :raises ValueError: If unexpected keys are found in data
+    """
+    unexpected_keys = set(data.keys()) - set(default_kwargs.keys())
+    if unexpected_keys:
+        raise ValueError(
+            f"Unexpected keys: {', '.join(map(str, unexpected_keys))}. "
+            f"Allowed keys: {', '.join(default_kwargs.keys())}"
+        )
+
+    kwargs = default_kwargs.copy()
+    for key, value in data.items():
+        kwargs[str(key)] = value
+    return kwargs
+
+
+def _get_folder(loader: yaml.FullLoader, node: yaml.MappingNode) -> FolderNode:
+    """
+    Construct a folder node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed folder node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs: dict[str, Any] = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "children": [],
+        "connector_name": None,
+        "remote_path": None,
+        "remote_resource_spec": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["children"] = {child.name: child for child in kwargs["children"]}
+
+    return FolderNode(**kwargs)
+
+
+def _get_numerical_variable(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> NumericalVariableNode:
+    """
+    Construct a numerical variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed numerical variable node.
+    """
+    data = loader.construct_mapping(node)
+    default_kwargs = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "measure_unit": NoneMeasureUnits.NONE,
+        "initial_value": None,
+        "default_value": None,
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["value"] = (
+        kwargs["initial_value"] if kwargs["initial_value"] is not None else 0
+    )
+    del kwargs["initial_value"]
+    del kwargs["default_value"]
+    return NumericalVariableNode(**kwargs)
+
+
+def _get_string_variable(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> StringVariableNode:
+    """
+    Construct a string variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed string variable node.
+    """
+    data = loader.construct_mapping(node)
+    default_kwargs = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "initial_value": "",
+        "default_value": "",
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["value"] = (
+        kwargs["initial_value"] if kwargs["initial_value"] is not None else ""
+    )
+    del kwargs["initial_value"]
+    del kwargs["default_value"]
+
+    return StringVariableNode(**kwargs)
+
+
+def _get_boolean_variable(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> BooleanVariableNode:
+    """
+    Construct a boolean variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed boolean variable node.
+    """
+    data = loader.construct_mapping(node)
+    default_kwargs = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "initial_value": False,
+        "default_value": False,
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["value"] = (
+        kwargs["initial_value"] if kwargs["initial_value"] is not None else False
+    )
+    del kwargs["initial_value"]
+    del kwargs["default_value"]
+    return BooleanVariableNode(**kwargs)
+
+
+def _get_object_variable(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> ObjectVariableNode:
+    """
+    Construct an object variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed object variable node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs: dict[str, Any] = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "properties": [],
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["properties"] = {prop.name: prop for prop in kwargs["properties"]}
+    return ObjectVariableNode(**kwargs)
+
+
+def _get_method_node(
+    loader: yaml.FullLoader,
+    node: yaml.MappingNode,
+    ctor: Callable[..., MethodNode] = MethodNode,
+) -> MethodNode:
+    """
+    Construct a method node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed method node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs: dict[str, Any] = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "parameters": [],
+        "returns": [],
+        "connector_name": None,
+        "remote_path": None,
+        "remote_resource_spec": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return ctor(**kwargs)
+
+
+def _get_async_method_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> MethodNode:
+    """
+    Construct an async method node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed async method node.
+    """
+    return _get_method_node(loader, node, AsyncMethodNode)
+
+
+def _get_read_variable_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> ControlFlowNode:
+    """
+    Construct a read variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed read variable node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "variable": "",
+        "store_as": "",
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return ReadVariableNode(
+        variable_node=kwargs["variable"],
+        store_as=kwargs["store_as"],
+    )
+
+
+def _get_write_variable_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> ControlFlowNode:
+    """
+    Construct a write variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed write variable node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "variable": "",
+        "value": "",
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return WriteVariableNode(
+        variable_node=kwargs["variable"],
+        value=kwargs["value"],
+    )
+
+
+def _get_wait_node(loader: yaml.FullLoader, node: yaml.MappingNode) -> ControlFlowNode:
+    """
+    Construct a wait condition node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed wait condition node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "variable": "",
+        "operator": "",
+        "rhs": "",
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return WaitConditionNode(
+        variable_node=kwargs["variable"],
+        op=get_condition_operator(kwargs["operator"]),
+        rhs=kwargs["rhs"],
+    )
+
+
+def _get_call_method_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> ControlFlowNode:
+    """
+    Construct a call method node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed call method node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "method": "",
+        "args": [],
+        "kwargs": {},
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return CallMethodNode(
+        method_node=kwargs["method"],
+        args=kwargs["args"],
+        kwargs=kwargs["kwargs"],
+    )
+
+
+def _get_call_remote_method_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> CallRemoteMethodNode:
+    """
+    Construct a call remote method node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed call remote method node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "method": "",
+        "remote_id": "",
+        "args": [],
+        "kwargs": {},
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return CallRemoteMethodNode(
+        method_node=kwargs["method"],
+        remote_id=kwargs["remote_id"],
+        args=kwargs["args"],
+        kwargs=kwargs["kwargs"],
+    )
+
+
+def _get_read_remote_variable_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> ReadRemoteVariableNode:
+    """
+    Construct a read remote variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed read remote variable node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "variable": "",
+        "remote_id": "",
+        "store_as": "",
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return ReadRemoteVariableNode(
+        variable_node=kwargs["variable"],
+        remote_id=kwargs["remote_id"],
+        store_as=kwargs["store_as"],
+    )
+
+
+def _get_write_remote_variable_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> WriteRemoteVariableNode:
+    """
+    Construct a write remote variable node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed write remote variable node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "variable": "",
+        "remote_id": "",
+        "value": "",
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return WriteRemoteVariableNode(
+        variable_node=kwargs["variable"],
+        remote_id=kwargs["remote_id"],
+        value=kwargs["value"],
+    )
+
+
+def _get_wait_remote_event_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> ControlFlowNode:
+    """
+    Construct a wait remote event node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed wait remote event node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "variable": "",
+        "operator": "",
+        "rhs": "",
+        "remote_id": "",
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return WaitRemoteEventNode(
+        variable_node=kwargs["variable"],
+        op=get_condition_operator(kwargs["operator"]),
+        rhs=kwargs["rhs"],
+        remote_id=kwargs["remote_id"],
+    )
+
+
+def _get_composite_method_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> MethodNode:
+    """
+    Construct a composite method node from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed composite method node.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs: dict[str, Any] = {
+        "id": None,
+        "name": "",
+        "description": "",
+        "parameters": [],
+        "returns": [],
+        "cfg": [],
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["cfg"] = ControlFlow(kwargs["cfg"])
+    return CompositeMethodNode(**kwargs)
+
+
+def _get_opcua_connector_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> OpcuaConnector:
+    """
+    Construct an OPC-UA Connector from a yaml node.
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The constructed OPC-UA Connector.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    return OpcuaConnector(
+        name=data.get("name", None),
+        ip=data.get("ip", "127.0.0.1"),
+        ip_env_var=data.get("ip_env_var", None),
+        port=data.get("port", 4840),
+        port_env_var=data.get("port_env_var", None),
+        security_policy=data.get("security_policy", None),
+        host_name=data.get("host_name", None),
+        client_app_uri=data.get("client_app_uri", None),
+        certificate_file_path=data.get("certificate_file_path", None),
+        private_key_file_path=data.get("private_key_file_path", None),
+        trust_store_certificates_paths=data.get("trust_store_certificates_paths", None),
+        username=data.get("username", None),
+        username_env_var=data.get("username_env_var", None),
+        password=data.get("password", None),
+        password_env_var=data.get("password_env_var", None),
+    )
+
+
+def _get_opcua_remote_resource_spec(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> OpcuaRemoteResourceSpec:
+    """
+    Construct an object with node settings that are OPC UA specific.
+
+    :param loader: The yaml loader.
+    :param node: The yaml node.
+    :return: The object with the OPC UA node's settings.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    return OpcuaRemoteResourceSpec(
+        node_id=data.get("node_id", None),
+        namespace=data.get("namespace", None),
+    )
+
+
+def _register_yaml_constructors() -> None:
+    """Register all YAML constructors for data model building."""
+    constructors = {
+        FolderNode: _get_folder,
+        NumericalVariableNode: _get_numerical_variable,
+        StringVariableNode: _get_string_variable,
+        BooleanVariableNode: _get_boolean_variable,
+        ObjectVariableNode: _get_object_variable,
+        MethodNode: _get_method_node,
+        AsyncMethodNode: _get_async_method_node,
+        CompositeMethodNode: _get_composite_method_node,
+        ReadVariableNode: _get_read_variable_node,
+        WriteVariableNode: _get_write_variable_node,
+        WaitConditionNode: _get_wait_node,
+        CallMethodNode: _get_call_method_node,
+        CallRemoteMethodNode: _get_call_remote_method_node,
+        ReadRemoteVariableNode: _get_read_remote_variable_node,
+        WriteRemoteVariableNode: _get_write_remote_variable_node,
+        WaitRemoteEventNode: _get_wait_remote_event_node,
+        OpcuaConnector: _get_opcua_connector_node,
+        OpcuaRemoteResourceSpec: _get_opcua_remote_resource_spec,
+    }
+
+    for node, constructor in constructors.items():
+        tag = node.__name__
+        module = node.__module__
+        yaml.FullLoader.add_constructor(f"tag:yaml.org,2002:{tag}", constructor)
+        yaml.FullLoader.add_constructor(
+            f"tag:yaml.org,2002:python/object:{module}.{tag}", constructor
+        )
+
+
+_register_yaml_constructors()
 
 
 class DataModelBuilder:
@@ -45,259 +536,6 @@ class DataModelBuilder:
         Initialize a new DataModelBuilder instance.
         """
         self.cache: dict[str, DataModel] = {}
-        # add custom constructor
-        self._add_yaml_constructors()
-
-    def get_data_model(self, data_model_path: str) -> DataModel:
-        """
-        Get a data model from a yaml file.
-        :param data_model_path: The path to the yaml file containing the data model.
-        :return: The data model created from the yaml file.
-        """
-        full_path = os.path.abspath(data_model_path)
-
-        if full_path not in self.cache:
-            data_model = self._get_data_model(full_path)
-            self.cache[full_path] = data_model
-
-        return self.cache[full_path]
-
-    def _get_folder(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> FolderNode:
-        """
-        Construct a folder node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed folder node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        return FolderNode(
-            **{
-                "name": data.get("name", ""),
-                "description": data.get("description", ""),
-                "children": {child.name: child for child in data.get("children", [])},
-                "connector_name": data.get("connector_name", None),
-                "remote_path": data.get("remote_path", None),
-                "remote_resource_spec": data.get("remote_resource_spec", None),
-            }
-        )
-
-    def _get_numerical_variable(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> NumericalVariableNode:
-        """
-        Construct a numerical variable node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed numerical variable node.
-        """
-        data = loader.construct_mapping(node)
-        return NumericalVariableNode(
-            **{
-                "name": data.get("name", ""),
-                "description": data.get("description", ""),
-                "measure_unit": data.get("measure_unit", NoneMeasureUnits.NONE),
-                "value": data.get("initial_value", 0),
-                "connector_name": data.get("connector_name", None),
-                "remote_path": data.get("remote_path", None),
-                "notify_subscribers_only_if_value_changed": data.get(
-                    "notify_subscribers_only_if_value_changed", None
-                ),
-                "remote_resource_spec": data.get("remote_resource_spec", None),
-            }
-        )
-
-    def _get_string_variable(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> StringVariableNode:
-        """
-        Construct a string variable node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed string variable node.
-        """
-        data = loader.construct_mapping(node)
-        return StringVariableNode(
-            **{
-                "name": data.get("name", ""),
-                "description": data.get("description", ""),
-                "value": data.get("initial_value", ""),
-                "connector_name": data.get("connector_name", None),
-                "remote_path": data.get("remote_path", None),
-                "notify_subscribers_only_if_value_changed": data.get(
-                    "notify_subscribers_only_if_value_changed", None
-                ),
-                "remote_resource_spec": data.get("remote_resource_spec", None),
-            }
-        )
-
-    def _get_boolean_variable(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> BooleanVariableNode:
-        """
-        Construct a boolean variable node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed boolean variable node.
-        """
-        data = loader.construct_mapping(node)
-        return BooleanVariableNode(
-            **{
-                "name": data.get("name", ""),
-                "description": data.get("description", ""),
-                "value": data.get("initial_value", False),
-                "connector_name": data.get("connector_name", None),
-                "remote_path": data.get("remote_path", None),
-                "notify_subscribers_only_if_value_changed": data.get(
-                    "notify_subscribers_only_if_value_changed", None
-                ),
-                "remote_resource_spec": data.get("remote_resource_spec", None),
-            }
-        )
-
-    def _get_object_variable(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> ObjectVariableNode:
-        """
-        Construct an object variable node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed object variable node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        return ObjectVariableNode(
-            **{
-                "id": data.get("id", None),
-                "name": data.get("name", None),
-                "description": data.get("description", None),
-                "properties": {prop.name: prop for prop in data.get("properties", [])},
-                "connector_name": data.get("connector_name", None),
-                "remote_path": data.get("remote_path", None),
-                "notify_subscribers_only_if_value_changed": data.get(
-                    "notify_subscribers_only_if_value_changed", None
-                ),
-                "remote_resource_spec": data.get("remote_resource_spec", None),
-            }
-        )
-
-    def _get_method_node(
-        self,
-        loader: yaml.FullLoader,
-        node: yaml.MappingNode,
-        ctor: Callable[..., MethodNode] = MethodNode,
-    ) -> MethodNode:
-        """
-        Construct a method node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed method node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        method = ctor(
-            **{
-                "name": data.get("name", ""),
-                "description": data.get("description", ""),
-                "parameters": [param for param in data.get("parameters", [])],
-                "returns": [ret for ret in data.get("returns", [])],
-                "connector_name": data.get("connector_name", None),
-                "remote_path": data.get("remote_path", None),
-                "remote_resource_spec": data.get("remote_resource_spec", None),
-            }
-        )
-        return method
-
-    def _get_async_method_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> MethodNode:
-        """
-        Construct an async method node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed async method node.
-        """
-        return self._get_method_node(loader, node, AsyncMethodNode)
-
-    def _get_read_variable_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> ControlFlowNode:
-        """
-        Construct a read variable node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed read variable node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        return ReadVariableNode(
-            variable_node=data.get("variable", ""),
-            store_as=data.get("store_as", ""),
-        )
-
-    def _get_write_variable_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> ControlFlowNode:
-        """ "
-        Construct a write variable node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed write variable node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        return WriteVariableNode(
-            variable_node=data.get("variable", ""),
-            value=data.get("value", ""),
-        )
-
-    def _get_wait_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> ControlFlowNode:
-        """
-        Construct a wait condition node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed wait condition node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        return WaitConditionNode(
-            variable_node=data.get("variable", ""),
-            op=get_condition_operator(data.get("operator", "")),
-            rhs=data.get("rhs", ""),
-        )
-
-    def _get_call_method_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> ControlFlowNode:
-        """
-        Construct a call method node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed call method node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        return CallMethodNode(
-            method_node=data.get("method", ""),
-            args=data.get("args", []),
-            kwargs=data.get("kwargs", {}),
-        )
-
-    def _get_composite_method_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> MethodNode:
-        """
-        Construct a composite method node from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed composite method node.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        method = CompositeMethodNode(
-            name=data.get("name", ""),
-            description=data.get("description", ""),
-            parameters=[param for param in data.get("parameters", [])],
-            returns=[ret for ret in data.get("returns", [])],
-            cfg=ControlFlow(data.get("cfg", [])),
-        )
-        return method
 
     def from_string(self, data_model_string: str) -> DataModel:
         """
@@ -315,8 +553,8 @@ class DataModelBuilder:
 
         return data_model
 
-    def _get_data_model(self, data_model_path: str) -> DataModel:
-        """ "
+    def _load_data_model(self, data_model_path: str) -> DataModel:
+        """
         Create a data model from a yaml file.
         :param data_model_path: The path to the yaml file containing the data model.
         :return: The data model.
@@ -327,155 +565,16 @@ class DataModelBuilder:
 
         return data_model
 
-    def _get_opcua_connector_node(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> OpcuaConnector:
+    def get_data_model(self, data_model_path: str) -> DataModel:
         """
-        Construct an OPC-UA Connector from a yaml node.
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The constructed OPC-UA Connector.
+        Get a data model from a yaml file.
+        :param data_model_path: The path to the yaml file containing the data model.
+        :return: The data model created from the yaml file.
         """
-        data = loader.construct_mapping(node, deep=True)
-        return OpcuaConnector(
-            name=data.get("name", None),
-            ip=data.get("ip", "127.0.0.1"),
-            ip_env_var=data.get("ip_env_var", None),
-            port=data.get("port", 4840),
-            port_env_var=data.get("port_env_var", None),
-            security_policy=data.get("security_policy", None),
-            host_name=data.get("host_name", None),
-            client_app_uri=data.get("client_app_uri", None),
-            certificate_file_path=data.get("certificate_file_path", None),
-            private_key_file_path=data.get("private_key_file_path", None),
-            trust_store_certificates_paths=data.get(
-                "trust_store_certificates_paths", None
-            ),
-            username=data.get("username", None),
-            username_env_var=data.get("username_env_var", None),
-            password=data.get("password", None),
-            password_env_var=data.get("password_env_var", None),
-        )
+        full_path = os.path.abspath(data_model_path)
 
-    def _get_opcua_remote_resource_spec(
-        self, loader: yaml.FullLoader, node: yaml.MappingNode
-    ) -> OpcuaRemoteResourceSpec:
-        """
-        Construct an object with node settings that are OPC UA specific.
+        if full_path not in self.cache:
+            data_model = self._load_data_model(full_path)
+            self.cache[full_path] = data_model
 
-        :param loader: The yaml loader.
-        :param node: The yaml node.
-        :return: The object with the OPC UA node's settings.
-        """
-        data = loader.construct_mapping(node, deep=True)
-        return OpcuaRemoteResourceSpec(
-            node_id=data.get("node_id", None),
-            namespace=data.get("namespace", None),
-        )
-
-    def _add_yaml_constructors(self) -> None:
-        # TODO: change old !! tags to single ! tags
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.folder_node.FolderNode",
-            self._get_folder,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:FolderNode",
-            self._get_folder,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.NumericalVariableNode",
-            self._get_numerical_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:NumericalVariableNode",
-            self._get_numerical_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.StringVariableNode",
-            self._get_string_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:StringVariableNode",
-            self._get_string_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.BooleanVariableNode",
-            self._get_boolean_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:BooleanVariableNode",
-            self._get_boolean_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.variable_node.ObjectVariableNode",
-            self._get_object_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:ObjectVariableNode",
-            self._get_object_variable,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.method_node.MethodNode",
-            self._get_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:MethodNode",
-            self._get_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.method_node.AsyncMethodNode",
-            self._get_async_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:AsyncMethodNode",
-            self._get_async_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.composite_method_node.CompositeMethodNode",
-            self._get_composite_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:CompositeMethodNode",
-            self._get_composite_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.read_variable_node.ReadVariableNode",
-            self._get_read_variable_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:ReadVariableNode",
-            self._get_read_variable_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.write_variable_node.WriteVariableNode",
-            self._get_write_variable_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:WriteVariableNode",
-            self._get_write_variable_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.wait_condition_node.WaitConditionNode",
-            self._get_wait_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:WaitConditionNode",
-            self._get_wait_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:python/object:machine_data_model.nodes.composite_method.call_method_node.CallMethodNode",
-            self._get_call_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:CallMethodNode",
-            self._get_call_method_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:OpcuaConnector",
-            self._get_opcua_connector_node,
-        )
-        yaml.FullLoader.add_constructor(
-            "tag:yaml.org,2002:OpcuaRemoteResourceSpec",
-            self._get_opcua_remote_resource_spec,
-        )
+        return self.cache[full_path]

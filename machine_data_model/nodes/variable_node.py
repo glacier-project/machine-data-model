@@ -13,6 +13,16 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
+from machine_data_model.tracing import (
+    trace_variable_read,
+    trace_variable_write,
+    trace_subscribe,
+    trace_unsubscribe,
+    trace_notification,
+)
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 
 
 class VariableNode(DataModelNode):
@@ -61,10 +71,10 @@ class VariableNode(DataModelNode):
         self._pre_update_value: Callable[[Any], Any] = lambda value: value
         self._post_update_value: Callable[[Any, Any], bool] = lambda prev, curr: True
         # List of subscribers and related callbacks.
-        self._subscribers: list[str] = []
-        self._subscription_callback: Callable[[str, "VariableNode", Any], None] = (
-            lambda subscriber, node, value: None
-        )
+        self._subscriptions: list[VariableSubscription] = []
+        self._subscription_callback: Callable[
+            [VariableSubscription, "VariableNode", Any], None
+        ] = lambda subscription, node, value: None
 
         self._notify_subscribers_only_if_value_changed = (
             notify_subscribers_only_if_value_changed
@@ -85,6 +95,13 @@ class VariableNode(DataModelNode):
         value = self._read_value(force_remote_read=force_remote_read)
         # Execute the post-read callback and return the value.
         value = self._post_read_value(value)
+        # Trace the variable read operation
+        trace_variable_read(
+            variable_id=self.id,
+            value=value,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
         # Return the read value.
         return value
 
@@ -101,32 +118,36 @@ class VariableNode(DataModelNode):
         value = self._pre_update_value(value)
         # Update the value of the variable with the new value.
         value = self._update_value(value)
-        # If validation fails (post-update), restore the previous value and
-        # return False.
-        if not self._post_update_value(prev_value, value):
-            # Restore previous value if validation fails.
+        # Perform the post-update operations and get the success status.
+        success = self._post_update_value(prev_value, value)
+        # Trace the variable write operation.
+        trace_variable_write(
+            variable_id=self.id,
+            old_value=prev_value,
+            new_value=value,
+            success=success,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+        # Notify subscribers if the update was successful, otherwise restore
+        # the previous value.
+        if success:
+            should_notify_subscribers = (
+                not self._notify_subscribers_only_if_value_changed
+            ) or prev_value != value
+            if should_notify_subscribers:
+                self.notify_subscribers()
+        else:
             value = self._update_value(prev_value)
             assert value == prev_value
-            return False
-
-        # Notify subscribers if the update was successful.
-        should_notify_subscribers = (
-            not self._notify_subscribers_only_if_value_changed
-        ) or prev_value != value
-        if should_notify_subscribers:
-            self.notify_subscribers()
-
-        # Return True if the value was successfully updated and validated.
-        return True
+        return success
 
     @property
     def value(self) -> Any:
-        # Getter for the 'value' property
         return self.read()
 
     @value.setter
     def value(self, value: Any) -> None:
-        # Setter for the 'value' property
         self.write(value)
 
     def has_subscribers(self) -> bool:
@@ -135,38 +156,90 @@ class VariableNode(DataModelNode):
 
         :return: True if the variable node has subscribers, False otherwise.
         """
-        return bool(self._subscribers)
+        return bool(self._subscriptions)
 
-    def get_subscribers(self) -> list[str]:
+    def get_subscriptions(self) -> list[VariableSubscription]:
         """
-        Get the list of subscribers for the variable node.
+        Get the list of subscriptions for the variable node.
 
-        :return: A list of subscriber IDs.
+        :return: A list of subscriptions.
         """
-        return self._subscribers
+        return self._subscriptions
 
-    def subscribe(self, subscriber_id: str) -> None:
+    def subscribe(self, subscription: VariableSubscription) -> bool:
         """
         Subscribe a subscriber to the variable node.
 
         :param subscriber_id: The ID of the subscriber.
+        :return: True if the subscription was added successfully, False otherwise.
         """
-        if subscriber_id in self._subscribers:
-            return
-        self._subscribers.append(subscriber_id)
+        if subscription in self._subscriptions:
+            return False
+        # Trace the subscription operation
+        trace_subscribe(
+            variable_id=self.id,
+            subscriber_id=subscription.subscriber_id,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+        self._subscriptions.append(subscription)
+        return True
 
-    def unsubscribe(self, subscriber_id: str) -> None:
+    def _find_subscription(
+        self, subscription_id: str, correlation_id: str
+    ) -> VariableSubscription | None:
         """
-        Unsubscribe a subscriber from the variable node.
+        Find a subscription by subscriber ID and correlation ID.
 
-        :param subscriber_id: The ID of the subscriber.
+        :param subscription_id: The ID of the subscriber.
+        :param correlation_id: The correlation ID of the subscription.
+        :return: The subscription if found, None otherwise.
         """
-        if subscriber_id not in self._subscribers:
-            return
-        self._subscribers.remove(subscriber_id)
+        for sub in self._subscriptions:
+            if (
+                sub.subscriber_id == subscription_id
+                and sub.correlation_id == correlation_id
+            ):
+                return sub
+        return None
+
+    def unsubscribe(
+        self,
+        subscription_or_id: VariableSubscription | str,
+        correlation_id: str | None = None,
+    ) -> bool:
+        """
+        Delete a subscription from the variable node either by subscription object or by subscriber ID and correlation ID.
+
+        :param subscription_or_id: The subscription to remove, or the subscriber ID.
+        :param correlation_id: The correlation ID when removing by IDs.
+        :return: True if the subscription was removed successfully, False otherwise.
+        """
+        subscription: VariableSubscription | None
+        if (
+            isinstance(subscription_or_id, VariableSubscription)
+            and correlation_id is None
+        ):
+            subscription = subscription_or_id
+        elif isinstance(subscription_or_id, str) and isinstance(correlation_id, str):
+            subscription = self._find_subscription(subscription_or_id, correlation_id)
+        else:
+            raise TypeError("unsubscribe expects (VariableSubscription) or (str, str)")
+
+        if subscription is None or subscription not in self._subscriptions:
+            return False
+        # Trace the unsubscription operation
+        trace_unsubscribe(
+            variable_id=self.id,
+            subscriber_id=subscription.subscriber_id,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+        self._subscriptions.remove(subscription)
+        return True
 
     def set_subscription_callback(
-        self, callback: Callable[[str, "VariableNode", Any], None]
+        self, callback: Callable[[VariableSubscription, "VariableNode", Any], None]
     ) -> None:
         """
         Set a callback to be executed when notifying subscribers.
@@ -182,11 +255,22 @@ class VariableNode(DataModelNode):
         """
         # Get the current value of the node.
         value = self._read_internal_value()
-        # Pass the value to the callback.
+        for subscription in self._subscriptions:
+            if not subscription.should_notify(value):
+                continue
+            # Trace the notification operation.
+            trace_notification(
+                variable_id=self.id,
+                subscriber_id=subscription.subscriber_id,
+                value=value,
+                source=self.qualified_name,
+                data_model_id=self.data_model.name if self.data_model else "",
+            )
+            self._subscription_callback(subscription, self, value)
+
+        # If the parent is a VariableNode, notify its subscribers as well.
         if isinstance(self.parent, VariableNode):
             self.parent.notify_subscribers()
-        for subscriber in self._subscribers:
-            self._subscription_callback(subscriber, self, value)
 
     def _read_value(self, force_remote_read: bool = False) -> Any:
         """
@@ -342,6 +426,15 @@ class VariableNode(DataModelNode):
         :return: An empty iterator.
         """
         yield from []
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, VariableNode):
+            return False
+
+        return self._eq_base(other) and self.read() == other.read()
 
 
 class NumericalVariableNode(VariableNode):
@@ -837,6 +930,20 @@ class ObjectVariableNode(VariableNode):
         """
         return self._properties
 
+    def __getattr__(self, name: str) -> Any:
+        """
+        Get a property of the object variable using attribute access.
+
+        :param name: The name of the property to get.
+        :return: The property node.
+        :raises AttributeError: If the property does not exist.
+        """
+        if "_properties" in self.__dict__ and name in self._properties:
+            return self._properties[name]
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
     @override
     def _read_internal_value(self) -> dict[str, Any]:
         """
@@ -910,22 +1017,6 @@ class ObjectVariableNode(VariableNode):
                 self._properties[property_name]._update_remote_value(property_value)
             return prev_value
         return value
-
-    def subscribe(self, subscriber_id: str) -> None:
-        """
-        Subscribe a subscriber to the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.append(subscriber_id)
-
-    def unsubscribe(self, subscriber_id: str) -> None:
-        """
-        Unsubscribe a subscriber from the variable node.
-
-        :param subscriber_id: The ID of the subscriber.
-        """
-        self._subscribers.remove(subscriber_id)
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """

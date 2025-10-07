@@ -290,8 +290,8 @@ class TestOpcuaDataModel:
         assert dm is not None, "the data model should be defined"
         node = dm.get_node("Objects/6:ReferenceTest/6:Methods/6:Methods_Add")
         assert isinstance(node, MethodNode), "the node should be defined"
-        returned_value = node(2.0, 3)
-        result = returned_value["AddResult"]
+        result = node(2.0, 3)
+        result = result.return_values["AddResult"]
         assert isinstance(result, float), "the result should be a floating point number"
         assert math.isclose(result, 5), "the result should be equal to 2.0 + 3 = 5"
         dm.close_connectors()

@@ -1,11 +1,29 @@
 from collections.abc import Callable
-from typing import Any, Iterator
+from typing import Any, Iterator, Sequence
 
 from typing_extensions import override
 
 from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
 from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
 from machine_data_model.nodes.variable_node import VariableNode
+from machine_data_model.tracing import trace_method_start, trace_method_end
+from dataclasses import dataclass
+
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+
+
+@dataclass
+class MethodExecutionResult:
+    """
+    Represents the result of executing or resuming a method node.
+    :ivar return_values: A dictionary of return values of the method node if the
+    method is completed, otherwise it is None.
+    :ivar messages: A list of Frost messages to be sent as a result of executing or
+    resuming the method node.
+    """
+
+    return_values: dict[str, Any]
+    messages: Sequence[FrostMessage] | None = None
 
 
 class MethodNode(DataModelNode):
@@ -244,7 +262,7 @@ class MethodNode(DataModelNode):
         yield from self._parameters
         yield from self._returns
 
-    def __call__(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+    def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
         """
         Call the method with the specified arguments.
 
@@ -256,6 +274,14 @@ class MethodNode(DataModelNode):
             raise ValueError(f"Method '{self.id}' has no callback function")
 
         kwargs = self._resolve_arguments(*args, **kwargs)
+
+        # Trace method start
+        start_time = trace_method_start(
+            method_id=self.id,
+            args=kwargs,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
 
         self._pre_call(**kwargs)
         if self.is_remote():
@@ -272,7 +298,16 @@ class MethodNode(DataModelNode):
 
         self._post_call(ret)
 
-        return ret
+        # Trace method end
+        trace_method_end(
+            method_id=self.id,
+            returns=ret,
+            start_time=start_time,
+            source=self.qualified_name,
+            data_model_id=self.data_model.name if self.data_model else "",
+        )
+
+        return MethodExecutionResult(return_values=ret)
 
     def _resolve_arguments(
         self, *args: list[Any], **kwargs: dict[str, Any]
@@ -337,6 +372,18 @@ class MethodNode(DataModelNode):
         :return: The string representation of the MethodNode (same as `__str__`).
         """
         return self.__str__()
+
+    def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
+
+        if not isinstance(other, MethodNode):
+            return False
+
+        if not self._eq_base(other):
+            return False
+
+        return self._parameters == other._parameters and self._returns == other._returns
 
 
 class AsyncMethodNode(MethodNode):

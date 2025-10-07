@@ -8,6 +8,9 @@ from machine_data_model.builder.data_model_builder import DataModelBuilder
 from machine_data_model.nodes.connectors.abstract_connector import SubscriptionArguments
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 
 # change to logging.DEBUG to show debug messages
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
@@ -60,15 +63,16 @@ threshold = data_model.get_node(temp_threshold_path)
 assert isinstance(threshold, VariableNode)
 
 
-def my_callback(subscriber_id: str, modified_node: VariableNode, new_node_value: Any) -> None:
+def my_callback(subscription: VariableSubscription, node: VariableNode, value: Any) -> None:
     print("Callback received a new value changed event:")
-    print(f"- subscriber_id: {subscriber_id}")
-    print(f"- modified_node: {modified_node}")
-    print(f"- new_node_value: {new_node_value}")
+    print(f"- subscription: {subscription}")
+    print(f"- modified node: {node}")
+    print(f"- new value: {value}")
 
 
 threshold.set_subscription_callback(my_callback)
-threshold.subscribe("thresholdUser")
+sub = VariableSubscription(subscriber_id="thresholdUser", correlation_id="c1")
+threshold.subscribe(sub)
 # to be consistent with the value written by the connector, read from the remote server
 current_value = threshold.read(force_remote_read=True)
 print("current value:", current_value)
@@ -146,7 +150,8 @@ current_temperature_path = "Objects/Boilers/Boiler #2/ParameterSet/CurrentTemper
 current_temperature_node = data_model.get_node(current_temperature_path)
 assert isinstance(current_temperature_node, VariableNode), "current_temperature_node must be a VariableNode"
 current_temperature_node.set_subscription_callback(my_callback)
-current_temperature_node.subscribe("currentTemperatureUser")
+sub = VariableSubscription(subscriber_id="currentTemperatureUser", correlation_id="c1")
+current_temperature_node.subscribe(sub)
 
 # subscribe using the connector
 current_temperature_path = "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:CurrentTemperature"

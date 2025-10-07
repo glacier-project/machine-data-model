@@ -1,17 +1,32 @@
-from collections.abc import Callable
+"""
+A module defining the DataModel class and its associated methods for managing a
+machine data model.
+"""
 
+from collections.abc import Callable
+from typing import Any, Iterable
+import weakref
+
+from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.nodes.data_model_node import DataModelNode
-from typing import Any, Iterable
 from machine_data_model.nodes.folder_node import FolderNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
 from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
 
 
 class DataModel:
+    """
+    A DataModel represents the structure and data of a machine data model.
+    """
+
     def __init__(
         self,
         name: str = "",
@@ -199,12 +214,19 @@ class DataModel:
         :param node: The node to register in the data model.
         """
         self._nodes[node.id] = node
+        node._data_model = weakref.ref(self)
 
-    def _resolve_cfg_nodes(self, node: DataModelNode) -> None:
+    def _resolve_local_cfg_nodes(self, node: DataModelNode) -> None:
         if not isinstance(node, CompositeMethodNode):
             return
 
         for cf_node in node.cfg.nodes():
+            if isinstance(cf_node, RemoteExecutionNode):
+                cf_node.sender_id = self._name
+                continue
+
+            assert isinstance(cf_node, LocalExecutionNode)
+
             if cf_node.is_node_static():
                 ref_node = self.get_node(cf_node.node)
                 assert isinstance(ref_node, DataModelNode)
@@ -212,7 +234,6 @@ class DataModel:
             else:
                 # set get_node function to resolve the node at runtime
                 cf_node.get_data_model_node = self.get_node
-        return
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
         """
@@ -224,7 +245,7 @@ class DataModel:
 
         def _f_(n: DataModelNode) -> None:
             self._register_node(n)
-            self._resolve_cfg_nodes(n)
+            self._resolve_local_cfg_nodes(n)
 
         self.traverse(node, _f_)
 
@@ -338,33 +359,46 @@ class DataModel:
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
-            node.write(value)
-            return True
+            return node.write(value)
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
-    def call_method(self, method_id: str) -> Any:
+    def call_method(self, method_id: str) -> MethodExecutionResult:
         """
         Executes a method from the data model by exploring the structure of the node that contains that method.
         :param method_name: The id or the path of the method to call from the data model.
-        :return: The return value of the method.
+        :return: The result of the method execution.
         """
         node = self.get_node(method_id)
         if isinstance(node, MethodNode):
             return node()
         raise ValueError(f"Method '{method_id}' not found in data model")
 
-    def subscribe(self, target_node: str, subscriber: str) -> bool:
+    def subscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
+        """
+        Adds the provided subscription to the target variable node in the data model.
+        Raises a ValueError if the target node is not found or is not a VariableNode.
+
+        :param target_node: The id or the path of the variable node to subscribe to.
+        :param subscription: The subscription to add to the variable node.
+        :return: True if the subscription was added successfully, False otherwise.
+        """
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):
-            node.subscribe(subscriber)
-            return True
+            return node.subscribe(subscription)
         raise ValueError(f"Variable Node '{target_node}' not found in data model")
 
-    def unsubscribe(self, target_node: str, unsubscriber: str) -> bool:
+    def unsubscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
+        """
+        Removes the provided subscription from the target variable node in the data model.
+        Raises a ValueError if the target node is not found or is not a VariableNode.
+
+        :param target_node: The id or the path of the variable node to unsubscribe from.
+        :param subscription: The subscription to remove from the variable node.
+        :return: True if the subscription was removed successfully, False otherwise.
+        """
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):
-            node.unsubscribe(unsubscriber)
-            return True
+            return node.unsubscribe(subscription)
         raise ValueError(f"Variable Node '{target_node}' not found in data model")
 
     def close_connectors(self) -> None:

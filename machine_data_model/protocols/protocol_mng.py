@@ -3,19 +3,13 @@ from abc import ABC, abstractmethod
 from typing_extensions import Any
 
 from machine_data_model.data_model import DataModel
-from dataclasses import dataclass
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
+from machine_data_model.protocols.message import Message
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import VariableNode
-
-
-@dataclass(init=True, slots=True)
-class Message(ABC):
-    """
-    Abstract base class representing a message in the protocol.
-    """
-
-    pass
 
 
 class ProtocolMng(ABC):
@@ -49,7 +43,7 @@ class ProtocolMng(ABC):
         node.set_subscription_callback(self._update_variable_callback)
 
     @abstractmethod
-    def handle_request(self, msg: Message) -> Message:
+    def handle_request(self, msg: Message) -> Message | None:
         """
         Abstract method to handle a protocol-specific request and update the
         machine data model.
@@ -70,7 +64,7 @@ class ProtocolMng(ABC):
 
     @abstractmethod
     def _update_variable_callback(
-        self, subscriber: str, node: VariableNode, value: Any
+        self, subscription: VariableSubscription, node: VariableNode, value: Any
     ) -> None:
         """
         Handle the update and create the corresponding Message.

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 from enum import Enum
+from machine_data_model.nodes.subscription.variable_subscription import EventType
 
 
 @dataclass(init=True, slots=True)
@@ -30,6 +31,83 @@ class VariablePayload(FrostPayload):
     """
 
     value: Any = None
+
+
+@dataclass(init=True, slots=True)
+class SubscriptionPayload(VariablePayload):
+    """
+    Represents the payload of a subscription-related message.
+
+    This class extends the base payload and includes attributes that are need to handle
+    subscription-related messages.
+
+    :cvar node: The node associated with the message payload (inherited).
+    """
+
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.ANY
+
+
+@dataclass(init=True, slots=True)
+class DataChangeSubscriptionPayload(SubscriptionPayload):
+    """
+    Represents the payload of a data change subscription message.
+
+    This class extends the subscription payload and includes attributes specific to
+    data change subscriptions.
+
+    :cvar node: The node associated with the message payload (inherited).
+    :cvar deadband: Minimum change required to trigger a notification.
+    :cvar is_percent: If True, deadband is treated as a percentage of the
+    previous value; otherwise, it's an absolute value.
+    """
+
+    deadband: float = 0.0
+    is_percent: bool = False
+
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.DATA_CHANGE
+
+
+@dataclass(init=True, slots=True)
+class InRangeSubscriptionPayload(SubscriptionPayload):
+    """
+    Represents the payload of an in-range subscription message.
+
+    This class extends the subscription payload and includes attributes specific to
+    in-range subscriptions.
+
+    :cvar node: The node associated with the message payload (inherited).
+    :cvar low: The lower bound of the range.
+    :cvar high: The upper bound of the range.
+    """
+
+    low: float = 0.0
+    high: float = 0.0
+
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.IN_RANGE
+
+
+@dataclass(init=True, slots=True)
+class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
+    """
+    Represents the payload of an out-of-range subscription message.
+
+    This class extends the subscription payload and includes attributes specific to
+    out-of-range subscriptions.
+
+    :cvar node: The node associated with the message payload (inherited).
+    :cvar low: The lower bound of the range.
+    :cvar high: The upper bound of the range.
+    """
+
+    @property
+    def subscription_type(self) -> EventType:
+        return EventType.OUT_OF_RANGE
 
 
 @dataclass(init=True, slots=True)
@@ -85,6 +163,7 @@ class ErrorCode(int, Enum):
     NOT_SUPPORTED = 103
     NOT_IMPLEMENTED = 104
     VERSION_NOT_SUPPORTED = 105
+    BAD_RESPONSE = 200
 
 
 class ErrorMessages(str, Enum):
@@ -102,11 +181,13 @@ class ErrorMessages(str, Enum):
 
     INVALID_NAMESPACE = "Invalid namespace"
     INVALID_REQUEST = "Invalid request"
+    INVALID_RESPONSE = "Invalid response"
     NODE_NOT_FOUND = "Node not found"
     NOT_SUPPORTED = "The requested operation is not supported on the specified node"
     BAD_REQUEST = "Bad request"
     NOT_ALLOWED = "The requested operation is not allowed on the specified node"
     VERSION_NOT_SUPPORTED = "The requested version of the protocol is not supported"
+    BAD_RESPONSE = "The response is invalid or malformed"
 
 
 @dataclass(init=True, slots=True)

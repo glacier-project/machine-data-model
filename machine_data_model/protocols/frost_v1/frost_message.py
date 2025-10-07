@@ -1,6 +1,6 @@
 import uuid
-from machine_data_model.protocols.protocol_mng import Message
-from dataclasses import dataclass
+from machine_data_model.protocols.message import Message
+from dataclasses import dataclass, field
 from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
 from machine_data_model.protocols.frost_v1.frost_payload import FrostPayload
 
@@ -22,5 +22,5 @@ class FrostMessage(Message):
     target: str
     header: FrostHeader
     payload: FrostPayload
-    identifier: str = str(uuid.uuid4())
-    correlation_id: str = str(uuid.uuid4())
+    identifier: str = field(default_factory=lambda: str(uuid.uuid4()))
+    correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))

@@ -165,6 +165,7 @@ cython_debug/
 .idea/
 bin/
 dump/
+.vscode
 
 # OPC-UA Selfsigned certificates
 *.pem
