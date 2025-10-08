@@ -3,7 +3,8 @@ from typing import Any, Iterator, Sequence
 
 from typing_extensions import override
 
-from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
+from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.tracing import trace_method_start, trace_method_end
 from dataclasses import dataclass
@@ -46,6 +47,9 @@ class MethodNode(DataModelNode):
         parameters: list[VariableNode] | None = None,
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
+        connector_name: str | None = None,
+        remote_path: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initialize a new MethodNode instance.
@@ -56,8 +60,16 @@ class MethodNode(DataModelNode):
         :param parameters: A list of parameters for the method.
         :param returns: A list of return values for the method.
         :param callback: The function to execute when the method is called.
+        :param remote_path: The remote path of the method. Allows to override the qualified name of the node.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            remote_path=remote_path,
+            remote_resource_spec=remote_resource_spec,
+        )
         self._parameters: list[VariableNode] = (
             parameters if parameters is not None else []
         )
@@ -272,7 +284,16 @@ class MethodNode(DataModelNode):
         )
 
         self._pre_call(**kwargs)
-        ret_c = self._callback(**kwargs)
+        if self.is_remote():
+            assert isinstance(
+                self.connector, AbstractConnector
+            ), "connector must be an AbstractConnector"
+            assert (
+                self.remote_path is not None
+            ), "remote_path must be set for a remote node"
+            ret_c = self.connector.call_node_as_method(self.remote_path, kwargs)
+        else:
+            ret_c = self._callback(**kwargs)
         ret = self._build_return_dict(ret_c)
 
         self._post_call(ret)
@@ -340,7 +361,8 @@ class MethodNode(DataModelNode):
             f"MethodNode("
             f"id={self.id}, "
             f"name={self.name}, "
-            f"description={self.description})"
+            f"description={self.description}, "
+            f"remote_path={repr(self.remote_path)})"
         )
 
     def __repr__(self) -> str:
@@ -387,6 +409,9 @@ class AsyncMethodNode(MethodNode):
         parameters: list[VariableNode] | None = None,
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
+        connector_name: str | None = None,
+        remote_path: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initialize a new AsyncMethodNode instance.
@@ -405,6 +430,9 @@ class AsyncMethodNode(MethodNode):
             parameters=parameters,
             returns=returns,
             callback=callback,
+            connector_name=connector_name,
+            remote_path=remote_path,
+            remote_resource_spec=remote_resource_spec,
         )
 
     def is_async(self) -> bool:
@@ -416,4 +444,4 @@ class AsyncMethodNode(MethodNode):
         return True
 
     def __str__(self) -> str:
-        return f"AsyncMethodNode(id={self.id}, name={self.name}, description={self.description})"
+        return f"AsyncMethodNode(id={self.id}, name={self.name}, description={self.description}, remote_path={repr(self.remote_path)})"

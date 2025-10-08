@@ -1,0 +1,254 @@
+name: "Cell4" # name of the machine
+machine_category: "unknown" # category of the machine
+machine_type: "unknown" # type of the machine
+machine_model: "unknown" # model of the machine
+description: "" # description of the machine
+connectors:
+  - !!OpcuaConnector
+    name: "OpcuaConnector1"
+    ip_env_var: "ICE_CELL4_IP"
+    port_env_var: "ICE_CELL4_PORT"
+    security_policy: "SecurityPolicyBasic256Sha256"
+    # private_key_file_path: "certificates/peer-private-key-example-4.pem"
+    # certificate_file_path: "certificates/peer-certificate-example-4.der"
+    # trust_store_certificates_paths: ['certificates']
+root:
+  !!FolderNode
+  name: "Objects"
+  description: "OPCUA"
+  connector_name: "OpcuaConnector1"
+  children:
+    - !!FolderNode
+      name: "Cell_4_Robot_Coordinator_PLC"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "3"
+      description: "Cell_4_Robot_Coordinator_PLC"
+      children:
+        - !!FolderNode
+          name: "DataBlocksGlobal"
+          description: "DataBlocksInstance"
+          children:
+            - !!FolderNode
+              name: "DB_ROBOTS"
+              description: "DB_ROBOTS"
+              children:
+                - !!BooleanVariableNode
+                  name: "plcOperationRunning"
+                  description: ice_data_cell4_control
+                  initial_value: False
+                - !!BooleanVariableNode
+                  name: "plcOperationDone"
+                  description: ice_data_cell4_control
+                  initial_value: False
+                - !!BooleanVariableNode
+                  name: "plcOperationError"
+                  description: ice_data_cell4_control
+                  initial_value: False
+        #         - !!FolderNode
+        #           name: "ABB"
+        #           description: "ABB"
+        #           children:
+        #             - !!BooleanVariableNode
+        #               name: "programRunning"
+        #               description: "program"
+        #               initial_value: False
+        #         - !!FolderNode
+        #           name: "Kuka"
+        #           description: "Kuka"
+        #           children:
+        #             - !!BooleanVariableNode
+        #               name: "programRunning"
+        #               description: "ice_data_cell4_state"
+        #               initial_value: False
+        #     - !!FolderNode
+        #       name: "DB_OPCUA"
+        #       description: "DB_OPCUA"
+        #       children:
+        #         - !!FolderNode
+        #           name: "CellControl"
+        #           description: "CellControl"
+        #           children:
+        #             - !!BooleanVariableNode
+        #               name: "cellInitialized"
+        #               description: "ice_data_cell4_control"
+        #               initial_value: True
+        #     - !!FolderNode
+        #       name: "DB_BUFFER"
+        #       description: "DB_BUFFER"
+        #       children:
+        #         - !!FolderNode
+        #           name: "ABBPositions"
+        #           description: "ABBPositions"
+        #           children:
+        #             - !!NumericalVariableNode
+        #               name: "0"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "1"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "2"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "3"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "4"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "5"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #         - !!FolderNode
+        #           name: "ABBRightPositions"
+        #           description: "ABBRightPositions"
+        #           children:
+        #             - !!NumericalVariableNode
+        #               name: "0"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "1"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "2"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #         - !!FolderNode
+        #           name: "KUKAPositions"
+        #           description: "KUKAPositions"
+        #           children:
+        #             - !!NumericalVariableNode
+        #               name: "0"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "1"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "2"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "3"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "4"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #             - !!NumericalVariableNode
+        #               name: "5"
+        #               description: "ice_data_cell4_state"
+        #               measure_unit: "NoneMeasureUnits.NONE"
+        #               initial_value: 0
+        #     - !!FolderNode
+        #       name: "DB_STATISTICS"
+        #       description: "DB_STATISTICS"
+        #       children:
+        #         - !!NumericalVariableNode
+        #           name: "ABB_TASK_COUNT"
+        #           description: "ice_data_cell4_kpi"
+        #           measure_unit: "NoneMeasureUnits.NONE"
+        #           initial_value: 0
+        #         - !!NumericalVariableNode
+        #           name: "KUKA_TASK_COUNT"
+        #           description: "ice_data_cell4_kpi"
+        #           measure_unit: "NoneMeasureUnits.NONE"
+        #           initial_value: 0
+        # - !!FolderNode
+        #   name: "Outputs"
+        #   description: "Outputs"
+        #   children:
+        #     - !!NumericalVariableNode
+        #       name: "ABB_programID"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "ABB_pickAreaID"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "ABB_pickPosX"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "ABB_pickPosY"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "ABB_itemColorID"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_programID"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_pickAreaID"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_pickPosX"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_pickPosY"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_placeAreaID"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_placePosX"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_placePosY"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_appStart"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
+        #     - !!NumericalVariableNode
+        #       name: "KUKA_appEnable"
+        #       description: ""
+        #       measure_unit: "NoneMeasureUnits.NONE"
+        #       initial_value: 0
