@@ -9,6 +9,7 @@ This library is inspired by standards such as the OPC UA information model, ISA-
 RAMI 4.0, SoM-like data models, and others.
 
 ## Nodes
+
 The data model is organized in a tree-like structure, where each node
 represents one of the following:
 
@@ -263,9 +264,9 @@ model using the protocol.
 More information about the protocol manager can be found in the directory
 `machine_data_model/protocol_manager/`.
 
-# Installation
+## Installation
 
-## From source
+### From source
 
 #### Pre-requisites
 
@@ -281,11 +282,11 @@ poetry build
 python3.11 -m pip install dist/machine_data_model-0.0.1-py3-none-any.whl
 ```
 
-## From PyPI
+### From PyPI
 
 Coming soon!
 
-# Contributing
+## Contributing
 
 Contributions are welcome! If you have suggestions for improvements or
 features, please open an issue or submit a pull request.
@@ -296,8 +297,7 @@ The development environment is managed with [Poetry](https://python-poetry.org/)
 To set up the development environment, follow these steps:
 
 1. Clone the repository
-2. Download and install Poetry from the [official website]
-   (https://python-poetry.org/docs/#installation).
+2. Download and install Poetry from the [official website](<https://python-poetry.org/docs/#installation>).
 3. execute `poetry install --all-extras` to install the development dependencies.
 
 ## Development
@@ -305,8 +305,7 @@ To set up the development environment, follow these steps:
 Before committing changes, make sure to run tox with `bash scripts/run_tox.sh`.
 Tox will test the code with different Python versions, formats the code with
 `ruff` and check the types with `mypy`.
-In addition, the GitHub Actions can be tested locally with [act]
-(https://github.com/nektos/act) using the command `act`.
+In addition, the GitHub Actions can be tested locally with [act](<https://github.com/nektos/act>) using the command `act`.
 Additional scripts are available in the `scripts` folder.
 
 **Note**: All the commits must pass a set of pre-commit checks. To manually run
