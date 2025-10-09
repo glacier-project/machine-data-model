@@ -12,7 +12,7 @@ from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
     WaitConditionOperator,
 )
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.tracing import (
     clear_traces,
     TraceLevel,
@@ -53,19 +53,19 @@ def main() -> None:
     )
     wait_condition.set_ref_node(counter_var)
 
-    # Create a control flow scope
-    scope = ControlFlowScope(str(uuid.uuid4()))
+    # Create a control flow context
+    context = ExecutionContext(str(uuid.uuid4()))
 
     print("Demonstrating wait condition tracing...")
     print("Initial counter value:", counter_var.read())
 
     # First execution - condition not met, should start waiting
     print("\n1. Executing wait condition (counter >= 5) when counter = 0...")
-    result1 = wait_condition.execute(scope)
+    result1 = wait_condition.execute(context)
     print(f"   Result: success={result1.success}")
     print(f"   Counter value: {counter_var.read()}")
     print(
-        f"   Is scope subscribed to counter? {scope.id() in counter_var.get_subscriptions()}"
+        f"   Is context subscribed to counter? {context.id() in counter_var.get_subscriptions()}"
     )
 
     # Increment counter a few times but not enough to meet condition
@@ -75,9 +75,9 @@ def main() -> None:
 
     # Execute again - still waiting
     print("\n3. Executing wait condition again (counter = 3, still < 5)...")
-    result2 = wait_condition.execute(scope)
+    result2 = wait_condition.execute(context)
     print(f"   Result: success={result2.success}")
-    print(f"   Is still subscribed? {scope.id() in counter_var.get_subscriptions()}")
+    print(f"   Is still subscribed? {context.id() in counter_var.get_subscriptions()}")
 
     # Now increment counter to meet the condition
     print("\n4. Incrementing counter to 7 (now >= 5)...")
@@ -86,9 +86,9 @@ def main() -> None:
 
     # Execute again - condition met, should stop waiting
     print("\n5. Executing wait condition (counter = 7, now >= 5)...")
-    result3 = wait_condition.execute(scope)
+    result3 = wait_condition.execute(context)
     print(f"   Result: success={result3.success}")
-    print(f"   Is still subscribed? {scope.id() in counter_var.get_subscriptions()}")
+    print(f"   Is still subscribed? {context.id() in counter_var.get_subscriptions()}")
 
     # Display final trace events
     collector = get_global_collector()

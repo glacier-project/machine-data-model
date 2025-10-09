@@ -12,7 +12,7 @@ from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
     WaitConditionOperator,
 )
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.tracing import (
     get_global_collector,
     clear_traces,
@@ -229,11 +229,11 @@ class TestDataModelTracing:
         )
         wait_condition.set_ref_node(counter_var)
 
-        # Create a control flow scope
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        # Create a control flow context
+        context = ExecutionContext(str(uuid.uuid4()))
 
         # First execution - condition not met, should start waiting
-        result1 = wait_condition.execute(scope)
+        result1 = wait_condition.execute(context)
         assert not result1.success  # Should fail because condition not met
 
         # Check that WAIT_START was recorded
@@ -251,7 +251,7 @@ class TestDataModelTracing:
         data_model.write_variable("counter", 7)
 
         # Execute again - condition met, should stop waiting
-        result2 = wait_condition.execute(scope)
+        result2 = wait_condition.execute(context)
         assert result2.success  # Should succeed now
 
         # Check that WAIT_END was recorded
@@ -374,7 +374,7 @@ class TestDataModelTracing:
             WriteVariableNode,
         )
         from machine_data_model.behavior.control_flow import ControlFlow
-        from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+        from machine_data_model.behavior.execution_context import ExecutionContext
 
         read_node = ReadVariableNode(variable_node="test_var", store_as="read_value")
         read_node.set_ref_node(var)
@@ -385,9 +385,9 @@ class TestDataModelTracing:
         # Create control flow with the nodes
         control_flow = ControlFlow([read_node, write_node])
 
-        # Create scope and execute
-        scope = ControlFlowScope("test_scope")
-        control_flow.execute(scope)
+        # Create context and execute
+        context = ExecutionContext("test_context")
+        control_flow.execute(context)
 
         # Check control flow step events
         collector = get_global_collector()
@@ -400,7 +400,7 @@ class TestDataModelTracing:
         assert read_event.details["node_type"] == "ReadVariableNode"
         assert read_event.details["execution_result"]
         assert read_event.details["program_counter"] == 0
-        assert read_event.source == "test_scope"
+        assert read_event.source == "test_context"
         assert isinstance(read_event.timestamp, float)
 
         # Check second event (write node)
@@ -409,11 +409,11 @@ class TestDataModelTracing:
         assert write_event.details["node_type"] == "WriteVariableNode"
         assert write_event.details["execution_result"]
         assert write_event.details["program_counter"] == 1
-        assert write_event.source == "test_scope"
+        assert write_event.source == "test_context"
         assert isinstance(write_event.timestamp, float)
 
         # Verify the control flow executed correctly
-        assert scope.get_value("read_value") == 10.0
+        assert context.get_value("read_value") == 10.0
         assert data_model.read_variable("test_var") == 20.0
 
 

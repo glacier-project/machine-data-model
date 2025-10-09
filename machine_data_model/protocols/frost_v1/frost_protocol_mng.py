@@ -3,7 +3,6 @@ from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
-    SCOPE_ID,
     CompositeMethodNode,
 )
 from machine_data_model.nodes.method_node import MethodNode
@@ -236,11 +235,11 @@ class FrostProtocolMng(ProtocolMng):
 
         ret = method_node(*args, **kwargs)
         ret_values = ret.return_values
-        if SCOPE_ID in ret_values:
-            scope_id = ret_values[SCOPE_ID]
-            assert isinstance(scope_id, str)
+        if "@context_id" in ret_values:
+            context_id = ret_values["@context_id"]
+            assert isinstance(context_id, str)
             assert isinstance(method_node, CompositeMethodNode)
-            self._running_methods[scope_id] = (method_node, msg)
+            self._running_methods[context_id] = (method_node, msg)
             # here we should return the accepted message
             msg.header.msg_name = MethodMsgName.STARTED
 
@@ -347,24 +346,24 @@ class FrostProtocolMng(ProtocolMng):
 
         return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
 
-    def _resume_composite_method(self, scope_id: str) -> FrostMessage | None:
+    def _resume_composite_method(self, context_id: str) -> FrostMessage | None:
         """
-        Resume the execution of a composite method with the specified scope id.
-        :param scope_id: The id of the scope to resume.
+        Resume the execution of a composite method with the specified context id.
+        :param context_id: The id of the context to resume.
         :return: A response message if the method is completed, otherwise None.
         """
-        cm, msg = self._running_methods[scope_id]
-        ret = cm.resume_execution(scope_id)
+        cm, msg = self._running_methods[context_id]
+        ret = cm.resume_execution(context_id)
 
         if ret.messages:
             self._update_messages.extend(ret.messages)
 
-        if not cm.is_terminated(scope_id):
+        if not cm.is_terminated(context_id):
             return None
 
         # append response message
-        cm.delete_scope(scope_id)
-        del self._running_methods[scope_id]
+        cm.delete_context(context_id)
+        del self._running_methods[context_id]
         # append response message
         msg.header.msg_name = MethodMsgName.COMPLETED
         assert isinstance(msg.payload, MethodPayload)

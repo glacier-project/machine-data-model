@@ -12,7 +12,7 @@ from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.behavior.local_execution_node import WriteVariableNode
 from machine_data_model.behavior.remote_execution_node import ReadRemoteVariableNode
 from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.tracing import clear_traces, TraceLevel, get_global_collector
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
@@ -234,8 +234,8 @@ def local_machine_process(
 
         # Execute: Phase 1 - Send request
         machine_log("Starting control flow execution")
-        scope = ControlFlowScope("temp_sync")
-        messages = control_flow.execute(scope)
+        context = ExecutionContext("temp_sync")
+        messages = control_flow.execute(context)
 
         machine_log(f"Sent {len(messages)} messages")
 
@@ -258,7 +258,7 @@ def local_machine_process(
                 machine_log(f"Received response for {response_msg.payload.node}")
 
                 # Handle the response.
-                handled = read_remote_temp.handle_response(scope, response_msg)
+                handled = read_remote_temp.handle_response(context, response_msg)
                 machine_log(f"Response handled: {handled}")
                 response_received = True
 
@@ -271,7 +271,7 @@ def local_machine_process(
 
         # Execute: Phase 2 - Process response and write locally
         machine_log("Processing response and writing locally")
-        messages2 = control_flow.execute(scope)
+        messages2 = control_flow.execute(context)
         machine_log(f"Sent {len(messages2)} messages in phase 2")
 
         # Store final results

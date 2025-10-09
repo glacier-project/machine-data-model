@@ -6,7 +6,6 @@ from typing import Any
 import pytest
 from machine_data_model.data_model import DataModel
 from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.nodes.composite_method.composite_method_node import SCOPE_ID
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
@@ -125,7 +124,7 @@ def setup_remote_method_test(
     assert isinstance(response, FrostMessage)
     assert_response_matches_request(response, msg, sender, target)
     assert isinstance(response.payload, MethodPayload)
-    assert SCOPE_ID in response.payload.ret
+    assert "@context_id" in response.payload.ret
 
     return msg, response, method
 
@@ -362,7 +361,7 @@ class TestFrostProtocolMng:
 
         assert_response_matches_request(response, msg, sender, target)
         assert isinstance(response.payload, MethodPayload)
-        assert SCOPE_ID in response.payload.ret
+        assert "@context_id" in response.payload.ret
         assert not manager.get_update_messages()
 
         # Update the waiting variable to trigger completion

@@ -11,8 +11,8 @@ from machine_data_model.behavior.remote_execution_node import (
     WaitRemoteEventNode,
     WriteRemoteVariableNode,
 )
-from machine_data_model.behavior.control_flow_scope import (
-    ControlFlowScope,
+from machine_data_model.behavior.execution_context import (
+    ExecutionContext,
 )
 from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
 from machine_data_model.nodes.variable_node import StringVariableNode, VariableNode
@@ -43,7 +43,7 @@ class TestRemoteExecutionNode:
         ],
     )
     def test_call_remote_node(self, method_node: MethodNode) -> None:
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
         kwargs = get_default_kwargs(method_node)
@@ -55,7 +55,7 @@ class TestRemoteExecutionNode:
             remote_id=target,
         )
         c_remote_node.sender_id = sender
-        ret = c_remote_node.execute(scope)
+        ret = c_remote_node.execute(context)
         msgs = ret.messages
 
         # should not complete as there is no remote execution environment
@@ -83,7 +83,7 @@ class TestRemoteExecutionNode:
         ],
     )
     def test_call_remote_node_validate_response(self, method_node: MethodNode) -> None:
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
         kwargs = get_default_kwargs(method_node)
@@ -95,7 +95,7 @@ class TestRemoteExecutionNode:
             remote_id=target,
         )
         c_remote_node.sender_id = sender
-        ret = c_remote_node.execute(scope)
+        ret = c_remote_node.execute(context)
         msg = ret.messages[0]
 
         # create a valid response message
@@ -106,16 +106,16 @@ class TestRemoteExecutionNode:
         assert isinstance(msg.payload, MethodPayload)
         assert len(method_node.returns) > 0
         msg.payload.ret = {param.name: param.read() for param in method_node.returns}
-        is_valid = c_remote_node.handle_response(scope, msg)
+        is_valid = c_remote_node.handle_response(context, msg)
         assert is_valid
 
         # try resume the execution
-        ret = c_remote_node.execute(scope)
+        ret = c_remote_node.execute(context)
         assert ret.success
         assert not ret.messages
-        # check that the return values are set in the scope
+        # check that the return values are set in the context
         for param in method_node.returns:
-            assert param.read() == scope.get_value(param.name)
+            assert param.read() == context.get_value(param.name)
 
     @pytest.mark.parametrize(
         "variable_node",
@@ -126,7 +126,7 @@ class TestRemoteExecutionNode:
         ],
     )
     def test_read_remote_node(self, variable_node: VariableNode) -> None:
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
         store_as = variable_node.name
@@ -137,7 +137,7 @@ class TestRemoteExecutionNode:
             store_as=store_as,
         )
         r_remote_node.sender_id = sender
-        ret = r_remote_node.execute(scope)
+        ret = r_remote_node.execute(context)
         msgs = ret.messages
 
         # should not complete as there is no remote execution environment
@@ -167,7 +167,7 @@ class TestRemoteExecutionNode:
     def test_read_remote_node_validate_response(
         self, variable_node: VariableNode
     ) -> None:
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
         store_as = variable_node.name
@@ -178,7 +178,7 @@ class TestRemoteExecutionNode:
             store_as=store_as,
         )
         r_remote_node.sender_id = sender
-        ret = r_remote_node.execute(scope)
+        ret = r_remote_node.execute(context)
         msg = ret.messages[0]
 
         # create a valid response message
@@ -187,15 +187,15 @@ class TestRemoteExecutionNode:
         msg.header.type = MsgType.RESPONSE
         assert isinstance(msg.payload, VariablePayload)
         msg.payload.value = variable_node.read()
-        is_valid = r_remote_node.handle_response(scope, msg)
+        is_valid = r_remote_node.handle_response(context, msg)
         assert is_valid
 
         # try resume the execution
-        ret = r_remote_node.execute(scope)
+        ret = r_remote_node.execute(context)
         assert ret.success
         assert not ret.messages
-        # check that the return values are set in the scope
-        assert scope.get_value(store_as) == variable_node.read()
+        # check that the return values are set in the context
+        assert context.get_value(store_as) == variable_node.read()
 
     @pytest.mark.parametrize(
         "variable_node,value",
@@ -206,11 +206,11 @@ class TestRemoteExecutionNode:
         ],
     )
     def test_write_remote_node(self, variable_node: VariableNode, value: Any) -> None:
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
         variable_name = "${" + variable_node.name + "}"
-        scope.set_value(variable_node.name, value)
+        context.set_value(variable_node.name, value)
 
         w_remote_node = WriteRemoteVariableNode(
             variable_node=variable_node.qualified_name,
@@ -218,7 +218,7 @@ class TestRemoteExecutionNode:
             value=variable_name,
         )
         w_remote_node.sender_id = sender
-        ret = w_remote_node.execute(scope)
+        ret = w_remote_node.execute(context)
         msgs = ret.messages
 
         # should not complete as there is no remote execution environment
@@ -248,11 +248,11 @@ class TestRemoteExecutionNode:
     def test_write_remote_node_validate_response(
         self, variable_node: VariableNode, value: Any
     ) -> None:
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
         variable_name = f"${variable_node.name}"
-        scope.set_value(variable_node.name, value)
+        context.set_value(variable_node.name, value)
 
         w_remote_node = WriteRemoteVariableNode(
             variable_node=variable_node.qualified_name,
@@ -260,7 +260,7 @@ class TestRemoteExecutionNode:
             value=variable_name,
         )
         w_remote_node.sender_id = sender
-        ret = w_remote_node.execute(scope)
+        ret = w_remote_node.execute(context)
         msg = ret.messages[0]
 
         # create a valid response message
@@ -269,11 +269,11 @@ class TestRemoteExecutionNode:
         msg.header.type = MsgType.RESPONSE
         assert isinstance(msg.payload, VariablePayload)
         msg.payload.value = variable_node.read()
-        is_valid = w_remote_node.handle_response(scope, msg)
+        is_valid = w_remote_node.handle_response(context, msg)
         assert is_valid
 
         # try resume the execution
-        ret = w_remote_node.execute(scope)
+        ret = w_remote_node.execute(context)
         assert ret.success
         assert not ret.messages
 
@@ -292,7 +292,7 @@ class TestRemoteExecutionNode:
     def test_wait_remote_event_node(
         self, variable_node: VariableNode, rhs: Any, op: WaitConditionOperator
     ) -> None:
-        scope = ControlFlowScope(str(uuid.uuid4()))
+        context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
         w_remote_event_node = WaitRemoteEventNode(
@@ -303,7 +303,7 @@ class TestRemoteExecutionNode:
         )
         w_remote_event_node.sender_id = sender
 
-        ret = w_remote_event_node.execute(scope)
+        ret = w_remote_event_node.execute(context)
         if isinstance(variable_node, StringVariableNode):
             comparison_result = eval(f'"{variable_node.read()}"' + op + f'"{rhs}"')
         else:
@@ -331,11 +331,11 @@ class TestRemoteExecutionNode:
         msg.header.msg_name = VariableMsgName.UPDATE
         msg.payload.value = variable_node.read()
 
-        is_condition_met = w_remote_event_node.handle_response(scope, msg)
+        is_condition_met = w_remote_event_node.handle_response(context, msg)
 
         assert is_condition_met == comparison_result
         if is_condition_met:
-            ret = w_remote_event_node.execute(scope)
+            ret = w_remote_event_node.execute(context)
             assert ret.success
             assert ret.messages
             assert len(ret.messages) == 1
@@ -345,6 +345,6 @@ class TestRemoteExecutionNode:
                 _msg_name=VariableMsgName.UNSUBSCRIBE,
             )
         else:
-            ret = w_remote_event_node.execute(scope)
+            ret = w_remote_event_node.execute(context)
             assert not ret.success
             assert len(ret.messages) == 0
