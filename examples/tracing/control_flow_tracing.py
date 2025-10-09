@@ -9,6 +9,9 @@ and program counter positions.
 import time
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
 from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
     WriteVariableNode,
@@ -36,11 +39,24 @@ def main() -> None:
     data_model = DataModel(name="ControlFlowTracingExample")
 
     # Add variables for the control flow operations
-    counter_var = NumericalVariableNode(id="counter", name="counter", value=0)
-    result_var = NumericalVariableNode(id="result", name="result", value=0.0)
+    counter_var = NumericalVariableNode(
+        id="counter",
+        name="counter",
+        value=0,
+    )
+    result_var = NumericalVariableNode(
+        id="result",
+        name="result",
+        value=0.0,
+    )
+    composite_method = CompositeMethodNode(
+        id="control_flow_method",
+        name="Control Flow Method",
+    )
     # Add variables to the root node.
     data_model.root.add_child(counter_var)
     data_model.root.add_child(result_var)
+    data_model.root.add_child(composite_method)
 
     # Register nodes.
     data_model._register_nodes(data_model.root)
@@ -59,7 +75,14 @@ def main() -> None:
     increment_counter.set_ref_node(counter_var)
 
     # Create the control flow graph
-    control_flow = ControlFlow([read_counter, write_result, increment_counter])
+    control_flow = ControlFlow(
+        [
+            read_counter,
+            write_result,
+            increment_counter,
+        ],
+        composite_method_node=composite_method,
+    )
 
     # Simulate control flow execution multiple times
     print("Simulating control flow execution...")

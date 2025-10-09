@@ -9,6 +9,9 @@ import atexit
 from typing import Dict, Any
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
 from machine_data_model.behavior.local_execution_node import WriteVariableNode
 from machine_data_model.behavior.remote_execution_node import ReadRemoteVariableNode
 from machine_data_model.behavior.control_flow import ControlFlow
@@ -207,7 +210,12 @@ def local_machine_process(
             name="local_temp",
             value=INIT_TEMP,
         )
+        composite_method = CompositeMethodNode(
+            id="temp_sync_method",
+            name="Temperature Sync Method",
+        )
         local_machine.root.add_child(local_temp)
+        local_machine.root.add_child(composite_method)
         local_machine._register_nodes(local_machine.root)
 
         machine_log(f"Initialized with temperature: {INIT_TEMP}")
@@ -229,7 +237,8 @@ def local_machine_process(
             [
                 read_remote_temp,
                 write_local_temp,
-            ]
+            ],
+            composite_method_node=composite_method,
         )
 
         # Execute: Phase 1 - Send request

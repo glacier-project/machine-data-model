@@ -5,13 +5,19 @@ import uuid
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.behavior.local_execution_node import (
+    ReadVariableNode,
+    WriteVariableNode,
     WaitConditionNode,
     WaitConditionOperator,
 )
+from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.tracing import (
     get_global_collector,
@@ -368,14 +374,14 @@ class TestDataModelTracing:
         data_model.root.add_child(var)
         data_model._register_nodes(data_model.root)
 
-        # Create control flow nodes
-        from machine_data_model.behavior.local_execution_node import (
-            ReadVariableNode,
-            WriteVariableNode,
+        # Create a composite method node for the control flow
+        composite_method = CompositeMethodNode(
+            id="test_control_flow_method", name="Test Control Flow Method"
         )
-        from machine_data_model.behavior.control_flow import ControlFlow
-        from machine_data_model.behavior.execution_context import ExecutionContext
+        data_model.root.add_child(composite_method)
+        data_model._register_nodes(data_model.root)
 
+        # Create control flow nodes
         read_node = ReadVariableNode(variable_node="test_var", store_as="read_value")
         read_node.set_ref_node(var)
 
@@ -383,7 +389,9 @@ class TestDataModelTracing:
         write_node.set_ref_node(var)
 
         # Create control flow with the nodes
-        control_flow = ControlFlow([read_node, write_node])
+        control_flow = ControlFlow(
+            [read_node, write_node], composite_method_node=composite_method
+        )
 
         # Create context and execute
         context = ExecutionContext("test_context")
