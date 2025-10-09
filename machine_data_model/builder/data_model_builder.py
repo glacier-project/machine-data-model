@@ -1,8 +1,8 @@
 """
 Data model builder for creating machine data models from YAML files.
 
-This module provides functionality to build data models, including nodes and control flows,
-from YAML configuration files using custom YAML constructors.
+This module provides functionality to build data models, including nodes and
+control flows, from YAML configuration files using custom YAML constructors.
 """
 
 import os

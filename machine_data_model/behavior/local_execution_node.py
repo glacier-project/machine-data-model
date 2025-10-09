@@ -40,13 +40,6 @@ class LocalExecutionNode(ControlFlowNode):
     can be executed locally in the context of a control flow context.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
         _ref_node (DataModelNode | None):
             The reference to the node in the machine data model.
         get_data_model_node (Callable[[str], DataModelNode | None] | None):
@@ -173,18 +166,6 @@ class ReadVariableNode(LocalExecutionNode):
     context.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        _ref_node (DataModelNode | None):
-            The reference to the node in the machine data model.
-        get_data_model_node (Callable[[str], DataModelNode | None] | None):
-            A callable that takes a node identifier and returns the
-            corresponding node in the machine data model.
         store_as (str):
             The name of the variable used to store the value in the context.
     """
@@ -277,18 +258,6 @@ class WriteVariableNode(LocalExecutionNode):
     model.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        _ref_node (DataModelNode | None):
-            The reference to the node in the machine data model.
-        get_data_model_node (Callable[[str], DataModelNode | None] | None):
-            A callable that takes a node identifier and returns the
-            corresponding node in the machine data model.
         _value (Any):
             The value to write to the variable.
     """
@@ -388,18 +357,6 @@ class CallMethodNode(LocalExecutionNode):
     the return values in the context.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        _ref_node (DataModelNode | None):
-            The reference to the node in the machine data model.
-        get_data_model_node (Callable[[str], DataModelNode | None] | None):
-            A callable that takes a node identifier and returns the
-            corresponding node in the machine data model.
         _args (list[Any]):
             The list of positional arguments to pass to the method.
         _kwargs (dict[str, Any]):
@@ -557,23 +514,13 @@ class WaitConditionNode(LocalExecutionNode):
     it subscribes to the variable and waits for the value to change.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        _ref_node (DataModelNode | None):
-            The reference to the node in the machine data model.
-        get_data_model_node (Callable[[str], DataModelNode | None] | None):
-            A callable that takes a node identifier and returns the
-            corresponding node in the machine data model.
         _rhs (Any):
             The right-hand side of the comparison. It can be a constant value or
             reference to a variable in the context.
         _op (WaitConditionOperator):
             The comparison operator.
+        _subscription (VariableSubscription | None):
+            The subscription to the variable for change notifications.
     """
 
     _rhs: Any

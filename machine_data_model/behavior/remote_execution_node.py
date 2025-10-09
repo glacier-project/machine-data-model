@@ -45,13 +45,6 @@ class RemoteExecutionNode(ControlFlowNode):
     response.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
         sender_id (str):
             The identifier of the sender node.
         remote_id (str):
@@ -247,17 +240,6 @@ class CallRemoteMethodNode(RemoteExecutionNode):
     method and waits for a response.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        sender_id (str):
-            The identifier of the sender node.
-        remote_id (str):
-            The identifier of the remote node.
         args (list[Any]):
             The positional arguments to pass to the remote method.
         kwargs (dict[str, Any]):
@@ -393,17 +375,6 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
     variable and waits for a response to store the value in the context.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        sender_id (str):
-            The identifier of the sender node.
-        remote_id (str):
-            The identifier of the remote node.
         store_as (str):
             The name of the variable used to store the value in the context.
     """
@@ -528,17 +499,6 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
     to a variable and waits for a response.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        sender_id (str):
-            The identifier of the sender node.
-        remote_id (str):
-            The identifier of the remote node.
         value (Any):
             The value to write to the remote variable. Can be a direct value or
             a reference to a variable in the context (e.g., "$var_name").
@@ -659,17 +619,6 @@ class WaitRemoteEventNode(RemoteExecutionNode):
     an event and waits for a response.
 
     Attributes:
-        node (str):
-            The identifier of a node in the machine data model.
-        _successors (list["ControlFlowNode"]):
-            A list of control flow nodes that are successors of the current
-            node. (Not used yet)
-        _parent_cfg ("ControlFlow | None"):
-            The parent control flow graph that contains this node.
-        sender_id (str):
-            The identifier of the sender node.
-        remote_id (str):
-            The identifier of the remote node.
         rhs (Any):
             The right-hand side of the comparison. It can be a constant value or
             reference to a variable in the context.
