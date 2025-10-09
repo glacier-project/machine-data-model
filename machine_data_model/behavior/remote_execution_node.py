@@ -1,3 +1,10 @@
+"""
+Remote execution nodes for control flow graphs.
+
+This module defines various node types that execute operations on remote nodes
+by sending messages and waiting for responses.
+"""
+
 from abc import abstractmethod
 from typing import Any
 from typing_extensions import override
@@ -32,11 +39,27 @@ from machine_data_model.tracing.events import trace_control_flow_step
 
 class RemoteExecutionNode(ControlFlowNode):
     """
-    Represents a remote execution node in the control flow graph. When executed,
-    it sends a request message to a remote node and waits for a response.
-    :ivar remote_id: The identifier of the remote node.
-    :ivar node: The qualified name of the node to interact with on the remote node.
+    Represents a remote execution node in the control flow graph.
+
+    When executed, it sends a request message to a remote node and waits for a
+    response.
+
+    Attributes:
+        node (str):
+            The identifier of a node in the machine data model.
+        _successors (list["ControlFlowNode"]):
+            A list of control flow nodes that are successors of the current
+            node. (Not used yet)
+        _parent_cfg ("ControlFlow | None"):
+            The parent control flow graph that contains this node.
+        sender_id (str):
+            The identifier of the sender node.
+        remote_id (str):
+            The identifier of the remote node.
     """
+
+    sender_id: str
+    remote_id: str
 
     def __init__(
         self,
@@ -44,15 +67,35 @@ class RemoteExecutionNode(ControlFlowNode):
         remote_id: str,
         successors: list[ControlFlowNode] | None = None,
     ):
+        """
+        Initialize a new RemoteExecutionNode instance.
+
+        Args:
+            node (str):
+                The qualified name of the node to interact with on the remote
+                node.
+            remote_id (str):
+                The identifier of the remote node.
+            successors (list[ControlFlowNode] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+        """
         super().__init__(node, successors)
         self.sender_id: str = "undefined"
         self.remote_id: str = remote_id
 
     @abstractmethod
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
-        """Create the request message to send to the remote node.
-        :param context: The context of the control flow graph.
-        :return: The request message to send to the remote node.
+        """
+        Create the request message to send to the remote node.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            FrostMessage:
+                The request message to send to the remote node.
         """
         pass
 
@@ -60,27 +103,53 @@ class RemoteExecutionNode(ControlFlowNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """Validate the response message received from the remote node.
-        :param context: The context of the control flow graph.
-        :param response: The response message received from the remote node.
-        :return: True if the response is valid, otherwise False.
+        """
+        Validate the response message received from the remote node.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            response (FrostMessage):
+                The response message received from the remote node.
+
+        Returns:
+            bool:
+                True if the response is valid, otherwise False.
         """
         pass
 
     def _create_cleanup_msg(self, context: ExecutionContext) -> FrostMessage | None:
-        """Create a cleanup message to send to the remote target after the node has been executed.
-        :param context: The context of the control flow graph.
-        :return: The cleanup message to send to the remote node, or None if no cleanup is needed.
+        """
+        Create a cleanup message to send to the remote target after the node has
+        been executed.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            FrostMessage | None:
+                The cleanup message to send to the remote node, or None if no
+                cleanup is needed.
         """
         pass
 
     def handle_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """Handle the response message received from the remote node.
-        :param context: The context of the control flow graph.
-        :param response: The response message received from the remote node.
-        :return: True if the response is valid and has been handled, otherwise False.
+        """
+        Handle the response message received from the remote node.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            response (FrostMessage):
+                The response message received from the remote node.
+
+        Returns:
+            bool:
+                True if the response is valid and has been handled, otherwise
+                False.
         """
         if (
             response.correlation_id != context.active_request
@@ -98,6 +167,17 @@ class RemoteExecutionNode(ControlFlowNode):
 
     @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
+        """
+        Execute the remote execution node.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            ExecutionNodeResult:
+                An ExecutionNodeResult indicating the outcome of the execution.
+        """
         # Trace the control flow step for request initiation
         trace_control_flow_step(
             node_id=self.node,
@@ -135,6 +215,17 @@ class RemoteExecutionNode(ControlFlowNode):
         return ExecutionNodeResult(False, [msg])
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+        """
         if self is other:
             return True
 
@@ -150,11 +241,31 @@ class RemoteExecutionNode(ControlFlowNode):
 
 class CallRemoteMethodNode(RemoteExecutionNode):
     """
-    Represents a remote method call node in the control flow graph. When executed,
-    it sends a request message to a remote node to invoke a method and waits for a response.
-    :ivar _args: The positional arguments to pass to the remote method.
-    :ivar _kwargs: The keyword arguments to pass to the remote method.
+    Represents a remote method call node in the control flow graph.
+
+    When executed, it sends a request message to a remote node to invoke a
+    method and waits for a response.
+
+    Attributes:
+        node (str):
+            The identifier of a node in the machine data model.
+        _successors (list["ControlFlowNode"]):
+            A list of control flow nodes that are successors of the current
+            node. (Not used yet)
+        _parent_cfg ("ControlFlow | None"):
+            The parent control flow graph that contains this node.
+        sender_id (str):
+            The identifier of the sender node.
+        remote_id (str):
+            The identifier of the remote node.
+        args (list[Any]):
+            The positional arguments to pass to the remote method.
+        kwargs (dict[str, Any]):
+            The keyword arguments to pass to the remote method.
     """
+
+    args: list[Any]
+    kwargs: dict[str, Any]
 
     def __init__(
         self,
@@ -164,6 +275,23 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         kwargs: dict[str, Any],
         successors: list[ControlFlowNode] | None = None,
     ):
+        """
+        Initialize a new CallRemoteMethodNode instance.
+
+        Args:
+            method_node (str):
+                The identifier of the method node in the remote machine data
+                model.
+            remote_id (str):
+                The identifier of the remote node.
+            args (list[Any]):
+                The positional arguments to pass to the remote method.
+            kwargs (dict[str, Any]):
+                The keyword arguments to pass to the remote method.
+            successors (list[ControlFlowNode] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+        """
         super().__init__(method_node, remote_id, successors)
         self.args = args
         self.kwargs = kwargs
@@ -172,6 +300,19 @@ class CallRemoteMethodNode(RemoteExecutionNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
+        """
+        Validate the response message for a remote method call.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            response (FrostMessage):
+                The response message received from the remote node.
+
+        Returns:
+            bool:
+                True if the response is valid, otherwise False.
+        """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
             _namespace=MsgNamespace.METHOD,
@@ -191,6 +332,17 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
     @override
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
+        """
+        Create the request message for a remote method call.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            FrostMessage:
+                The request message to send to the remote node.
+        """
         return FrostMessage(
             correlation_id=context.id(),
             sender=self.sender_id,
@@ -209,6 +361,17 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         )
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+        """
         if self is other:
             return True
 
@@ -224,10 +387,28 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
 class ReadRemoteVariableNode(RemoteExecutionNode):
     """
-    Represents a remote variable read node in the control flow graph. When executed,
-    it sends a request message to a remote node to read a variable and waits for a response to store the value in the context.
-    :ivar _store_as: The name of the variable used to store the value in the context.
+    Represents a remote variable read node in the control flow graph.
+
+    When executed, it sends a request message to a remote node to read a
+    variable and waits for a response to store the value in the context.
+
+    Attributes:
+        node (str):
+            The identifier of a node in the machine data model.
+        _successors (list["ControlFlowNode"]):
+            A list of control flow nodes that are successors of the current
+            node. (Not used yet)
+        _parent_cfg ("ControlFlow | None"):
+            The parent control flow graph that contains this node.
+        sender_id (str):
+            The identifier of the sender node.
+        remote_id (str):
+            The identifier of the remote node.
+        store_as (str):
+            The name of the variable used to store the value in the context.
     """
+
+    store_as: str
 
     def __init__(
         self,
@@ -236,12 +417,42 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         store_as: str = "",
         successors: list[ControlFlowNode] | None = None,
     ):
+        """
+        Initialize a new ReadRemoteVariableNode instance.
+
+        Args:
+            variable_node (str):
+                The identifier of the variable node in the remote machine data
+                model.
+            remote_id (str):
+                The identifier of the remote node.
+            store_as (str):
+                The name of the variable used to store the value in the context.
+                If not specified, the value is stored with the name of the
+                variable node.
+            successors (list[ControlFlowNode] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+        """
         super().__init__(variable_node, remote_id, successors)
         self.store_as = store_as
 
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
+        """
+        Validate the response message for a remote variable read.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            response (FrostMessage):
+                The response message received from the remote node.
+
+        Returns:
+            bool:
+                True if the response is valid, otherwise False.
+        """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
             _namespace=MsgNamespace.VARIABLE,
@@ -262,6 +473,17 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         return True
 
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
+        """
+        Create the request message for a remote variable read.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            FrostMessage:
+                The request message to send to the remote node.
+        """
         return FrostMessage(
             correlation_id=context.id(),
             sender=self.sender_id,
@@ -278,6 +500,17 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         )
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+        """
         if self is other:
             return True
 
@@ -289,11 +522,29 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
 class WriteRemoteVariableNode(RemoteExecutionNode):
     """
-    Represents a remote variable write node in the control flow graph. When executed,
-    it sends a request message to a remote node to write a value to a variable and waits for a response.
-    :ivar _value: The value to write to the remote variable. Can be a direct
-        value or a reference to a variable in the context (e.g., "$var_name").
+    Represents a remote variable write node in the control flow graph.
+
+    When executed, it sends a request message to a remote node to write a value
+    to a variable and waits for a response.
+
+    Attributes:
+        node (str):
+            The identifier of a node in the machine data model.
+        _successors (list["ControlFlowNode"]):
+            A list of control flow nodes that are successors of the current
+            node. (Not used yet)
+        _parent_cfg ("ControlFlow | None"):
+            The parent control flow graph that contains this node.
+        sender_id (str):
+            The identifier of the sender node.
+        remote_id (str):
+            The identifier of the remote node.
+        value (Any):
+            The value to write to the remote variable. Can be a direct value or
+            a reference to a variable in the context (e.g., "$var_name").
     """
+
+    value: Any
 
     def __init__(
         self,
@@ -302,12 +553,41 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         value: Any,
         successors: list[ControlFlowNode] | None = None,
     ):
+        """
+        Initialize a new WriteRemoteVariableNode instance.
+
+        Args:
+            variable_node (str):
+                The identifier of the variable node in the remote machine data
+                model.
+            remote_id (str):
+                The identifier of the remote node.
+            value (Any):
+                The value to write to the remote variable. Can be a direct value
+                or a reference to a variable in the context.
+            successors (list[ControlFlowNode] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+        """
         super().__init__(variable_node, remote_id, successors)
         self.value = value
 
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
+        """
+        Validate the response message for a remote variable write.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            response (FrostMessage):
+                The response message received from the remote node.
+
+        Returns:
+            bool:
+                True if the response is valid, otherwise False.
+        """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
             _namespace=MsgNamespace.VARIABLE,
@@ -323,6 +603,17 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         return True
 
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
+        """
+        Create the request message for a remote variable write.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            FrostMessage:
+                The request message to send to the remote node.
+        """
         return FrostMessage(
             correlation_id=context.id(),
             sender=self.sender_id,
@@ -340,6 +631,17 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         )
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+        """
         if self is other:
             return True
 
@@ -351,12 +653,32 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
 
 class WaitRemoteEventNode(RemoteExecutionNode):
     """
-    Represents a remote event wait node in the control flow graph. When executed,
-    it sends a request message to a remote node to subscribe to an event and waits for a response.
+    Represents a remote event wait node in the control flow graph.
 
-    :ivar rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the context.
-    :ivar op: The comparison operator.
+    When executed, it sends a request message to a remote node to subscribe to
+    an event and waits for a response.
+
+    Attributes:
+        node (str):
+            The identifier of a node in the machine data model.
+        _successors (list["ControlFlowNode"]):
+            A list of control flow nodes that are successors of the current
+            node. (Not used yet)
+        _parent_cfg ("ControlFlow | None"):
+            The parent control flow graph that contains this node.
+        sender_id (str):
+            The identifier of the sender node.
+        remote_id (str):
+            The identifier of the remote node.
+        rhs (Any):
+            The right-hand side of the comparison. It can be a constant value or
+            reference to a variable in the context.
+        op (WaitConditionOperator):
+            The comparison operator.
     """
+
+    rhs: Any
+    op: WaitConditionOperator
 
     def __init__(
         self,
@@ -366,6 +688,24 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         op: WaitConditionOperator,
         successors: list[ControlFlowNode] | None = None,
     ):
+        """
+        Initialize a new WaitRemoteEventNode instance.
+
+        Args:
+            variable_node (str):
+                The identifier of the variable node in the remote machine data
+                model.
+            remote_id (str):
+                The identifier of the remote node.
+            rhs (Any):
+                The right-hand side of the comparison. It can be a constant
+                value or reference to a variable in the context.
+            op (WaitConditionOperator):
+                The comparison operator.
+            successors (list[ControlFlowNode] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+        """
         super().__init__(variable_node, remote_id, successors)
         self.rhs = rhs
         self.op = op
@@ -374,6 +714,20 @@ class WaitRemoteEventNode(RemoteExecutionNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
+        """
+        Validate the response message for a remote event wait.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            response (FrostMessage):
+                The response message received from the remote node.
+
+        Returns:
+            bool:
+                True if the response is valid and the condition is met,
+                otherwise False.
+        """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
             _namespace=MsgNamespace.VARIABLE,
@@ -408,6 +762,17 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         return res
 
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
+        """
+        Create the request message for a remote event subscription.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            FrostMessage:
+                The request message to send to the remote node.
+        """
         return FrostMessage(
             correlation_id=context.id(),
             sender=self.sender_id,
@@ -425,11 +790,33 @@ class WaitRemoteEventNode(RemoteExecutionNode):
 
     @override
     def _create_cleanup_msg(self, context: ExecutionContext) -> FrostMessage:
+        """
+        Create a cleanup message to unsubscribe from the remote event.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            FrostMessage:
+                The unsubscribe message to send to the remote node.
+        """
         msg = self._create_request(context)
         msg.header.msg_name = VariableMsgName.UNSUBSCRIBE
         return msg
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+        """
         if self is other:
             return True
 
