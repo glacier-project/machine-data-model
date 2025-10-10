@@ -11,31 +11,32 @@ The example creates a protocol manager, sends various types of messages,
 and demonstrates how the tracing system captures MESSAGE_SEND and MESSAGE_RECEIVE events.
 """
 
+from support import print_trace_events
+
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     StringVariableNode,
 )
-from machine_data_model.protocols.frost_v1.frost_protocol_mng import FrostProtocolMng
-from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
-    MsgType,
     MsgNamespace,
-    VariableMsgName,
+    MsgType,
     ProtocolMsgName,
+    VariableMsgName,
 )
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_payload import (
-    VariablePayload,
     ProtocolPayload,
+    VariablePayload,
 )
+from machine_data_model.protocols.frost_v1.frost_protocol_mng import FrostProtocolMng
 from machine_data_model.tracing import (
     TraceLevel,
     clear_traces,
     get_global_collector,
     set_global_trace_level,
 )
-from support import print_trace_events
 
 
 def main() -> None:

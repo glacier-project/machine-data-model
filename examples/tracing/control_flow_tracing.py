@@ -7,24 +7,26 @@ and program counter positions.
 """
 
 import time
-from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode
-from machine_data_model.nodes.composite_method.composite_method_node import (
-    CompositeMethodNode,
-)
+
+from support import print_trace_events
+
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
     WriteVariableNode,
 )
-from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
+from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.tracing import (
-    clear_traces,
     TraceLevel,
+    clear_traces,
     get_global_collector,
 )
 from machine_data_model.tracing.tracing_core import set_global_trace_level
-from support import print_trace_events
 
 
 def main() -> None:

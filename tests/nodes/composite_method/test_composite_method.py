@@ -1,24 +1,25 @@
-from typing import Callable, Any
+import random
+from collections.abc import Callable
+from typing import Any
 
 import pytest
-import random
 
-from machine_data_model.nodes.composite_method.composite_method_node import (
-    CompositeMethodNode,
-)
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
+)
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import VariableNode, NumericalVariableNode
+from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
-    MsgType,
     MethodMsgName,
     MsgNamespace,
+    MsgType,
     VariableMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
@@ -26,7 +27,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
 )
 from tests import NUM_TESTS, get_dummy_method_node
-from tests.nodes.composite_method import get_non_blocking_cf, get_blocking_cf
+from tests.nodes.composite_method import get_blocking_cf, get_non_blocking_cf
 from tests.test_data_model import get_template_data_model
 
 

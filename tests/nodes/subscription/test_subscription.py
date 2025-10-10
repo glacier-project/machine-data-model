@@ -1,13 +1,15 @@
-import pytest
 import random
 from typing import Any
+
+import pytest
+
 from machine_data_model.nodes.subscription.variable_subscription import (
-    VariableSubscription,
     DataChangeSubscription,
     EventType,
     RangeSubscription,
+    VariableSubscription,
 )
-from tests import NUM_TESTS, gen_random_simple_value, gen_random_float, gen_random_bool
+from tests import NUM_TESTS, gen_random_bool, gen_random_float, gen_random_simple_value
 
 
 @pytest.mark.parametrize(
@@ -73,7 +75,7 @@ class TestSubscription:
         assert subscription.get_event_type() == EventType.DATA_CHANGE
         assert subscription.deadband == deadband
         assert not subscription.is_percent
-        for value, expected in zip(test_values, expected_notifications):
+        for value, expected in zip(test_values, expected_notifications, strict=False):
             assert subscription.should_notify(value) == expected
 
     @pytest.mark.parametrize(
@@ -116,7 +118,7 @@ class TestSubscription:
         assert subscription.get_event_type() == EventType.DATA_CHANGE
         assert subscription.deadband == deadband
         assert subscription.is_percent
-        for value, expected in zip(test_values, expected_notifications):
+        for value, expected in zip(test_values, expected_notifications, strict=False):
             assert subscription.should_notify(value) == expected
 
     @pytest.mark.parametrize(
