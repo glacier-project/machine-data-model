@@ -151,7 +151,7 @@ class DataModelNode(ABC):
                 The data model to set.
 
         """
-        self._data_model = weakref.ref(data_model)  # type: ignore[SLF001]
+        self._data_model = weakref.ref(data_model)
 
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]
