@@ -307,7 +307,7 @@ class TestFrostProtocolMng:
         method_name = "method2"
         assert isinstance(node, VariableNode)
         param_value = get_value(node)
-
+        old_sender = sender
         msg = create_frost_message(
             sender,
             target,
@@ -356,18 +356,72 @@ class TestFrostProtocolMng:
             MethodMsgName.INVOKE,
             MethodPayload(node="/folder1/folder2/composite_method1"),
         )
-
         response = manager.handle_request(msg)
         assert isinstance(response, FrostMessage)
 
         assert_response_matches_request(response, msg, sender, target)
         assert isinstance(response.payload, MethodPayload)
         assert SCOPE_ID in response.payload.ret
+        old_scope = response.payload.ret[SCOPE_ID]
         assert not manager.get_update_messages()
-
+        wait_node.write(9)
+        assert not manager.get_update_messages()
         # Update the waiting variable to trigger completion
         wait_node.write(30)
-        assert manager.get_update_messages()
+        message = manager.get_update_messages()
+        assert len(message) == 1
+        assert isinstance(message[0], FrostMessage)
+        assert message[0].header.matches(
+            _type=MsgType.RESPONSE,
+            _namespace=MsgNamespace.METHOD,
+            _msg_name=MethodMsgName.COMPLETED,
+        )
+        assert message[0].target == sender
+        assert isinstance(message[0].payload, MethodPayload)
+        assert message[0].payload.ret["n_variable13"] == 5
+        manager.clear_update_messages()
+
+        # Restart the method to test intermediate scope return
+        wait_node.value = 6
+        assert (
+            not manager.get_update_messages()
+        ), f"Messages: {manager.get_update_messages()}"
+        sender = "another_sender"
+        target = "same_target"
+        msg = create_frost_message(
+            sender,
+            target,
+            MsgType.REQUEST,
+            MsgNamespace.METHOD,
+            MethodMsgName.INVOKE,
+            MethodPayload(node="/folder1/folder2/composite_method1"),
+        )
+        response = manager.handle_request(msg)
+
+        assert isinstance(response, FrostMessage)
+        assert_response_matches_request(response, msg, sender, target)
+        assert isinstance(response.payload, MethodPayload)
+        assert SCOPE_ID in response.payload.ret
+
+        scope = response.payload.ret[SCOPE_ID]
+        updates = manager.get_update_messages()
+        assert not updates, f"Messages: {updates}"
+
+        # Update the waiting variable to trigger completion
+        wait_node.write(29)
+        message = manager.get_update_messages()
+        assert len(message) == 1
+        assert message[0].target == old_scope
+        assert isinstance(message[0], FrostMessage)
+        assert message[0].header.matches(
+            _type=MsgType.RESPONSE,
+            _namespace=MsgNamespace.METHOD,
+            _msg_name=MethodMsgName.COMPLETED,
+        )
+        assert message[0].target == sender
+        assert isinstance(message[0].payload, MethodPayload)
+        assert message[0].payload.ret["n_variable13"] == 5
+        manager.clear_update_messages()
 
     def test_handle_protocol_register(
         self, manager: FrostProtocolMng, sender: str, target: str
