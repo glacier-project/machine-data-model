@@ -1413,7 +1413,7 @@ def trace_control_flow_end(
     Args:
         control_flow_id (str):
             The ID of the control flow that completed.
-            success (bool):
+        success (bool):
             Whether the control flow execution was successful.
         executed_steps (int):
             The number of steps that were executed.
