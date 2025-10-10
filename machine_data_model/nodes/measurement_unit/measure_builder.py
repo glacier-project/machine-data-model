@@ -26,7 +26,7 @@ class NoneMeasureUnits(Enum):
     NONE = 0
 
 
-class NoneMeasure(AbstractMeasure):
+class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
     """
     Represents a value with no unit.
 
@@ -198,7 +198,7 @@ class MeasureBuilder:
             assert "." in unit
             unit_class, unit_name = unit.split(".")
         else:
-            raise ValueError("Invalid unit type")
+            raise TypeError("Invalid unit type")
 
         if unit_class == "NoneMeasureUnits":
             unit_cl = NoneMeasureUnits

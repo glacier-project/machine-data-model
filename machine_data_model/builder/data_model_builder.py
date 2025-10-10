@@ -48,9 +48,9 @@ def _build_kwargs(
     Build kwargs by merging data with default values and validating keys.
 
     Args:
-        data:
+        data (dict[Hashable, Any]):
             Input data from YAML
-        default_kwargs:
+        default_kwargs (dict[str, Any]):
             Default values for all allowed keys
 
     Returns:
@@ -75,7 +75,7 @@ def _build_kwargs(
     return kwargs
 
 
-def _get_folder(loader: yaml.FullLoader, node: yaml.MappingNode) -> FolderNode:
+def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
     """
     Construct a folder node from a yaml node.
 
@@ -104,7 +104,7 @@ def _get_folder(loader: yaml.FullLoader, node: yaml.MappingNode) -> FolderNode:
 
 
 def _get_numerical_variable(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> NumericalVariableNode:
     """
     Construct a numerical variable node from a yaml node.
@@ -139,7 +139,7 @@ def _get_numerical_variable(
 
 
 def _get_string_variable(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> StringVariableNode:
     """
     Construct a string variable node from a yaml node.
@@ -174,7 +174,7 @@ def _get_string_variable(
 
 
 def _get_boolean_variable(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> BooleanVariableNode:
     """
     Construct a boolean variable node from a yaml node.
@@ -208,7 +208,7 @@ def _get_boolean_variable(
 
 
 def _get_object_variable(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ObjectVariableNode:
     """
     Construct an object variable node from a yaml node.
@@ -237,7 +237,7 @@ def _get_object_variable(
 
 
 def _get_method_node(
-    loader: yaml.FullLoader,
+    loader: yaml.SafeLoader,
     node: yaml.MappingNode,
     ctor: Callable[..., MethodNode] = MethodNode,
 ) -> MethodNode:
@@ -270,7 +270,7 @@ def _get_method_node(
 
 
 def _get_async_method_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> MethodNode:
     """
     Construct an async method node from a yaml node.
@@ -290,7 +290,7 @@ def _get_async_method_node(
 
 
 def _get_read_variable_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
     Construct a read variable node from a yaml node.
@@ -319,7 +319,7 @@ def _get_read_variable_node(
 
 
 def _get_write_variable_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
     Construct a write variable node from a yaml node.
@@ -347,7 +347,7 @@ def _get_write_variable_node(
     )
 
 
-def _get_wait_node(loader: yaml.FullLoader, node: yaml.MappingNode) -> ControlFlowNode:
+def _get_wait_node(loader: yaml.SafeLoader, node: yaml.MappingNode) -> ControlFlowNode:
     """
     Construct a wait condition node from a yaml node.
 
@@ -377,7 +377,7 @@ def _get_wait_node(loader: yaml.FullLoader, node: yaml.MappingNode) -> ControlFl
 
 
 def _get_call_method_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
     Construct a call method node from a yaml node.
@@ -408,7 +408,7 @@ def _get_call_method_node(
 
 
 def _get_call_remote_method_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> CallRemoteMethodNode:
     """
     Construct a call remote method node from a yaml node.
@@ -441,7 +441,7 @@ def _get_call_remote_method_node(
 
 
 def _get_read_remote_variable_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ReadRemoteVariableNode:
     """
     Construct a read remote variable node from a yaml node.
@@ -472,7 +472,7 @@ def _get_read_remote_variable_node(
 
 
 def _get_write_remote_variable_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> WriteRemoteVariableNode:
     """
     Construct a write remote variable node from a yaml node.
@@ -503,7 +503,7 @@ def _get_write_remote_variable_node(
 
 
 def _get_wait_remote_event_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
     Construct a wait remote event node from a yaml node.
@@ -536,7 +536,7 @@ def _get_wait_remote_event_node(
 
 
 def _get_composite_method_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
+    loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> MethodNode:
     """
     Construct a composite method node from a yaml node.
@@ -592,8 +592,8 @@ def _register_yaml_constructors() -> None:
     for node, constructor in constructors.items():
         tag = node.__name__
         module = node.__module__
-        yaml.FullLoader.add_constructor(f"tag:yaml.org,2002:{tag}", constructor)
-        yaml.FullLoader.add_constructor(
+        yaml.SafeLoader.add_constructor(f"tag:yaml.org,2002:{tag}", constructor)
+        yaml.SafeLoader.add_constructor(
             f"tag:yaml.org,2002:python/object:{module}.{tag}", constructor
         )
 
@@ -633,7 +633,7 @@ class DataModelBuilder:
 
         """
         # Load the YAML string
-        data = yaml.load(data_model_string, Loader=yaml.FullLoader)
+        data = yaml.load(data_model_string, Loader=yaml.SafeLoader)
 
         # Create the data model
         data_model = DataModel(**data)
@@ -654,7 +654,7 @@ class DataModelBuilder:
 
         """
         with open(data_model_path) as file:
-            data = yaml.load(file, Loader=yaml.FullLoader)
+            data = yaml.load(file, Loader=yaml.SafeLoader)
         data_model = DataModel(**data)
 
         return data_model
