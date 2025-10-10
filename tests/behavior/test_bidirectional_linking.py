@@ -2,13 +2,13 @@
 Tests for bidirectional linking between composite method nodes and control flow graphs.
 """
 
-from machine_data_model.nodes.composite_method.composite_method_node import (
-    CompositeMethodNode,
-)
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
     WriteVariableNode,
+)
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
 )
 
 

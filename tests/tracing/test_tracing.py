@@ -1,30 +1,31 @@
 import json
+import uuid
 from pathlib import Path
 from typing import Any
-import uuid
+
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.behavior.local_execution_node import (
+    ReadVariableNode,
+    WaitConditionNode,
+    WaitConditionOperator,
+    WriteVariableNode,
+)
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
-from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.behavior.local_execution_node import (
-    ReadVariableNode,
-    WriteVariableNode,
-    WaitConditionNode,
-    WaitConditionOperator,
-)
-from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 from machine_data_model.tracing import (
-    get_global_collector,
-    clear_traces,
     TraceEventType,
     TraceLevel,
+    clear_traces,
     export_traces_json,
+    get_global_collector,
     set_global_trace_level,
 )
 
@@ -161,17 +162,17 @@ class TestDataModelTracing:
         data_model._register_nodes(data_model.root)
 
         # Create a mock protocol manager to test message tracing
+        from machine_data_model.protocols.frost_v1.frost_header import (
+            FrostHeader,
+            MsgNamespace,
+            MsgType,
+            VariableMsgName,
+        )
+        from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+        from machine_data_model.protocols.frost_v1.frost_payload import VariablePayload
         from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
             FrostProtocolMng,
         )
-        from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-        from machine_data_model.protocols.frost_v1.frost_header import (
-            FrostHeader,
-            MsgType,
-            MsgNamespace,
-            VariableMsgName,
-        )
-        from machine_data_model.protocols.frost_v1.frost_payload import VariablePayload
 
         protocol_mng = FrostProtocolMng(data_model)
 

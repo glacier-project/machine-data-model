@@ -7,11 +7,11 @@ object variables with subscription and notification capabilities.
 """
 
 from abc import abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from enum import Enum
-from typing import Any, Generator
-from typing_extensions import override
+from typing import Any
 
+from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
 
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -20,15 +20,15 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
-from machine_data_model.tracing import (
-    trace_variable_read,
-    trace_variable_write,
-    trace_subscribe,
-    trace_unsubscribe,
-    trace_notification,
-)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
+)
+from machine_data_model.tracing import (
+    trace_notification,
+    trace_subscribe,
+    trace_unsubscribe,
+    trace_variable_read,
+    trace_variable_write,
 )
 
 
@@ -53,6 +53,7 @@ class VariableNode(DataModelNode):
         Any], None]):
             A callback function that is executed to notify subscribers when an
             event occurs.
+
     """
 
     _pre_read_value: Callable[[], None]
@@ -78,6 +79,7 @@ class VariableNode(DataModelNode):
                 The name of the variable.
             description:
                 The description of the variable.
+
         """
         super().__init__(id=id, name=name, description=description)
         # Read callbacks.
@@ -89,7 +91,7 @@ class VariableNode(DataModelNode):
         # List of subscribers and related callbacks.
         self._subscriptions: list[VariableSubscription] = []
         self._subscription_callback: Callable[
-            [VariableSubscription, "VariableNode", Any], None
+            [VariableSubscription, VariableNode, Any], None
         ] = lambda subscription, node, value: None
 
     def read(self) -> Any:
@@ -99,6 +101,7 @@ class VariableNode(DataModelNode):
         Returns:
             Any:
                 The value of the variable node.
+
         """
         # Execute the pre-read callback.
         self._pre_read_value()
@@ -127,6 +130,7 @@ class VariableNode(DataModelNode):
         Returns:
             bool:
                 True if the value was updated successfully, False otherwise.
+
         """
         # Read the current value of the variable before the update.
         prev_value = self._read_value()
@@ -169,6 +173,7 @@ class VariableNode(DataModelNode):
         Returns:
             bool:
                 True if the variable node has subscribers, False otherwise.
+
         """
         return bool(self._subscriptions)
 
@@ -179,6 +184,7 @@ class VariableNode(DataModelNode):
         Returns:
             list[VariableSubscription]:
                 A list of subscriptions.
+
         """
         return self._subscriptions
 
@@ -194,6 +200,7 @@ class VariableNode(DataModelNode):
             bool:
                 True if the subscription was added successfully, False
                 otherwise.
+
         """
         if subscription in self._subscriptions:
             return False
@@ -222,6 +229,7 @@ class VariableNode(DataModelNode):
         Returns:
             VariableSubscription | None:
                 The subscription if found, None otherwise.
+
         """
         for sub in self._subscriptions:
             if (
@@ -254,6 +262,7 @@ class VariableNode(DataModelNode):
         Raises:
             TypeError:
                 If the arguments are not of the expected types.
+
         """
         subscription: VariableSubscription | None
         if (
@@ -288,6 +297,7 @@ class VariableNode(DataModelNode):
             callback (Callable[[VariableSubscription, "VariableNode", Any],
             None]):
                 The callback to be executed when notifying subscribers.
+
         """
         self._subscription_callback = callback
 
@@ -320,14 +330,12 @@ class VariableNode(DataModelNode):
         """
         Get the value of the variable.
         """
-        pass
 
     @abstractmethod
     def _update_value(self, value: Any) -> Any:
         """
         Update the value of the variable.
         """
-        pass
 
     def set_pre_read_value_callback(self, callback: Callable[[], None]) -> None:
         """
@@ -335,6 +343,7 @@ class VariableNode(DataModelNode):
 
         Args:
             callback (Callable[[], None]): The callback function.
+
         """
         self._pre_read_value = callback
 
@@ -345,6 +354,7 @@ class VariableNode(DataModelNode):
         Args:
             callback (Callable[..., Any]):
                 The callback function.
+
         """
         self._post_read_value = callback
 
@@ -355,6 +365,7 @@ class VariableNode(DataModelNode):
         Args:
             callback (Callable[..., Any]):
                 The callback function.
+
         """
         self._pre_update_value = callback
 
@@ -365,6 +376,7 @@ class VariableNode(DataModelNode):
         Args:
             callback (Callable[..., bool]):
                 The callback function.
+
         """
         self._post_update_value = callback
 
@@ -379,6 +391,7 @@ class VariableNode(DataModelNode):
         Raises:
             NotImplementedError:
                 Always raised, as child nodes are not supported.
+
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support child nodes"
@@ -395,6 +408,7 @@ class VariableNode(DataModelNode):
         Returns:
             bool:
                 False, as child nodes are not supported.
+
         """
         return False
 
@@ -405,6 +419,7 @@ class VariableNode(DataModelNode):
         Returns:
             Generator[VariableNode, None, None]:
                 An empty iterator.
+
         """
         yield from []
 
@@ -430,6 +445,7 @@ class NumericalVariableNode(VariableNode):
         _value (AbstractMeasure):
             The value of the numerical variable, represented as an
             AbstractMeasure.
+
     """
 
     _measure_builder: MeasureBuilder = get_measure_builder()
@@ -457,6 +473,7 @@ class NumericalVariableNode(VariableNode):
                 The measure unit of the numerical variable.
             value (float):
                 The initial value of the numerical variable.
+
         """
         super().__init__(id=id, name=name, description=description)
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
@@ -476,6 +493,7 @@ class NumericalVariableNode(VariableNode):
         Returns:
             float:
                 The value of the numerical variable.
+
         """
         return self._value.base_value  # type: ignore[no-any-return]
 
@@ -491,6 +509,7 @@ class NumericalVariableNode(VariableNode):
         Returns:
             float:
                 The updated value of the numerical variable.
+
         """
         self._value = self._value.__class__(value, self._measure_unit)
         return self._value.base_value  # type: ignore[no-any-return]
@@ -502,6 +521,7 @@ class NumericalVariableNode(VariableNode):
         Returns:
             Enum:
                 The measure unit of the numerical variable.
+
         """
         return self._measure_unit
 
@@ -512,6 +532,7 @@ class NumericalVariableNode(VariableNode):
         Returns:
             str:
                 A string describing the NumericalVariableNode.
+
         """
         return (
             f"NumericalVariableNode(id={self._id}, name={self._name}, "
@@ -527,6 +548,7 @@ class NumericalVariableNode(VariableNode):
         Returns:
             str:
                 The string representation of the NumericalVariableNode.
+
         """
         return self.__str__()
 
@@ -538,6 +560,7 @@ class StringVariableNode(VariableNode):
     Attributes:
         _value (str):
             The value of the string variable.
+
     """
 
     _value: str
@@ -561,6 +584,7 @@ class StringVariableNode(VariableNode):
                 The description of the string variable.
             value (str):
                 The initial value of the string variable.
+
         """
         super().__init__(id=id, name=name, description=description)
         self._value = value
@@ -572,6 +596,7 @@ class StringVariableNode(VariableNode):
 
         Returns:
             str: The value of the string variable.
+
         """
         return self._value
 
@@ -587,6 +612,7 @@ class StringVariableNode(VariableNode):
         Returns:
             str:
                 The updated value of the string variable.
+
         """
         assert isinstance(value, str)
         self._value = value
@@ -604,6 +630,7 @@ class StringVariableNode(VariableNode):
         Raises:
             NotImplementedError:
                 Always raised.
+
         """
         raise NotImplementedError("StringVariableNode does not support child nodes")
 
@@ -619,6 +646,7 @@ class StringVariableNode(VariableNode):
         Returns:
             bool:
                 False, as child nodes are not supported.
+
         """
         return False
 
@@ -629,6 +657,7 @@ class StringVariableNode(VariableNode):
         Returns:
             str:
                 A string describing the StringVariableNode.
+
         """
         return (
             f"StringVariableNode(id={self._id}, name={self._name}, "
@@ -643,6 +672,7 @@ class StringVariableNode(VariableNode):
         Returns:
             str:
                 The string representation of the StringVariableNode.
+
         """
         return self.__str__()
 
@@ -654,6 +684,7 @@ class BooleanVariableNode(VariableNode):
     Attributes:
         _value (bool):
             The value of the boolean variable.
+
     """
 
     _value: bool
@@ -677,6 +708,7 @@ class BooleanVariableNode(VariableNode):
                 The description of the boolean variable.
             value (bool):
                 The initial value of the boolean variable.
+
         """
         super().__init__(id, name, description)
         self._value = value
@@ -689,6 +721,7 @@ class BooleanVariableNode(VariableNode):
         Returns:
             bool:
                 The value of the boolean variable.
+
         """
         return self._value
 
@@ -704,6 +737,7 @@ class BooleanVariableNode(VariableNode):
         Returns:
             bool:
                 The updated value of the boolean variable.
+
         """
         assert isinstance(value, bool)
         self._value = value
@@ -721,6 +755,7 @@ class BooleanVariableNode(VariableNode):
         Raises:
             NotImplementedError:
                 Always raised.
+
         """
         raise NotImplementedError("BooleanVariableNode does not support child nodes")
 
@@ -736,6 +771,7 @@ class BooleanVariableNode(VariableNode):
         Returns:
             bool:
                 False, as this node does not support child nodes.
+
         """
         return False
 
@@ -746,6 +782,7 @@ class BooleanVariableNode(VariableNode):
         Returns:
             str:
                 A string describing the BooleanVariableNode.
+
         """
         return (
             f"BooleanVariableNode(id={self._id}, name={self._name}, "
@@ -760,6 +797,7 @@ class BooleanVariableNode(VariableNode):
         Returns:
             str:
                 The string representation of the BooleanVariableNode.
+
         """
         return self.__str__()
 
@@ -771,6 +809,7 @@ class ObjectVariableNode(VariableNode):
     Attributes:
         _properties:
             A dictionary of properties of the object variable.
+
     """
 
     def __init__(
@@ -792,6 +831,7 @@ class ObjectVariableNode(VariableNode):
                 The description of the object variable.
             properties (dict[str, VariableNode] | None):
                 The properties of the object variable.
+
         """
         super().__init__(id=id, name=name, description=description)
         self._properties: dict[str, VariableNode] = (
@@ -811,6 +851,7 @@ class ObjectVariableNode(VariableNode):
         Args:
             property_node (VariableNode):
                 The property node to add.
+
         """
         assert isinstance(
             property_node, VariableNode
@@ -825,6 +866,7 @@ class ObjectVariableNode(VariableNode):
         Args:
             property_name (str):
                 The name of the property to remove.
+
         """
         prop = self._properties[property_name]
         del self._properties[property_name]
@@ -841,6 +883,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             bool:
                 True if the property exists, False otherwise.
+
         """
         return property_name in self._properties
 
@@ -855,6 +898,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             VariableNode:
                 The property node.
+
         """
         return self._properties[property_name]
 
@@ -865,6 +909,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             dict[str, VariableNode]:
                 A dictionary of property nodes.
+
         """
         return self._properties
 
@@ -883,6 +928,7 @@ class ObjectVariableNode(VariableNode):
         Raises:
             AttributeError:
                 If the property does not exist.
+
         """
         if "_properties" in self.__dict__ and name in self._properties:
             return self._properties[name]
@@ -898,6 +944,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             dict[str, Any]:
                 The value of the object variable.
+
         """
         value = {}
         for property_name, property_node in self._properties.items():
@@ -917,6 +964,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             dict[str, Any]:
                 The updated value of the object variable.
+
         """
         assert len(value) == len(self._properties) and all(
             prop in self._properties for prop in value
@@ -936,6 +984,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             VariableNode:
                 The property node.
+
         """
         return self.get_property(property_name)
 
@@ -950,6 +999,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             bool:
                 True if the property exists, False otherwise.
+
         """
         return self.has_property(property_name)
 
@@ -960,6 +1010,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             Generator[VariableNode, None, None]:
                 An iterator over the properties of the object variable.
+
         """
         for property_node in self._properties.values():
             yield property_node
@@ -971,6 +1022,7 @@ class ObjectVariableNode(VariableNode):
         Returns:
             str:
                 A string describing the ObjectVariableNode.
+
         """
         return (
             f"ObjectVariableNode(id={self._id}, name={self._name}, "
@@ -985,5 +1037,6 @@ class ObjectVariableNode(VariableNode):
         Returns:
             str:
                 The string representation of the ObjectVariableNode.
+
         """
         return self.__str__()

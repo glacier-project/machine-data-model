@@ -11,6 +11,9 @@ notifications, and demonstrates how the tracing system captures these events.
 """
 
 from typing import Any
+
+from support import print_trace_events
+
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
@@ -22,7 +25,6 @@ from machine_data_model.tracing import (
     get_global_collector,
 )
 from machine_data_model.tracing.tracing_core import set_global_trace_level
-from support import print_trace_events
 
 
 def notify_callback(

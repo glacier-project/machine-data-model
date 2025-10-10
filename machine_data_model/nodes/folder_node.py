@@ -5,7 +5,7 @@ This module provides the FolderNode class, which represents folders in the
 machine data model hierarchy used to organize nodes in a tree structure.
 """
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from typing_extensions import override
 
@@ -21,6 +21,7 @@ class FolderNode(DataModelNode):
     Attributes:
         _children:
             A dictionary of child nodes within the folder.
+
     """
 
     _children: dict[str, DataModelNode]
@@ -44,6 +45,7 @@ class FolderNode(DataModelNode):
                 The description of the folder.
             children (dict[str, DataModelNode] | None):
                 A dictionary of child nodes of the folder.
+
         """
         super().__init__(id=id, name=name, description=description)
         self._children = {} if children is None else children
@@ -60,6 +62,7 @@ class FolderNode(DataModelNode):
             dict[str, DataModelNode]:
                 A dictionary of child nodes, where keys are node names and
                 values are `DataModelNode` instances.
+
         """
         return self._children
 
@@ -70,6 +73,7 @@ class FolderNode(DataModelNode):
         Args:
             child (DataModelNode):
                 The child node to add to the folder.
+
         """
         assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
         self._children[child.name] = child
@@ -86,6 +90,7 @@ class FolderNode(DataModelNode):
         Raises:
             ValueError:
                 If the child node with the specified name is not found.
+
         """
         if child_name in self._children:
             child = self._children[child_name]
@@ -108,6 +113,7 @@ class FolderNode(DataModelNode):
             bool:
                 True if the folder has a child node with the specified name,
                 False otherwise.
+
         """
         return child_name in self._children
 
@@ -123,6 +129,7 @@ class FolderNode(DataModelNode):
         Returns:
             DataModelNode:
                 The child node with the specified name.
+
         """
         return self._children[child_name]
 
@@ -139,6 +146,7 @@ class FolderNode(DataModelNode):
             bool:
                 True if the folder has a child node with the specified name,
                 False otherwise.
+
         """
         return self.has_child(child_name)
 
@@ -150,6 +158,7 @@ class FolderNode(DataModelNode):
         Returns:
             Iterator[DataModelNode]:
                 An iterator over the children of the folder.
+
         """
         children = self._children
         for child in children:
@@ -162,6 +171,7 @@ class FolderNode(DataModelNode):
         Returns:
             str:
                 A string describing the FolderNode.
+
         """
         return (
             f"FolderNode(id={self._id}, name={self._name}, "
@@ -175,6 +185,7 @@ class FolderNode(DataModelNode):
         Returns:
             str:
                 The string representation of the FolderNode (same as `__str__`).
+
         """
         return self.__str__()
 

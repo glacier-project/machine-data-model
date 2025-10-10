@@ -6,17 +6,16 @@ the machine data model, including synchronous and asynchronous methods with
 parameter and return value handling.
 """
 
-from collections.abc import Callable
-from typing import Any, Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass
+from typing import Any
 
 from typing_extensions import override
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.variable_node import VariableNode
-from machine_data_model.tracing import trace_method_start, trace_method_end
-from dataclasses import dataclass
-
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.tracing import trace_method_end, trace_method_start
 
 
 @dataclass
@@ -31,6 +30,7 @@ class MethodExecutionResult:
         messages:
             A list of Frost messages to be sent as a result of executing or
             resuming the method node.
+
     """
 
     return_values: dict[str, Any]
@@ -54,6 +54,7 @@ class MethodNode(DataModelNode):
             The function to run before the method is called.
         _post_call (Callable[..., None]):
             The function to run after the method is called.
+
     """
 
     _parameters: list[VariableNode]
@@ -87,6 +88,7 @@ class MethodNode(DataModelNode):
                 A list of return values for the method.
             callback (Callable[..., Any] | None):
                 The function to execute when the method is called.
+
         """
         super().__init__(id=id, name=name, description=description)
         self._parameters = parameters if parameters is not None else []
@@ -115,6 +117,7 @@ class MethodNode(DataModelNode):
             list[VariableNode]:
                 A list of `VariableNode` instances representing the method's
                 parameters.
+
         """
         return self._parameters
 
@@ -125,6 +128,7 @@ class MethodNode(DataModelNode):
         Args:
             parameter (VariableNode):
                 The parameter to add to the method.
+
         """
         assert isinstance(parameter, VariableNode), "Parameter must be a VariableNode"
         self._parameters.append(parameter)
@@ -141,6 +145,7 @@ class MethodNode(DataModelNode):
         Raises:
             ValueError:
                 If the parameter is not found in the method.
+
         """
         if parameter not in self._parameters:
             raise ValueError(f"Parameter '{parameter}' not found in method '{self.id}'")
@@ -156,6 +161,7 @@ class MethodNode(DataModelNode):
             list[VariableNode]:
                 A list of `VariableNode` instances representing the method's
                 return values.
+
         """
         return self._returns
 
@@ -166,6 +172,7 @@ class MethodNode(DataModelNode):
         Args:
             return_value (VariableNode):
                 The return value to add to the method.
+
         """
         assert isinstance(
             return_value, VariableNode
@@ -184,6 +191,7 @@ class MethodNode(DataModelNode):
         Raises:
             ValueError:
                 If the return value is not found in the method.
+
         """
         if return_value not in self._returns:
             raise ValueError(
@@ -200,6 +208,7 @@ class MethodNode(DataModelNode):
         Returns:
             Callable:
                 The callback function.
+
         """
         return self._callback
 
@@ -211,6 +220,7 @@ class MethodNode(DataModelNode):
         Args:
             call (Callable):
                 The callback function to set.
+
         """
         self._callback = call
 
@@ -222,6 +232,7 @@ class MethodNode(DataModelNode):
         Returns:
             Callable:
                 The pre-call function.
+
         """
         return self._pre_call
 
@@ -233,6 +244,7 @@ class MethodNode(DataModelNode):
         Args:
             pre_call (Callable):
                 The pre-call function to set.
+
         """
         self._pre_call = pre_call
 
@@ -244,6 +256,7 @@ class MethodNode(DataModelNode):
         Returns:
             Callable:
                 The post-call function.
+
         """
         return self._post_call
 
@@ -255,6 +268,7 @@ class MethodNode(DataModelNode):
         Args:
             callback (Callable):
                 The post-call function to set.
+
         """
         self._post_call = callback
 
@@ -265,6 +279,7 @@ class MethodNode(DataModelNode):
         Returns:
             bool:
                 False
+
         """
         return False
 
@@ -285,6 +300,7 @@ class MethodNode(DataModelNode):
         Raises:
             ValueError:
                 If the node with the specified name is not found.
+
         """
         for parameter in self._parameters:
             if parameter.name == node_name:
@@ -310,6 +326,7 @@ class MethodNode(DataModelNode):
             bool:
                 True if the method has a parameter or return value with the
                 specified name, False otherwise.
+
         """
         for parameter in self._parameters:
             if parameter.name == node_name:
@@ -327,6 +344,7 @@ class MethodNode(DataModelNode):
         Returns:
             Iterator[VariableNode]:
                 An iterator over the parameters and return values of the method.
+
         """
         yield from self._parameters
         yield from self._returns
@@ -344,6 +362,7 @@ class MethodNode(DataModelNode):
         Returns:
             MethodExecutionResult:
                 The return values of the method.
+
         """
         if self._callback is None:
             raise ValueError(f"Method '{self.id}' has no callback function")
@@ -391,8 +410,8 @@ class MethodNode(DataModelNode):
         Returns:
             dict[str, Any]:
                 A dictionary of arguments for the method.
-        """
 
+        """
         kwargs = {**kwargs}
 
         for parameter in self._parameters:
@@ -420,8 +439,8 @@ class MethodNode(DataModelNode):
             dict[str, Any]:
                 A dictionary of return values, where the keys are the names of
                 the return values.
-        """
 
+        """
         ret_dict = {}
         ret = ret if isinstance(ret, tuple) else (ret,)
         for index, return_value in enumerate(ret):
@@ -436,6 +455,7 @@ class MethodNode(DataModelNode):
         Returns:
             str:
                 A string describing the MethodNode.
+
         """
         return (
             f"MethodNode("
@@ -451,6 +471,7 @@ class MethodNode(DataModelNode):
         Returns:
             str:
                 The string representation of the MethodNode (same as `__str__`).
+
         """
         return self.__str__()
 
@@ -501,6 +522,7 @@ class AsyncMethodNode(MethodNode):
                 A list of return values for the method.
             callback (Callable[..., Any] | None):
                 The function to execute when the method is called.
+
         """
         super().__init__(
             id=id,
@@ -518,6 +540,7 @@ class AsyncMethodNode(MethodNode):
         Returns:
             bool:
                 True
+
         """
         return True
 

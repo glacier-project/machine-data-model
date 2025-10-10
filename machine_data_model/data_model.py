@@ -3,22 +3,22 @@ A module defining the DataModel class and its associated methods for managing a
 machine data model.
 """
 
+import weakref
 from collections.abc import Callable
 from typing import Any
-import weakref
 
+from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
+from machine_data_model.nodes.method_node import MethodExecutionResult, MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
-from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResult
 
 
 class DataModel:
@@ -140,7 +140,6 @@ class DataModel:
         :param path: The path of the node to get from the data model.
         :return: The node with the specified path.
         """
-
         current_node: DataModelNode = self._root
         path = path.lstrip("/")
         if "/" not in path:

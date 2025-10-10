@@ -6,22 +6,24 @@ for a variable to meet a condition and when the wait completes.
 """
 
 import uuid
-from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+
+from support import print_trace_events
+
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
     WaitConditionOperator,
 )
-from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.tracing import (
-    clear_traces,
     TraceLevel,
+    clear_traces,
     get_global_collector,
 )
 
 # Import the utility function
 from machine_data_model.tracing.tracing_core import set_global_trace_level
-from support import print_trace_events
 
 
 def main() -> None:

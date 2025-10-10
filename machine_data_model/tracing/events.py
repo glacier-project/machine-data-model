@@ -7,9 +7,9 @@ execution, wait conditions, and message passing. It also provides optimized
 convenience functions for easy tracing integration throughout the codebase.
 """
 
-from dataclasses import dataclass
-from typing import Any, Dict
 import time
+from dataclasses import dataclass
+from typing import Any
 
 from .tracing_core import TraceEvent, TraceEventType, get_global_collector
 
@@ -28,6 +28,7 @@ class VariableWriteEvent(TraceEvent):
             The new value assigned to the variable.
         success (bool):
             Indicates whether the write operation was successful.
+
     """
 
     variable_id: str
@@ -60,6 +61,7 @@ class VariableWriteEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -72,7 +74,7 @@ class VariableWriteEvent(TraceEvent):
         self.new_value = new_value
         self.success = success
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get variable write event details."""
         return {
             "variable_id": self.variable_id,
@@ -92,6 +94,7 @@ class VariableReadEvent(TraceEvent):
             The unique identifier of the variable being read.
         value (Any):
             The current value retrieved from the variable.
+
     """
 
     variable_id: str
@@ -116,6 +119,7 @@ class VariableReadEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -126,7 +130,7 @@ class VariableReadEvent(TraceEvent):
         self.variable_id = variable_id
         self.value = value
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get variable read event details."""
         return {
             "variable_id": self.variable_id,
@@ -145,6 +149,7 @@ class MethodStartEvent(TraceEvent):
         args (dict[str, Any]):
             The arguments passed to the method, as a dictionary mapping
             parameter names to values.
+
     """
 
     method_id: str
@@ -169,6 +174,7 @@ class MethodStartEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -179,7 +185,7 @@ class MethodStartEvent(TraceEvent):
         self.method_id = method_id
         self.args = args
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get method start event details."""
         return {
             "method_id": self.method_id,
@@ -200,6 +206,7 @@ class MethodEndEvent(TraceEvent):
             parameter names to values.
         execution_time (float):
             The time taken to execute the method, in seconds.
+
     """
 
     method_id: str
@@ -228,6 +235,7 @@ class MethodEndEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -239,7 +247,7 @@ class MethodEndEvent(TraceEvent):
         self.returns = returns
         self.execution_time = execution_time
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get method end event details."""
         return {
             "method_id": self.method_id,
@@ -262,6 +270,7 @@ class WaitStartEvent(TraceEvent):
             25").
         expected_value (Any):
             The expected value that will satisfy the wait condition.
+
     """
 
     variable_id: str
@@ -290,6 +299,7 @@ class WaitStartEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -301,7 +311,7 @@ class WaitStartEvent(TraceEvent):
         self.condition = condition
         self.expected_value = expected_value
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get wait start event details."""
         return {
             "variable_id": self.variable_id,
@@ -322,6 +332,7 @@ class WaitEndEvent(TraceEvent):
         wait_duration (float):
             The total time spent waiting for the condition to be met, in
             seconds.
+
     """
 
     variable_id: str
@@ -346,6 +357,7 @@ class WaitEndEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -356,7 +368,7 @@ class WaitEndEvent(TraceEvent):
         self.variable_id = variable_id
         self.wait_duration = wait_duration
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get wait end event details."""
         return {
             "variable_id": self.variable_id,
@@ -379,6 +391,7 @@ class MessageSendEvent(TraceEvent):
             A unique identifier that correlates request and response messages.
         payload (dict[str, Any]):
             The message payload containing the actual data being transmitted.
+
     """
 
     message_type: str
@@ -411,6 +424,7 @@ class MessageSendEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -423,7 +437,7 @@ class MessageSendEvent(TraceEvent):
         self.correlation_id = correlation_id
         self.payload = payload
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get message send event details."""
         return {
             "message_type": self.message_type,
@@ -452,6 +466,7 @@ class MessageReceiveEvent(TraceEvent):
         latency (float):
             The round-trip time from when the request was sent to when the
             response was received, in seconds.
+
     """
 
     message_type: str
@@ -488,6 +503,7 @@ class MessageReceiveEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -501,7 +517,7 @@ class MessageReceiveEvent(TraceEvent):
         self.payload = payload
         self.latency = latency
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get message receive event details."""
         return {
             "message_type": self.message_type,
@@ -522,6 +538,7 @@ class SubscribeEvent(TraceEvent):
             The unique identifier of the variable being subscribed to.
         subscriber_id (str):
             The unique identifier of the entity subscribing to the variable.
+
     """
 
     variable_id: str
@@ -546,6 +563,7 @@ class SubscribeEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -556,7 +574,7 @@ class SubscribeEvent(TraceEvent):
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get subscribe event details."""
         return {
             "variable_id": self.variable_id,
@@ -574,6 +592,7 @@ class UnsubscribeEvent(TraceEvent):
             The unique identifier of the variable being unsubscribed from.
         subscriber_id (str):
             The unique identifier of the entity unsubscribing from the variable.
+
     """
 
     variable_id: str
@@ -598,6 +617,7 @@ class UnsubscribeEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -608,7 +628,7 @@ class UnsubscribeEvent(TraceEvent):
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get unsubscribe event details."""
         return {
             "variable_id": self.variable_id,
@@ -629,6 +649,7 @@ class NotificationEvent(TraceEvent):
             The unique identifier of the subscriber receiving the notification.
         value (Any):
             The new value of the variable that triggered the notification.
+
     """
 
     variable_id: str
@@ -657,6 +678,7 @@ class NotificationEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -668,7 +690,7 @@ class NotificationEvent(TraceEvent):
         self.subscriber_id = subscriber_id
         self.value = value
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get notification event details."""
         return {
             "variable_id": self.variable_id,
@@ -694,6 +716,7 @@ class ControlFlowStepEvent(TraceEvent):
         program_counter (int):
             The position of this step in the control flow sequence (0-based
             index).
+
     """
 
     node_id: str
@@ -727,6 +750,7 @@ class ControlFlowStepEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -739,7 +763,7 @@ class ControlFlowStepEvent(TraceEvent):
         self.execution_result = execution_result
         self.program_counter = program_counter
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get control flow step event details."""
         return {
             "node_id": self.node_id,
@@ -759,6 +783,7 @@ class ControlFlowStartEvent(TraceEvent):
             The unique identifier of the control flow being executed.
         total_steps (int):
             The total number of steps in the control flow.
+
     """
 
     control_flow_id: str
@@ -783,6 +808,7 @@ class ControlFlowStartEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -793,7 +819,7 @@ class ControlFlowStartEvent(TraceEvent):
         self.control_flow_id = control_flow_id
         self.total_steps = total_steps
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get control flow start event details."""
         return {
             "control_flow_id": self.control_flow_id,
@@ -815,6 +841,7 @@ class ControlFlowEndEvent(TraceEvent):
             The number of steps that were actually executed.
         final_pc (int):
             The final program counter position at the end of execution.
+
     """
 
     control_flow_id: str
@@ -847,6 +874,7 @@ class ControlFlowEndEvent(TraceEvent):
                 The source of the event. Defaults to "".
             data_model_id (str, optional):
                 The ID of the data model this event belongs to. Defaults to "".
+
         """
         super().__init__(
             timestamp=time.time(),
@@ -859,7 +887,7 @@ class ControlFlowEndEvent(TraceEvent):
         self.executed_steps = executed_steps
         self.final_pc = final_pc
 
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get control flow end event details."""
         return {
             "control_flow_id": self.control_flow_id,
@@ -894,6 +922,7 @@ def trace_variable_write(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.VARIABLE_WRITE):
@@ -928,6 +957,7 @@ def trace_variable_read(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.VARIABLE_READ):
@@ -964,6 +994,7 @@ def trace_method_start(
 
     Returns:
         float: The timestamp when the method started.
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.METHOD_START):
@@ -1000,6 +1031,7 @@ def trace_method_end(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.METHOD_END):
@@ -1041,6 +1073,7 @@ def trace_wait_start(
 
     Returns:
         float: The timestamp when the wait started.
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.WAIT_START):
@@ -1075,6 +1108,7 @@ def trace_wait_end(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.WAIT_END):
@@ -1118,6 +1152,7 @@ def trace_message_send(
 
     Returns:
         float: The timestamp when the message was sent.
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.MESSAGE_SEND):
@@ -1162,6 +1197,7 @@ def trace_message_receive(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.MESSAGE_RECEIVE):
@@ -1199,6 +1235,7 @@ def trace_subscribe(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.SUBSCRIBE):
@@ -1232,6 +1269,7 @@ def trace_unsubscribe(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.UNSUBSCRIBE):
@@ -1268,6 +1306,7 @@ def trace_notification(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.NOTIFICATION):
@@ -1308,6 +1347,7 @@ def trace_control_flow_step(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_STEP):
@@ -1343,6 +1383,7 @@ def trace_control_flow_start(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_START):
@@ -1382,6 +1423,7 @@ def trace_control_flow_end(
             The source of the event. Defaults to "".
         data_model_id (str, optional):
             The ID of the data model this event belongs to. Defaults to "".
+
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_END):

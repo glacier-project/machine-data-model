@@ -35,3 +35,102 @@ furo = "^2024.8.6"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311']
+skip-string-normalization = false
+
+[tool.flake8]
+max-line-length = 88
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN", # flake8-annotations
+    "COM", # flake8-commas
+    "C90", # mccabe complexity
+    "DJ",  # django
+    "EXE", # flake8-executable
+    "T10", # debugger
+    "TID", # flake8-tidy-imports
+
+    "D203", # incorrect-blank-line-before-class
+    "D212", # multi-line-summary-first-line
+    "D213", # multi-line-summary-second-line
+    "D401", # First line of docstring should be in imperative mood
+    "D205", # 1 blank line required between summary line and description
+    "D200", # One-line docstring should fit on one line with quotes
+
+    # Ignore some rules
+    "EM101",  # Exception must not use a string literal, assign to variable first
+    "EM102",  # Exception must not use an f-string literal, assign to variable first
+    "ERA001", # Found commented-out code
+    "TRY003", # Avoid specifying long messages outside the exception class
+    "S311",   # random usage appropriate for data generation
+    "S603",   # subprocess call security
+    "NPY002", # np.random.seed legacy
+
+    # Ignore not useful for tests
+    "S101",    # Use of assert detected (fine in tests)
+    "PLR2004", # Magic value used in comparison
+    "PLW2901", # redefined-loop-name (acceptable in PyTorch/ML code)
+    "TRY301",  # raise-within-try (appropriate for input validation)
+
+    # Style preferences
+    "FBT",     # Boolean positional arg issues
+    "PLR0913", # Too many arguments
+    "PLR0915", # Too many statements
+    "SIM102",  # Nested if
+    "RUF012",  # Mutable class attributes
+    "PERF401", # List comprehension
+    "PERF403", # Dict comprehension
+    "E501",    # Line too long
+    "D404",    # Docstring first word
+    "N812",    # Import naming
+    "SIM210",  # Unnecessary True if
+    "N806",    # Variable naming
+    "C403",    # Unnecessary list comp
+    "SIM103",  # Return negated
+    "C408",    # Unnecessary list()
+    "PT006",   # Pytest parametrize
+    "SIM117",  # Nested with
+    "D105",    # Missing docstring magic
+    "SIM118",  # key not in dict.keys
+    "RET504",  # Unnecessary assignment
+    "D417",    # Missing arg desc
+    "PTH",     # Pathlib usage
+    "DTZ005",  # datetime.now with timezone.utc is correct for py39+
+    "UP017",   # datetime.UTC requires py311+, project supports py39+
+]
+
+[tool.mypy]
+python_version = "3.10"
+show_error_codes = true
+follow_imports = "normal"
+local_partial_types = true
+strict_equality = true
+no_implicit_optional = true
+warn_incomplete_stub = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true
+enable_error_code = ["ignore-without-code", "redundant-self", "truthy-iterable"]
+disable_error_code = [
+    "annotation-unchecked",
+    "import-not-found",
+    "import-untyped",
+]
+extra_checks = false
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unreachable = true

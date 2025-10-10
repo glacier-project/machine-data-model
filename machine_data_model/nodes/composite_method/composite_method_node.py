@@ -6,16 +6,16 @@ composed of multiple asynchronous sub-methods, wait conditions, and control
 flow elements within the machine data model framework.
 """
 
+import uuid
+from typing import Any
+
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
 )
 from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import MethodExecutionResult, MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
-from typing import Any
-import uuid
-from machine_data_model.nodes.method_node import MethodExecutionResult
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 
@@ -35,6 +35,7 @@ class CompositeMethodNode(MethodNode):
         cfg (ControlFlow):
             The control flow graph of the method. The control flow graph
             consists of control flow nodes implementing the logic of the method.
+
     """
 
     _contexts: dict[str, ExecutionContext]
@@ -59,6 +60,7 @@ class CompositeMethodNode(MethodNode):
             parameters (list[VariableNode] | None): A list of parameters for the method.
             returns (list[VariableNode] | None): A list of return values for the method.
             cfg (ControlFlow | None): The control flow graph of the method.
+
         """
         super().__init__(
             id=id,
@@ -85,6 +87,7 @@ class CompositeMethodNode(MethodNode):
         Returns:
             MethodExecutionResult:
                 The return values of the method.
+
         """
         kwargs = self._resolve_arguments(*args, **kwargs)
 
@@ -116,6 +119,7 @@ class CompositeMethodNode(MethodNode):
         Returns:
             bool:
                 True if the context is terminated, False otherwise.
+
         """
         context = self._get_context(context_id)
         return not context.is_active()
@@ -131,6 +135,7 @@ class CompositeMethodNode(MethodNode):
         Raises:
             ValueError:
                 If the context with the specified id is not found.
+
         """
         if context_id not in self._contexts:
             raise ValueError(f"context '{context_id}' not found")
@@ -150,6 +155,7 @@ class CompositeMethodNode(MethodNode):
         Returns:
             bool:
                 True if the method can be resumed, False otherwise.
+
         """
         context = self._get_context(context_id)
 
@@ -175,8 +181,8 @@ class CompositeMethodNode(MethodNode):
         Raises:
             ValueError:
                 If the context with the specified id is not found.
-        """
 
+        """
         context = self._get_context(context_id)
         if context is None:
             raise ValueError(f"context '{context_id}' not found")
@@ -199,8 +205,8 @@ class CompositeMethodNode(MethodNode):
         Returns:
             MethodExecutionResult:
                 The result of starting the execution of the method.
-        """
 
+        """
         context = self._create_context(**kwargs)
         remote_messages = self.cfg.execute(context)
         return MethodExecutionResult(
@@ -218,6 +224,7 @@ class CompositeMethodNode(MethodNode):
         Returns:
             ExecutionContext:
                 The context with the specified id.
+
         """
         return self._contexts[context_id]
 
@@ -232,6 +239,7 @@ class CompositeMethodNode(MethodNode):
         Returns:
             ExecutionContext:
                 The created context.
+
         """
         context_id = str(uuid.uuid4())
         context = ExecutionContext(context_id, **kwargs)

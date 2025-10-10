@@ -8,7 +8,6 @@ message types, namespaces, names, and the FrostHeader dataclass.
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
 
 
 class MsgType(str, Enum):
@@ -20,8 +19,10 @@ class MsgType(str, Enum):
             Request message.
         RESPONSE:
             Response message.
-        ERROR:
+
+    Error:
             Error message.
+
     """
 
     REQUEST = "REQUEST"
@@ -43,6 +44,7 @@ class MsgNamespace(str, Enum):
             Method-related messages.
         PROTOCOL:
             Protocol-related messages.
+
     """
 
     NODE = "NODE"
@@ -68,6 +70,7 @@ class NodeMsgName(MsgName):
             Request node variables.
         GET_METHODS:
             Request node methods.
+
     """
 
     GET_INFO = "GET_INFO"
@@ -91,6 +94,7 @@ class VariableMsgName(MsgName):
             Unsubscribe from a variable node.
         UPDATE:
             Update a variable node.
+
     """
 
     READ = "READ"
@@ -111,6 +115,7 @@ class MethodMsgName(MsgName):
             Method started.
         COMPLETED:
             Method completed.
+
     """
 
     INVOKE = "INVOKE"
@@ -127,6 +132,7 @@ class ProtocolMsgName(MsgName):
             Registers the machine to the bus.
         UNREGISTER:
             Unregisters the machine to the bus.
+
     """
 
     REGISTER = "REGISTER"
@@ -152,6 +158,7 @@ class FrostHeader:
             action (e.g., GET_INFO, READ).
         timestamp (datetime):
             The timestamp when the message was created.
+
     """
 
     type: MsgType
@@ -162,9 +169,9 @@ class FrostHeader:
 
     def matches(
         self,
-        _type: Optional[MsgType] = None,
-        _namespace: Optional[MsgNamespace] = None,
-        _msg_name: Optional[MsgName] = None,
+        _type: MsgType | None = None,
+        _namespace: MsgNamespace | None = None,
+        _msg_name: MsgName | None = None,
     ) -> bool:
         """
         Checks if the header matches the given type, namespace, and message
@@ -185,8 +192,8 @@ class FrostHeader:
             bool:
                 True if the header matches all provided parameters, False
                 otherwise.
-        """
 
+        """
         return (
             (_type is None or self.type == _type)
             and (_namespace is None or self.namespace == _namespace)

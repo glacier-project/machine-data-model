@@ -7,7 +7,9 @@ by sending messages and waiting for responses.
 
 from abc import abstractmethod
 from typing import Any
+
 from typing_extensions import override
+
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
@@ -21,18 +23,18 @@ from machine_data_model.behavior.execution_context import (
     resolve_value,
 )
 from machine_data_model.behavior.local_execution_node import WaitConditionOperator
-from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
-    MsgType,
     MethodMsgName,
     MsgNamespace,
+    MsgType,
     VariableMsgName,
 )
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
-    VariablePayload,
     SubscriptionPayload,
+    VariablePayload,
 )
 from machine_data_model.tracing.events import trace_control_flow_step
 
@@ -49,6 +51,7 @@ class RemoteExecutionNode(ControlFlowNode):
             The identifier of the sender node.
         remote_id (str):
             The identifier of the remote node.
+
     """
 
     sender_id: str
@@ -72,6 +75,7 @@ class RemoteExecutionNode(ControlFlowNode):
             successors (list[ControlFlowNode] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(node, successors)
         self.sender_id: str = "undefined"
@@ -89,8 +93,8 @@ class RemoteExecutionNode(ControlFlowNode):
         Returns:
             FrostMessage:
                 The request message to send to the remote node.
+
         """
-        pass
 
     @abstractmethod
     def _validate_response(
@@ -108,8 +112,8 @@ class RemoteExecutionNode(ControlFlowNode):
         Returns:
             bool:
                 True if the response is valid, otherwise False.
+
         """
-        pass
 
     def _create_cleanup_msg(self, context: ExecutionContext) -> FrostMessage | None:
         """
@@ -124,8 +128,8 @@ class RemoteExecutionNode(ControlFlowNode):
             FrostMessage | None:
                 The cleanup message to send to the remote node, or None if no
                 cleanup is needed.
+
         """
-        pass
 
     def handle_response(
         self, context: ExecutionContext, response: FrostMessage
@@ -143,6 +147,7 @@ class RemoteExecutionNode(ControlFlowNode):
             bool:
                 True if the response is valid and has been handled, otherwise
                 False.
+
         """
         if (
             response.correlation_id != context.active_request
@@ -170,6 +175,7 @@ class RemoteExecutionNode(ControlFlowNode):
         Returns:
             ExecutionNodeResult:
                 An ExecutionNodeResult indicating the outcome of the execution.
+
         """
         # Trace the control flow step for request initiation
         trace_control_flow_step(
@@ -218,6 +224,7 @@ class RemoteExecutionNode(ControlFlowNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -244,6 +251,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             The positional arguments to pass to the remote method.
         kwargs (dict[str, Any]):
             The keyword arguments to pass to the remote method.
+
     """
 
     args: list[Any]
@@ -273,6 +281,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             successors (list[ControlFlowNode] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(method_node, remote_id, successors)
         self.args = args
@@ -294,6 +303,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         Returns:
             bool:
                 True if the response is valid, otherwise False.
+
         """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
@@ -324,6 +334,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         Returns:
             FrostMessage:
                 The request message to send to the remote node.
+
         """
         return FrostMessage(
             correlation_id=context.id(),
@@ -353,6 +364,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -377,6 +389,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
     Attributes:
         store_as (str):
             The name of the variable used to store the value in the context.
+
     """
 
     store_as: str
@@ -404,6 +417,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
             successors (list[ControlFlowNode] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(variable_node, remote_id, successors)
         self.store_as = store_as
@@ -423,6 +437,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         Returns:
             bool:
                 True if the response is valid, otherwise False.
+
         """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
@@ -454,6 +469,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         Returns:
             FrostMessage:
                 The request message to send to the remote node.
+
         """
         return FrostMessage(
             correlation_id=context.id(),
@@ -481,6 +497,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -502,6 +519,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         value (Any):
             The value to write to the remote variable. Can be a direct value or
             a reference to a variable in the context (e.g., "$var_name").
+
     """
 
     value: Any
@@ -528,6 +546,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
             successors (list[ControlFlowNode] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(variable_node, remote_id, successors)
         self.value = value
@@ -547,6 +566,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         Returns:
             bool:
                 True if the response is valid, otherwise False.
+
         """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
@@ -573,6 +593,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         Returns:
             FrostMessage:
                 The request message to send to the remote node.
+
         """
         return FrostMessage(
             correlation_id=context.id(),
@@ -601,6 +622,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -624,6 +646,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             reference to a variable in the context.
         op (WaitConditionOperator):
             The comparison operator.
+
     """
 
     rhs: Any
@@ -654,6 +677,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             successors (list[ControlFlowNode] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(variable_node, remote_id, successors)
         self.rhs = rhs
@@ -676,6 +700,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             bool:
                 True if the response is valid and the condition is met,
                 otherwise False.
+
         """
         if not response.header.matches(
             _type=MsgType.RESPONSE,
@@ -721,6 +746,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         Returns:
             FrostMessage:
                 The request message to send to the remote node.
+
         """
         return FrostMessage(
             correlation_id=context.id(),
@@ -749,6 +775,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         Returns:
             FrostMessage:
                 The unsubscribe message to send to the remote node.
+
         """
         msg = self._create_request(context)
         msg.header.msg_name = VariableMsgName.UNSUBSCRIBE
@@ -765,6 +792,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True

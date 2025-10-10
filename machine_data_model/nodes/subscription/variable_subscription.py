@@ -8,8 +8,9 @@ filtering and range-based subscriptions for monitoring value ranges.
 
 from enum import IntFlag, auto
 from typing import Any
-from typing_extensions import override
 from uuid import uuid4
+
+from typing_extensions import override
 
 
 class EventType(IntFlag):
@@ -25,6 +26,7 @@ class EventType(IntFlag):
             Event triggered when variable value enters range.
         ANY:
             Catch-all for any type of event.
+
     """
 
     DATA_CHANGE = auto()
@@ -43,6 +45,7 @@ class VariableSubscription:
             Identifier of the subscriber.
         correlation_id (str):
             Correlation identifier for the subscription.
+
     """
 
     subscriber_id: str
@@ -57,6 +60,7 @@ class VariableSubscription:
                 Identifier of the subscriber.
             correlation_id (str):
                 Correlation identifier for the subscription.
+
         """
         self.subscriber_id = subscriber_id
         self.correlation_id = correlation_id
@@ -68,6 +72,7 @@ class VariableSubscription:
         Returns:
             EventType:
                 The event types for this subscription.
+
         """
         return EventType.ANY
 
@@ -82,6 +87,7 @@ class VariableSubscription:
         Returns:
             bool:
                 True if a notification should be sent, False otherwise.
+
         """
         return True
 
@@ -118,6 +124,7 @@ class DataChangeSubscription(VariableSubscription):
         is_percent (bool):
             If True, deadband is treated as a percentage of the previous value;
             otherwise, it's an absolute value.
+
     """
 
     _previous_value: None | float
@@ -144,6 +151,7 @@ class DataChangeSubscription(VariableSubscription):
             is_percent (bool):
                 If True, deadband is treated as a percentage of the previous
                 value; otherwise, it's an absolute value.
+
         """
         super().__init__(subscriber_id, correlation_id)
         self._previous_value = None
@@ -181,6 +189,7 @@ class DataChangeSubscription(VariableSubscription):
             bool:
                 True if the change exceeds the deadband threshold, False
                 otherwise.
+
         """
         value_changed = self._value_changed(new_value)
 
@@ -201,6 +210,7 @@ class RangeSubscription(VariableSubscription):
             Upper bound of the range.
         _check_type (EventType):
             Type of range check (IN_RANGE or OUT_OF_RANGE).
+
     """
 
     low_limit: float
@@ -229,6 +239,7 @@ class RangeSubscription(VariableSubscription):
                 Upper bound of the range.
             check_type (EventType):
                 Type of range check (IN_RANGE or OUT_OF_RANGE).
+
         """
         super().__init__(subscriber_id, correlation_id)
         self.low_limit = low_limit
@@ -254,6 +265,7 @@ class RangeSubscription(VariableSubscription):
             bool:
                 True if the value meets the range condition criteria, False
                 otherwise.
+
         """
         if self._check_type == EventType.IN_RANGE:
             return self.low_limit <= new_value <= self.high_limit

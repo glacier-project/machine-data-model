@@ -20,9 +20,9 @@ from machine_data_model.nodes.variable_node import (
 from tests import (
     NUM_TESTS,
     gen_random_string,
+    get_random_numerical_node,
     get_random_simple_node,
     get_random_string_node,
-    get_random_numerical_node,
 )
 
 

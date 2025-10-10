@@ -8,7 +8,8 @@ defining common attributes and methods that all node types share.
 import uuid
 import weakref
 from abc import ABC, abstractmethod
-from typing import Iterator, Mapping, Sequence, TYPE_CHECKING
+from collections.abc import Iterator, Mapping, Sequence
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from machine_data_model.data_model import DataModel
@@ -35,6 +36,7 @@ class DataModelNode(ABC):
         _data_model (weakref.ReferenceType[DataModel] | None):
             A weak reference to the DataModel instance that contains this node,
             or None if the node is not yet associated with a data model.
+
     """
 
     _id: str
@@ -62,8 +64,8 @@ class DataModelNode(ABC):
             description (str | None):
                 A description of the node. If `None`, the description is set to
                 an empty string.
-        """
 
+        """
         self._id: str = str(uuid.uuid4()) if id is None else id
         assert (
             isinstance(self._id, str) and len(self._id) > 0
@@ -73,7 +75,7 @@ class DataModelNode(ABC):
         self._description = "" if description is None else description
         assert isinstance(self._description, str), "Description must be a string"
         self.parent: DataModelNode | None = None
-        self._data_model: weakref.ReferenceType["DataModel"] | None = None
+        self._data_model: weakref.ReferenceType[DataModel] | None = None
 
     @property
     def id(self) -> str:
@@ -83,6 +85,7 @@ class DataModelNode(ABC):
         Returns:
             str:
                 The unique identifier of the node.
+
         """
         return self._id
 
@@ -94,6 +97,7 @@ class DataModelNode(ABC):
         Returns:
             str:
                 The qualified name of the node.
+
         """
         p_qualified_name = self.parent.qualified_name if self.parent else ""
         return f"{p_qualified_name}/{self.name}"
@@ -106,6 +110,7 @@ class DataModelNode(ABC):
         Returns:
             str:
                 The name of the node.
+
         """
         return self._name
 
@@ -121,6 +126,7 @@ class DataModelNode(ABC):
         Returns:
             str:
                 The description of the node.
+
         """
         return self._description
 
@@ -132,6 +138,7 @@ class DataModelNode(ABC):
         Returns:
             DataModel | None:
                 he data model containing this node, or None if not set.
+
         """
         return self._data_model() if self._data_model is not None else None
 
@@ -145,6 +152,7 @@ class DataModelNode(ABC):
             child_nodes (Mapping[str, "DataModelNode"] |
             Sequence["DataModelNode"]):
                 The child nodes to set the parent for.
+
         """
         if isinstance(child_nodes, dict):
             child_nodes = list(child_nodes.values())
@@ -165,8 +173,8 @@ class DataModelNode(ABC):
         Returns:
             DataModelNode:
                 The child node with the specified name.
+
         """
-        pass
 
     @abstractmethod
     def __contains__(self, child_name: str) -> bool:
@@ -180,8 +188,8 @@ class DataModelNode(ABC):
         Returns:
             bool:
                 True if the child exists, False otherwise.
+
         """
-        pass
 
     @abstractmethod
     def __iter__(self) -> Iterator["DataModelNode"]:
@@ -191,8 +199,8 @@ class DataModelNode(ABC):
         Returns:
             Iterator[DataModelNode]:
                 An iterator over the children of the node.
+
         """
-        pass
 
     def _eq_base(self, other: "DataModelNode") -> bool:
         return (

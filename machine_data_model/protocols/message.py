@@ -14,5 +14,3 @@ class Message(ABC):
     """
     Abstract base class representing a message in the protocol.
     """
-
-    pass

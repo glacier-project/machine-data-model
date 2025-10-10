@@ -7,8 +7,8 @@ strings and values.
 """
 
 import re
-from typing import Any
 from enum import IntEnum
+from typing import Any
 
 template_re = re.compile(r"\$\{([^}]+)\}")
 
@@ -24,6 +24,7 @@ def is_template_variable(string: str) -> bool:
     Returns:
         bool:
             True if the string is a template variable, False otherwise.
+
     """
     return bool(template_re.fullmatch(string))
 
@@ -41,6 +42,7 @@ def contains_template_variables(string: str) -> bool:
         bool:
             True if the string contains at least one template variable, False
             otherwise.
+
     """
     return bool(template_re.search(string))
 
@@ -63,6 +65,7 @@ def resolve_string_in_context(string: str, context: "ExecutionContext") -> Any:
             The string with all template variables resolved. If the entire
             string is a single template variable, the value of that variable is
             returned directly.
+
     """
     if not contains_template_variables(string):
         return string
@@ -100,6 +103,7 @@ def resolve_value(value: Any, context: "ExecutionContext") -> Any:
     Returns:
         Any:
             The resolved value.
+
     """
     if isinstance(value, str) and contains_template_variables(value):
         return resolve_string_in_context(value, context)
@@ -127,6 +131,7 @@ class ControlFlowStatus(IntEnum):
             The control flow graph has completed execution.
         FAILED (6):
             The control flow graph has failed during execution.
+
     """
 
     READY = 0
@@ -156,6 +161,7 @@ class ExecutionContext:
             The status of the control flow graph execution.
         active_request (str | None):
             The correlation id of the active request, if any.
+
     """
 
     _context_id: str
@@ -173,6 +179,7 @@ class ExecutionContext:
                 The unique identifier of the context.
             **kwargs (dict[str, Any]):
                 The local variables of the context.
+
         """
         self._context_id = context_id
         self._locals: dict[str, Any] = {}  # local variables
@@ -188,6 +195,7 @@ class ExecutionContext:
         Args:
             **kwargs (dict[str, Any]):
                 The local variables to set in the context.
+
         """
         if not self.is_active():
             raise ValueError("Attempt to set values on an inactive context")
@@ -207,6 +215,7 @@ class ExecutionContext:
         Returns:
             bool:
                 True if the local variable exists, False otherwise.
+
         """
         var_name = resolve_string_in_context(var_name, self)
         return var_name in self._locals
@@ -226,6 +235,7 @@ class ExecutionContext:
         Raises:
             KeyError:
                 If the local variable does not exist in the context.
+
         """
         var_name = resolve_string_in_context(var_name, self)
         if var_name not in self._locals:
@@ -243,6 +253,7 @@ class ExecutionContext:
                 The name of the local variable.
             value (Any):
                 The value of the local variable.
+
         """
         self.set_all_values(**{var_name: value})
 
@@ -253,6 +264,7 @@ class ExecutionContext:
         Args:
             var_name (str):
                 The name of the local variable.
+
         """
         var_name = resolve_string_in_context(var_name, self)
         if var_name in self._locals:
@@ -265,6 +277,7 @@ class ExecutionContext:
         Returns:
             int:
                 The program counter of the context.
+
         """
         return self._pc
 
@@ -275,6 +288,7 @@ class ExecutionContext:
         Args:
             pc (int):
                 The new program counter of the context.
+
         """
         self._pc = pc
 
@@ -291,6 +305,7 @@ class ExecutionContext:
         Returns:
             bool:
                 True if the context is active, False otherwise.
+
         """
         return self._status not in [
             ControlFlowStatus.COMPLETED,
@@ -305,6 +320,7 @@ class ExecutionContext:
         Returns:
             ControlFlowStatus:
                 The status of the control flow graph execution.
+
         """
         return self._status
 
@@ -316,6 +332,7 @@ class ExecutionContext:
         Args:
             status (ControlFlowStatus):
                 The new status of the control flow graph execution.
+
         """
         self._status = status
 
@@ -326,6 +343,7 @@ class ExecutionContext:
         Returns:
             dict[str, Any]:
                 The local variables of the context.
+
         """
         return self._locals
 
@@ -336,6 +354,7 @@ class ExecutionContext:
         Returns:
             str:
                 The unique identifier of the context.
+
         """
         return self._context_id
 
@@ -346,5 +365,6 @@ class ExecutionContext:
         Returns:
             str:
                 A string representation of the ExecutionContext.
+
         """
         return f"ExecutionContext(id={self._context_id}, pc={self._pc}, status={self._status})"

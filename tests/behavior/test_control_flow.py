@@ -5,7 +5,7 @@ from machine_data_model.behavior.execution_context import (
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
 from tests import get_dummy_method_node
-from tests.nodes.composite_method import get_non_blocking_cf, get_blocking_cf
+from tests.nodes.composite_method import get_blocking_cf, get_non_blocking_cf
 
 
 class TestControlFlow:

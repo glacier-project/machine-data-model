@@ -8,7 +8,6 @@ various unit systems and a NoneMeasure class for dimensionless values.
 
 import inspect
 from enum import Enum
-from typing import Type, Dict
 
 import unitsnet_py
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -21,6 +20,7 @@ class NoneMeasureUnits(Enum):
     Attributes:
         NONE:
             The only available unit, representing no unit.
+
     """
 
     NONE = 0
@@ -36,6 +36,7 @@ class NoneMeasure(AbstractMeasure):
     Attributes:
         _value (float):
             The value.
+
     """
 
     _value: float
@@ -52,8 +53,8 @@ class NoneMeasure(AbstractMeasure):
             from_unit (NoneMeasureUnits):
                 The unit of the value. This is always `NONE`, and an assertion
                 ensures it cannot be anything else.
-        """
 
+        """
         assert from_unit == NoneMeasureUnits.NONE
         self._value = value
 
@@ -65,8 +66,8 @@ class NoneMeasure(AbstractMeasure):
         Returns:
             float:
                 The value with no unit.
-        """
 
+        """
         return self._value
 
     def to_string(
@@ -91,8 +92,8 @@ class NoneMeasure(AbstractMeasure):
         Returns:
             str:
                 A string representation of the `NoneMeasure`.
-        """
 
+        """
         assert unit == NoneMeasureUnits.NONE
         if fractional_digits is not None:
             return (
@@ -119,12 +120,11 @@ class NoneMeasure(AbstractMeasure):
         Raises:
             ValueError:
                 If the unit is not `NONE`.
-        """
 
+        """
         if unit_abbreviation == NoneMeasureUnits.NONE:
             return ""
-        else:
-            raise ValueError("Invalid unit for NoneMeasure measure")
+        raise ValueError("Invalid unit for NoneMeasure measure")
 
 
 class MeasureBuilder:
@@ -139,9 +139,10 @@ class MeasureBuilder:
         _measure_ctor (Dict[Type[Enum], Type[AbstractMeasure]]):
             A dictionary that maps unit classes to their corresponding measure
             constructors.
+
     """
 
-    _measure_ctor: Dict[Type[Enum], Type[AbstractMeasure]]
+    _measure_ctor: dict[type[Enum], type[AbstractMeasure]]
 
     def __init__(self) -> None:
         """
@@ -151,7 +152,6 @@ class MeasureBuilder:
         package, mapping each unit class to its corresponding measure class, and
         sets up the `_measure_ctor` dictionary for quick lookup.
         """
-
         self._measure_ctor = {}
 
         # Explore the unitsnet_py package to store the measure object from the unit.
@@ -189,12 +189,12 @@ class MeasureBuilder:
         Raises:
             ValueError:
                 If the unit type is invalid.
-        """
 
+        """
         if isinstance(unit, Enum):
             assert unit.__class__ in self._measure_ctor
             return unit
-        elif isinstance(unit, str):
+        if isinstance(unit, str):
             assert "." in unit
             unit_class, unit_name = unit.split(".")
         else:
@@ -229,8 +229,8 @@ class MeasureBuilder:
         Raises:
             ValueError:
                 If the unit is invalid or cannot be matched to a known unit.
-        """
 
+        """
         unit = self.get_measure_unit(unit)
         measure = self._measure_ctor[unit.__class__]
         return measure(value=value, from_unit=unit)
@@ -246,5 +246,6 @@ def get_measure_builder() -> "MeasureBuilder":
     Returns:
         MeasureBuilder:
             The MeasureBuilder instance.
+
     """
     return _measure_builder

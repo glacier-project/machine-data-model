@@ -6,30 +6,31 @@ well-formatted manner across all tracing examples.
 """
 
 import json
-from typing import List
-from machine_data_model.tracing.tracing_core import TraceEvent
+
 from machine_data_model.tracing.events import (
     MessageReceiveEvent,
     MessageSendEvent,
-    VariableReadEvent,
-    VariableWriteEvent,
-    MethodStartEvent,
     MethodEndEvent,
-    WaitStartEvent,
-    WaitEndEvent,
+    MethodStartEvent,
+    NotificationEvent,
     SubscribeEvent,
     UnsubscribeEvent,
-    NotificationEvent,
+    VariableReadEvent,
+    VariableWriteEvent,
+    WaitEndEvent,
+    WaitStartEvent,
 )
+from machine_data_model.tracing.tracing_core import TraceEvent
 
 
-def print_trace_events(events: List[TraceEvent], title: str = "Trace Events") -> None:
+def print_trace_events(events: list[TraceEvent], title: str = "Trace Events") -> None:
     """
     Print trace events in a well-formatted manner with relative timestamps.
 
     Args:
         events: List of trace events to display
         title: Title for the trace events section
+
     """
     if not events:
         print(f"\n{title} (0 total):")
@@ -72,6 +73,7 @@ def _print_event_details(event: TraceEvent) -> None:
 
     Args:
         event: The trace event to format
+
     """
     if isinstance(event, MessageSendEvent):
         print(
@@ -111,11 +113,7 @@ def _print_event_details(event: TraceEvent) -> None:
         print(f"    Variable: {event.variable_id}")
         print(f"    Duration: {event.wait_duration:.2f} ms")
 
-    elif isinstance(event, SubscribeEvent):
-        print(f"    Variable: {event.variable_id}")
-        print(f"    Subscriber: {event.subscriber_id}")
-
-    elif isinstance(event, UnsubscribeEvent):
+    elif isinstance(event, SubscribeEvent) or isinstance(event, UnsubscribeEvent):
         print(f"    Variable: {event.variable_id}")
         print(f"    Subscriber: {event.subscriber_id}")
 

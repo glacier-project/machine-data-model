@@ -6,12 +6,11 @@ control flows, from YAML configuration files using custom YAML constructors.
 """
 
 import os
-from collections.abc import Callable
-from typing import Any, Hashable
+from collections.abc import Callable, Hashable
+from typing import Any
 
 import yaml
 
-from machine_data_model.data_model import DataModel
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
 from machine_data_model.behavior.local_execution_node import (
@@ -27,6 +26,7 @@ from machine_data_model.behavior.remote_execution_node import (
     WaitRemoteEventNode,
     WriteRemoteVariableNode,
 )
+from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
@@ -60,6 +60,7 @@ def _build_kwargs(
     Raises:
         ValueError:
             If unexpected keys are found in data
+
     """
     unexpected_keys = set(data.keys()) - set(default_kwargs.keys())
     if unexpected_keys:
@@ -87,6 +88,7 @@ def _get_folder(loader: yaml.FullLoader, node: yaml.MappingNode) -> FolderNode:
     Returns:
         FolderNode:
             The constructed folder node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -116,6 +118,7 @@ def _get_numerical_variable(
     Returns:
         NumericalVariableNode:
             The constructed numerical variable node.
+
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
@@ -150,6 +153,7 @@ def _get_string_variable(
     Returns:
         StringVariableNode:
             The constructed string variable node.
+
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
@@ -184,6 +188,7 @@ def _get_boolean_variable(
     Returns:
         BooleanVariableNode:
             The constructed boolean variable node.
+
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
@@ -217,6 +222,7 @@ def _get_object_variable(
     Returns:
         ObjectVariableNode:
             The constructed object variable node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -249,6 +255,7 @@ def _get_method_node(
     Returns:
         MethodNode:
             The constructed method node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -277,6 +284,7 @@ def _get_async_method_node(
     Returns:
         MethodNode:
             The constructed async method node.
+
     """
     return _get_method_node(loader, node, AsyncMethodNode)
 
@@ -296,6 +304,7 @@ def _get_read_variable_node(
     Returns:
         ControlFlowNode:
             The constructed read variable node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -324,6 +333,7 @@ def _get_write_variable_node(
     Returns:
         ControlFlowNode:
             The constructed write variable node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -350,6 +360,7 @@ def _get_wait_node(loader: yaml.FullLoader, node: yaml.MappingNode) -> ControlFl
     Returns:
         ControlFlowNode:
             The constructed wait condition node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -380,6 +391,7 @@ def _get_call_method_node(
     Returns:
         ControlFlowNode:
             The constructed call method node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -410,6 +422,7 @@ def _get_call_remote_method_node(
     Returns:
         CallRemoteMethodNode:
             The constructed call remote method node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -442,6 +455,7 @@ def _get_read_remote_variable_node(
     Returns:
         ReadRemoteVariableNode:
             The constructed read remote variable node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -472,6 +486,7 @@ def _get_write_remote_variable_node(
     Returns:
         WriteRemoteVariableNode:
             The constructed write remote variable node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -502,6 +517,7 @@ def _get_wait_remote_event_node(
     Returns:
         ControlFlowNode:
             The constructed wait remote event node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -534,6 +550,7 @@ def _get_composite_method_node(
     Returns:
         MethodNode:
             The constructed composite method node.
+
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -591,6 +608,7 @@ class DataModelBuilder:
     Attributes:
         cache (dict[str, DataModel]):
             A cache mapping file paths to loaded DataModel instances.
+
     """
 
     cache: dict[str, DataModel]
@@ -612,6 +630,7 @@ class DataModelBuilder:
         Returns:
             DataModel:
                 The data model.
+
         """
         # Load the YAML string
         data = yaml.load(data_model_string, Loader=yaml.FullLoader)
@@ -632,6 +651,7 @@ class DataModelBuilder:
         Returns:
             DataModel:
                 The data model.
+
         """
         with open(data_model_path) as file:
             data = yaml.load(file, Loader=yaml.FullLoader)
@@ -650,6 +670,7 @@ class DataModelBuilder:
         Returns:
             DataModel:
                 The data model created from the yaml file.
+
         """
         full_path = os.path.abspath(data_model_path)
 

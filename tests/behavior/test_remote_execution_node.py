@@ -1,9 +1,12 @@
-import uuid
 import random
+import uuid
 from typing import Any
 
 import pytest
 
+from machine_data_model.behavior.execution_context import (
+    ExecutionContext,
+)
 from machine_data_model.behavior.local_execution_node import WaitConditionOperator
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
@@ -11,15 +14,12 @@ from machine_data_model.behavior.remote_execution_node import (
     WaitRemoteEventNode,
     WriteRemoteVariableNode,
 )
-from machine_data_model.behavior.execution_context import (
-    ExecutionContext,
-)
-from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
+from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
 from machine_data_model.nodes.variable_node import StringVariableNode, VariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
+    MethodMsgName,
     MsgNamespace,
     MsgType,
-    MethodMsgName,
     VariableMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
@@ -27,10 +27,10 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
 )
 from tests import (
-    get_dummy_method_node,
     get_default_kwargs,
-    get_random_numerical_node,
+    get_dummy_method_node,
     get_random_boolean_node,
+    get_random_numerical_node,
     get_random_string_node,
 )
 

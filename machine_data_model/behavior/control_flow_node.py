@@ -7,6 +7,7 @@ result structure for node executions in the machine data model.
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
+
 from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
@@ -23,6 +24,7 @@ class ExecutionNodeResult:
             Indicates whether the execution was successful.
         messages (list[FrostMessage]):
             A list of messages generated during execution.
+
     """
 
     success: bool
@@ -37,6 +39,7 @@ class ExecutionNodeResult:
                 Indicates whether the execution was successful.
             messages (list[FrostMessage] | None):
                 A list of messages generated during execution, or None.
+
         """
         self.success = success
         self.messages = messages if messages is not None else []
@@ -55,6 +58,7 @@ def execution_success(
     Returns:
         ExecutionNodeResult:
             An ExecutionNodeResult with success set to True.
+
     """
     return ExecutionNodeResult(True, messages)
 
@@ -72,6 +76,7 @@ def execution_failure(
     Returns:
         ExecutionNodeResult:
             An ExecutionNodeResult with success set to False.
+
     """
     return ExecutionNodeResult(False, messages)
 
@@ -91,6 +96,7 @@ class ControlFlowNode(ABC):
             node. (Not used yet)
         _parent_cfg ("ControlFlow | None"):
             The parent control flow graph that contains this node.
+
     """
 
     node: str
@@ -114,6 +120,7 @@ class ControlFlowNode(ABC):
                 node.
             parent_cfg ("ControlFlow | None"):
                 The parent control flow graph that contains this node.
+
         """
         self.node = node
         self._successors = [] if successors is None else successors
@@ -127,6 +134,7 @@ class ControlFlowNode(ABC):
         Returns:
             "ControlFlow | None":
                 The parent control flow graph, or None if not set.
+
         """
         return self._parent_cfg
 
@@ -138,6 +146,7 @@ class ControlFlowNode(ABC):
         Returns:
             str:
                 The data model ID, or empty string if not available.
+
         """
         if self._parent_cfg:
             return self._parent_cfg.get_data_model_id()
@@ -151,6 +160,7 @@ class ControlFlowNode(ABC):
             str:
                 The composite method ID, or the node's own identifier if not
                 available.
+
         """
         if self._parent_cfg:
             return self._parent_cfg.get_composite_method_id()
@@ -170,8 +180,8 @@ class ControlFlowNode(ABC):
             ExecutionNodeResult:
                 An ExecutionNodeResult object representing the result of the
                 execution.
+
         """
-        pass
 
     def __eq__(self, other: object) -> bool:
         """
@@ -184,6 +194,7 @@ class ControlFlowNode(ABC):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True

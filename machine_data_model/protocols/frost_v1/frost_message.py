@@ -6,10 +6,11 @@ Frost protocol, containing sender, target, header, and payload information.
 """
 
 import uuid
-from machine_data_model.protocols.message import Message
 from dataclasses import dataclass, field
+
 from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
 from machine_data_model.protocols.frost_v1.frost_payload import FrostPayload
+from machine_data_model.protocols.message import Message
 
 
 @dataclass(init=True, slots=True)
@@ -30,6 +31,7 @@ class FrostMessage(Message):
             The unique identifier of the message.
         correlation_id (str):
             The correlation ID for tracking the message.
+
     """
 
     sender: str

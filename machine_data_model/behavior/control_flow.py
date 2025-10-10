@@ -5,13 +5,15 @@ This module defines the ControlFlow class which represents a control flow graph
 implementing the logic of a run-time method.
 """
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
 )
 from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-from machine_data_model.tracing import trace_control_flow_start, trace_control_flow_end
+from machine_data_model.tracing import trace_control_flow_end, trace_control_flow_start
 
 if TYPE_CHECKING:
     from machine_data_model.nodes.composite_method.composite_method_node import (
@@ -32,6 +34,7 @@ class ControlFlow:
             A list of control flow nodes in the control flow graph.
         _composite_method_node ("CompositeMethodNode | None"):
             The composite method node that owns this control flow graph.
+
     """
 
     _nodes: Sequence[ControlFlowNode]
@@ -50,6 +53,7 @@ class ControlFlow:
                 A list of control flow nodes in the control flow graph.
             composite_method_node ("CompositeMethodNode | None"):
                 The composite method node that owns this control flow graph.
+
         """
         self._nodes = nodes if nodes is not None else []
         self._composite_method_node = composite_method_node
@@ -66,6 +70,7 @@ class ControlFlow:
         Returns:
             Sequence[ControlFlowNode]:
                 The list of control flow nodes in the control flow graph.
+
         """
         return self._nodes
 
@@ -77,6 +82,7 @@ class ControlFlow:
         Returns:
             "CompositeMethodNode | None":
                 The composite method node, or None if not set.
+
         """
         return self._composite_method_node
 
@@ -88,6 +94,7 @@ class ControlFlow:
         Returns:
             str:
                 The data model ID, or empty string if not available.
+
         """
         if self._composite_method_node and self._composite_method_node.data_model:
             return self._composite_method_node.data_model.name
@@ -101,6 +108,7 @@ class ControlFlow:
         Returns:
             str:
                 The composite method node ID, or empty string if not available.
+
         """
         if self._composite_method_node:
             return self._composite_method_node.id
@@ -119,8 +127,8 @@ class ControlFlow:
             ControlFlowNode | None:
                 The current control flow node, or None if the program counter is
                 out of bounds.
-        """
 
+        """
         # If the cfg is terminated return None
         if not context.is_active():
             return None
@@ -142,8 +150,8 @@ class ControlFlow:
             list[FrostMessage]:
                 A list of Frost messages to be sent as a result of executing the
                 control flow graph.
-        """
 
+        """
         data_model_id = self.get_data_model_id()
 
         # Trace control flow start.
@@ -207,6 +215,7 @@ class ControlFlow:
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True

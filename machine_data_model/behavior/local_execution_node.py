@@ -6,14 +6,15 @@ the control flow graph, including variable read/write, method calls, and wait
 conditions.
 """
 
-from typing import Callable, Any
+from collections.abc import Callable
 from enum import Enum
+from typing import Any
 
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
-    execution_success,
     execution_failure,
+    execution_success,
 )
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
@@ -22,12 +23,12 @@ from machine_data_model.behavior.execution_context import (
     resolve_value,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.method_node import AsyncMethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import VariableNode
-from machine_data_model.nodes.method_node import AsyncMethodNode
-from machine_data_model.tracing import trace_wait_start, trace_wait_end
+from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
 
 
@@ -45,6 +46,7 @@ class LocalExecutionNode(ControlFlowNode):
         get_data_model_node (Callable[[str], DataModelNode | None] | None):
             A callable that takes a node identifier and returns the
             corresponding node in the machine data model.
+
     """
 
     _ref_node: DataModelNode | None
@@ -60,6 +62,7 @@ class LocalExecutionNode(ControlFlowNode):
             successors (list["ControlFlowNode"] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(node, successors)
 
@@ -75,6 +78,7 @@ class LocalExecutionNode(ControlFlowNode):
             list["ControlFlowNode"]:
                 The list of control flow nodes that are successors of the
                 current node.
+
         """
         return self._successors
 
@@ -88,6 +92,7 @@ class LocalExecutionNode(ControlFlowNode):
         Returns:
             bool:
                 True if the node is static, otherwise False.
+
         """
         return self.node is not None and not contains_template_variables(self.node)
 
@@ -98,6 +103,7 @@ class LocalExecutionNode(ControlFlowNode):
         Args:
             ref_node (DataModelNode):
                 The reference to the node in the machine data model.
+
         """
         assert ref_node.name == self.node.split("/")[-1]
         self._ref_node = ref_node
@@ -109,6 +115,7 @@ class LocalExecutionNode(ControlFlowNode):
         Returns:
             DataModelNode | None:
                 The reference to the node in the machine data model.
+
         """
         return self._ref_node
 
@@ -127,6 +134,7 @@ class LocalExecutionNode(ControlFlowNode):
         Returns:
             DataModelNode | None:
                 The node referenced by the current node.
+
         """
         if self.is_node_static() and self._ref_node is not None:
             return self._ref_node
@@ -148,6 +156,7 @@ class LocalExecutionNode(ControlFlowNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -168,6 +177,7 @@ class ReadVariableNode(LocalExecutionNode):
     Attributes:
         store_as (str):
             The name of the variable used to store the value in the context.
+
     """
 
     store_as: str
@@ -191,6 +201,7 @@ class ReadVariableNode(LocalExecutionNode):
             successors (list["ControlFlowNode"] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(variable_node, successors)
         self.store_as = store_as
@@ -206,6 +217,7 @@ class ReadVariableNode(LocalExecutionNode):
         Returns:
             ExecutionNodeResult:
                 An ExecutionNodeResult indicating success.
+
         """
         ref_variable = self._get_ref_node(context)
         assert isinstance(
@@ -240,6 +252,7 @@ class ReadVariableNode(LocalExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -260,6 +273,7 @@ class WriteVariableNode(LocalExecutionNode):
     Attributes:
         _value (Any):
             The value to write to the variable.
+
     """
 
     _value: Any
@@ -282,6 +296,7 @@ class WriteVariableNode(LocalExecutionNode):
             successors (list["ControlFlowNode"] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(variable_node, successors)
         self._value = value
@@ -294,6 +309,7 @@ class WriteVariableNode(LocalExecutionNode):
         Returns:
             Any:
                 The value to write to the variable.
+
         """
         return self._value
 
@@ -308,6 +324,7 @@ class WriteVariableNode(LocalExecutionNode):
         Returns:
             ExecutionNodeResult:
                 An ExecutionNodeResult indicating success.
+
         """
         ref_variable = self._get_ref_node(context)
         assert isinstance(ref_variable, VariableNode)
@@ -339,6 +356,7 @@ class WriteVariableNode(LocalExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -361,6 +379,7 @@ class CallMethodNode(LocalExecutionNode):
             The list of positional arguments to pass to the method.
         _kwargs (dict[str, Any]):
             The dictionary of keyword arguments to pass to the method.
+
     """
 
     _args: list[Any]
@@ -386,6 +405,7 @@ class CallMethodNode(LocalExecutionNode):
             successors (list["ControlFlowNode"] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(method_node, successors)
         self._args = args
@@ -399,6 +419,7 @@ class CallMethodNode(LocalExecutionNode):
         Returns:
             list[Any]:
                 The list of positional arguments to pass to the method.
+
         """
         return self._args
 
@@ -410,6 +431,7 @@ class CallMethodNode(LocalExecutionNode):
         Returns:
             dict[str, Any]:
                 The dictionary of keyword arguments to pass to the method.
+
         """
         return self._kwargs
 
@@ -424,6 +446,7 @@ class CallMethodNode(LocalExecutionNode):
         Returns:
             ExecutionNodeResult:
                 An ExecutionNodeResult indicating success.
+
         """
         ref_method = self._get_ref_node(context)
         assert isinstance(ref_method, AsyncMethodNode)
@@ -456,6 +479,7 @@ class CallMethodNode(LocalExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True
@@ -498,6 +522,7 @@ def get_condition_operator(op: str) -> WaitConditionOperator:
     Raises:
         ValueError:
             If the operator string is invalid.
+
     """
     for enum_op in WaitConditionOperator:
         if enum_op.value == op:
@@ -521,6 +546,7 @@ class WaitConditionNode(LocalExecutionNode):
             The comparison operator.
         _subscription (VariableSubscription | None):
             The subscription to the variable for change notifications.
+
     """
 
     _rhs: Any
@@ -548,6 +574,7 @@ class WaitConditionNode(LocalExecutionNode):
             successors (list["ControlFlowNode"] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+
         """
         super().__init__(variable_node, successors)
         self._rhs = rhs
@@ -562,6 +589,7 @@ class WaitConditionNode(LocalExecutionNode):
         Returns:
             Any:
                 The right-hand side of the comparison.
+
         """
         return self._rhs
 
@@ -573,6 +601,7 @@ class WaitConditionNode(LocalExecutionNode):
         Returns:
             WaitConditionOperator:
                 The comparison operator.
+
         """
         return self._op
 
@@ -590,6 +619,7 @@ class WaitConditionNode(LocalExecutionNode):
         Returns:
             ExecutionNodeResult:
                 An ExecutionNodeResult indicating whether the condition was met.
+
         """
         ref_variable = self._get_ref_node(context)
         assert isinstance(ref_variable, VariableNode)
@@ -685,6 +715,7 @@ class WaitConditionNode(LocalExecutionNode):
         Returns:
             bool:
                 True if the objects are equal, False otherwise.
+
         """
         if self is other:
             return True

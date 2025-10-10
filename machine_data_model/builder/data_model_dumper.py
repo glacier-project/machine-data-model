@@ -10,34 +10,30 @@ import os
 
 import yaml
 
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.local_execution_node import (
+    CallMethodNode,
+    ReadVariableNode,
+    WaitConditionNode,
+    WriteVariableNode,
+)
+from machine_data_model.behavior.remote_execution_node import (
+    CallRemoteMethodNode,
+    ReadRemoteVariableNode,
+    WaitRemoteEventNode,
+    WriteRemoteVariableNode,
+)
 from machine_data_model.data_model import DataModel
-from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.local_execution_node import (
-    ReadVariableNode,
-)
-from machine_data_model.behavior.local_execution_node import (
-    WaitConditionNode,
-)
-from machine_data_model.behavior.local_execution_node import (
-    WriteVariableNode,
-)
 from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
+from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
 from machine_data_model.nodes.variable_node import (
-    NumericalVariableNode,
     BooleanVariableNode,
+    NumericalVariableNode,
     ObjectVariableNode,
     StringVariableNode,
-)
-from machine_data_model.behavior.remote_execution_node import (
-    ReadRemoteVariableNode,
-    WriteRemoteVariableNode,
-    CallRemoteMethodNode,
-    WaitRemoteEventNode,
 )
 
 
@@ -56,6 +52,7 @@ def _data_model_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the DataModel.
+
     """
     return dumper.represent_mapping(
         yaml.BaseDumper.DEFAULT_MAPPING_TAG,
@@ -85,6 +82,7 @@ def _folder_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the FolderNode.
+
     """
     children = [child for child in node.children.values()]
     return dumper.represent_mapping(
@@ -113,6 +111,7 @@ def _numerical_variable_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the NumericalVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:NumericalVariableNode",
@@ -141,6 +140,7 @@ def _boolean_variable_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the BooleanVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:BooleanVariableNode",
@@ -168,6 +168,7 @@ def _string_variable_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the StringVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:StringVariableNode",
@@ -195,6 +196,7 @@ def _object_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the ObjectVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:ObjectVariableNode",
@@ -222,6 +224,7 @@ def _method_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the MethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:MethodNode",
@@ -250,6 +253,7 @@ def _async_method_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the AsyncMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:AsyncMethodNode",
@@ -278,6 +282,7 @@ def _composite_method_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the CompositeMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:CompositeMethodNode",
@@ -307,6 +312,7 @@ def _control_flow_graph_representer(
     Returns:
         yaml.nodes.SequenceNode:
             A YAML mapping node representing the ControlFlow.
+
     """
     return dumper.represent_sequence(
         yaml.BaseDumper.DEFAULT_SEQUENCE_TAG,
@@ -329,6 +335,7 @@ def _read_variable_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the ReadVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:ReadVariableNode",
@@ -351,6 +358,7 @@ def _write_variable_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the WriteVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WriteVariableNode",
@@ -373,6 +381,7 @@ def _wait_condition_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the WaitConditionNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WaitConditionNode",
@@ -399,6 +408,7 @@ def _call_method_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the CallMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:CallMethodNode",
@@ -425,6 +435,7 @@ def _call_remote_method_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the CallRemoteMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:CallRemoteMethodNode",
@@ -452,6 +463,7 @@ def _read_remote_variable_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the ReadRemoteVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:ReadRemoteVariableNode",
@@ -478,6 +490,7 @@ def _write_remote_variable_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the WriteRemoteVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WriteRemoteVariableNode",
@@ -504,6 +517,7 @@ def _wait_remote_event_node_representer(
     Returns:
         yaml.nodes.MappingNode:
             A YAML mapping node representing the WaitRemoteEventNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WaitRemoteEventNode",
@@ -544,6 +558,7 @@ class DataModelDumper:
     Attributes:
         data_model (DataModel):
             The machine data model to dump.
+
     """
 
     def __init__(self, data_model: DataModel) -> None:
@@ -556,6 +571,7 @@ class DataModelDumper:
         Returns:
             str:
                 The YAML string representation of the machine data model.
+
         """
         data_model_str = yaml.dump(self.data_model)
         assert isinstance(data_model_str, str)
@@ -574,6 +590,7 @@ class DataModelDumper:
                 If the file path is not valid.
             IOError:
                 If there is an error writing to the file.
+
         """
         base_dir = os.path.dirname(file_path)
         os.makedirs(base_dir, exist_ok=True)

@@ -7,8 +7,9 @@ and error handling.
 """
 
 from dataclasses import dataclass, field
-from typing import Any
 from enum import Enum
+from typing import Any
+
 from machine_data_model.nodes.subscription.variable_subscription import EventType
 
 
@@ -23,6 +24,7 @@ class FrostPayload:
     Attributes:
         node (str):
             The node associated with the message payload.
+
     """
 
     node: str = ""
@@ -41,6 +43,7 @@ class VariablePayload(FrostPayload):
             The node associated with the message payload (inherited).
         value (Any):
             The value of the variable in the message payload.
+
     """
 
     value: Any = None
@@ -57,6 +60,7 @@ class SubscriptionPayload(VariablePayload):
     Attributes:
         node (str):
             The node associated with the message payload (inherited).
+
     """
 
     @property
@@ -80,6 +84,7 @@ class DataChangeSubscriptionPayload(SubscriptionPayload):
         is_percent (bool):
             If True, deadband is treated as a percentage of the previous value;
             otherwise, it's an absolute value.
+
     """
 
     deadband: float = 0.0
@@ -105,6 +110,7 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
             The lower bound of the range.
         high (float):
             The upper bound of the range.
+
     """
 
     low: float = 0.0
@@ -130,6 +136,7 @@ class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
             The lower bound of the range.
         high (float):
             The upper bound of the range.
+
     """
 
     @property
@@ -154,6 +161,7 @@ class MethodPayload(FrostPayload):
             The dictionary of keyword arguments for the method.
         ret (dict[str, Any]):
             The dictionary of return values from the method.
+
     """
 
     args: list[Any] = field(default_factory=list)
@@ -172,9 +180,9 @@ class ProtocolPayload(FrostPayload):
     Attributes:
         node (str):
             The node associated with the message payload (inherited).
+
     """
 
-    pass
 
 
 class ErrorCode(int, Enum):
@@ -198,6 +206,7 @@ class ErrorCode(int, Enum):
             The requested version of the protocol is not supported.
         BAD_RESPONSE:
             The response is invalid or malformed.
+
     """
 
     UNKNOWN = -1
@@ -233,6 +242,7 @@ class ErrorMessages(str, Enum):
             Error message for unsupported protocol version.
         BAD_RESPONSE:
             Error message for invalid or malformed response.
+
     """
 
     INVALID_NAMESPACE = "Invalid namespace"
@@ -260,6 +270,7 @@ class ErrorPayload(FrostPayload):
             The error code associated with the error message.
         error_message (str):
             A description of the error.
+
     """
 
     error_code: int = -1
