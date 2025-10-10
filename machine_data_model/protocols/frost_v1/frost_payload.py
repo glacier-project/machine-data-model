@@ -184,7 +184,6 @@ class ProtocolPayload(FrostPayload):
     """
 
 
-
 class ErrorCode(int, Enum):
     """
     Enum for error codes used in the Frost protocol.
