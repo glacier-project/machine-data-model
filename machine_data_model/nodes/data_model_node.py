@@ -142,6 +142,17 @@ class DataModelNode(ABC):
         """
         return self._data_model() if self._data_model is not None else None
 
+    def set_data_model(self, data_model: "DataModel") -> None:
+        """
+        Sets the data model that contains this node.
+
+        Args:
+            data_model (DataModel):
+                The data model to set.
+
+        """
+        self._data_model = weakref.ref(data_model)  # type: ignore[SLF001]
+
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]
     ) -> None:

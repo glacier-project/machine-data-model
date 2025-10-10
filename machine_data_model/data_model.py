@@ -3,7 +3,6 @@ A module defining the DataModel class and its associated methods for managing a
 machine data model.
 """
 
-import weakref
 from collections.abc import Callable
 from typing import Any
 
@@ -150,7 +149,7 @@ class DataModel:
 
         """
         self._nodes[node.id] = node
-        node._data_model = weakref.ref(self)  # type: ignore[SLF001]
+        node.set_data_model(self)
 
     def _resolve_local_cfg_nodes(self, node: DataModelNode) -> None:
         if not isinstance(node, CompositeMethodNode):
