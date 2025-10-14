@@ -1,64 +1,98 @@
-from typing import Callable, Any
+"""
+Local execution nodes for control flow graphs.
+
+This module defines various node types that execute operations locally within
+the control flow graph, including variable read/write, method calls, and wait
+conditions.
+"""
+
+from collections.abc import Callable
 from enum import Enum
+from typing import Any
 
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
-    execution_success,
     execution_failure,
+    execution_success,
 )
-from machine_data_model.behavior.control_flow_scope import (
-    ControlFlowScope,
+from machine_data_model.behavior.execution_context import (
+    ExecutionContext,
     contains_template_variables,
-    resolve_string_in_scope,
+    resolve_string_in_context,
     resolve_value,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.method_node import AsyncMethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import VariableNode
-from machine_data_model.nodes.method_node import AsyncMethodNode
-from machine_data_model.tracing import trace_wait_start, trace_wait_end
+from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
 
 
 class LocalExecutionNode(ControlFlowNode):
     """
-    Abstract base class representing a control flow action node in the control flow graph. A control flow action node is a basic unit of the control flow graph that can be executed locally in the context of a control flow scope.
+    Abstract base class representing a control flow action node in the control
+    flow graph.
 
-    :ivar node: The identifier of a local node in the machine data model.
-    :ivar _ref_node: The reference to the node in the machine data model.
-    :ivar get_data_model_node: A callable that takes a node identifier and returns the corresponding node in the machine data model.
+    A control flow action node is a basic unit of the control flow graph that
+    can be executed locally in the context of a control flow context.
+
+    Attributes:
+        _ref_node (DataModelNode | None):
+            The reference to the node in the machine data model.
+        get_data_model_node (Callable[[str], DataModelNode | None] | None):
+            A callable that takes a node identifier and returns the
+            corresponding node in the machine data model.
+
     """
+
+    _ref_node: DataModelNode | None
+    get_data_model_node: Callable[[str], DataModelNode | None] | None
 
     def __init__(self, node: str, successors: list["ControlFlowNode"] | None = None):
         """
-        Initialize a new CFActionNode instance.
+        Initialize a new LocalExecutionNode instance.
 
-        :param node: The identifier of a local node in the machine data model.
-        :param successors: A list of control flow nodes that are successors of the current node.
+        Args:
+            node (str):
+                The identifier of a local node in the machine data model.
+            successors (list["ControlFlowNode"] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+
         """
         super().__init__(node, successors)
 
-        self.node = node
         self._ref_node: DataModelNode | None = None
         self.get_data_model_node: Callable[[str], DataModelNode | None] | None = None
 
     def get_successors(self) -> list["ControlFlowNode"]:
         """
-        Gets the list of control flow nodes that are successors of the current node.
+        Get the list of control flow nodes that are successors of the current
+        node.
 
-        :return: The list of control flow nodes that are successors of the current node.
+        Returns:
+            list["ControlFlowNode"]:
+                The list of control flow nodes that are successors of the
+                current node.
+
         """
         return self._successors
 
     def is_node_static(self) -> bool:
         """
-        Check if the node is static. This is used to determine if the reference node
-        can be resolved at creation time or if it needs to be resolved at execution time.
+        Check if the node is static.
 
-        :return: True if the node is static, otherwise False.
+        This is used to determine if the reference node can be resolved at
+        creation time or if it needs to be resolved at execution time.
+
+        Returns:
+            bool:
+                True if the node is static, otherwise False.
+
         """
         return self.node is not None and not contains_template_variables(self.node)
 
@@ -66,7 +100,10 @@ class LocalExecutionNode(ControlFlowNode):
         """
         Set the reference to the node in the machine data model.
 
-        :param ref_node: The reference to the node in the machine data model.
+        Args:
+            ref_node (DataModelNode):
+                The reference to the node in the machine data model.
+
         """
         assert ref_node.name == self.node.split("/")[-1]
         self._ref_node = ref_node
@@ -75,22 +112,33 @@ class LocalExecutionNode(ControlFlowNode):
         """
         Get the reference to the node in the machine data model.
 
-        :return: The reference to the node in the machine data model.
+        Returns:
+            DataModelNode | None:
+                The reference to the node in the machine data model.
+
         """
         return self._ref_node
 
-    def _get_ref_node(self, scope: ControlFlowScope) -> DataModelNode | None:
+    def _get_ref_node(self, context: ExecutionContext) -> DataModelNode | None:
         """
-        Get the node referenced by the current node. If the node is static, it returns the
-        reference node. Otherwise, it resolves the value of the node in the scope and
-        retrieves the reference node from the machine data model.
+        Get the node referenced by the current node.
 
-        :param scope: The scope of the control flow graph.
-        :return: The node referenced by the current node.
+        If the node is static, it returns the reference node. Otherwise, it
+        resolves the value of the node in the context and retrieves the
+        reference node from the machine data model.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            DataModelNode | None:
+                The node referenced by the current node.
+
         """
         if self.is_node_static() and self._ref_node is not None:
             return self._ref_node
-        node_path = resolve_string_in_scope(self.node, scope)
+        node_path = resolve_string_in_context(self.node, context)
 
         assert self.get_data_model_node is not None
         x = self.get_data_model_node(node_path)
@@ -98,6 +146,18 @@ class LocalExecutionNode(ControlFlowNode):
         return x
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+
+        """
         if self is other:
             return True
 
@@ -110,10 +170,17 @@ class LocalExecutionNode(ControlFlowNode):
 class ReadVariableNode(LocalExecutionNode):
     """
     Represents the read operation of a variable in the machine data model.
-    When executed, it reads the value of the variable and stores it in the scope.
 
-    :ivar store_as: The name of the variable used to store the value in the scope.
+    When executed, it reads the value of the variable and stores it in the
+    context.
+
+    Attributes:
+        store_as (str):
+            The name of the variable used to store the value in the context.
+
     """
+
+    store_as: str
 
     def __init__(
         self,
@@ -124,20 +191,35 @@ class ReadVariableNode(LocalExecutionNode):
         """
         Initialize a new ReadVariableNode instance.
 
-        :param variable_node: The identifier of the variable node in the machine data model.
-        :param store_as: The name of the variable used to store the value in the scope. If not specified, the value is stored with the name of the variable node.
+        Args:
+            variable_node (str):
+                The identifier of the variable node in the machine data model.
+            store_as (str):
+                The name of the variable used to store the value in the context.
+                If not specified, the value is stored with the name of the
+                variable node.
+            successors (list["ControlFlowNode"] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+
         """
         super().__init__(variable_node, successors)
         self.store_as = store_as
 
-    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
+    def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """
         Execute the read operation of the variable in the machine data model.
 
-        :param scope: The scope of the control flow graph.
-        :return: Returns always True.
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            ExecutionNodeResult:
+                An ExecutionNodeResult indicating success.
+
         """
-        ref_variable = self._get_ref_node(scope)
+        ref_variable = self._get_ref_node(context)
         assert isinstance(
             ref_variable, VariableNode
         ), f"Node {ref_variable} is not a VariableNode"
@@ -147,8 +229,8 @@ class ReadVariableNode(LocalExecutionNode):
             node_id=self.node,
             node_type=type(self).__name__,
             execution_result=True,
-            program_counter=scope.get_pc(),
-            source=scope.id(),
+            program_counter=context.get_pc(),
+            source=context.id(),
             data_model_id=(
                 ref_variable.data_model.name if ref_variable.data_model else ""
             ),
@@ -156,10 +238,22 @@ class ReadVariableNode(LocalExecutionNode):
 
         value = ref_variable.read()
         name = self.store_as if self.store_as else ref_variable.name
-        scope.set_value(name, value)
+        context.set_value(name, value)
         return execution_success()
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+
+        """
         if self is other:
             return True
 
@@ -172,10 +266,17 @@ class ReadVariableNode(LocalExecutionNode):
 class WriteVariableNode(LocalExecutionNode):
     """
     Represents the write operation of a variable in the machine data model.
-    When executed, it writes the value to the variable in the machine data model.
 
-    :ivar value: The value to write to the variable.
+    When executed, it writes the value to the variable in the machine data
+    model.
+
+    Attributes:
+        _value (Any):
+            The value to write to the variable.
+
     """
+
+    _value: Any
 
     def __init__(
         self,
@@ -186,8 +287,16 @@ class WriteVariableNode(LocalExecutionNode):
         """
         Initialize a new WriteVariableNode instance.
 
-        :param variable_node: The identifier of the variable node in the machine data model.
-        :param value: The value to write to the variable. It can be a constant value or reference to a variable in the scope.
+        Args:
+            variable_node (str):
+                The identifier of the variable node in the machine data model.
+            value (Any):
+                The value to write to the variable. It can be a constant value
+                or reference to a variable in the context.
+            successors (list["ControlFlowNode"] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+
         """
         super().__init__(variable_node, successors)
         self._value = value
@@ -197,18 +306,27 @@ class WriteVariableNode(LocalExecutionNode):
         """
         Get the value to write to the variable.
 
-        :return: The value to write to the variable.
+        Returns:
+            Any:
+                The value to write to the variable.
+
         """
         return self._value
 
-    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
+    def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """
         Execute the write operation of the variable in the machine data model.
 
-        :param scope: The scope of the control flow graph.
-        :return: Returns always True.
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            ExecutionNodeResult:
+                An ExecutionNodeResult indicating success.
+
         """
-        ref_variable = self._get_ref_node(scope)
+        ref_variable = self._get_ref_node(context)
         assert isinstance(ref_variable, VariableNode)
 
         # Trace the control flow step.
@@ -216,18 +334,30 @@ class WriteVariableNode(LocalExecutionNode):
             node_id=self.node,
             node_type=type(self).__name__,
             execution_result=True,
-            program_counter=scope.get_pc(),
-            source=scope.id(),
+            program_counter=context.get_pc(),
+            source=context.id(),
             data_model_id=(
                 ref_variable.data_model.name if ref_variable.data_model else ""
             ),
         )
 
-        value = resolve_value(self._value, scope)
+        value = resolve_value(self._value, context)
         ref_variable.write(value)
         return execution_success()
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+
+        """
         if self is other:
             return True
 
@@ -239,12 +369,21 @@ class WriteVariableNode(LocalExecutionNode):
 
 class CallMethodNode(LocalExecutionNode):
     """
-    Represents the call operation of a method in the machine data model. When executed,
-    it calls the method with the specified arguments and stores the return values in the scope.
+    Represents the call operation of a method in the machine data model.
 
-    :ivar _args: The list of positional arguments to pass to the method.
-    :ivar _kwargs: The dictionary of keyword arguments to pass to the method.
+    When executed, it calls the method with the specified arguments and stores
+    the return values in the context.
+
+    Attributes:
+        _args (list[Any]):
+            The list of positional arguments to pass to the method.
+        _kwargs (dict[str, Any]):
+            The dictionary of keyword arguments to pass to the method.
+
     """
+
+    _args: list[Any]
+    _kwargs: dict[str, Any]
 
     def __init__(
         self,
@@ -253,6 +392,21 @@ class CallMethodNode(LocalExecutionNode):
         kwargs: dict[str, Any],
         successors: list["ControlFlowNode"] | None = None,
     ):
+        """
+        Initialize a new CallMethodNode instance.
+
+        Args:
+            method_node (str):
+                The identifier of the method node in the machine data model.
+            args (list[Any]):
+                The list of positional arguments to pass to the method.
+            kwargs (dict[str, Any]):
+                The dictionary of keyword arguments to pass to the method.
+            successors (list["ControlFlowNode"] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+
+        """
         super().__init__(method_node, successors)
         self._args = args
         self._kwargs = kwargs
@@ -262,7 +416,10 @@ class CallMethodNode(LocalExecutionNode):
         """
         Get the list of positional arguments to pass to the method.
 
-        :return: The list of positional arguments to pass to the method.
+        Returns:
+            list[Any]:
+                The list of positional arguments to pass to the method.
+
         """
         return self._args
 
@@ -271,18 +428,27 @@ class CallMethodNode(LocalExecutionNode):
         """
         Get the dictionary of keyword arguments to pass to the method.
 
-        :return: The dictionary of keyword arguments to pass to the method.
+        Returns:
+            dict[str, Any]:
+                The dictionary of keyword arguments to pass to the method.
+
         """
         return self._kwargs
 
-    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
+    def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """
         Execute the call operation of the method in the machine data model.
 
-        :param scope: The scope of the control flow graph.
-        :return: Returns always True.
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            ExecutionNodeResult:
+                An ExecutionNodeResult indicating success.
+
         """
-        ref_method = self._get_ref_node(scope)
+        ref_method = self._get_ref_node(context)
         assert isinstance(ref_method, AsyncMethodNode)
 
         # Trace the control flow step.
@@ -290,19 +456,31 @@ class CallMethodNode(LocalExecutionNode):
             node_id=self.node,
             node_type=type(self).__name__,
             execution_result=True,
-            program_counter=scope.get_pc(),
-            source=scope.id(),
+            program_counter=context.get_pc(),
+            source=context.id(),
             data_model_id=(ref_method.data_model.name if ref_method.data_model else ""),
         )
 
-        # resolve variables in the scope
-        args = [resolve_value(arg, scope) for arg in self._args]
-        kwargs = {k: resolve_value(v, scope) for k, v in self._kwargs.items()}
+        # resolve variables in the context
+        args = [resolve_value(arg, context) for arg in self._args]
+        kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
         res = ref_method(*args, **kwargs)
-        scope.set_all_values(**res.return_values)
+        context.set_all_values(**res.return_values)
         return execution_success()
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+
+        """
         if self is other:
             return True
 
@@ -331,7 +509,20 @@ class WaitConditionOperator(str, Enum):
 
 def get_condition_operator(op: str) -> WaitConditionOperator:
     """
-    Utility function to get the wait condition operator from a string representation.
+    Get the wait condition operator from a string representation.
+
+    Args:
+        op (str):
+            The string representation of the operator.
+
+    Returns:
+        WaitConditionOperator:
+            The corresponding WaitConditionOperator enum value.
+
+    Raises:
+        ValueError:
+            If the operator string is invalid.
+
     """
     for enum_op in WaitConditionOperator:
         if enum_op.value == op:
@@ -341,14 +532,26 @@ def get_condition_operator(op: str) -> WaitConditionOperator:
 
 class WaitConditionNode(LocalExecutionNode):
     """
-    Represents a wait condition in the control flow graph. When executed, it compares the value
-    of a variable with a constant value or another variable.
-    It returns immediately if the condition is met, otherwise it subscribes to the variable
-    and waits for the value to change.
+    Represents a wait condition in the control flow graph.
 
-    :ivar _rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
-    :ivar _op: The comparison operator.
+    When executed, it compares the value of a variable with a constant value or
+    another variable. It returns immediately if the condition is met, otherwise
+    it subscribes to the variable and waits for the value to change.
+
+    Attributes:
+        _rhs (Any):
+            The right-hand side of the comparison. It can be a constant value or
+            reference to a variable in the context.
+        _op (WaitConditionOperator):
+            The comparison operator.
+        _subscription (VariableSubscription | None):
+            The subscription to the variable for change notifications.
+
     """
+
+    _rhs: Any
+    _op: WaitConditionOperator
+    _subscription: VariableSubscription | None
 
     def __init__(
         self,
@@ -360,9 +563,18 @@ class WaitConditionNode(LocalExecutionNode):
         """
         Initialize a new WaitConditionNode instance.
 
-        :param variable_node: The identifier of the variable node in the machine data model.
-        :param rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
-        :param op: The comparison operator.
+        Args:
+            variable_node (str):
+                The identifier of the variable node in the machine data model.
+            rhs (Any):
+                The right-hand side of the comparison. It can be a constant
+                value or reference to a variable in the context.
+            op (WaitConditionOperator):
+                The comparison operator.
+            successors (list["ControlFlowNode"] | None):
+                A list of control flow nodes that are successors of the current
+                node.
+
         """
         super().__init__(variable_node, successors)
         self._rhs = rhs
@@ -374,7 +586,10 @@ class WaitConditionNode(LocalExecutionNode):
         """
         Get the right-hand side of the comparison.
 
-        :return: The right-hand side of the comparison.
+        Returns:
+            Any:
+                The right-hand side of the comparison.
+
         """
         return self._rhs
 
@@ -383,22 +598,33 @@ class WaitConditionNode(LocalExecutionNode):
         """
         Get the comparison operator.
 
-        :return: The comparison operator.
+        Returns:
+            WaitConditionOperator:
+                The comparison operator.
+
         """
         return self._op
 
-    def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
+    def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """
-        Execute the wait condition in the control flow graph. If the condition is met, it returns
-        immediately. Otherwise, it subscribes to the variable and returns False.
+        Execute the wait condition in the control flow graph.
 
-        :param scope: The scope of the control flow graph.
-        :return: True if the condition is met, otherwise False.
+        If the condition is met, it returns immediately. Otherwise, it
+        subscribes to the variable and returns failure.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            ExecutionNodeResult:
+                An ExecutionNodeResult indicating whether the condition was met.
+
         """
-        ref_variable = self._get_ref_node(scope)
+        ref_variable = self._get_ref_node(context)
         assert isinstance(ref_variable, VariableNode)
 
-        rhs = resolve_value(self._rhs, scope)
+        rhs = resolve_value(self._rhs, context)
         lhs = ref_variable.read()
         if self._op == WaitConditionOperator.EQ:
             result = lhs == rhs
@@ -416,8 +642,8 @@ class WaitConditionNode(LocalExecutionNode):
             raise ValueError(f"Invalid operator: {self._op}")
 
         # Build the key that will be used to store the start time of the wait
-        # inside the scope.
-        wait_key = f"wait_start_{self.node}_{scope.id()}"
+        # inside the context.
+        wait_key = f"wait_start_{self.node}_{context.id()}"
 
         # Save the outcome for tracing.
         outcome = execution_success() if result else execution_failure()
@@ -427,15 +653,15 @@ class WaitConditionNode(LocalExecutionNode):
             node_id=self.node,
             node_type=type(self).__name__,
             execution_result=outcome.success,
-            program_counter=scope.get_pc(),
-            source=scope.id(),
+            program_counter=context.get_pc(),
+            source=context.id(),
             data_model_id=(
                 ref_variable.data_model.name if ref_variable.data_model else ""
             ),
         )
 
         if self._subscription is None:
-            self._subscription = VariableSubscription(subscriber_id=scope.id())
+            self._subscription = VariableSubscription(subscriber_id=context.id())
         subscription = self._subscription
 
         # Condition not met - start waiting
@@ -446,13 +672,13 @@ class WaitConditionNode(LocalExecutionNode):
                     variable_id=ref_variable.id,
                     condition=f"{lhs} {self._op.value} {rhs}",
                     expected_value=rhs,
-                    source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
+                    source=f"{ref_variable.qualified_name} (context: {context.id()})",
                     data_model_id=(
                         ref_variable.data_model.name if ref_variable.data_model else ""
                     ),
                 )
-                # Store the start time of the wait inside the scope.
-                scope.set_value(wait_key, start_time)
+                # Store the start time of the wait inside the context.
+                context.set_value(wait_key, start_time)
                 # Subscribe to the variable to be notified when its value
                 # changes.
                 ref_variable.subscribe(subscription)
@@ -461,24 +687,36 @@ class WaitConditionNode(LocalExecutionNode):
         else:
             # Unsubscribe if we were subscribed.
             ref_variable.unsubscribe(subscription)
-            # If the wait key is in the scope, it means we were waiting.
-            if scope.has_value(wait_key):
-                start_time = scope.get_value(wait_key)
+            # If the wait key is in the context, it means we were waiting.
+            if context.has_value(wait_key):
+                start_time = context.get_value(wait_key)
                 trace_wait_end(
                     variable_id=ref_variable.id,
                     start_time=start_time,
-                    source=f"{ref_variable.qualified_name} (scope: {scope.id()})",
+                    source=f"{ref_variable.qualified_name} (context: {context.id()})",
                     data_model_id=(
                         ref_variable.data_model.name if ref_variable.data_model else ""
                     ),
                 )
-                # Remove the wait key from the scope.
-                scope.delete_value(wait_key)
+                # Remove the wait key from the context.
+                context.delete_value(wait_key)
 
         # Return the outcome.
         return outcome
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+
+        """
         if self is other:
             return True
 

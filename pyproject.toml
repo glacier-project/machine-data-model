@@ -37,3 +37,19 @@ furo = "^2024.8.6"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311']
+skip-string-normalization = false
+
+[tool.flake8]
+max-line-length = 88
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = []
+ignore = []

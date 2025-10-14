@@ -7,21 +7,26 @@ and program counter positions.
 """
 
 import time
-from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+
+from support import print_trace_events
+
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.behavior.local_execution_node import (
     ReadVariableNode,
     WriteVariableNode,
 )
-from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
+from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.tracing import (
-    clear_traces,
     TraceLevel,
+    clear_traces,
     get_global_collector,
 )
 from machine_data_model.tracing.tracing_core import set_global_trace_level
-from support import print_trace_events
 
 
 def main() -> None:
@@ -36,11 +41,24 @@ def main() -> None:
     data_model = DataModel(name="ControlFlowTracingExample")
 
     # Add variables for the control flow operations
-    counter_var = NumericalVariableNode(id="counter", name="counter", value=0)
-    result_var = NumericalVariableNode(id="result", name="result", value=0.0)
+    counter_var = NumericalVariableNode(
+        id="counter",
+        name="counter",
+        value=0,
+    )
+    result_var = NumericalVariableNode(
+        id="result",
+        name="result",
+        value=0.0,
+    )
+    composite_method = CompositeMethodNode(
+        id="control_flow_method",
+        name="Control Flow Method",
+    )
     # Add variables to the root node.
     data_model.root.add_child(counter_var)
     data_model.root.add_child(result_var)
+    data_model.root.add_child(composite_method)
 
     # Register nodes.
     data_model._register_nodes(data_model.root)
@@ -59,27 +77,34 @@ def main() -> None:
     increment_counter.set_ref_node(counter_var)
 
     # Create the control flow graph
-    control_flow = ControlFlow([read_counter, write_result, increment_counter])
+    control_flow = ControlFlow(
+        [
+            read_counter,
+            write_result,
+            increment_counter,
+        ],
+        composite_method_node=composite_method,
+    )
 
     # Simulate control flow execution multiple times
     print("Simulating control flow execution...")
     for i in range(3):
         print(f"\nExecution {i+1}:")
 
-        # Create a new scope for each execution
-        scope = ControlFlowScope(f"execution_{i+1}")
+        # Create a new context for each execution.
+        context = ExecutionContext(f"execution_{i+1}")
 
         # Execute the control flow
-        messages = control_flow.execute(scope)
+        messages = control_flow.execute(context)
 
         # Show the results
         counter_value = data_model.read_variable("counter")
         result_value = data_model.read_variable("result")
-        scope_count = scope.get_value("current_count")
+        context_count = context.get_value("current_count")
 
         print(f"  Counter: {counter_value}")
         print(f"  Result: {result_value}")
-        print(f"  Scope current_count: {scope_count}")
+        print(f"  context current_count: {context_count}")
         print(f"  Messages sent: {len(messages)}")
 
         time.sleep(0.1)  # Small delay between executions

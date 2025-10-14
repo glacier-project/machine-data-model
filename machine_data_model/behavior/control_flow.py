@@ -1,10 +1,19 @@
-from typing import TYPE_CHECKING, Sequence
+"""
+Control flow graph implementation.
+
+This module defines the ControlFlow class which represents a control flow graph
+implementing the logic of a run-time method.
+"""
+
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
 )
-from machine_data_model.behavior.control_flow_scope import ControlFlowScope
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-from machine_data_model.tracing import trace_control_flow_start, trace_control_flow_end
+from machine_data_model.tracing import trace_control_flow_end, trace_control_flow_start
 
 if TYPE_CHECKING:
     from machine_data_model.nodes.composite_method.composite_method_node import (
@@ -15,12 +24,21 @@ if TYPE_CHECKING:
 class ControlFlow:
     """
     Represents a control flow graph implementing the logic of a run-time method.
-    It consists of a list of control flow nodes that are executed in sequence.
-    Difference execution flows are not supported in this version of the control flow graph.
 
-    :ivar _nodes: A list of control flow nodes in the control flow graph.
-    :ivar _composite_method_node: The composite method node that owns this control flow graph.
+    It consists of a list of control flow nodes that are executed in sequence.
+    Different execution flows are not supported in this version of the control
+    flow graph.
+
+    Attributes:
+        _nodes (Sequence[ControlFlowNode]):
+            A list of control flow nodes in the control flow graph.
+        _composite_method_node ("CompositeMethodNode | None"):
+            The composite method node that owns this control flow graph.
+
     """
+
+    _nodes: Sequence[ControlFlowNode]
+    _composite_method_node: "CompositeMethodNode | None"
 
     def __init__(
         self,
@@ -28,10 +46,14 @@ class ControlFlow:
         composite_method_node: "CompositeMethodNode | None" = None,
     ):
         """
-        Initializes a new `ControlFlow` instance.
+        Initialize a new ControlFlow instance.
 
-        :param nodes: A list of control flow nodes in the control flow graph.
-        :param composite_method_node: The composite method node that owns this control flow graph.
+        Args:
+            nodes (Sequence[ControlFlowNode] | None):
+                A list of control flow nodes in the control flow graph.
+            composite_method_node ("CompositeMethodNode | None"):
+                The composite method node that owns this control flow graph.
+
         """
         self._nodes = nodes if nodes is not None else []
         self._composite_method_node = composite_method_node
@@ -43,9 +65,12 @@ class ControlFlow:
 
     def nodes(self) -> Sequence[ControlFlowNode]:
         """
-        Gets the list of control flow nodes in the control flow graph.
+        Get the list of control flow nodes in the control flow graph.
 
-        :return: The list of control flow nodes in the control flow graph.
+        Returns:
+            Sequence[ControlFlowNode]:
+                The list of control flow nodes in the control flow graph.
+
         """
         return self._nodes
 
@@ -54,15 +79,22 @@ class ControlFlow:
         """
         Get the composite method node that owns this control flow graph.
 
-        :return: The composite method node, or None if not set.
+        Returns:
+            "CompositeMethodNode | None":
+                The composite method node, or None if not set.
+
         """
         return self._composite_method_node
 
     def get_data_model_id(self) -> str:
         """
-        Get the data model ID of the composite method node that owns this control flow graph.
+        Get the data model ID of the composite method node that owns this
+        control flow graph.
 
-        :return: The data model ID, or empty string if not available.
+        Returns:
+            str:
+                The data model ID, or empty string if not available.
+
         """
         if self._composite_method_node and self._composite_method_node.data_model:
             return self._composite_method_node.data_model.name
@@ -70,57 +102,76 @@ class ControlFlow:
 
     def get_composite_method_id(self) -> str:
         """
-        Get the ID of the composite method node that owns this control flow graph.
+        Get the ID of the composite method node that owns this control flow
+        graph.
 
-        :return: The composite method node ID, or empty string if not available.
+        Returns:
+            str:
+                The composite method node ID, or empty string if not available.
+
         """
         if self._composite_method_node:
             return self._composite_method_node.id
         return ""
 
-    def get_current_node(self, scope: ControlFlowScope) -> ControlFlowNode | None:
+    def get_current_node(self, context: ExecutionContext) -> ControlFlowNode | None:
         """
-        Get the current control flow node based on the program counter in the scope of the control flow graph.
-        :param scope: The scope of the control flow graph.
-        :return: The current control flow node, or None if the program counter is out of bounds.
-        """
+        Get the current control flow node based on the program counter in the
+        execution context.
 
+        Args:
+            context (ExecutionContext):
+                The execution context of the control flow graph.
+
+        Returns:
+            ControlFlowNode | None:
+                The current control flow node, or None if the program counter is
+                out of bounds.
+
+        """
         # If the cfg is terminated return None
-        if not scope.is_active():
+        if not context.is_active():
             return None
 
-        return self._nodes[scope.get_pc()]
+        return self._nodes[context.get_pc()]
 
-    def execute(self, scope: ControlFlowScope) -> list[FrostMessage]:
+    def execute(self, context: ExecutionContext) -> list[FrostMessage]:
         """
-        Executes the control flow graph with the specified scope.
-        The scope is deactivated when the control flow graph reaches the end of the graph.
+        Execute the control flow graph with the specified execution context.
 
-        :param scope: The scope of the control flow graph.
-        :return: A list of Frost messages to be sent as a result of executing the control flow graph.
+        The context is deactivated when the control flow graph reaches the end
+        of the graph.
+
+        Args:
+            context (ExecutionContext):
+                The execution context of the control flow graph.
+
+        Returns:
+            list[FrostMessage]:
+                A list of Frost messages to be sent as a result of executing the
+                control flow graph.
+
         """
-
         data_model_id = self.get_data_model_id()
 
         # Trace control flow start.
         trace_control_flow_start(
-            control_flow_id=scope.id(),
+            control_flow_id=context.id(),
             total_steps=len(self._nodes),
-            source=scope.id(),
+            source=context.id(),
             data_model_id=data_model_id,
         )
 
         messages: list[FrostMessage] = []
-        pc = scope.get_pc()
+        pc = context.get_pc()
         executed_steps = 0
 
         while pc < len(self._nodes):
             node = self._nodes[pc]
-            # TODO: fix me here
-            # if contains_template_variables(node.node):
-            #     node.node = scope.get_value(node.node)
+            # TODO: fix me here if contains_template_variables(node.node):
+            # node.node = context.get_value(node.node)
 
-            result = node.execute(scope)
+            result = node.execute(context)
             executed_steps += 1
 
             if result.messages:
@@ -128,32 +179,44 @@ class ControlFlow:
             if not result.success:
                 # Trace control flow end (failure)
                 trace_control_flow_end(
-                    control_flow_id=scope.id(),
+                    control_flow_id=context.id(),
                     success=False,
                     executed_steps=executed_steps,
                     final_pc=pc,
-                    source=scope.id(),
+                    source=context.id(),
                     data_model_id=data_model_id,
                 )
                 return messages
             pc += 1
-            scope.set_pc(pc)
+            context.set_pc(pc)
 
-        scope.deactivate()
+        context.deactivate()
 
         # Trace control flow end (success)
         trace_control_flow_end(
-            control_flow_id=scope.id(),
+            control_flow_id=context.id(),
             success=True,
             executed_steps=executed_steps,
             final_pc=pc,
-            source=scope.id(),
+            source=context.id(),
             data_model_id=data_model_id,
         )
 
         return messages
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another object.
+
+        Args:
+            other (object):
+                The object to compare with.
+
+        Returns:
+            bool:
+                True if the objects are equal, False otherwise.
+
+        """
         if self is other:
             return True
 

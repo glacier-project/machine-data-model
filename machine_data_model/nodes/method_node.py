@@ -1,25 +1,37 @@
-from collections.abc import Callable
-from typing import Any, Iterator, Sequence
+"""
+Method node implementations for machine data models.
+
+This module provides method node classes that represent executable functions in
+the machine data model, including synchronous and asynchronous methods with
+parameter and return value handling.
+"""
+
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass
+from typing import Any
 
 from typing_extensions import override
 
 from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
 from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
 from machine_data_model.nodes.variable_node import VariableNode
-from machine_data_model.tracing import trace_method_start, trace_method_end
-from dataclasses import dataclass
-
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.tracing import trace_method_end, trace_method_start
 
 
 @dataclass
 class MethodExecutionResult:
     """
     Represents the result of executing or resuming a method node.
-    :ivar return_values: A dictionary of return values of the method node if the
-    method is completed, otherwise it is None.
-    :ivar messages: A list of Frost messages to be sent as a result of executing or
-    resuming the method node.
+
+    Attributes:
+        return_values:
+            A dictionary of return values of the method node if the method is
+            completed, otherwise it is None.
+        messages:
+            A list of Frost messages to be sent as a result of executing or
+            resuming the method node.
+
     """
 
     return_values: dict[str, Any]
@@ -28,16 +40,29 @@ class MethodExecutionResult:
 
 class MethodNode(DataModelNode):
     """
-    A MethodNode class is a node that represents a synchronous method in the machine data model.
-    Methods of the machine data model are used to declare functions that can be executed
-    on the machine data model.
+    A MethodNode class is a node that represents a synchronous method in the
+    machine data model. Methods of the machine data model are used to declare
+    functions that can be executed on the machine data model.
 
-    :ivar _parameters: A list of parameters for the method.
-    :ivar _returns: A list of return values for the method.
-    :ivar _callback: The function to execute when the method is called.
-    :ivar _pre_call: The function to run before the method is called.
-    :ivar _post_call: The function to run after the method is called.
+    Attributes:
+        _parameters (list[VariableNode]):
+            A list of parameters for the method.
+        _returns (list[VariableNode]):
+            A list of return values for the method.
+        _callback (Callable[..., Any]):
+            The function to execute when the method is called.
+        _pre_call (Callable[..., None]):
+            The function to run before the method is called.
+        _post_call (Callable[..., None]):
+            The function to run after the method is called.
+
     """
+
+    _parameters: list[VariableNode]
+    _returns: list[VariableNode]
+    _callback: Callable[..., Any]
+    _pre_call: Callable[..., None]
+    _post_call: Callable[..., None]
 
     def __init__(
         self,
@@ -54,12 +79,20 @@ class MethodNode(DataModelNode):
         """
         Initialize a new MethodNode instance.
 
-        :param id: The unique identifier of the method.
-        :param name: The name of the method.
-        :param description: The description of the method.
-        :param parameters: A list of parameters for the method.
-        :param returns: A list of return values for the method.
-        :param callback: The function to execute when the method is called.
+        Args:
+            id (str | None):
+                The unique identifier of the method.
+            name (str | None):
+                The name of the method.
+            description (str | None):
+                The description of the method.
+            parameters (list[VariableNode] | None):
+                A list of parameters for the method.
+            returns (list[VariableNode] | None):
+                A list of return values for the method.
+            callback (Callable[..., Any] | None):
+                The function to execute when the method is called.
+
         :param remote_path: The remote path of the method. Allows to override the qualified name of the node.
         """
         super().__init__(
@@ -70,34 +103,33 @@ class MethodNode(DataModelNode):
             remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
-        self._parameters: list[VariableNode] = (
-            parameters if parameters is not None else []
-        )
+        self._parameters = parameters if parameters is not None else []
+        self._returns = returns if returns is not None else []
+        self._callback = callback if callback is not None else lambda **kwargs: None
+        self._pre_call = lambda **kwargs: None
+        self._post_call = lambda res: None
+
+        self.register_children(self._parameters)
+        self.register_children(self._returns)
         for parameter in self._parameters:
             assert isinstance(
                 parameter, VariableNode
             ), "Parameter must be a VariableNode"
-        self._returns: list[VariableNode] = returns if returns is not None else []
         for return_value in self._returns:
             assert isinstance(
                 return_value, VariableNode
             ), "Return value must be a VariableNode"
-
-        self.register_children(self._parameters)
-        self.register_children(self._returns)
-
-        self._callback: Callable[..., Any] = (
-            callback if callback is not None else lambda **kwargs: None
-        )
-        self._pre_call: Callable[..., None] = lambda **kwargs: None
-        self._post_call: Callable[..., None] = lambda res: None
 
     @property
     def parameters(self) -> list[VariableNode]:
         """
         Returns the list of parameters for the method.
 
-        :return: A list of `VariableNode` instances representing the method's parameters.
+        Returns:
+            list[VariableNode]:
+                A list of `VariableNode` instances representing the method's
+                parameters.
+
         """
         return self._parameters
 
@@ -105,7 +137,10 @@ class MethodNode(DataModelNode):
         """
         Add a parameter to the method.
 
-        :param parameter: The parameter to add to the method.
+        Args:
+            parameter (VariableNode):
+                The parameter to add to the method.
+
         """
         assert isinstance(parameter, VariableNode), "Parameter must be a VariableNode"
         self._parameters.append(parameter)
@@ -115,7 +150,14 @@ class MethodNode(DataModelNode):
         """
         Remove a parameter from the method.
 
-        :param parameter: The parameter to remove from the method.
+        Args:
+            parameter (VariableNode):
+                The parameter to remove from the method.
+
+        Raises:
+            ValueError:
+                If the parameter is not found in the method.
+
         """
         if parameter not in self._parameters:
             raise ValueError(f"Parameter '{parameter}' not found in method '{self.id}'")
@@ -127,7 +169,11 @@ class MethodNode(DataModelNode):
         """
         Returns the list of return values for the method.
 
-        :return: A list of `VariableNode` instances representing the method's return values.
+        Returns:
+            list[VariableNode]:
+                A list of `VariableNode` instances representing the method's
+                return values.
+
         """
         return self._returns
 
@@ -135,7 +181,10 @@ class MethodNode(DataModelNode):
         """
         Add a return value to the method.
 
-        :param return_value: The return value to add to the method.
+        Args:
+            return_value (VariableNode):
+                The return value to add to the method.
+
         """
         assert isinstance(
             return_value, VariableNode
@@ -147,7 +196,14 @@ class MethodNode(DataModelNode):
         """
         Remove a return value from the method.
 
-        :param return_value: The return value to remove from the method.
+        Args:
+            return_value (VariableNode):
+                The return value to remove from the method.
+
+        Raises:
+            ValueError:
+                If the return value is not found in the method.
+
         """
         if return_value not in self._returns:
             raise ValueError(
@@ -161,7 +217,10 @@ class MethodNode(DataModelNode):
         """
         Gets the callback function for the method.
 
-        :return: The callback function.
+        Returns:
+            Callable:
+                The callback function.
+
         """
         return self._callback
 
@@ -170,7 +229,10 @@ class MethodNode(DataModelNode):
         """
         Sets the callback function for the method.
 
-        :param call: The callback function to set.
+        Args:
+            call (Callable):
+                The callback function to set.
+
         """
         self._callback = call
 
@@ -179,7 +241,10 @@ class MethodNode(DataModelNode):
         """
         Gets the pre-call function for the method.
 
-        :return: The pre-call function.
+        Returns:
+            Callable:
+                The pre-call function.
+
         """
         return self._pre_call
 
@@ -188,7 +253,10 @@ class MethodNode(DataModelNode):
         """
         Sets the pre-call function for the method.
 
-        :param pre_call: The pre-call function to set.
+        Args:
+            pre_call (Callable):
+                The pre-call function to set.
+
         """
         self._pre_call = pre_call
 
@@ -197,7 +265,10 @@ class MethodNode(DataModelNode):
         """
         Gets the post-call function for the method.
 
-        :return: The post-call function.
+        Returns:
+            Callable:
+                The post-call function.
+
         """
         return self._post_call
 
@@ -206,7 +277,10 @@ class MethodNode(DataModelNode):
         """
         Sets the post-call function for the method.
 
-        :param callback: The post-call function to set.
+        Args:
+            callback (Callable):
+                The post-call function to set.
+
         """
         self._post_call = callback
 
@@ -214,7 +288,10 @@ class MethodNode(DataModelNode):
         """
         Returns always False for synchronous methods.
 
-        :return: False
+        Returns:
+            bool:
+                False
+
         """
         return False
 
@@ -223,8 +300,19 @@ class MethodNode(DataModelNode):
         """
         Get a parameter or return value of the method by name.
 
-        :param node_name: The name of the parameter or return value to get from the method.
-        :return: The parameter or return value with the specified name.
+        Args:
+            node_name (str):
+                The name of the parameter or return value to get from the
+                method.
+
+        Returns:
+            VariableNode:
+                The parameter or return value with the specified name.
+
+        Raises:
+            ValueError:
+                If the node with the specified name is not found.
+
         """
         for parameter in self._parameters:
             if parameter.name == node_name:
@@ -239,10 +327,18 @@ class MethodNode(DataModelNode):
     @override
     def __contains__(self, node_name: str) -> bool:
         """
-        Check if the method has a parameter or return value with the specified name.
+        Check if the method has a parameter or return value with the specified
+        name.
 
-        :param node_name: The name of the parameter or return value to check.
-        :return: True if the method has a parameter or return value with the specified name, False otherwise.
+        Args:
+            node_name (str):
+                The name of the parameter or return value to check.
+
+        Returns:
+            bool:
+                True if the method has a parameter or return value with the
+                specified name, False otherwise.
+
         """
         for parameter in self._parameters:
             if parameter.name == node_name:
@@ -257,7 +353,10 @@ class MethodNode(DataModelNode):
         """
         Iterate over the parameters and return values of the method.
 
-        :return: An iterator over the parameters and return values of the method.
+        Returns:
+            Iterator[VariableNode]:
+                An iterator over the parameters and return values of the method.
+
         """
         yield from self._parameters
         yield from self._returns
@@ -266,9 +365,16 @@ class MethodNode(DataModelNode):
         """
         Call the method with the specified arguments.
 
-        :param args: The positional arguments of the method.
-        :param kwargs: The keyword arguments of the method.
-        :return: The return values of the method.
+        Args:
+            *args (Any):
+                The positional arguments of the method.
+            **kwargs (Any):
+                The keyword arguments of the method.
+
+        Returns:
+            MethodExecutionResult:
+                The return values of the method.
+
         """
         if self._callback is None:
             raise ValueError(f"Method '{self.id}' has no callback function")
@@ -313,14 +419,20 @@ class MethodNode(DataModelNode):
         self, *args: list[Any], **kwargs: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        Resolves the arguments for the method. It fills in the missing arguments with
-        default values or reads them from the parameters.
+        Resolves the arguments for the method. It fills in the missing arguments
+        with default values or reads them from the parameters.
 
-        :param args: The positional arguments of the method.
-        :param kwargs: The keyword arguments of the method.
-        :return: A dictionary of arguments for the method.
+        Args:
+            *args (list[Any]):
+                The positional arguments of the method.
+            **kwargs (dict[str, Any]):
+                The keyword arguments of the method.
+
+        Returns:
+            dict[str, Any]:
+                A dictionary of arguments for the method.
+
         """
-
         kwargs = {**kwargs}
 
         for parameter in self._parameters:
@@ -340,10 +452,16 @@ class MethodNode(DataModelNode):
         """
         Build a dictionary of return values from the method.
 
-        :param ret: The return values of the method.
-        :return: A dictionary of return values, where the keys are the names of the return values.
-        """
+        Args:
+            ret (Any):
+                The return values of the method.
 
+        Returns:
+            dict[str, Any]:
+                A dictionary of return values, where the keys are the names of
+                the return values.
+
+        """
         ret_dict = {}
         ret = ret if isinstance(ret, tuple) else (ret,)
         for index, return_value in enumerate(ret):
@@ -355,7 +473,10 @@ class MethodNode(DataModelNode):
         """
         Returns a string representation of the MethodNode.
 
-        :return: A string describing the MethodNode.
+        Returns:
+            str:
+                A string describing the MethodNode.
+
         """
         return (
             f"MethodNode("
@@ -369,7 +490,10 @@ class MethodNode(DataModelNode):
         """
         Returns a string representation of the MethodNode.
 
-        :return: The string representation of the MethodNode (same as `__str__`).
+        Returns:
+            str:
+                The string representation of the MethodNode (same as `__str__`).
+
         """
         return self.__str__()
 
@@ -388,17 +512,11 @@ class MethodNode(DataModelNode):
 
 class AsyncMethodNode(MethodNode):
     """
-    An AsyncMethodNode class is a node that represents an asynchronous method in the
-    machine data model. Asynchronous methods of the machine data model are used to
-    declare functions whose return values are not immediately available. Instead,
-    the result is obtained asynchronously, typically through variable monitoring or
-    event-based mechanisms.
-
-    :ivar _parameters: A list of parameters for the method.
-    :ivar _returns: A list of return values for the method.
-    :ivar _callback: The function to execute when the method is called.
-    :ivar _pre_call: The function to run before the method is called.
-    :ivar _post_call: The function to run after the method is called.
+    An AsyncMethodNode class is a node that represents an asynchronous method in
+    the machine data model. Asynchronous methods of the machine data model are
+    used to declare functions whose return values are not immediately available.
+    Instead, the result is obtained asynchronously, typically through variable
+    monitoring or event-based mechanisms.
     """
 
     def __init__(
@@ -416,12 +534,20 @@ class AsyncMethodNode(MethodNode):
         """
         Initialize a new AsyncMethodNode instance.
 
-        :param id: The unique identifier of the method.
-        :param name: The name of the method.
-        :param description: The description of the method.
-        :param parameters: A list of parameters for the method.
-        :param returns: A list of return values for the method.
-        :param callback: The function to execute when the method is called.
+        Args:
+            id (str | None):
+                The unique identifier of the method.
+            name (str | None):
+                The name of the method.
+            description (str | None):
+                The description of the method.
+            parameters (list[VariableNode] | None):
+                A list of parameters for the method.
+            returns (list[VariableNode] | None):
+                A list of return values for the method.
+            callback (Callable[..., Any] | None):
+                The function to execute when the method is called.
+
         """
         super().__init__(
             id=id,
@@ -439,7 +565,10 @@ class AsyncMethodNode(MethodNode):
         """
         Returns always True for asynchronous methods.
 
-        :return: True
+        Returns:
+            bool:
+                True
+
         """
         return True
 

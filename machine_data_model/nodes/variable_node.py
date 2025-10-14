@@ -1,9 +1,17 @@
-from abc import abstractmethod
-from collections.abc import Callable
-from enum import Enum
-from typing import Any, Generator
-from typing_extensions import override
+"""
+Variable node implementations for machine data models.
 
+This module provides variable node classes that represent different types of
+variables in the machine data model, including numerical, string, boolean, and
+object variables with subscription and notification capabilities.
+"""
+
+from abc import abstractmethod
+from collections.abc import Callable, Generator
+from enum import Enum
+from typing import Any
+
+from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
 
 from machine_data_model.nodes.connectors.abstract_connector import SubscriptionArguments
@@ -13,31 +21,48 @@ from machine_data_model.nodes.measurement_unit.measure_builder import (
     NoneMeasureUnits,
     get_measure_builder,
 )
-from machine_data_model.tracing import (
-    trace_variable_read,
-    trace_variable_write,
-    trace_subscribe,
-    trace_unsubscribe,
-    trace_notification,
-)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
+)
+from machine_data_model.tracing import (
+    trace_notification,
+    trace_subscribe,
+    trace_unsubscribe,
+    trace_variable_read,
+    trace_variable_write,
 )
 
 
 class VariableNode(DataModelNode):
     """
-    A VariableNode class is a node that represents an instance of a variable in the
-    machine data model. Variables of the machine data model are used to store the
-    current value of a machine data or parameter.
+    A VariableNode class is a node that represents an instance of a variable in
+    the machine data model. Variables of the machine data model are used to
+    store the current value of a machine data or parameter.
 
-    :ivar _pre_read_value: A callback function executed before reading the value.
-    :ivar _post_read_value: A callback function executed after reading the value.
-    :ivar _pre_update_value: A callback function executed before updating the value.
-    :ivar _post_update_value: A callback function executed after updating the value.
-    :ivar _subscribers: A list of subscribers to the variable.
-    :ivar _subscription_callback: A callback function that is executed to notify subscribers when an event occurs.
+    Attributes:
+        _pre_read_value (Callable[[], None]):
+            A callback function executed before reading the value.
+        _post_read_value (Callable[[Any], Any]):
+            A callback function executed after reading the value.
+        _pre_update_value (Callable[[Any], Any]):
+            A callback function executed before updating the value.
+        _post_update_value (Callable[[Any, Any], bool]):
+            A callback function executed after updating the value.
+        _subscriptions (list[VariableSubscription]):
+            A list of subscribers to the variable.
+        _subscription_callback (Callable[[VariableSubscription, "VariableNode",
+        Any], None]):
+            A callback function that is executed to notify subscribers when an
+            event occurs.
+
     """
+
+    _pre_read_value: Callable[[], None]
+    _post_read_value: Callable[[Any], Any]
+    _pre_update_value: Callable[[Any], Any]
+    _post_update_value: Callable[[Any, Any], bool]
+    _subscriptions: list[VariableSubscription]
+    _subscription_callback: Callable[[VariableSubscription, "VariableNode", Any], None]
 
     def __init__(
         self,
@@ -52,9 +77,14 @@ class VariableNode(DataModelNode):
         """
         Initializes a new VariableNode instance.
 
-        :param id: The unique identifier of the variable.
-        :param name: The name of the variable.
-        :param description: The description of the variable.
+        Args:
+            id:
+                The unique identifier of the variable.
+            name:
+                The name of the variable.
+            description:
+                The description of the variable.
+
         """
         super().__init__(
             id=id,
@@ -73,7 +103,7 @@ class VariableNode(DataModelNode):
         # List of subscribers and related callbacks.
         self._subscriptions: list[VariableSubscription] = []
         self._subscription_callback: Callable[
-            [VariableSubscription, "VariableNode", Any], None
+            [VariableSubscription, VariableNode, Any], None
         ] = lambda subscription, node, value: None
 
         self._notify_subscribers_only_if_value_changed = (
@@ -87,7 +117,10 @@ class VariableNode(DataModelNode):
         Get the value of the variable node.
 
         :param force_remote_read: if True, when the variable is a remote variable, use the connector to read the remote value
-        :return: The value of the variable node.
+        Returns:
+            Any:
+                The value of the variable node.
+
         """
         # Execute the pre-read callback.
         self._pre_read_value()
@@ -109,8 +142,14 @@ class VariableNode(DataModelNode):
         """
         Update the value of the variable node.
 
-        :param value: The new value of the variable node.
-        :return: True if the value was updated successfully, False otherwise.
+        Args:
+            value (Any):
+                The new value of the variable node.
+
+        Returns:
+            bool:
+                True if the value was updated successfully, False otherwise.
+
         """
         # Read the current value of the variable before the update.
         prev_value = self._read_value()
@@ -129,8 +168,8 @@ class VariableNode(DataModelNode):
             source=self.qualified_name,
             data_model_id=self.data_model.name if self.data_model else "",
         )
-        # Notify subscribers if the update was successful, otherwise restore
-        # the previous value.
+        # Notify subscribers if the update was successful, otherwise restore the
+        # previous value.
         if success:
             should_notify_subscribers = (
                 not self._notify_subscribers_only_if_value_changed
@@ -154,7 +193,10 @@ class VariableNode(DataModelNode):
         """
         Check if the variable node has subscribers.
 
-        :return: True if the variable node has subscribers, False otherwise.
+        Returns:
+            bool:
+                True if the variable node has subscribers, False otherwise.
+
         """
         return bool(self._subscriptions)
 
@@ -162,7 +204,10 @@ class VariableNode(DataModelNode):
         """
         Get the list of subscriptions for the variable node.
 
-        :return: A list of subscriptions.
+        Returns:
+            list[VariableSubscription]:
+                A list of subscriptions.
+
         """
         return self._subscriptions
 
@@ -170,8 +215,15 @@ class VariableNode(DataModelNode):
         """
         Subscribe a subscriber to the variable node.
 
-        :param subscriber_id: The ID of the subscriber.
-        :return: True if the subscription was added successfully, False otherwise.
+        Args:
+            subscription (VariableSubscription):
+                The subscription to add.
+
+        Returns:
+            bool:
+                True if the subscription was added successfully, False
+                otherwise.
+
         """
         if subscription in self._subscriptions:
             return False
@@ -191,9 +243,16 @@ class VariableNode(DataModelNode):
         """
         Find a subscription by subscriber ID and correlation ID.
 
-        :param subscription_id: The ID of the subscriber.
-        :param correlation_id: The correlation ID of the subscription.
-        :return: The subscription if found, None otherwise.
+        Args:
+            subscription_id (str):
+                The ID of the subscriber.
+            correlation_id (str):
+                The correlation ID of the subscription.
+
+        Returns:
+            VariableSubscription | None:
+                The subscription if found, None otherwise.
+
         """
         for sub in self._subscriptions:
             if (
@@ -209,11 +268,24 @@ class VariableNode(DataModelNode):
         correlation_id: str | None = None,
     ) -> bool:
         """
-        Delete a subscription from the variable node either by subscription object or by subscriber ID and correlation ID.
+        Delete a subscription from the variable node either by subscription
+        object or by subscriber ID and correlation ID.
 
-        :param subscription_or_id: The subscription to remove, or the subscriber ID.
-        :param correlation_id: The correlation ID when removing by IDs.
-        :return: True if the subscription was removed successfully, False otherwise.
+        Args:
+            subscription_or_id (VariableSubscription | str):
+                The subscription to remove, or the subscriber ID.
+            correlation_id (str | None):
+                The correlation ID when removing by IDs.
+
+        Returns:
+            bool:
+                True if the subscription was removed successfully, False
+                otherwise.
+
+        Raises:
+            TypeError:
+                If the arguments are not of the expected types.
+
         """
         subscription: VariableSubscription | None
         if (
@@ -244,7 +316,11 @@ class VariableNode(DataModelNode):
         """
         Set a callback to be executed when notifying subscribers.
 
-        :param callback: The callback to be executed when notifying subscribers.
+        Args:
+            callback (Callable[[VariableSubscription, "VariableNode", Any],
+            None]):
+                The callback to be executed when notifying subscribers.
+
         """
         self._subscription_callback = callback
 
@@ -292,7 +368,6 @@ class VariableNode(DataModelNode):
         """
         Read the value locally.
         """
-        pass
 
     @abstractmethod
     def _read_remote_value(self, force_remote_read: bool = False) -> Any:
@@ -338,7 +413,9 @@ class VariableNode(DataModelNode):
         """
         Set a callback to be executed before reading the value.
 
-        :param callback: The callback function.
+        Args:
+            callback (Callable[[], None]): The callback function.
+
         """
         self._pre_read_value = callback
 
@@ -346,7 +423,10 @@ class VariableNode(DataModelNode):
         """
         Set a callback to be executed after reading the value.
 
-        :param callback: The callback function.
+        Args:
+            callback (Callable[..., Any]):
+                The callback function.
+
         """
         self._post_read_value = callback
 
@@ -354,7 +434,10 @@ class VariableNode(DataModelNode):
         """
         Set a callback to be executed before updating the value.
 
-        :param callback: The callback function.
+        Args:
+            callback (Callable[..., Any]):
+                The callback function.
+
         """
         self._pre_update_value = callback
 
@@ -362,7 +445,10 @@ class VariableNode(DataModelNode):
         """
         Set a callback to be executed after updating the value.
 
-        :param callback: The callback function.
+        Args:
+            callback (Callable[..., bool]):
+                The callback function.
+
         """
         self._post_update_value = callback
 
@@ -403,8 +489,14 @@ class VariableNode(DataModelNode):
         """
         Raises an exception because child nodes are not supported.
 
-        :param node_name: The name of the node to retrieve.
-        :raises NotImplementedError: Always raised, as child nodes are not supported.
+        Args:
+            node_name (str):
+                The name of the node to retrieve.
+
+        Raises:
+            NotImplementedError:
+                Always raised, as child nodes are not supported.
+
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support child nodes"
@@ -414,8 +506,14 @@ class VariableNode(DataModelNode):
         """
         Always returns False, as this node does not have child nodes.
 
-        :param node_name: The name of the node to check.
-        :return: False, as child nodes are not supported.
+        Args:
+            node_name (str):
+                The name of the node to check.
+
+        Returns:
+            bool:
+                False, as child nodes are not supported.
+
         """
         return False
 
@@ -423,7 +521,10 @@ class VariableNode(DataModelNode):
         """
         Returns an empty iterator, as this node does not have child nodes.
 
-        :return: An empty iterator.
+        Returns:
+            Generator[VariableNode, None, None]:
+                An empty iterator.
+
         """
         yield from []
 
@@ -441,12 +542,19 @@ class NumericalVariableNode(VariableNode):
     """
     Represents an instance of a numerical variable in the machine data model.
 
-    :ivar _measure_builder: A builder for creating measure objects.
-    :ivar _measure_unit: The measure unit of the numerical variable.
-    :ivar _value: The value of the numerical variable, represented as an AbstractMeasure.
+    Attributes:
+        _measure_builder (MeasureBuilder):
+            A builder for creating measure objects.
+        _measure_unit (Enum):
+            The measure unit of the numerical variable.
+        _value (AbstractMeasure):
+            The value of the numerical variable, represented as an
+            AbstractMeasure.
+
     """
 
     _measure_builder: MeasureBuilder = get_measure_builder()
+    _value: AbstractMeasure
 
     def __init__(
         self,
@@ -463,11 +571,18 @@ class NumericalVariableNode(VariableNode):
         """
         Initializes a new NumericalVariableNode instance.
 
-        :param id: The unique identifier of the numerical variable.
-        :param name: The name of the numerical variable.
-        :param description: The description of the numerical variable.
-        :param measure_unit: The measure unit of the numerical variable.
-        :param value: The initial value of the numerical variable.
+        Args:
+            id (str | None):
+                The unique identifier of the numerical variable.
+            name (str | None):
+                The name of the numerical variable.
+            description (str | None):
+                The description of the numerical variable.
+            measure_unit (Enum | str):
+                The measure unit of the numerical variable.
+            value (float):
+                The initial value of the numerical variable.
+
         """
         super().__init__(
             id=id,
@@ -492,7 +607,10 @@ class NumericalVariableNode(VariableNode):
         """
         Get the value of the numerical variable.
 
-        :return: The value of the numerical variable.
+        Returns:
+            float:
+                The value of the numerical variable.
+
         """
         return self._value.base_value  # type: ignore[no-any-return]
 
@@ -521,7 +639,14 @@ class NumericalVariableNode(VariableNode):
         """
         Update the value of the numerical variable.
 
-        :param value: The new value of the numerical variable.
+        Args:
+            value (float):
+                The new value of the numerical variable.
+
+        Returns:
+            float:
+                The updated value of the numerical variable.
+
         """
         self._value = self._value.__class__(value, self._measure_unit)
         return self._value.base_value  # type: ignore[no-any-return]
@@ -530,7 +655,10 @@ class NumericalVariableNode(VariableNode):
         """
         Get the measure unit of the numerical variable.
 
-        :return: The measure unit of the numerical variable.
+        Returns:
+            Enum:
+                The measure unit of the numerical variable.
+
         """
         return self._measure_unit
 
@@ -555,7 +683,10 @@ class NumericalVariableNode(VariableNode):
         """
         Returns a string representation of the NumericalVariableNode.
 
-        :return: A string describing the NumericalVariableNode.
+        Returns:
+            str:
+                A string describing the NumericalVariableNode.
+
         """
         return (
             f"NumericalVariableNode(id={self._id}, name={self._name}, "
@@ -565,9 +696,13 @@ class NumericalVariableNode(VariableNode):
 
     def __repr__(self) -> str:
         """
-        Returns the string representation of the NumericalVariableNode for debugging.
+        Returns the string representation of the NumericalVariableNode for
+        debugging.
 
-        :return: The string representation of the NumericalVariableNode.
+        Returns:
+            str:
+                The string representation of the NumericalVariableNode.
+
         """
         return self.__str__()
 
@@ -576,8 +711,13 @@ class StringVariableNode(VariableNode):
     """
     Represents an instance of a string variable in the machine data model.
 
-    :ivar _value: The value of the string variable.
+    Attributes:
+        _value (str):
+            The value of the string variable.
+
     """
+
+    _value: str
 
     def __init__(
         self,
@@ -593,10 +733,16 @@ class StringVariableNode(VariableNode):
         """
         Initializes a new StringVariableNode instance.
 
-        :param id: The unique identifier of the string variable.
-        :param name: The name of the string variable.
-        :param description: The description of the string variable.
-        :param value: The initial value of the string variable.
+        Args:
+            id (str | None):
+                The unique identifier of the string variable.
+            name (str | None):
+                The name of the string variable.
+            description (str | None):
+                The description of the string variable.
+            value (str):
+                The initial value of the string variable.
+
         """
         super().__init__(
             id=id,
@@ -607,14 +753,16 @@ class StringVariableNode(VariableNode):
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
             remote_resource_spec=remote_resource_spec,
         )
-        self._value: str = value
+        self._value = value
 
     @override
     def _read_internal_value(self) -> str:
         """
         Get the value of the string variable.
 
-        :return: The value of the string variable.
+        Returns:
+            str: The value of the string variable.
+
         """
         return self._value
 
@@ -643,7 +791,14 @@ class StringVariableNode(VariableNode):
         """
         Update the value of the string variable.
 
-        :param value: The new value of the string variable.
+        Args:
+            value (str):
+                The new value of the string variable.
+
+        Returns:
+            str:
+                The updated value of the string variable.
+
         """
         assert isinstance(value, str)
         self._value = value
@@ -668,19 +823,33 @@ class StringVariableNode(VariableNode):
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """
-        Raises a NotImplementedError, as StringVariableNode does not support child nodes.
+        Raises a NotImplementedError, as StringVariableNode does not support
+        child nodes.
 
-        :param node_name: The name of the node to retrieve.
-        :raises NotImplementedError: Always raised.
+        Args:
+            node_name (str):
+                The name of the node to retrieve.
+
+        Raises:
+            NotImplementedError:
+                Always raised.
+
         """
         raise NotImplementedError("StringVariableNode does not support child nodes")
 
     def __contains__(self, node_name: str) -> bool:
         """
-        Always returns False, as StringVariableNode does not support child nodes.
+        Always returns False, as StringVariableNode does not support child
+        nodes.
 
-        :param node_name: The name of the node to check.
-        :return: False, as child nodes are not supported.
+        Args:
+            node_name (str):
+                The name of the node to check.
+
+        Returns:
+            bool:
+                False, as child nodes are not supported.
+
         """
         return False
 
@@ -688,7 +857,10 @@ class StringVariableNode(VariableNode):
         """
         Returns a string representation of the StringVariableNode.
 
-        :return: A string describing the StringVariableNode.
+        Returns:
+            str:
+                A string describing the StringVariableNode.
+
         """
         return (
             f"StringVariableNode(id={self._id}, name={self._name}, "
@@ -697,9 +869,13 @@ class StringVariableNode(VariableNode):
 
     def __repr__(self) -> str:
         """
-        Returns the string representation of the StringVariableNode for debugging.
+        Returns the string representation of the StringVariableNode for
+        debugging.
 
-        :return: The string representation of the StringVariableNode.
+        Returns:
+            str:
+                The string representation of the StringVariableNode.
+
         """
         return self.__str__()
 
@@ -708,8 +884,13 @@ class BooleanVariableNode(VariableNode):
     """
     Represents an instance of a boolean variable in the machine data model.
 
-    :ivar _value: The value of the boolean variable.
+    Attributes:
+        _value (bool):
+            The value of the boolean variable.
+
     """
+
+    _value: bool
 
     def __init__(
         self,
@@ -725,10 +906,16 @@ class BooleanVariableNode(VariableNode):
         """
         Initializes a new BooleanVariableNode instance.
 
-        :param id: The unique identifier of the boolean variable.
-        :param name: The name of the boolean variable.
-        :param description: The description of the boolean variable.
-        :param value: The initial value of the boolean variable.
+        Args:
+            id (str | None):
+                The unique identifier of the boolean variable.
+            name (str | None):
+                The name of the boolean variable.
+            description (str | None):
+                The description of the boolean variable.
+            value (bool):
+                The initial value of the boolean variable.
+
         """
         super().__init__(
             id,
@@ -739,14 +926,17 @@ class BooleanVariableNode(VariableNode):
             notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
             remote_resource_spec=remote_resource_spec,
         )
-        self._value: bool = value
+        self._value = value
 
     @override
     def _read_internal_value(self) -> bool:
         """
         Get the value of the boolean variable.
 
-        :return: The value of the boolean variable.
+        Returns:
+            bool:
+                The value of the boolean variable.
+
         """
         return self._value
 
@@ -776,7 +966,14 @@ class BooleanVariableNode(VariableNode):
         """
         Update the value of the boolean variable.
 
-        :param value: The new value of the boolean variable.
+        Args:
+            value (bool):
+                The new value of the boolean variable.
+
+        Returns:
+            bool:
+                The updated value of the boolean variable.
+
         """
         assert isinstance(value, bool)
         self._value = value
@@ -801,19 +998,33 @@ class BooleanVariableNode(VariableNode):
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """
-        Raises NotImplementedError as BooleanVariableNode does not support child nodes.
+        Raises NotImplementedError as BooleanVariableNode does not support child
+        nodes.
 
-        :param node_name: The name of the node.
-        :raises NotImplementedError: Always raised.
+        Args:
+            node_name (str):
+                The name of the node.
+
+        Raises:
+            NotImplementedError:
+                Always raised.
+
         """
         raise NotImplementedError("BooleanVariableNode does not support child nodes")
 
     def __contains__(self, node_name: str) -> bool:
         """
-        Always returns False, as BooleanVariableNode does not support child nodes.
+        Always returns False, as BooleanVariableNode does not support child
+        nodes.
 
-        :param node_name: The name of the node.
-        :return: False, as this node does not support child nodes.
+        Args:
+            node_name (str):
+                The name of the node.
+
+        Returns:
+            bool:
+                False, as this node does not support child nodes.
+
         """
         return False
 
@@ -821,7 +1032,10 @@ class BooleanVariableNode(VariableNode):
         """
         Returns a string representation of the BooleanVariableNode.
 
-        :return: A string describing the BooleanVariableNode.
+        Returns:
+            str:
+                A string describing the BooleanVariableNode.
+
         """
         return (
             f"BooleanVariableNode(id={self._id}, name={self._name}, "
@@ -830,9 +1044,13 @@ class BooleanVariableNode(VariableNode):
 
     def __repr__(self) -> str:
         """
-        Returns the string representation of the BooleanVariableNode for debugging.
+        Returns the string representation of the BooleanVariableNode for
+        debugging.
 
-        :return: The string representation of the BooleanVariableNode.
+        Returns:
+            str:
+                The string representation of the BooleanVariableNode.
+
         """
         return self.__str__()
 
@@ -841,7 +1059,10 @@ class ObjectVariableNode(VariableNode):
     """
     Represents an instance of an object variable in the machine data model.
 
-    :ivar _properties: A dictionary of properties of the object variable.
+    Attributes:
+        _properties:
+            A dictionary of properties of the object variable.
+
     """
 
     def __init__(
@@ -858,10 +1079,16 @@ class ObjectVariableNode(VariableNode):
         """
         Initializes a new ObjectVariableNode instance.
 
-        :param id: The unique identifier of the object variable.
-        :param name: The name of the object variable.
-        :param description: The description of the object variable.
-        :param properties: The properties of the object variable.
+        Args:
+            id (str | None):
+                The unique identifier of the object variable.
+            name (str | None):
+                The name of the object variable.
+            description (str | None):
+                The description of the object variable.
+            properties (dict[str, VariableNode] | None):
+                The properties of the object variable.
+
         """
         super().__init__(
             id=id,
@@ -886,7 +1113,10 @@ class ObjectVariableNode(VariableNode):
         """
         Add a property to the object variable.
 
-        :param property_node: The property node to add.
+        Args:
+            property_node (VariableNode):
+                The property node to add.
+
         """
         assert isinstance(
             property_node, VariableNode
@@ -898,7 +1128,10 @@ class ObjectVariableNode(VariableNode):
         """
         Remove a property from the object variable.
 
-        :param property_name: The name of the property to remove.
+        Args:
+            property_name (str):
+                The name of the property to remove.
+
         """
         prop = self._properties[property_name]
         del self._properties[property_name]
@@ -908,8 +1141,14 @@ class ObjectVariableNode(VariableNode):
         """
         Check if the object variable has a property.
 
-        :param property_name: The name of the property to check.
-        :return: True if the property exists, False otherwise.
+        Args:
+            property_name (str):
+                The name of the property to check.
+
+        Returns:
+            bool:
+                True if the property exists, False otherwise.
+
         """
         return property_name in self._properties
 
@@ -917,8 +1156,14 @@ class ObjectVariableNode(VariableNode):
         """
         Get a property of the object variable.
 
-        :param property_name: The name of the property to get.
-        :return: The property node.
+        Args:
+            property_name (str):
+                The name of the property to get.
+
+        Returns:
+            VariableNode:
+                The property node.
+
         """
         return self._properties[property_name]
 
@@ -926,7 +1171,10 @@ class ObjectVariableNode(VariableNode):
         """
         Get the properties of the object variable.
 
-        :return: A dictionary of property nodes.
+        Returns:
+            dict[str, VariableNode]:
+                A dictionary of property nodes.
+
         """
         return self._properties
 
@@ -934,9 +1182,18 @@ class ObjectVariableNode(VariableNode):
         """
         Get a property of the object variable using attribute access.
 
-        :param name: The name of the property to get.
-        :return: The property node.
-        :raises AttributeError: If the property does not exist.
+        Args:
+            name (str):
+                The name of the property to get.
+
+        Returns:
+            Any:
+                The property node.
+
+        Raises:
+            AttributeError:
+                If the property does not exist.
+
         """
         if "_properties" in self.__dict__ and name in self._properties:
             return self._properties[name]
@@ -949,7 +1206,10 @@ class ObjectVariableNode(VariableNode):
         """
         Get the value of the object variable.
 
-        :return: The value of the object variable.
+        Returns:
+            dict[str, Any]:
+                The value of the object variable.
+
         """
         value = {}
         for property_name, property_node in self._properties.items():
@@ -983,7 +1243,14 @@ class ObjectVariableNode(VariableNode):
         """
         Update the value of the object variable.
 
-        :param value: The new value of the object variable.
+        Args:
+            value (dict[str, Any]):
+                The new value of the object variable.
+
+        Returns:
+            dict[str, Any]:
+                The updated value of the object variable.
+
         """
         assert len(value) == len(self._properties) and all(
             prop in self._properties for prop in value
@@ -1022,8 +1289,14 @@ class ObjectVariableNode(VariableNode):
         """
         Get a property of the object variable.
 
-        :param property_name: The name of the property to get.
-        :return: The property node.
+        Args:
+            property_name (str):
+                The name of the property to get.
+
+        Returns:
+            VariableNode:
+                The property node.
+
         """
         return self.get_property(property_name)
 
@@ -1031,8 +1304,14 @@ class ObjectVariableNode(VariableNode):
         """
         Check if the object variable has a property.
 
-        :param property_name: The name of the property to check.
-        :return: True if the property exists, False otherwise.
+        Args:
+            property_name (str):
+                The name of the property to check.
+
+        Returns:
+            bool:
+                True if the property exists, False otherwise.
+
         """
         return self.has_property(property_name)
 
@@ -1040,7 +1319,10 @@ class ObjectVariableNode(VariableNode):
         """
         Iterate over the properties of the object variable.
 
-        :return: An iterator over the properties of the object variable.
+        Returns:
+            Generator[VariableNode, None, None]:
+                An iterator over the properties of the object variable.
+
         """
         for property_node in self._properties.values():
             yield property_node
@@ -1049,7 +1331,10 @@ class ObjectVariableNode(VariableNode):
         """
         Returns a string representation of the ObjectVariableNode.
 
-        :return: A string describing the ObjectVariableNode.
+        Returns:
+            str:
+                A string describing the ObjectVariableNode.
+
         """
         return (
             f"ObjectVariableNode(id={self._id}, name={self._name}, "
@@ -1058,8 +1343,12 @@ class ObjectVariableNode(VariableNode):
 
     def __repr__(self) -> str:
         """
-        Returns the string representation of the ObjectVariableNode for debugging.
+        Returns the string representation of the ObjectVariableNode for
+        debugging.
 
-        :return: The string representation of the ObjectVariableNode.
+        Returns:
+            str:
+                The string representation of the ObjectVariableNode.
+
         """
         return self.__str__()

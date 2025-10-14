@@ -1,7 +1,15 @@
+"""
+Data model node base classes.
+
+This module provides the abstract base class for all nodes in the machine data model,
+defining common attributes and methods that all node types share.
+"""
+
 import uuid
 import weakref
 from abc import ABC, abstractmethod
-from typing import Iterator, Mapping, Sequence, TYPE_CHECKING, Any
+from collections.abc import Iterator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from machine_data_model.data_model import DataModel
@@ -20,10 +28,27 @@ class DataModelNode(ABC):
     model, including a unique identifier, a name, and a description. Subclasses
     should extend this to represent more specific types of nodes in the model.
 
-    :ivar _id: The unique identifier of the node.
-    :ivar _name: The name of the node.
-    :ivar _description: A description of the node.
+    Attributes:
+        _id (str):
+            The unique identifier of the node.
+        _name (str):
+            The name of the node.
+        _description (str):
+            A description of the node.
+        parent (DataModelNode | None):
+            A reference to the parent node in the data model hierarchy, or None
+            if the node is a root node.
+        _data_model (weakref.ReferenceType[DataModel] | None):
+            A weak reference to the DataModel instance that contains this node,
+            or None if the node is not yet associated with a data model.
+
     """
+
+    _id: str
+    _name: str
+    _description: str
+    parent: "DataModelNode | None"
+    _data_model: weakref.ReferenceType["DataModel"] | None
 
     def __init__(
         self,
@@ -37,16 +62,24 @@ class DataModelNode(ABC):
         """
         Initializes a new `DataModelNode` instance.
 
-        :param id: The unique identifier of the node. If `None`, a new UUID is generated.
-        :param name: The name of the node. If `None`, the name is set to an empty string.
-        :param description: A description of the node. If `None`, the description is set to an empty string.
+        Args:
+            id (str | None):
+                The unique identifier of the node. If `None`, a new UUID is
+                generated.
+            name (str | None):
+                The name of the node. If `None`, the name is set to an empty
+                string.
+            description (str | None):
+                A description of the node. If `None`, the description is set to
+                an empty string.
         :param connector_name: The name of the connector to use to interact with the server.
                                If it is `None`, and the hierarchy of the node also doesn't define this attribute,
                                the node is not a remote node: interacting with the node will change the internal value.
         :param remote_path: The remote path of the node in the server.
                             Allows to override the qualified name of the node, defined by the yaml config structure.
-        """
 
+
+        """
         self._id: str = str(uuid.uuid4()) if id is None else id
         assert (
             isinstance(self._id, str) and len(self._id) > 0
@@ -56,7 +89,7 @@ class DataModelNode(ABC):
         self._description = "" if description is None else description
         assert isinstance(self._description, str), "Description must be a string"
         self.parent: DataModelNode | None = None
-        self._data_model: weakref.ReferenceType["DataModel"] | None = None
+        self._data_model: weakref.ReferenceType[DataModel] | None = None
 
         # -- connector management
         self._connector_name: str | None = connector_name
@@ -71,7 +104,10 @@ class DataModelNode(ABC):
         """
         Gets the unique identifier of the node.
 
-        :return: The unique identifier of the node.
+        Returns:
+            str:
+                The unique identifier of the node.
+
         """
         return self._id
 
@@ -80,7 +116,10 @@ class DataModelNode(ABC):
         """
         Gets the qualified name of the node.
 
-        :return: The qualified name of the node.
+        Returns:
+            str:
+                The qualified name of the node.
+
         """
         p_qualified_name = self.parent.qualified_name if self.parent else ""
         return f"{p_qualified_name}/{self.name}"
@@ -90,7 +129,10 @@ class DataModelNode(ABC):
         """
         Gets the name of the node.
 
-        :return: The name of the node.
+        Returns:
+            str:
+                The name of the node.
+
         """
         return self._name
 
@@ -107,7 +149,10 @@ class DataModelNode(ABC):
         """
         Gets the description of the node.
 
-        :return: The description of the node.
+        Returns:
+            str:
+                The description of the node.
+
         """
         return self._description
 
@@ -200,9 +245,23 @@ class DataModelNode(ABC):
         """
         Gets the data model that contains this node.
 
-        :return: The data model containing this node, or None if not set.
+        Returns:
+            DataModel | None:
+                he data model containing this node, or None if not set.
+
         """
         return self._data_model() if self._data_model is not None else None
+
+    def set_data_model(self, data_model: "DataModel") -> None:
+        """
+        Sets the data model that contains this node.
+
+        Args:
+            data_model (DataModel):
+                The data model to set.
+
+        """
+        self._data_model = weakref.ref(data_model)
 
     def register_children(
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]
@@ -210,7 +269,11 @@ class DataModelNode(ABC):
         """
         Set this node as the parent of the child nodes.
 
-        :param child_nodes: The child nodes to set the parent for.
+        Args:
+            child_nodes (Mapping[str, "DataModelNode"] |
+            Sequence["DataModelNode"]):
+                The child nodes to set the parent for.
+
         """
         if isinstance(child_nodes, dict):
             child_nodes = list(child_nodes.values())
@@ -224,29 +287,41 @@ class DataModelNode(ABC):
         """
         Get a child node by name.
 
-        :param child_name: The name of the child node.
-        :return: The child node with the specified name.
+        Args:
+            child_name (str):
+                The name of the child node.
+
+        Returns:
+            DataModelNode:
+                The child node with the specified name.
+
         """
-        pass
 
     @abstractmethod
     def __contains__(self, child_name: str) -> bool:
         """
         Check if the node contains a child with the specified name.
 
-        :param child_name: The name of the child node.
-        :return: True if the child exists, False otherwise.
+        Args:
+            child_name (str):
+                The name of the child node.
+
+        Returns:
+            bool:
+                True if the child exists, False otherwise.
+
         """
-        pass
 
     @abstractmethod
     def __iter__(self) -> Iterator["DataModelNode"]:
         """
         Iterate over the children of the node.
 
-        :return: An iterator over the children of the node.
+        Returns:
+            Iterator[DataModelNode]:
+                An iterator over the children of the node.
+
         """
-        pass
 
     def _eq_base(self, other: "DataModelNode") -> bool:
         return (

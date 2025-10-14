@@ -1,4 +1,11 @@
-from typing import Iterator
+"""
+Folder node implementation for machine data models.
+
+This module provides the FolderNode class, which represents folders in the
+machine data model hierarchy used to organize nodes in a tree structure.
+"""
+
+from collections.abc import Iterator
 
 from typing_extensions import override
 
@@ -7,12 +14,17 @@ from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResour
 
 class FolderNode(DataModelNode):
     """
-    A FolderNode class is a node that represents a folder in the machine data model.
-    Folders of the machine data model are used to organize the node of the machine data
-    model in a hierarchical structure.
+    A FolderNode class is a node that represents a folder in the machine data
+    model. Folders of the machine data model are used to organize the node of
+    the machine data model in a hierarchical structure.
 
-    :ivar _children: A dictionary of child nodes within the folder.
+    Attributes:
+        _children:
+            A dictionary of child nodes within the folder.
+
     """
+
+    _children: dict[str, DataModelNode]
 
     def __init__(
         self,
@@ -27,10 +39,16 @@ class FolderNode(DataModelNode):
         """
         Initializes a new FolderNode instance.
 
-        :param id: The unique identifier of the folder.
-        :param name: The name of the folder.
-        :param description: The description of the folder.
-        :param children: A dictionary of child nodes of the folder.
+        Args:
+            id (str | None):
+                The unique identifier of the folder.
+            name (str | None):
+                The name of the folder.
+            description (str | None):
+                The description of the folder.
+            children (dict[str, DataModelNode] | None):
+                A dictionary of child nodes of the folder.
+
         """
         super().__init__(
             id=id,
@@ -50,7 +68,11 @@ class FolderNode(DataModelNode):
         """
         Returns the child nodes of the folder.
 
-        :return: A dictionary of child nodes, where keys are node names and values are `DataModelNode` instances.
+        Returns:
+            dict[str, DataModelNode]:
+                A dictionary of child nodes, where keys are node names and
+                values are `DataModelNode` instances.
+
         """
         return self._children
 
@@ -58,7 +80,10 @@ class FolderNode(DataModelNode):
         """
         Add a child node to the folder.
 
-        :param child: The child node to add to the folder.
+        Args:
+            child (DataModelNode):
+                The child node to add to the folder.
+
         """
         assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
         self._children[child.name] = child
@@ -68,7 +93,14 @@ class FolderNode(DataModelNode):
         """
         Remove a child node from the folder.
 
-        :param child_name: The name of the child node to remove from the folder.
+        Args:
+            child_name (str):
+                The name of the child node to remove from the folder.
+
+        Raises:
+            ValueError:
+                If the child node with the specified name is not found.
+
         """
         if child_name in self._children:
             child = self._children[child_name]
@@ -83,8 +115,15 @@ class FolderNode(DataModelNode):
         """
         Check if the folder has a child node with the specified name.
 
-        :param child_name: The name of the child node to check.
-        :return: True if the folder has a child node with the specified name, False otherwise.
+        Args:
+            child_name (str):
+                The name of the child node to check.
+
+        Returns:
+            bool:
+                True if the folder has a child node with the specified name,
+                False otherwise.
+
         """
         return child_name in self._children
 
@@ -93,8 +132,14 @@ class FolderNode(DataModelNode):
         """
         Get a child node from the folder by name.
 
-        :param child_name: The name of the child node to get from the folder.
-        :return: The child node with the specified name.
+        Args:
+            child_name (str):
+                The name of the child node to get from the folder.
+
+        Returns:
+            DataModelNode:
+                The child node with the specified name.
+
         """
         return self._children[child_name]
 
@@ -103,8 +148,15 @@ class FolderNode(DataModelNode):
         """
         Check if the folder has a child node with the specified name.
 
-        :param child_name: The name of the child node to check.
-        :return: True if the folder has a child node with the specified name, False otherwise.
+        Args:
+            child_name (str):
+                The name of the child node to check.
+
+        Returns:
+            bool:
+                True if the folder has a child node with the specified name,
+                False otherwise.
+
         """
         return self.has_child(child_name)
 
@@ -113,7 +165,10 @@ class FolderNode(DataModelNode):
         """
         Iterate over the children of the folder.
 
-        :return: An iterator over the children of the folder.
+        Returns:
+            Iterator[DataModelNode]:
+                An iterator over the children of the folder.
+
         """
         children = self._children
         for child in children:
@@ -123,7 +178,10 @@ class FolderNode(DataModelNode):
         """
         Returns a string representation of the FolderNode.
 
-        :return: A string describing the FolderNode.
+        Returns:
+            str:
+                A string describing the FolderNode.
+
         """
         return (
             f"FolderNode(id={self._id}, name={self._name}, "
@@ -135,7 +193,10 @@ class FolderNode(DataModelNode):
         """
         Returns a string representation of the FolderNode.
 
-        :return: The string representation of the FolderNode (same as `__str__`).
+        Returns:
+            str:
+                The string representation of the FolderNode (same as `__str__`).
+
         """
         return self.__str__()
 

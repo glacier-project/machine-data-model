@@ -1,35 +1,39 @@
+"""
+Data model dumper module for serializing machine data models to YAML format.
+
+This module provides functionality to convert machine data model objects back
+into YAML representations, including custom representers for all node types and
+control flow elements.
+"""
+
 import os
 
 import yaml
 
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.local_execution_node import (
+    CallMethodNode,
+    ReadVariableNode,
+    WaitConditionNode,
+    WriteVariableNode,
+)
+from machine_data_model.behavior.remote_execution_node import (
+    CallRemoteMethodNode,
+    ReadRemoteVariableNode,
+    WaitRemoteEventNode,
+    WriteRemoteVariableNode,
+)
 from machine_data_model.data_model import DataModel
-from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.local_execution_node import (
-    ReadVariableNode,
-)
-from machine_data_model.behavior.local_execution_node import (
-    WaitConditionNode,
-)
-from machine_data_model.behavior.local_execution_node import (
-    WriteVariableNode,
-)
 from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
+from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
 from machine_data_model.nodes.variable_node import (
-    NumericalVariableNode,
     BooleanVariableNode,
+    NumericalVariableNode,
     ObjectVariableNode,
     StringVariableNode,
-)
-from machine_data_model.behavior.remote_execution_node import (
-    ReadRemoteVariableNode,
-    WriteRemoteVariableNode,
-    CallRemoteMethodNode,
-    WaitRemoteEventNode,
 )
 
 
@@ -38,9 +42,17 @@ def _data_model_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a DataModel as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param data_model: The DataModel instance to represent.
-    :return: A YAML mapping node representing the DataModel.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        data_model (DataModel):
+            The DataModel instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the DataModel.
+
     """
     return dumper.represent_mapping(
         yaml.BaseDumper.DEFAULT_MAPPING_TAG,
@@ -60,9 +72,17 @@ def _folder_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a FolderNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The FolderNode instance to represent.
-    :return: A YAML mapping node representing the FolderNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (FolderNode):
+            The FolderNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the FolderNode.
+
     """
     children = [child for child in node.children.values()]
     return dumper.represent_mapping(
@@ -81,9 +101,17 @@ def _numerical_variable_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a NumericalVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The NumericalVariableNode instance to represent.
-    :return: A YAML mapping node representing the NumericalVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (NumericalVariableNode):
+            The NumericalVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the NumericalVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:NumericalVariableNode",
@@ -102,9 +130,17 @@ def _boolean_variable_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a BooleanVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The BooleanVariableNode instance to represent.
-    :return: A YAML mapping node representing the BooleanVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (BooleanVariableNode):
+            The BooleanVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the BooleanVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:BooleanVariableNode",
@@ -122,9 +158,17 @@ def _string_variable_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a StringVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The StringVariableNode instance to represent.
-    :return: A YAML mapping node representing the StringVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (StringVariableNode):
+            The StringVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the StringVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:StringVariableNode",
@@ -142,9 +186,17 @@ def _object_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a ObjectVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The ObjectVariableNode instance to represent.
-    :return: A YAML mapping node representing the ObjectVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (ObjectVariableNode):
+            The ObjectVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the ObjectVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:ObjectVariableNode",
@@ -162,9 +214,17 @@ def _method_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a MethodNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The MethodNode instance to represent.
-    :return: A YAML mapping node representing the MethodNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (MethodNode):
+            The MethodNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the MethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:MethodNode",
@@ -183,9 +243,17 @@ def _async_method_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent an AsyncMethodNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The AsyncMethodNode instance to represent.
-    :return: A YAML mapping node representing the AsyncMethodNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (AsyncMethodNode):
+            The AsyncMethodNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the AsyncMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:AsyncMethodNode",
@@ -204,9 +272,17 @@ def _composite_method_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a CompositeMethodNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The CompositeMethodNode instance to represent.
-    :return: A YAML mapping node representing the CompositeMethodNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (CompositeMethodNode):
+            The CompositeMethodNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the CompositeMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:CompositeMethodNode",
@@ -226,9 +302,17 @@ def _control_flow_graph_representer(
 ) -> yaml.nodes.SequenceNode:
     """
     Represent a ControlFlow as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The ControlFlow instance to represent.
-    :return: A YAML mapping node representing the ControlFlow.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (ControlFlow):
+            The ControlFlow instance to represent.
+
+    Returns:
+        yaml.nodes.SequenceNode:
+            A YAML mapping node representing the ControlFlow.
+
     """
     return dumper.represent_sequence(
         yaml.BaseDumper.DEFAULT_SEQUENCE_TAG,
@@ -241,9 +325,17 @@ def _read_variable_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a ReadVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The ReadVariableNode instance to represent.
-    :return: A YAML mapping node representing the ReadVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (ReadVariableNode):
+            The ReadVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the ReadVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:ReadVariableNode",
@@ -256,9 +348,17 @@ def _write_variable_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a WriteVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The WriteVariableNode instance to represent.
-    :return: A YAML mapping node representing the WriteVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (WriteVariableNode):
+            The WriteVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the WriteVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WriteVariableNode",
@@ -271,9 +371,17 @@ def _wait_condition_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a WaitConditionNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The WaitConditionNode instance to represent.
-    :return: A YAML mapping node representing the WaitConditionNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (WaitConditionNode):
+            The WaitConditionNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the WaitConditionNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WaitConditionNode",
@@ -290,9 +398,17 @@ def _call_method_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a CallMethodNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The CallMethodNode instance to represent.
-    :return: A YAML mapping node representing the CallMethodNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (CallMethodNode):
+            The CallMethodNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the CallMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:CallMethodNode",
@@ -309,9 +425,17 @@ def _call_remote_method_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a CallRemoteMethodNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The CallRemoteMethodNode instance to represent.
-    :return: A YAML mapping node representing the CallRemoteMethodNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (CallRemoteMethodNode):
+            The CallRemoteMethodNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the CallRemoteMethodNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:CallRemoteMethodNode",
@@ -329,9 +453,17 @@ def _read_remote_variable_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a ReadRemoteVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The ReadRemoteVariableNode instance to represent.
-    :return: A YAML mapping node representing the ReadRemoteVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (ReadRemoteVariableNode):
+            The ReadRemoteVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the ReadRemoteVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:ReadRemoteVariableNode",
@@ -348,9 +480,17 @@ def _write_remote_variable_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a WriteRemoteVariableNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The WriteRemoteVariableNode instance to represent.
-    :return: A YAML mapping node representing the WriteRemoteVariableNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (WriteRemoteVariableNode):
+            The WriteRemoteVariableNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the WriteRemoteVariableNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WriteRemoteVariableNode",
@@ -367,9 +507,17 @@ def _wait_remote_event_node_representer(
 ) -> yaml.nodes.MappingNode:
     """
     Represent a WaitRemoteEventNode as a YAML mapping node.
-    :param dumper: The YAML dumper instance.
-    :param node: The WaitRemoteEventNode instance to represent.
-    :return: A YAML mapping node representing the WaitRemoteEventNode.
+
+    Args:
+        dumper (yaml.Dumper):
+            The YAML dumper instance.
+        node (WaitRemoteEventNode):
+            The WaitRemoteEventNode instance to represent.
+
+    Returns:
+        yaml.nodes.MappingNode:
+            A YAML mapping node representing the WaitRemoteEventNode.
+
     """
     return dumper.represent_mapping(
         "tag:yaml.org,2002:WaitRemoteEventNode",
@@ -407,7 +555,10 @@ class DataModelDumper:
     """
     A class to dump the machine data model to a YAML file.
 
-    :ivar data_model: The machine data model to dump.
+    Attributes:
+        data_model (DataModel):
+            The machine data model to dump.
+
     """
 
     def __init__(self, data_model: DataModel) -> None:
@@ -417,7 +568,10 @@ class DataModelDumper:
         """
         Dump the machine data model to a YAML string.
 
-        :return: The YAML string representation of the machine data model.
+        Returns:
+            str:
+                The YAML string representation of the machine data model.
+
         """
         data_model_str = yaml.dump(self.data_model)
         assert isinstance(data_model_str, str)
@@ -427,10 +581,16 @@ class DataModelDumper:
         """
         Dumps the machine data model to a YAML file.
 
-        :param file_path: The path to the YAML file.
-        :raises FileNotFoundError: If the file path is not valid.
-        :raises IOError: If there is an error writing to the file.
-        :return: None
+        Args:
+            file_path (str):
+                The path to the YAML file.
+
+        Raises:
+            FileNotFoundError:
+                If the file path is not valid.
+            IOError:
+                If there is an error writing to the file.
+
         """
         base_dir = os.path.dirname(file_path)
         os.makedirs(base_dir, exist_ok=True)
