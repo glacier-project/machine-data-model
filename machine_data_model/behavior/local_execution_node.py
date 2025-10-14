@@ -579,7 +579,10 @@ class WaitConditionNode(LocalExecutionNode):
         super().__init__(variable_node, successors)
         self._rhs = rhs
         self._op = op
-        self._subscription: VariableSubscription | None = None
+
+    # Per-context subscriptions are stored on the ExecutionContext to
+    # avoid reusing the same subscription object across different
+    # invocations of the same control flow node.
 
     @property
     def rhs(self) -> Any:
@@ -624,6 +627,9 @@ class WaitConditionNode(LocalExecutionNode):
         ref_variable = self._get_ref_node(context)
         assert isinstance(ref_variable, VariableNode)
 
+        # Get the data model id for tracing.
+        data_model_id = ref_variable.data_model.name if ref_variable.data_model else ""
+
         rhs = resolve_value(self._rhs, context)
         lhs = ref_variable.read()
         if self._op == WaitConditionOperator.EQ:
@@ -641,9 +647,12 @@ class WaitConditionNode(LocalExecutionNode):
         else:
             raise ValueError(f"Invalid operator: {self._op}")
 
-        # Build the key that will be used to store the start time of the wait
-        # inside the context.
-        wait_key = f"wait_start_{self.node}_{context.id()}"
+        # Build base keys used to store wait-related data inside the context.
+        # Use a single base so derived keys are colocated and consistent.
+        base_wait_key = f"wait_{self.node}_{context.id()}"
+
+        # Create a unique wait key per context to avoid collisions.
+        wait_key = f"{base_wait_key}_start"
 
         # Save the outcome for tracing.
         outcome = execution_success() if result else execution_failure()
@@ -655,14 +664,27 @@ class WaitConditionNode(LocalExecutionNode):
             execution_result=outcome.success,
             program_counter=context.get_pc(),
             source=context.id(),
-            data_model_id=(
-                ref_variable.data_model.name if ref_variable.data_model else ""
-            ),
+            data_model_id=data_model_id,
         )
 
-        if self._subscription is None:
-            self._subscription = VariableSubscription(subscriber_id=context.id())
-        subscription = self._subscription
+        # Create or retrieve a subscription object specific to this context so
+        # that multiple concurrent invocations of the same composite method do
+        # not share the same subscription (which would bind them to the same
+        # subscriber id / correlation id).
+        sub_key = f"{base_wait_key}_subscription"
+        subscription = None
+        try:
+            subscription = context.get_value(sub_key)
+        except KeyError:
+            subscription = None
+
+        if subscription is None:
+            # Create a new subscription for this context. Leave correlation_id
+            # unspecified so the VariableSubscription constructor generates a
+            # unique id for the subscription (previous behavior).
+            subscription = VariableSubscription(subscriber_id=context.id())
+            # store the subscription in the context for later retrieval
+            context.set_value(sub_key, subscription)
 
         # Condition not met - start waiting
         if not result:
@@ -673,20 +695,25 @@ class WaitConditionNode(LocalExecutionNode):
                     condition=f"{lhs} {self._op.value} {rhs}",
                     expected_value=rhs,
                     source=f"{ref_variable.qualified_name} (context: {context.id()})",
-                    data_model_id=(
-                        ref_variable.data_model.name if ref_variable.data_model else ""
-                    ),
+                    data_model_id=data_model_id,
                 )
                 # Store the start time of the wait inside the context.
                 context.set_value(wait_key, start_time)
                 # Subscribe to the variable to be notified when its value
-                # changes.
+                # changes. We rely on the Subscription object being unique to
+                # the context so that unsubscribe will remove the correct
+                # subscription later.
                 ref_variable.subscribe(subscription)
 
         # Condition met - stop waiting
         else:
             # Unsubscribe if we were subscribed.
             ref_variable.unsubscribe(subscription)
+            # Remove the subscription stored in the context
+            try:
+                context.delete_value(sub_key)
+            except KeyError:
+                pass
             # If the wait key is in the context, it means we were waiting.
             if context.has_value(wait_key):
                 start_time = context.get_value(wait_key)
@@ -694,9 +721,7 @@ class WaitConditionNode(LocalExecutionNode):
                     variable_id=ref_variable.id,
                     start_time=start_time,
                     source=f"{ref_variable.qualified_name} (context: {context.id()})",
-                    data_model_id=(
-                        ref_variable.data_model.name if ref_variable.data_model else ""
-                    ),
+                    data_model_id=data_model_id,
                 )
                 # Remove the wait key from the context.
                 context.delete_value(wait_key)

@@ -462,10 +462,20 @@ class FrostProtocolMng(ProtocolMng):
         a `FrostMessage` with the relevant details, including the sender,
         target, and payload, and appends it to the list of update messages.
         """
+        # Support matching running composite methods by either the
+        # subscription.correlation_id (used for remote subscriptions) or
+        # by subscription.subscriber_id (used for local wait-condition
+        # subscriptions where subscriber_id == context.id()). This allows
+        # subscriptions to keep randomly-generated correlation_ids while
+        # still resuming the correct execution context.
+        ctx_id = None
         if subscription.correlation_id in self._running_methods:
-            return self.resume_composite_method(
-                subscription.correlation_id, node, value
-            )
+            ctx_id = subscription.correlation_id
+        elif subscription.subscriber_id in self._running_methods:
+            ctx_id = subscription.subscriber_id
+
+        if ctx_id is not None:
+            return self.resume_composite_method(ctx_id, node, value)
 
         # append update message
         response_msg = FrostMessage(
