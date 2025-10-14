@@ -72,12 +72,15 @@ class DataModelNode(ABC):
             description (str | None):
                 A description of the node. If `None`, the description is set to
                 an empty string.
-        :param connector_name: The name of the connector to use to interact with the server.
-                               If it is `None`, and the hierarchy of the node also doesn't define this attribute,
-                               the node is not a remote node: interacting with the node will change the internal value.
-        :param remote_path: The remote path of the node in the server.
-                            Allows to override the qualified name of the node, defined by the yaml config structure.
-
+            connector_name (str | None):
+                The name of the connector to use to interact with the server.
+                If it is `None`, and the hierarchy of the node also doesn't define this attribute,
+                the node is not a remote node: interacting with the node will change the internal value.
+            remote_path (str | None):
+                The remote path of the node in the server.
+                Allows to override the qualified name of the node, defined by the yaml config structure.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the remote protocol (for example, namespace for OPC UA).
 
         """
         self._id: str = str(uuid.uuid4()) if id is None else id
@@ -174,7 +177,9 @@ class DataModelNode(ABC):
         which means that to interact with it, we need to use its connector.
         A node is a remote node if the user defined the 'connector_name' attribute in the yaml file.
 
-        :return: True if the current node is a remote node, False otherwise.
+        Returns:
+            bool:
+                True if the current node is a remote node, False otherwise.
         """
         return self.connector_name is not None
 
@@ -183,7 +188,9 @@ class DataModelNode(ABC):
         Returns True if the connector was set.
         A remote node (is_remote() == True) must have, at some point, its connector set up.
 
-        :return: True if the connector is set, False otherwise.
+        Returns:
+            bool:
+                True if the connector is set, False otherwise.
         """
         return self._connector is not None
 
@@ -191,7 +198,9 @@ class DataModelNode(ABC):
         """
         Sets the connector which will be used to interact with this variable.
 
-        :param connector: The node's connector.
+        Args:
+            connector (AbstractConnector | None):
+                The node's connector.
         """
         self._connector = connector
 
@@ -205,7 +214,9 @@ class DataModelNode(ABC):
         Returns True if the remote path is set.
         The remote path is the path used by the connector to interact with the remote variable.
 
-        :return: True if the remote path is set.
+        Returns:
+            bool:
+                True if the remote path is set.
         """
         return self._remote_path is not None
 

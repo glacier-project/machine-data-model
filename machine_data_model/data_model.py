@@ -98,8 +98,13 @@ class DataModel:
         - all connectors must have a unique, identifying name
         - all connectors must be able to connect successfully to their remote server
 
-        :param connectors: connectors list from the yaml file
-        :return: a dictionary of key - value: (connector's name, connector)
+        Args:
+            connectors (list[AbstractConnector]):
+                connectors list from the yaml file
+
+        Returns:
+            dict[str, AbstractConnector]:
+                A dictionary of the following key - value pairs: (connector's name, connector)
         """
         connectors_dict: dict[str, AbstractConnector] = {}
         if connectors is None:
@@ -157,7 +162,9 @@ class DataModel:
         """
         Calls the recursive method which sets up all the nodes remote specs.
 
-        :param root: the root of the data model
+        Args:
+            root (DataModelNode):
+                The data model's root node.
         """
         self._setup_child_inherited_specs(root, None)
 
@@ -168,8 +175,11 @@ class DataModel:
         Recursively sets the remote resource specs for the current node
         from its parent's specs.
 
-        :param node: node which needs to be set up
-        :param parent: parent of node, has inheritable specs
+        Args:
+            node (DataModelNode):
+                Node which needs to be set up.
+            parent (DataModelNode | None):
+                Parent of node. Can have inheritable specs.
         """
         if parent and parent.remote_resource_spec:
             inheritable_spec = parent.remote_resource_spec.inheritable_spec()
@@ -265,9 +275,16 @@ class DataModel:
         Returns the connector associated with the given name.
         Raises an exception if a connector with the given name is not found.
 
-        :param name: name of the connector
-        :return: AbstractConnector with that name
-        :raises Exception: thrown when a connector with that name doesn't exist
+        Args:
+            name (str):
+                Name of the connector.
+        Returns:
+            AbstractConnector:
+                AbstractConnector with the given name.
+
+        Raises:
+            KeyError:
+                The connector with the given name doesn't exist.
         """
         connector = self._connectors.get(name)
         if connector is None:
@@ -592,7 +609,10 @@ class DataModel:
     def _cleanup_connectors(self, connectors: Iterable[AbstractConnector]) -> None:
         """
         Iterate over all connectors to disconnect them from their servers.
-        :param connectors: connectors that have resources to clean up
+
+        Args:
+            connectors:
+                Connectors that have resources to clean up.
         """
         for connector in connectors:
             connector.disconnect()

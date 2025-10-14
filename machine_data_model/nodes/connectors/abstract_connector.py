@@ -18,8 +18,6 @@ class SubscriptionArguments:
     to subscription callbacks.
     """
 
-    pass
-
 
 class AbstractConnector(ABC):
     """
@@ -133,18 +131,20 @@ class AbstractConnector(ABC):
         """
         Connect to the server.
 
-        :return: True if the client is connected to the server
+        Returns:
+            bool:
+                True if the client is connected to the server.
         """
-        pass
 
     @abstractmethod
     def disconnect(self) -> bool:
         """
         Disconnect from the server.
 
-        :return: True if the client is disconnected from the server
+        Returns:
+            bool:
+                True if the client is disconnected from the server.
         """
-        pass
 
     @abstractmethod
     def _get_remote_node(self, path: str) -> Any:
@@ -152,38 +152,60 @@ class AbstractConnector(ABC):
         Try to retrieve the node from the server.
         The node's type depends on the library used to interact with the server.
 
-        :param path: node's path
+        Args:
+            path (str):
+                Node's path.
+
+        Returns:
+            Any:
+                The node retrieved from the server.
         """
-        pass
 
     @abstractmethod
     def read_node_value(self, path: str) -> Any:
         """
         Retrieve and return a node's value.
-        :param path: node's path
+
+        Args:
+            path:
+                Node's path.
+
+        Returns:
+            Any:
+                The node's value.
         """
-        pass
 
     @abstractmethod
     def write_node_value(self, path: str, value: Any) -> bool:
         """
         Write a variable node.
 
-        :param path: node's path
-        :param value: new value to write
+        Args:
+            path (str):
+                Node's path.
+            value (Any):
+                New value to write.
+
+        Returns:
+            bool:
+                True if the value was written successfully.
         """
-        pass
 
     @abstractmethod
     def call_node_as_method(self, path: str, kwargs: dict[str, Any]) -> dict[str, Any]:
         """
         Calls the method at path <path> with <kwargs> as its arguments.
 
-        :param path: node/method path
-        :param kwargs: method arguments expressed as key/name - value pairs
-        :return: dict of results in the form of name - value pairs
+        Args:
+            path (str):
+                Node/method path.
+            kwargs (dict[str, Any]):
+                Method arguments expressed as key/name - value pairs.
+
+        Returns:
+            dict[str, Any]:
+                Dict of results in the form of name - value pairs.
         """
-        pass
 
     @abstractmethod
     def subscribe_to_node_changes(
@@ -197,11 +219,17 @@ class AbstractConnector(ABC):
         - the new remote value
         - other data. It can be used to pass different data depending on the Connector's protocol/implementation
 
-        :param path: node path
-        :param callback: callback
-        :return: handler code which can be used to unsubscribe from new events
+        Args:
+            path (str):
+                Node's path.
+            callback (Callable[[Any, SubscriptionArguments], None]):
+                Subscription's callback. The first parameter is the new value, while the
+                second parameter is additional data that is protocol dependent.
+
+        Returns:
+            int:
+                Handler code which can be used to unsubscribe from new events.
         """
-        pass
 
     def __iter__(self) -> Iterator["AbstractConnector"]:
         for _ in []:

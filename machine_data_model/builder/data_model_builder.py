@@ -597,9 +597,16 @@ def _get_opcua_connector_node(
 ) -> OpcuaConnector:
     """
     Construct an OPC-UA Connector from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed OPC-UA Connector.
+
+    Args:
+        loader:
+            The yaml loader.
+        node:
+            The yaml node.
+
+    Returns:
+        OpcuaConnector:
+            The constructed OPC-UA Connector.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -629,9 +636,15 @@ def _get_opcua_remote_resource_spec(
     """
     Construct an object with node settings that are OPC UA specific.
 
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The object with the OPC UA node's settings.
+    Args:
+        loader:
+            The yaml loader.
+        node:
+            The yaml node.
+
+    Returns:
+        OpcuaRemoteResourceSpec:
+            The object with the OPC UA node's settings.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {

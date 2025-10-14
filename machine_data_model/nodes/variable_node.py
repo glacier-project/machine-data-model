@@ -116,7 +116,12 @@ class VariableNode(DataModelNode):
         """
         Get the value of the variable node.
 
-        :param force_remote_read: if True, when the variable is a remote variable, use the connector to read the remote value
+        Args:
+            force_remote_read (bool, optional):
+                If True, when the variable is a remote variable, use the connector to read the remote value.
+                If false, return the cached value.
+                Default is True.
+
         Returns:
             Any:
                 The value of the variable node.
@@ -352,8 +357,15 @@ class VariableNode(DataModelNode):
         """
         Get the value of the variable.
 
-        :param force_remote_read: if True, when the variable is a remote variable, use the connector to read the remote value
-        :return: variable's value
+        Args:
+            force_remote_read (bool, optional):
+                If True, when the variable is a remote variable, use the connector to read the remote value.
+                If False, return the cached value.
+                Default is False.
+
+        Returns:
+            Any:
+                Variable's value.
         """
         # a connector could be set only after reading the full yaml file
         if self.is_remote() and self.is_connector_set():
@@ -367,6 +379,10 @@ class VariableNode(DataModelNode):
     def _read_internal_value(self) -> Any:
         """
         Read the value locally.
+
+        Returns:
+            Any:
+                Variable's internal value.
         """
 
     @abstractmethod
@@ -375,10 +391,16 @@ class VariableNode(DataModelNode):
         Returns the cached value that was recently read from the remote server.
         If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
 
-        :param force_remote_read: if True, use the connector to read the variable's latest value
-        :return: variable's value
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the variable's latest value.
+                If False, return the cached value.
+                Default is False.
+
+        Returns:
+            Any:
+                Variable's remote (or its cached) value.
         """
-        pass
 
     def _update_value(self, value: Any) -> Any:
         """
@@ -396,7 +418,14 @@ class VariableNode(DataModelNode):
         """
         Update the value of the variable remotely.
 
-        :param value: new value
+        Args:
+            value:
+                New value which is written to the remote server.
+
+        Returns:
+            Any:
+                New value when the update action is successful.
+                Otherwise, it returns the previous value.
         """
         pass
 
@@ -405,7 +434,13 @@ class VariableNode(DataModelNode):
         """
         Update the value of the variable locally.
 
-        :param value: new value
+        Args:
+            value:
+                New value.
+
+        Returns:
+            Any:
+                New updated value.
         """
         pass
 
@@ -468,14 +503,18 @@ class VariableNode(DataModelNode):
         return None
 
     def _remote_subscription_callback(
-        self, value: Any, other: SubscriptionArguments
+        self, value: Any, _other: SubscriptionArguments
     ) -> None:
         """
         Callback that handles remote variable changes.
         Sets the internal cached value to the new value.
 
-        :param value: value that was read from remote
-        :param other: other data that is available from the remote subscription (differs by the connector's protocol)
+        Args:
+            value (Any):
+                Value that was read from remote.
+            _other (SubscriptionArguments):
+                Other data that is available from the remote subscription (differs by the connector's protocol)
+                Unused in this method.
         """
         prev_value = self._read_internal_value()
         self._update_internal_value(value)
@@ -620,8 +659,15 @@ class NumericalVariableNode(VariableNode):
         Returns the cached numerical value that was recently read from the remote server.
         If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
 
-        :param force_remote_read: if True, use the connector to read the variable's latest value
-        :return: The value of the numerical variable.
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the variable's latest value.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            float:
+                The value of the numerical variable.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (
@@ -667,7 +713,14 @@ class NumericalVariableNode(VariableNode):
         """
         Update the value of the numerical variable remotely.
 
-        :param value: new value
+        Args:
+            value (float):
+                New value.
+
+        Returns:
+            float:
+                The updated value of the numerical variable if the operation was successful.
+                Otherwise, it returns the previous value.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (
@@ -772,8 +825,15 @@ class StringVariableNode(VariableNode):
         Returns the cached string value that was recently read from the remote server.
         If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
 
-        :param force_remote_read: if True, use the connector to read the variable's latest value
-        :return: The value of the string variable.
+        Args:
+            force_remote_read:
+                If True, use the connector to read the variable's latest value.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            str:
+                The value of the string variable.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (
@@ -809,7 +869,14 @@ class StringVariableNode(VariableNode):
         """
         Update the value of the string variable remotely.
 
-        :param value: new value
+        Args:
+            value (str):
+                New value.
+
+        Returns:
+            str:
+                The updated value of the string variable if the operation was successful.
+                Otherwise, it returns the previous value.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (
@@ -946,8 +1013,16 @@ class BooleanVariableNode(VariableNode):
         Returns the cached boolean value that was recently read from the remote server.
         If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
 
-        :param force_remote_read: if True, use the connector to read the variable's latest value
-        :return: The value of the boolean variable.
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the variable's latest value.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            bool:
+                The value of the boolean variable when the operation was successful.
+                Otherwise, returns the previous value.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (
@@ -984,7 +1059,14 @@ class BooleanVariableNode(VariableNode):
         """
         Update the value of the boolean variable remotely.
 
-        :param value: new value
+        Args:
+            value (bool):
+                New value.
+
+        Returns:
+            bool:
+                The updated value of the boolean variable if the operation was successful.
+                Otherwise, returns the previous value.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (
@@ -1223,8 +1305,15 @@ class ObjectVariableNode(VariableNode):
         Returns the object value that was recently read from the remote server.
         If force_remote_read parameter is True, this function reads all the properties latest values from the remote server.
 
-        :param force_remote_read: if True, use the connector to read the properties latest values
-        :return: The value of the object variable.
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the properties latest values.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            Any:
+                The value of the object variable.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (
@@ -1264,7 +1353,14 @@ class ObjectVariableNode(VariableNode):
         """
         Update the value of the object variable remotely.
 
-        :param value: new value
+        Args:
+            value:
+                New value.
+
+        Returns:
+            dict[str, Any]:
+                The updated value if the operation was successful.
+                Otherwise, returns the previous value.
         """
         assert self._connector is not None, "Remote nodes must have a valid connector"
         assert (

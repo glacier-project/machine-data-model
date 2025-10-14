@@ -92,8 +92,11 @@ class MethodNode(DataModelNode):
                 A list of return values for the method.
             callback (Callable[..., Any] | None):
                 The function to execute when the method is called.
-
-        :param remote_path: The remote path of the method. Allows to override the qualified name of the node.
+            remote_path (str | None):
+                The remote path of the method. Allows to override the qualified name of the node.
+            remote_resource_spec (RemoteResourceSpec | None):
+                remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the remote protocol (for example, namespace for OPC UA).
         """
         super().__init__(
             id=id,

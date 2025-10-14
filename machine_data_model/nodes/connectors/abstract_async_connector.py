@@ -96,7 +96,9 @@ class AbstractAsyncConnector(AbstractConnector):
         Connect to the server.
         Wraps its asynchronous implementation.
 
-        :return: True if the client is connected to the server
+        Returns:
+            bool:
+                True if the client is connected to the server.
         """
         return self._handle_task(self._async_connect())
 
@@ -105,9 +107,10 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         Asynchronous code which uses the client to connect to the server.
 
-        :return: True if the client is connected to the server
+        Returns:
+            bool:
+                True if the client is connected to the server.
         """
-        pass
 
     @override
     def disconnect(self) -> bool:
@@ -115,7 +118,9 @@ class AbstractAsyncConnector(AbstractConnector):
         Disconnect from the server.
         Wraps its asynchronous implementation.
 
-        :return: True if the client is disconnected from the server
+        Returns:
+            bool:
+                True if the client is disconnected from the server.
         """
         res = self._handle_task(self._async_disconnect())
         self._event_loop.stop()
@@ -126,9 +131,10 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         Asynchronous code which uses the client to disconnect from the server.
 
-        :return: True if the client is disconnected from the server
+        Returns:
+            bool:
+                True if the client is disconnected from the server.
         """
-        pass
 
     @override
     def _get_remote_node(self, path: str) -> Any:
@@ -137,8 +143,13 @@ class AbstractAsyncConnector(AbstractConnector):
         The node's type depends on the library used to interact with the server.
         Wraps its asynchronous implementation.
 
-        :param path: node's path
-        :return: node with the given path
+        Args:
+            path (str):
+                Node's path.
+
+        Returns:
+            Any:
+                Node with the given path.
         """
         return self._handle_task(self._async_get_remote_node(path))
 
@@ -147,10 +158,14 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         Asynchronous code which uses the client to retrieve the node from the server.
 
-        :param path: node's path
-        :return: node with the given path
+        Args:
+            path (str):
+                Node's path.
+
+        Returns:
+            Any:
+                Node with the given path.
         """
-        pass
 
     @override
     def read_node_value(self, path: str) -> Any:
@@ -158,8 +173,13 @@ class AbstractAsyncConnector(AbstractConnector):
         Retrieve and return a node's value.
         Wraps its asynchronous implementation.
 
-        :param path: node's path
-        :return: node's value
+        Args:
+            path (str):
+                Node's path.
+
+        Returns:
+            Any:
+                Node's value.
         """
         return self._handle_task(self._async_read_node_value(path))
 
@@ -168,10 +188,14 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         Asynchronous code which reads a node's value.
 
-        :param path: node's path
-        :return: node's value
+        Args:
+            path (str):
+                Node's path.
+
+        Returns:
+            Any:
+                Node's value.
         """
-        pass
 
     @override
     def write_node_value(self, path: str, value: Any) -> bool:
@@ -179,9 +203,15 @@ class AbstractAsyncConnector(AbstractConnector):
         Write a variable node.
         Wraps its asynchronous implementation.
 
-        :param path: node's path
-        :param value: new value to write
-        :return: True if the operation was successful, False otherwise
+        Args:
+            path (str):
+                Node's path.
+            value (Any):
+                New value to write.
+
+        Returns:
+            bool:
+                True if the operation was successful, False otherwise.
         """
         return self._handle_task(self._async_write_node_value(path, value))
 
@@ -190,11 +220,16 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         Asynchronous code which writes a variable node.
 
-        :param path: node's path
-        :param value: new value to write
-        :return: True if the operation was successful, False otherwise
+        Args:
+            path (str):
+                Node's path.
+            value (Any):
+                New value to write.
+
+        Returns:
+            bool:
+                True if the operation was successful, False otherwise.
         """
-        pass
 
     @override
     def call_node_as_method(self, path: str, kwargs: dict[str, Any]) -> Any:
@@ -202,9 +237,15 @@ class AbstractAsyncConnector(AbstractConnector):
         Calls the method at path <path> with <kwargs> as its arguments.
         Wraps its asynchronous implementation.
 
-        :param path: node/method path
-        :param kwargs: method arguments expressed as key/name - value pairs
-        :return: method's returned value
+        Args:
+            path (str):
+                Node/method path.
+            kwargs (dict[str, Any]):
+                Method arguments expressed as key/name - value pairs
+
+        Returns:
+            Any:
+                Method's returned value.
         """
         return self._handle_task(self._async_call_node_as_method(path, kwargs))
 
@@ -215,11 +256,16 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         Asynchronous code which calls the method at path <path> with <kwargs> as its arguments.
 
-        :param path: node/method path
-        :param kwargs: method arguments expressed as key/name - value pairs
-        :return: method's returned value
+        Args:
+            path (str):
+                Node/method path.
+            kwargs (dict[str, Any]):
+                Method arguments expressed as key/name - value pairs.
+
+        Returns:
+            dict[str, Any]:
+                Method's returned value.
         """
-        pass
 
     @override
     def subscribe_to_node_changes(
@@ -234,9 +280,16 @@ class AbstractAsyncConnector(AbstractConnector):
         - the new remote value
         - other data. It can be used to pass different data depending on the Connector's protocol/implementation
 
-        :param path: node path
-        :param callback: callback
-        :return: handler code which can be used to unsubscribe from new events
+        Args:
+            path (str):
+                Node path.
+            callback (Callable[[Any, SubscriptionArguments], None]):
+                Subscription's callback. The first parameter is the new value, while the
+                second parameter is additional data that is protocol dependent.
+
+        Returns:
+            int:
+                Handler code which can be used to unsubscribe from new events.
         """
         return self._handle_task(self._async_subscribe_to_node_changes(path, callback))
 
@@ -252,11 +305,17 @@ class AbstractAsyncConnector(AbstractConnector):
         - the new remote value
         - other data. It can be used to pass different data depending on the Connector's protocol/implementation
 
-        :param path: node path
-        :param callback: callback
-        :return: handler code which can be used to unsubscribe from new events
+        Args:
+            path (str):
+                Node path.
+            callback (Callable[[Any, SubscriptionArguments], None]):
+                Subscription's callback. The first parameter is the new value, while the
+                second parameter is additional data that is protocol dependent.
+
+        Returns:
+            int:
+                Handler code which can be used to unsubscribe from new events.
         """
-        pass
 
     def _handle_task(
         self, task: Coroutine[None, None, TaskReturnType]
@@ -264,8 +323,13 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         Run a task in the thread, wait for the result and return it.
 
-        :param task: coroutine which will be executed in the connector's thread
-        :return: coroutine result
+        Args:
+            task (Coroutine[None, None, TaskReturnType]):
+                Coroutine which will be executed in the connector's thread.
+
+        Returns:
+            TaskReturnType:
+                Coroutine result.
         """
         _logger.debug(f"Running task {task} using '{self.name}' connector")
         res = run_coroutine_in_thread(self._event_loop, task)

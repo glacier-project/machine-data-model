@@ -90,19 +90,39 @@ class OpcuaConnector(AbstractAsyncConnector):
         """
         Initializes an OPCUA client.
 
-        :param id: node ID
-        :param name: client name
-        :param ip: OPC-UA server address
-        :param port: OPC-UA server port
-        :param security_policy: OPC-UA security mode
-        :param host_name: host name
-        :param client_app_uri: app URI
-        :param private_key_file_path: path to the private key file
-        :param certificate_file_path: path to the certificate file
-        :param trust_store_certificates_paths: paths which contains certificates for the trust store
-        :param username: OPC-UA username. Keep it set to None if the username is not required
-        :param password: OPC-UA password. Keep it set to None if the password is not required
-        :param password_env_var: environment variable which contains the OPC-UA password
+        Args:
+            id (str | None):
+                Node ID.
+            name (str | None):
+                Client name.
+            ip (str | None):
+                OPC-UA server address.
+            ip_env_var (str | None):
+                Environment variable which contains the OPC-UA server address.
+            port (int | None):
+                OPC-UA server port.
+            port_env_var (str | None):
+                Environment variable which contains the OPC-UA server port.
+            security_policy (str | None):
+                OPC-UA security mode.
+            host_name (str | None):
+                Host name.
+            client_app_uri (str | None):
+                App URI.
+            private_key_file_path (str | None):
+                Path to the private key file.
+            certificate_file_path (str | None):
+                Path to the certificate file.
+            trust_store_certificates_paths (list[str] | None):
+                Paths which contains certificates for the trust store.
+            username (str | None):
+                OPC-UA username. Keep it set to None if the username is not required.
+            username_env_var (str | None):
+                Environment variable which contains the OPC-UA username.
+            password (str | None):
+                OPC-UA password. Keep it set to None if the password is not required.
+            password_env_var (str | None):
+                Environment variable which contains the OPC-UA password.
         """
         super().__init__(
             id=id,
@@ -196,7 +216,9 @@ class OpcuaConnector(AbstractAsyncConnector):
         """
         Async function which uses the asyncua library to connect to the OPC-UA server.
 
-        :return: True if the client is connected to the server
+        Returns:
+            bool:
+                True if the client is connected to the server.
         """
         url = "opc.tcp://{}:{}".format(self.ip, self.port)
         _logger.debug(
@@ -286,7 +308,9 @@ class OpcuaConnector(AbstractAsyncConnector):
         """
         Async function which uses the asyncua library to disconnect from the OPC-UA server.
 
-        :return: True if the client is disconnected from the server
+        Returns:
+            bool:
+                True if the client is disconnected from the server.
         """
         _logger.debug(f"Disconnecting '{self.name}' connector from OPC-UA server")
         if self._client is None:
@@ -381,9 +405,15 @@ class OpcuaConnector(AbstractAsyncConnector):
         """
         Asynchronously calls the method at path <path> with <kwargs> as its arguments.
 
-        :param path: node/method path
-        :param kwargs: method arguments expressed as key/name - value pairs
-        :return: dict of results in the form of name - value pairs
+        Args:
+            path (str):
+                Node/method path.
+            kwargs (dict[str, Any]):
+                Method arguments expressed as key/name - value pairs.
+
+        Returns:
+            dict[str, Any]:
+                Dictionary of results in the form of name - value pairs.
         """
         _logger.debug(
             f"Calling remote method '{path}', with the following parameters: {kwargs}"
@@ -436,9 +466,16 @@ class OpcuaConnector(AbstractAsyncConnector):
         """
         Asynchronous function which subscribes to remote variable data changes.
 
-        :param path: node path
-        :param callback: callback
-        :return: handler code which can be used to unsubscribe from new events
+        Args:
+            path (str):
+                Node path.
+            callback (Callable[[Any, SubscriptionArguments], None]):
+                Subscription's callback. The first parameter is the new value, while the
+                second parameter is additional data that is protocol dependent.
+
+        Returns:
+            int:
+                Handler code which can be used to unsubscribe from new events.
         """
         _logger.debug(f"Subscribing to remote node '{path}'")
         if self._client is None:
