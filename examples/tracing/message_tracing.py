@@ -85,7 +85,6 @@ def main() -> None:
         identifier="read-temp-001",
         header=FrostHeader(
             type=MsgType.REQUEST,
-            version=(1, 0, 0),
             namespace=MsgNamespace.VARIABLE,
             msg_name=VariableMsgName.READ,
         ),
@@ -105,7 +104,6 @@ def main() -> None:
         identifier="write-status-001",
         header=FrostHeader(
             type=MsgType.REQUEST,
-            version=(1, 0, 0),
             namespace=MsgNamespace.VARIABLE,
             msg_name=VariableMsgName.WRITE,
         ),
@@ -125,7 +123,6 @@ def main() -> None:
         identifier="register-001",
         header=FrostHeader(
             type=MsgType.REQUEST,
-            version=(1, 0, 0),
             namespace=MsgNamespace.PROTOCOL,
             msg_name=ProtocolMsgName.REGISTER,
         ),
@@ -143,7 +140,6 @@ def main() -> None:
         identifier="invalid-001",
         header=FrostHeader(
             type=MsgType.REQUEST,
-            version=(1, 0, 0),
             namespace=MsgNamespace.VARIABLE,
             msg_name=VariableMsgName.READ,
         ),

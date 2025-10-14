@@ -251,7 +251,7 @@ class FrostProtocolMng(ProtocolMng):
             msg.payload.kwargs,
         )
 
-    def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
+    def _is_version_supported(self, version: tuple[int, int, int] | None) -> bool:
         """
         Checks if the provided version is supported by the protocol.
 
@@ -264,6 +264,12 @@ class FrostProtocolMng(ProtocolMng):
                 True if the version is supported, otherwise False.
 
         """
+        # If the message does not include a version (None) treat it as
+        # acceptable and assume the manager's protocol version. This lets
+        # library-produced messages omit the version while preserving the
+        # ability to reject explicit mismatching versions.
+        if version is None:
+            return True
         return version == self._protocol_version
 
     def _invoke_method(
@@ -541,6 +547,12 @@ class FrostProtocolMng(ProtocolMng):
 
         # Set the message type to RESPONSE.
         _header.type = MsgType.RESPONSE
+        # Ensure the response header includes a protocol version. If the
+        # incoming message omitted the version (None), use the manager's
+        # configured protocol version so outgoing messages always advertise
+        # the supported version.
+        if _header.version is None:
+            _header.version = self._protocol_version
 
         response = FrostMessage(
             sender=_sender,
