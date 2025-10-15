@@ -155,20 +155,20 @@ class DataModel:
         if not isinstance(node, CompositeMethodNode):
             return
 
+        resolver = node.get_node_resolver()
+
         for cf_node in node.cfg.nodes():
             if isinstance(cf_node, RemoteExecutionNode):
                 cf_node.sender_id = self._name
-                continue
-
-            assert isinstance(cf_node, LocalExecutionNode)
-
-            if cf_node.is_node_static():
-                ref_node = self.get_node(cf_node.node)
-                assert isinstance(ref_node, DataModelNode)
-                cf_node.set_ref_node(ref_node)
+            elif isinstance(cf_node, LocalExecutionNode):
+                if cf_node.is_node_static():
+                    ref_node = resolver(cf_node.node)
+                    assert isinstance(ref_node, DataModelNode)
+                    cf_node.set_ref_node(ref_node)
+                else:
+                    cf_node.get_data_model_node = resolver
             else:
-                # set get_node function to resolve the node at runtime
-                cf_node.get_data_model_node = self.get_node
+                raise ValueError(f"Unknown node type: {type(cf_node)}")
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
         """
