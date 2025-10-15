@@ -183,7 +183,6 @@ class TestDataModelTracing:
             identifier="test-id",
             header=FrostHeader(
                 type=MsgType.REQUEST,
-                version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.READ,
             ),
