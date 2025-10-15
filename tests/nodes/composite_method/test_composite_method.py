@@ -330,7 +330,7 @@ class TestCompositeMethod:
         assert method.is_terminated(context)
 
 
-def test_internal_nodes():
+def test_internal_nodes() -> None:
     """Test that internal nodes are accessible within composite methods but not externally."""
     from machine_data_model.nodes.folder_node import FolderNode
     from machine_data_model.nodes.variable_node import BooleanVariableNode
