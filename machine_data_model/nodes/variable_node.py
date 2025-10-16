@@ -1040,3 +1040,18 @@ class ObjectVariableNode(VariableNode):
 
         """
         return self.__str__()
+
+
+class InternalVariableNode(VariableNode):
+    """
+    A marker class for variable nodes that are internal to a composite method.
+
+    Internal variable nodes are not accessible from external clients and are
+    only accessible within the control flow of the composite method that
+    contains them.
+
+    This class doesn't add any functionality beyond the base VariableNode,
+    but serves as a marker for internal use.
+    """
+
+    pass
