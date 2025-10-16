@@ -6,7 +6,7 @@ by sending messages and waiting for responses.
 """
 
 from abc import abstractmethod
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from typing_extensions import override
 
@@ -37,6 +37,9 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
 )
 from machine_data_model.tracing.events import trace_control_flow_step
+
+if TYPE_CHECKING:
+    from machine_data_model.behavior.visitor import ControlFlowVisitor
 
 
 class RemoteExecutionNode(ControlFlowNode):
@@ -352,6 +355,17 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             ),
         )
 
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_call_remote_method_node(self)
+
     def __eq__(self, other: object) -> bool:
         """
         Check equality with another object.
@@ -484,6 +498,17 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
             ),
         )
 
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_read_remote_variable_node(self)
+
     def __eq__(self, other: object) -> bool:
         """
         Check equality with another object.
@@ -607,6 +632,17 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
                 value=resolve_value(self.value, context),
             ),
         )
+
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_write_remote_variable_node(self)
 
     def __eq__(self, other: object) -> bool:
         """
@@ -776,6 +812,17 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         msg = self._create_request(context)
         msg.header.msg_name = VariableMsgName.UNSUBSCRIBE
         return msg
+
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_wait_remote_event_node(self)
 
     def __eq__(self, other: object) -> bool:
         """

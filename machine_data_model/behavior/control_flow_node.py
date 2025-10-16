@@ -13,6 +13,7 @@ from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 if TYPE_CHECKING:
     from machine_data_model.behavior.control_flow import ControlFlow
+    from machine_data_model.behavior.visitor import ControlFlowVisitor
 
 
 class ExecutionNodeResult:
@@ -180,6 +181,17 @@ class ControlFlowNode(ABC):
             ExecutionNodeResult:
                 An ExecutionNodeResult object representing the result of the
                 execution.
+
+        """
+
+    @abstractmethod
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
 
         """
 

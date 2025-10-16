@@ -12,6 +12,7 @@ from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
 )
 from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.behavior.visitor import ControlFlowVisitor
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import trace_control_flow_end, trace_control_flow_start
 
@@ -28,6 +29,10 @@ class ControlFlow:
     It consists of a list of control flow nodes that are executed in sequence.
     Different execution flows are not supported in this version of the control
     flow graph.
+
+    This class supports the visitor pattern through the accept() method,
+    allowing operations like validation, tracing, and optimization to be
+    implemented as separate visitor classes without modifying the node classes.
 
     Attributes:
         _nodes (Sequence[ControlFlowNode]):
@@ -171,6 +176,7 @@ class ControlFlow:
             # TODO: fix me here if contains_template_variables(node.node):
             # node.node = context.get_value(node.node)
 
+            # Execute the node directly
             result = node.execute(context)
             executed_steps += 1
 
@@ -203,6 +209,22 @@ class ControlFlow:
         )
 
         return messages
+
+    def accept(self, visitor: ControlFlowVisitor) -> None:
+        """
+        Accept a visitor to perform operations on all control flow nodes.
+
+        This method implements the visitor pattern by iterating through all
+        nodes in the control flow and calling accept on each node with the
+        provided visitor.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept for operations on the control flow nodes.
+
+        """
+        for node in self._nodes:
+            node.accept(visitor)
 
     def __eq__(self, other: object) -> bool:
         """

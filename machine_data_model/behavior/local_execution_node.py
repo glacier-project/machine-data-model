@@ -8,7 +8,7 @@ conditions.
 
 from collections.abc import Callable
 from enum import Enum
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
@@ -30,6 +30,9 @@ from machine_data_model.nodes.subscription.variable_subscription import (
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
+
+if TYPE_CHECKING:
+    from machine_data_model.behavior.visitor import ControlFlowVisitor
 
 
 class LocalExecutionNode(ControlFlowNode):
@@ -241,6 +244,17 @@ class ReadVariableNode(LocalExecutionNode):
         context.set_value(name, value)
         return execution_success()
 
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_read_variable_node(self)
+
     def __eq__(self, other: object) -> bool:
         """
         Check equality with another object.
@@ -344,6 +358,17 @@ class WriteVariableNode(LocalExecutionNode):
         value = resolve_value(self._value, context)
         ref_variable.write(value)
         return execution_success()
+
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_write_variable_node(self)
 
     def __eq__(self, other: object) -> bool:
         """
@@ -467,6 +492,17 @@ class CallMethodNode(LocalExecutionNode):
         res = ref_method(*args, **kwargs)
         context.set_all_values(**res.return_values)
         return execution_success()
+
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_call_method_node(self)
 
     def __eq__(self, other: object) -> bool:
         """
@@ -728,6 +764,17 @@ class WaitConditionNode(LocalExecutionNode):
 
         # Return the outcome.
         return outcome
+
+    def accept(self, visitor: "ControlFlowVisitor") -> None:
+        """
+        Accept a visitor to perform operations on this node.
+
+        Args:
+            visitor (ControlFlowVisitor):
+                The visitor to accept.
+
+        """
+        visitor.visit_wait_condition_node(self)
 
     def __eq__(self, other: object) -> bool:
         """
