@@ -9,7 +9,7 @@ from collections.abc import Iterator
 
 from typing_extensions import override
 
-from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
 
 
 class FolderNode(DataModelNode):
@@ -32,6 +32,9 @@ class FolderNode(DataModelNode):
         name: str | None = None,
         description: str | None = None,
         children: dict[str, DataModelNode] | None = None,
+        connector_name: str | None = None,
+        remote_path: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new FolderNode instance.
@@ -47,7 +50,14 @@ class FolderNode(DataModelNode):
                 A dictionary of child nodes of the folder.
 
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            remote_path=remote_path,
+            remote_resource_spec=remote_resource_spec,
+        )
         self._children = {} if children is None else children
         for child in self._children.values():
             assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
@@ -175,7 +185,8 @@ class FolderNode(DataModelNode):
         """
         return (
             f"FolderNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, children={self._children})"
+            f"description={self._description}, children={self._children}, connector_name={repr(self.connector_name)}, "
+            f"remote_path={repr(self.remote_path)})"
         )
 
     def __repr__(self) -> str:

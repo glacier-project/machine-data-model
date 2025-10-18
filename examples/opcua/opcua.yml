@@ -1,0 +1,138 @@
+name: "boiler"
+machine_category: "boiler_cat"
+machine_type: "boiler_type"
+machine_model: "boiler_model"
+description: "boiler description"
+connectors:
+  - !!OpcuaConnector
+    name: "myOpcuaConnector1"
+    ip: "127.0.0.1"
+    # ip_env_var: "env_var_with_ip"
+    port: 50000
+    # port_env_var: "env_var_with_port"
+    security_policy: "SecurityPolicyBasic256Sha256"
+    # private_key_file_path: "certificates/peer-private-key-example-4.pem"
+    # certificate_file_path: "certificates/peer-certificate-example-4.der"
+    # trust_store_certificates_paths: ['certificates']
+    # username: "username"
+    # username_env_var: "env_var_with_username"  # use either username or username_env_var
+    # password: "password"
+    # password_env_var: "env_var_with_pwd"  # use either password or password_env_var
+root:
+  !!FolderNode
+  name: "Objects"
+  description: "Objects folder"
+  connector_name: "myOpcuaConnector1"
+  children:
+    - !!MethodNode
+      name: "Methods_Output_With_Node_Id"
+      description: "OPC-UA nodes can also specify the node_id to access the remote node"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        node_id: "ns=6;s=Methods_Output"
+      returns:
+        - !!StringVariableNode
+          name: "Result"
+          description: "Method output"
+    - !!MethodNode
+      name: "Methods_Output_With_Remote_Path"
+      remote_path: "/Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+      description: "The remote_path overrides the qualified name. Method with no input, returns the 'Output' string"
+      returns:
+        - !!StringVariableNode
+          name: "Result"
+          description: "Method output"
+    - !!FolderNode
+      name: "Boilers"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "4"
+      description: "Boilers folder"
+      children:
+        - !!ObjectVariableNode
+          name: "Boiler #2"
+          description: "Boiler 2"
+          properties:
+            - !!StringVariableNode
+              name: "AssetId"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "2"
+              description: "asset id"
+
+            - !!ObjectVariableNode
+              name: "ParameterSet"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "2"
+              description: "parameter set"
+              properties:
+                - !!NumericalVariableNode
+                  name: "CurrentTemperature"
+                  remote_resource_spec:
+                    !!OpcuaRemoteResourceSpec
+                    namespace: "4"
+                  description: "current temperature"
+                - !!NumericalVariableNode
+                  name: "OverheatedThresholdTemperature"
+                  remote_resource_spec:
+                    !!OpcuaRemoteResourceSpec
+                    namespace: "4"
+                  description: "overheated threshold temp"
+    - !!FolderNode
+      name: "OpcPlc"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "3"
+      description: "Opc PLC"
+      children:
+        - !!FolderNode
+          name: "Methods"
+          description: "methods"
+          children:
+            - !!MethodNode
+              name: "HeaterOff"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "4"
+              description: "heater off"
+            - !!MethodNode
+              name: "HeaterOn"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "4"
+              description: "heater on"
+
+    - !!FolderNode
+      name: "ReferenceTest"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "6"
+      description: "Reference Test"
+      children:
+        - !!FolderNode
+          name: "Methods"
+          description: "Reference Test Methods"
+          children:
+            - !!MethodNode
+              name: "Methods_Add"
+              description: "Adds a float with an integer and returns the result"
+              parameters:
+                - !!NumericalVariableNode
+                  name: "FloatValue"
+                  description: "first parameter"
+                - !!NumericalVariableNode
+                  name: "Uint32Value"
+                  description: "second parameter"
+              returns:
+                - !!NumericalVariableNode
+                  name: "AddResult"
+                  description: "addition result"
+
+            - !!MethodNode
+              name: "Methods_Output"
+              description: "Method with no input, returns the 'Output' string"
+              returns:
+                - !!StringVariableNode
+                  name: "Result"
+                  description: "Method output"

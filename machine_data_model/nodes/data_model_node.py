@@ -9,10 +9,15 @@ import uuid
 import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from machine_data_model.data_model import DataModel
+    from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
+    from .connectors.remote_resource_spec import RemoteResourceSpec
+else:
+    AbstractConnector = Any
+    RemoteResourceSpec = Any
 
 
 class DataModelNode(ABC):
@@ -50,6 +55,9 @@ class DataModelNode(ABC):
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
+        connector_name: str | None = None,
+        remote_path: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new `DataModelNode` instance.
@@ -64,6 +72,15 @@ class DataModelNode(ABC):
             description (str | None):
                 A description of the node. If `None`, the description is set to
                 an empty string.
+            connector_name (str | None):
+                The name of the connector to use to interact with the server.
+                If it is `None`, and the hierarchy of the node also doesn't define this attribute,
+                the node is not a remote node: interacting with the node will change the internal value.
+            remote_path (str | None):
+                The remote path of the node in the server.
+                Allows to override the qualified name of the node, defined by the yaml config structure.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the remote protocol (for example, namespace for OPC UA).
 
         """
         self._id: str = str(uuid.uuid4()) if id is None else id
@@ -76,6 +93,14 @@ class DataModelNode(ABC):
         assert isinstance(self._description, str), "Description must be a string"
         self.parent: DataModelNode | None = None
         self._data_model: weakref.ReferenceType[DataModel] | None = None
+
+        # -- connector management
+        self._connector_name: str | None = connector_name
+        self._connector: AbstractConnector | None = None
+        self._remote_path: str | None = remote_path
+        self._remote_resource_spec: RemoteResourceSpec | None = remote_resource_spec
+        if self._remote_resource_spec is not None:
+            self._remote_resource_spec.parent = self
 
     @property
     def id(self) -> str:
@@ -114,6 +139,10 @@ class DataModelNode(ABC):
         """
         return self._name
 
+    def set_name(self, value: str) -> None:
+        """Sets the name of the node."""
+        self._name = value
+
     ## Git commit
     # Introduce composite method nodes to the machine data model. Composite method nodes
     # are used to implement the logic of a run-time method in the machine data model.
@@ -129,6 +158,98 @@ class DataModelNode(ABC):
 
         """
         return self._description
+
+    def set_description(self, value: str) -> None:
+        """Sets the description of the node."""
+        self._description = value
+
+    @property
+    def connector_name(self) -> str | None:
+        return self._connector_name
+
+    def set_connector_name(self, value: str | None) -> None:
+        """Sets the connector name."""
+        self._connector_name = value
+
+    def is_remote(self) -> bool:
+        """
+        Returns True if the current node is a remote node,
+        which means that to interact with it, we need to use its connector.
+        A node is a remote node if the user defined the 'connector_name' attribute in the yaml file.
+
+        Returns:
+            bool:
+                True if the current node is a remote node, False otherwise.
+        """
+        return self.connector_name is not None
+
+    def is_connector_set(self) -> bool:
+        """
+        Returns True if the connector was set.
+        A remote node (is_remote() == True) must have, at some point, its connector set up.
+
+        Returns:
+            bool:
+                True if the connector is set, False otherwise.
+        """
+        return self._connector is not None
+
+    def set_connector(self, connector: AbstractConnector | None) -> None:
+        """
+        Sets the connector which will be used to interact with this variable.
+
+        Args:
+            connector (AbstractConnector | None):
+                The node's connector.
+        """
+        self._connector = connector
+
+    @property
+    def connector(self) -> AbstractConnector | None:
+        """Connector getter."""
+        return self._connector
+
+    def is_remote_path_set(self) -> bool:
+        """
+        Returns True if the remote path is set.
+        The remote path is the path used by the connector to interact with the remote variable.
+
+        Returns:
+            bool:
+                True if the remote path is set.
+        """
+        return self._remote_path is not None
+
+    def set_remote_path(self, remote_path: str | None) -> None:
+        """
+        Sets the remote path, which is used to interact with the remote variable.
+        """
+        self._remote_path = remote_path
+
+    @property
+    def remote_path(self) -> str | None:
+        """
+        Returns the remote path.
+        If the node doesn't have a remote path,
+        it tries to use the remote resource specs to retrieve it.
+        """
+        if self._remote_path is not None:
+            return self._remote_path
+
+        if self._remote_resource_spec is not None:
+            return self._remote_resource_spec.remote_path()
+
+        return None
+
+    @property
+    def remote_resource_spec(self) -> RemoteResourceSpec | None:
+        """Remote resource spec getter."""
+        return self._remote_resource_spec
+
+    @remote_resource_spec.setter
+    def remote_resource_spec(self, value: RemoteResourceSpec | None) -> None:
+        """Remote resource spec setter"""
+        self._remote_resource_spec = value
 
     @property
     def data_model(self) -> "DataModel | None":

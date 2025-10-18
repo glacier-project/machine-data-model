@@ -10,6 +10,7 @@ from collections.abc import Callable, Hashable
 from typing import Any
 
 import yaml
+from machine_data_model.nodes.connectors.opcua_connector import OpcuaConnector
 
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
@@ -29,6 +30,9 @@ from machine_data_model.behavior.remote_execution_node import (
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
+)
+from machine_data_model.nodes.connectors.remote_resource_spec import (
+    OpcuaRemoteResourceSpec,
 )
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
@@ -96,6 +100,9 @@ def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
         "name": "",
         "description": "",
         "children": [],
+        "connector_name": None,
+        "remote_path": None,
+        "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["children"] = {child.name: child for child in kwargs["children"]}
@@ -128,6 +135,10 @@ def _get_numerical_variable(
         "measure_unit": NoneMeasureUnits.NONE,
         "initial_value": None,
         "default_value": None,
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
@@ -162,6 +173,10 @@ def _get_string_variable(
         "description": "",
         "initial_value": "",
         "default_value": "",
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
@@ -197,6 +212,10 @@ def _get_boolean_variable(
         "description": "",
         "initial_value": False,
         "default_value": False,
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
@@ -230,6 +249,10 @@ def _get_object_variable(
         "name": "",
         "description": "",
         "properties": [],
+        "connector_name": None,
+        "remote_path": None,
+        "notify_subscribers_only_if_value_changed": None,
+        "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["properties"] = {prop.name: prop for prop in kwargs["properties"]}
@@ -264,6 +287,9 @@ def _get_method_node(
         "description": "",
         "parameters": [],
         "returns": [],
+        "connector_name": None,
+        "remote_path": None,
+        "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     return ctor(**kwargs)
@@ -566,6 +592,69 @@ def _get_composite_method_node(
     return CompositeMethodNode(**kwargs)
 
 
+def _get_opcua_connector_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> OpcuaConnector:
+    """
+    Construct an OPC-UA Connector from a yaml node.
+
+    Args:
+        loader:
+            The yaml loader.
+        node:
+            The yaml node.
+
+    Returns:
+        OpcuaConnector:
+            The constructed OPC-UA Connector.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "name": None,
+        "ip": "127.0.0.1",
+        "ip_env_var": None,
+        "port": 4840,
+        "port_env_var": None,
+        "security_policy": None,
+        "host_name": None,
+        "client_app_uri": None,
+        "certificate_file_path": None,
+        "private_key_file_path": None,
+        "trust_store_certificates_paths": None,
+        "username": None,
+        "username_env_var": None,
+        "password": None,
+        "password_env_var": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return OpcuaConnector(**kwargs)
+
+
+def _get_opcua_remote_resource_spec(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> OpcuaRemoteResourceSpec:
+    """
+    Construct an object with node settings that are OPC UA specific.
+
+    Args:
+        loader:
+            The yaml loader.
+        node:
+            The yaml node.
+
+    Returns:
+        OpcuaRemoteResourceSpec:
+            The object with the OPC UA node's settings.
+    """
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "node_id": None,
+        "namespace": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return OpcuaRemoteResourceSpec(**kwargs)
+
+
 def _register_yaml_constructors() -> None:
     """
     Register all YAML constructors for data model building.
@@ -587,6 +676,8 @@ def _register_yaml_constructors() -> None:
         ReadRemoteVariableNode: _get_read_remote_variable_node,
         WriteRemoteVariableNode: _get_write_remote_variable_node,
         WaitRemoteEventNode: _get_wait_remote_event_node,
+        OpcuaConnector: _get_opcua_connector_node,
+        OpcuaRemoteResourceSpec: _get_opcua_remote_resource_spec,
     }
 
     for node, constructor in constructors.items():

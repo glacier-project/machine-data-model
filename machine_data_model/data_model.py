@@ -4,7 +4,7 @@ machine data model.
 """
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Iterable
 
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
@@ -18,6 +18,7 @@ from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
+from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
 
 
 class DataModel:
@@ -33,6 +34,7 @@ class DataModel:
         machine_model: str = "",
         description: str = "",
         root: FolderNode | None = None,
+        connectors: list[AbstractConnector] | None = None,
     ):
         """
         Initialize the data model.
@@ -63,9 +65,134 @@ class DataModel:
             if root is not None
             else FolderNode(name="root", description="Root folder of the data model")
         )
+
+        self._connectors: dict[str, AbstractConnector] = self._initialize_connectors(
+            connectors
+        )
+
         # hashmap for fast access to nodes by id
         self._nodes: dict[str, DataModelNode] = {}
         self._register_nodes(self._root)
+
+        # set up the connector for each node
+        # todo: this can be optimized by setting
+        #       the connectors while registering the nodes
+        self._setup_inheritable_specs(self._root)
+        for node in self._nodes.values():
+            self._set_node_connector(node)
+            # subscribe to all the variable changes
+            # > if it is an object, skip it: the subscription is done on the properties
+            if isinstance(node, VariableNode) and not isinstance(
+                node, ObjectVariableNode
+            ):
+                node.subscribe_to_remote_changes()
+
+    def _initialize_connectors(
+        self, connectors: list[AbstractConnector] | None
+    ) -> dict[str, AbstractConnector]:
+        """
+        Given a list of connectors, returns a dictionary mapping connector names to their respective connectors.
+        The connectors are used to connect to the remote servers.
+
+        If something goes wrong, stops all the connectors and their threads:
+        - all connectors must have a unique, identifying name
+        - all connectors must be able to connect successfully to their remote server
+
+        Args:
+            connectors (list[AbstractConnector]):
+                connectors list from the yaml file
+
+        Returns:
+            dict[str, AbstractConnector]:
+                A dictionary of the following key - value pairs: (connector's name, connector)
+        """
+        connectors_dict: dict[str, AbstractConnector] = {}
+        if connectors is None:
+            return connectors_dict
+
+        for connector in connectors:
+            if connector.name is None:
+                self._cleanup_connectors(connectors)
+                raise Exception(
+                    "At least one connector doesn't have the name attribute defined"
+                )
+
+            # check if the name/identifier is unique
+            if connectors_dict.get(connector.name) is not None:
+                self._cleanup_connectors(connectors)
+                raise Exception(
+                    f"There are at least two connectors with the same name/identifier: {connector.name}."
+                )
+
+            connection_successful = connector.connect()  # connect to the server
+
+            # if we couldn't connect, disconnect and stop all the other connectors
+            if not connection_successful:
+                self._cleanup_connectors(connectors)
+                raise Exception(
+                    f"Failed to connect to the remote server using the {connector.name} connector."
+                )
+
+            connectors_dict[connector.name] = connector
+        return connectors_dict
+
+    def _set_node_connector(self, node: DataModelNode) -> None:
+        """
+        Find the closest connector to the node by moving upwards in the tree.
+        When/if found, set it as the node's connector.
+        """
+        node_ptr: DataModelNode | None = node
+        while node_ptr is not None and node_ptr.connector_name is None:
+            node_ptr = node_ptr.parent
+
+        if node_ptr and node_ptr.connector_name:
+            node.set_connector_name(node_ptr.connector_name)
+            connector = self._get_connector_by_name(node_ptr.connector_name)
+            node.set_connector(connector)
+
+            # if the user overrides the remote path, don't set it as the qualified name
+            if not node.is_remote_path_set():
+                if node.remote_resource_spec:
+                    remote_path = node.remote_resource_spec.remote_path()
+                    node.set_remote_path(remote_path)
+                else:
+                    node.set_remote_path(node.qualified_name)
+
+    def _setup_inheritable_specs(self, root: DataModelNode) -> None:
+        """
+        Calls the recursive method which sets up all the nodes remote specs.
+
+        Args:
+            root (DataModelNode):
+                The data model's root node.
+        """
+        self._setup_child_inherited_specs(root, None)
+
+    def _setup_child_inherited_specs(
+        self, node: DataModelNode, parent: DataModelNode | None
+    ) -> None:
+        """
+        Recursively sets the remote resource specs for the current node
+        from its parent's specs.
+
+        Args:
+            node (DataModelNode):
+                Node which needs to be set up.
+            parent (DataModelNode | None):
+                Parent of node. Can have inheritable specs.
+        """
+        if parent and parent.remote_resource_spec:
+            inheritable_spec = parent.remote_resource_spec.inheritable_spec()
+            if node.remote_resource_spec:
+                node.remote_resource_spec = parent.remote_resource_spec.merge_specs(
+                    node.remote_resource_spec, inheritable_spec
+                )
+            else:
+                node.remote_resource_spec = inheritable_spec
+                node.remote_resource_spec.parent = node
+
+        for child in node:
+            self._setup_child_inherited_specs(child, node)
 
     @property
     def name(self) -> str:
@@ -138,6 +265,31 @@ class DataModel:
 
         """
         return self._root
+
+    @property
+    def connectors(self) -> dict[str, AbstractConnector]:
+        return self._connectors
+
+    def _get_connector_by_name(self, name: str) -> AbstractConnector:
+        """
+        Returns the connector associated with the given name.
+        Raises an exception if a connector with the given name is not found.
+
+        Args:
+            name (str):
+                Name of the connector.
+        Returns:
+            AbstractConnector:
+                AbstractConnector with the given name.
+
+        Raises:
+            KeyError:
+                The connector with the given name doesn't exist.
+        """
+        connector = self._connectors.get(name)
+        if connector is None:
+            raise KeyError(f"Connector with name '{name}' not found")
+        return connector
 
     def _register_node(self, node: DataModelNode) -> None:
         """
@@ -246,6 +398,7 @@ class DataModel:
             ) and not current_node.has_property(part):
                 return None
             current_node = current_node[part]
+
         return current_node
 
     def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
@@ -447,6 +600,23 @@ class DataModel:
             return node.unsubscribe(subscription)
         raise ValueError(f"Variable Node '{target_node}' not found in data model")
 
+    def close_connectors(self) -> None:
+        """
+        Disconnect all connectors and stop their threads.
+        """
+        self._cleanup_connectors(self._connectors.values())
+
+    def _cleanup_connectors(self, connectors: Iterable[AbstractConnector]) -> None:
+        """
+        Iterate over all connectors to disconnect them from their servers.
+
+        Args:
+            connectors:
+                Connectors that have resources to clean up.
+        """
+        for connector in connectors:
+            connector.disconnect()
+
     def __str__(self) -> str:
         return (
             f"DataModel(name={self._name}, "
@@ -454,7 +624,8 @@ class DataModel:
             f"machine_type={self._machine_type}, "
             f"machine_model={self._machine_model}, "
             f"description={self._description}, "
-            f"root={self._root})"
+            f"root={self._root}, "
+            f"connectors={self._connectors})"
         )
 
     def __repr__(self) -> str:
