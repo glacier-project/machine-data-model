@@ -82,7 +82,6 @@ def create_frost_message(
         identifier=str(uuid.uuid4()),
         header=FrostHeader(
             type=msg_type,
-            version=(1, 0, 0),
             namespace=namespace,
             msg_name=msg_name,
         ),

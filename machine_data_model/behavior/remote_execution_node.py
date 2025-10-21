@@ -342,7 +342,6 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             target=resolve_string_in_context(self.remote_id, context),
             header=FrostHeader(
                 type=MsgType.REQUEST,
-                version=(1, 0, 0),
                 namespace=MsgNamespace.METHOD,
                 msg_name=MethodMsgName.INVOKE,
             ),
@@ -477,7 +476,6 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
             target=resolve_string_in_context(self.remote_id, context),
             header=FrostHeader(
                 type=MsgType.REQUEST,
-                version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.READ,
             ),
@@ -601,7 +599,6 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
             target=resolve_value(self.remote_id, context),
             header=FrostHeader(
                 type=MsgType.REQUEST,
-                version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.WRITE,
             ),
@@ -754,7 +751,6 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             target=resolve_string_in_context(self.remote_id, context),
             header=FrostHeader(
                 type=MsgType.REQUEST,
-                version=(1, 0, 0),
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.SUBSCRIBE,
             ),

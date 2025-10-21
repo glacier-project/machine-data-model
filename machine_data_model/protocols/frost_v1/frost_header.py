@@ -162,9 +162,11 @@ class FrostHeader:
     """
 
     type: MsgType
-    version: tuple[int, int, int]
     namespace: MsgNamespace
     msg_name: MsgName
+    # The version is optional. When not provided by callers, the protocol
+    # manager will assume and supply its configured protocol version.
+    version: tuple[int, int, int] | None = None
     timestamp: datetime = datetime.now(timezone.utc)
 
     def matches(
@@ -208,9 +210,12 @@ class FrostHeader:
             Type: REQUEST, Version: 1.0.0, Namespace: VARIABLE, Message Name:
             READ, Timestamp: 2023-02-28T14:20:00+00:00
         """
+        version_str = (
+            ".".join(map(str, self.version)) if self.version is not None else "unknown"
+        )
         return (
             f"Type: {self.type}, "
-            f"Version: {'.'.join(map(str, self.version))}, "
+            f"Version: {version_str}, "
             f"Namespace: {self.namespace}, "
             f"Message Name: {self.msg_name}, "
             f"Timestamp: {self.timestamp.isoformat()}"

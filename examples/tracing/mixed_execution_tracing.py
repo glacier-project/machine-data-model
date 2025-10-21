@@ -166,7 +166,6 @@ def remote_machine_process(
                     target=request_msg.sender,  # Local machine
                     header=FrostHeader(
                         type=MsgType.RESPONSE,
-                        version=(1, 0, 0),
                         namespace=MsgNamespace.VARIABLE,
                         msg_name=VariableMsgName.READ,
                     ),

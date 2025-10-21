@@ -251,7 +251,7 @@ class FrostProtocolMng(ProtocolMng):
             msg.payload.kwargs,
         )
 
-    def _is_version_supported(self, version: tuple[int, int, int]) -> bool:
+    def _is_version_supported(self, version: tuple[int, int, int] | None) -> bool:
         """
         Checks if the provided version is supported by the protocol.
 
@@ -264,6 +264,12 @@ class FrostProtocolMng(ProtocolMng):
                 True if the version is supported, otherwise False.
 
         """
+        # If the message does not include a version (None) treat it as
+        # acceptable and assume the manager's protocol version. This lets
+        # library-produced messages omit the version while preserving the
+        # ability to reject explicit mismatching versions.
+        if version is None:
+            return True
         return version == self._protocol_version
 
     def _invoke_method(
@@ -462,10 +468,20 @@ class FrostProtocolMng(ProtocolMng):
         a `FrostMessage` with the relevant details, including the sender,
         target, and payload, and appends it to the list of update messages.
         """
+        # Support matching running composite methods by either the
+        # subscription.correlation_id (used for remote subscriptions) or
+        # by subscription.subscriber_id (used for local wait-condition
+        # subscriptions where subscriber_id == context.id()). This allows
+        # subscriptions to keep randomly-generated correlation_ids while
+        # still resuming the correct execution context.
+        ctx_id = None
         if subscription.correlation_id in self._running_methods:
-            return self.resume_composite_method(
-                subscription.correlation_id, node, value
-            )
+            ctx_id = subscription.correlation_id
+        elif subscription.subscriber_id in self._running_methods:
+            ctx_id = subscription.subscriber_id
+
+        if ctx_id is not None:
+            return self.resume_composite_method(ctx_id, node, value)
 
         # append update message
         response_msg = FrostMessage(
@@ -531,6 +547,12 @@ class FrostProtocolMng(ProtocolMng):
 
         # Set the message type to RESPONSE.
         _header.type = MsgType.RESPONSE
+        # Ensure the response header includes a protocol version. If the
+        # incoming message omitted the version (None), use the manager's
+        # configured protocol version so outgoing messages always advertise
+        # the supported version.
+        if _header.version is None:
+            _header.version = self._protocol_version
 
         response = FrostMessage(
             sender=_sender,

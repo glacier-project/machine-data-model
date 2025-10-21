@@ -8,6 +8,7 @@ from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
 )
+from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
@@ -327,3 +328,55 @@ class TestCompositeMethod:
         result = method.resume_execution(context)
         assert not result.messages
         assert method.is_terminated(context)
+
+
+def test_internal_nodes() -> None:
+    """Test that internal nodes are accessible within composite methods but not externally."""
+    from machine_data_model.nodes.folder_node import FolderNode
+    from machine_data_model.nodes.variable_node import BooleanVariableNode
+
+    # Create a data model with a root folder
+    root = FolderNode(name="root", description="Root folder")
+    data_model = DataModel(name="test_dm", root=root)
+
+    # Add a regular variable to the data model
+    regular_var = BooleanVariableNode(
+        id="regular_var", name="regular_var", description="Regular variable", value=True
+    )
+    root.add_child(regular_var)
+    data_model._register_node(regular_var)
+
+    # Create a composite method
+    composite_method = CompositeMethodNode(
+        id="test_composite",
+        name="Test Composite",
+        description="Test composite method with internal nodes",
+    )
+    root.add_child(composite_method)
+    data_model._register_node(composite_method)
+
+    # Create an internal variable node
+    internal_var = BooleanVariableNode(
+        id="internal_var",
+        name="internal_var",
+        description="Internal variable",
+        value=False,
+    )
+
+    # Add the internal node to the composite method
+    composite_method.add_internal_node(internal_var)
+
+    # Verify that the regular variable is accessible via data model
+    assert data_model.get_node("regular_var") is regular_var
+
+    # Verify that the internal node is not accessible via data model
+    assert data_model.get_node("internal_var") is None
+
+    # But it should be accessible via the composite method's resolver
+    resolver = composite_method.get_node_resolver()
+    resolved_node = resolver("internal_var")
+    assert resolved_node is internal_var
+
+    # And the resolver should still find regular nodes
+    resolved_regular = resolver("regular_var")
+    assert resolved_regular is regular_var
