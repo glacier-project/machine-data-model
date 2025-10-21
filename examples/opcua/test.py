@@ -1,3 +1,6 @@
+"""
+This script uses asyncua directly to interact with the server.
+"""
 import asyncio
 import logging
 import socket
