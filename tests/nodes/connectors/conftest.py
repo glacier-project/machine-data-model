@@ -17,7 +17,7 @@ def start_opcua_test_server() -> Generator[Tuple[Container, int], Any, None]:
         auto_remove=True,
         remove=True,
         detach=True,
-        ports={container_guest_port: None},  # None: random host port
+        ports={container_guest_port: 55000},  # None: random host port
     )
 
     # retrieve randomly generated port

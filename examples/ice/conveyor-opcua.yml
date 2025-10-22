@@ -84,22 +84,22 @@ root:
                           name: "palletNumber"
                           description: ""
                           measure_unit: "NoneMeasureUnits.NONE"
-                          value: 0
+                          default_value: 0
                         - !!NumericalVariableNode
                           name: "destination"
                           description: ""
                           measure_unit: "NoneMeasureUnits.NONE"
-                          value: 0
+                          default_value: 0
                         - !!NumericalVariableNode
                           name: "reservationId"
                           description: ""
                           measure_unit: "NoneMeasureUnits.NONE"
-                          value: 0
+                          default_value: 0
                       returns:
                         - !!BooleanVariableNode
                           name: "result"
                           description: ""
-                          value: True
+                          default_value: True
                     - !!AsyncMethodNode
                       name: "callFreePalletTo"
                       description: ""
@@ -302,7 +302,7 @@ root:
             - !!ObjectVariableNode
               name: "Destinations"
               description: ""
-              children:
+              properties:
                 - !!NumericalVariableNode
                   name: "destination_palletid_1_1"
                   description: ""

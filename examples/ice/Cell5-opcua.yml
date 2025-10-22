@@ -68,7 +68,6 @@ root:
             - !!BooleanVariableNode
               name: "Busy"
               description: "Lego image"
-              measure_unit: "LengthUnits.Meter"
               initial_value: False
             - !!StringVariableNode
               name: "CurrentMission"
@@ -77,7 +76,6 @@ root:
             - !!BooleanVariableNode
               name: "LastResult"
               description: "Lego image"
-              measure_unit: "LengthUnits.Meter"
               initial_value: False
         - !!FolderNode
           name: "Statistics"
