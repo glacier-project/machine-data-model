@@ -1,3 +1,19 @@
+"""
+OPC UA connector classes.
+
+This module defines the OpcuaConnector class,
+which is an asynchronous connector for the OPC UA protocol.
+> It is asynchronous because asyncua, the library used to interact with OPC UA,
+> is implemented with the async/await paradigm.
+
+The OpcuaSubscriptionArguments class defines the parameters
+that are given to the OpcuaConnector subscription's callback.
+
+The OpcuaRemoteResourceSpec class defines all the properties
+of DataModelNodes that are specific to OPC UA.
+> The user sets their value in the data model yaml file
+"""
+
 from dataclasses import dataclass
 import logging
 import socket
@@ -18,8 +34,10 @@ from asyncua.ua import UaError, VariantType
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override
 
+from ..data_model_node import DataModelNode
 from .abstract_connector import SubscriptionArguments
 from .abstract_async_connector import AbstractAsyncConnector
+from .remote_resource_spec import RemoteResourceSpec
 
 _logger = logging.getLogger(__name__)
 
@@ -39,7 +57,15 @@ def _security_policy_string_to_asyncua_policy(
     policy_string: str | None,
 ) -> type[SecurityPolicy] | None:
     """
-    Converts a string containing the desired security policy into a asyncua SecurityPolicy type.
+    Converts a string containing the desired security policy into an asyncua SecurityPolicy type.
+
+    Args:
+        policy_string (str | None):
+            String which contains the desired security policy.
+
+    Returns:
+        type[SecurityPolicy] | None:
+            Returns the asyncua security policy if it exists, None otherwise.
     """
     policy: type[SecurityPolicy] | None = None
     if policy_string == "SecurityPolicyBasic256Sha256":
@@ -52,6 +78,14 @@ async def get_input_arguments(node: asyncua.Node) -> asyncua.Node | None:
     """
     Given a method node, returns its input arguments.
     If the method doesn't have input arguments, it returns None.
+
+    Args:
+        node (asyncua.Node):
+            The node to get the input arguments from.
+
+    Returns:
+        asyncua.Node | None:
+            Returns the InputArguments node if it exists, None otherwise.
     """
     props = await node.get_properties()
 
@@ -331,6 +365,13 @@ class OpcuaConnector(AbstractAsyncConnector):
     async def _async_get_remote_node(self, path: str) -> asyncua.Node | None:
         """
         Asynchronous function which returns the node from the OPC-UA server.
+
+        Args:
+            path (str):
+                Node's path.
+        Returns:
+            asyncua.Node | None:
+                The node from the OPC-UA server if it exists, None otherwise.
         """
         _logger.debug(f"Retrieving node '{path}' from OPC-UA server")
 
@@ -359,6 +400,14 @@ class OpcuaConnector(AbstractAsyncConnector):
     async def _async_read_node_value(self, path: str) -> Any:
         """
         Asynchronously reads the node's value from the server.
+
+        Args:
+            path (str):
+                Node's path.
+
+        Returns:
+            Any:
+                Value read from the server.
         """
         _logger.debug(f"Reading node '{path}'")
         node = await self._async_get_remote_node(path)
@@ -373,7 +422,17 @@ class OpcuaConnector(AbstractAsyncConnector):
     @override
     async def _async_write_node_value(self, path: str, value: Any) -> bool:
         """
-        Function which asynchronously writes the value to the OPC-UA server-
+        Function which asynchronously writes the value to the OPC-UA server.
+
+        Args:
+            path (str):
+                Node's path.
+            value (Any):
+                Value to write to the server.
+
+        Returns:
+            bool:
+                True if the value was written successfully.
         """
         _logger.debug(f"Writing node '{path}' with value: {value}")
 
@@ -412,8 +471,8 @@ class OpcuaConnector(AbstractAsyncConnector):
                 Method arguments expressed as key/name - value pairs.
 
         Returns:
-            dict[str, Any]:
-                Dictionary of results in the form of name - value pairs.
+            Any:
+                Method's returned value.
         """
         _logger.debug(
             f"Calling remote method '{path}', with the following parameters: {kwargs}"
@@ -528,6 +587,10 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
     ) -> None:
         """
         Stores the callback to be called when a remote value changes.
+
+        Args:
+            callback (Callable[[Any, OpcuaSubscriptionArguments], None]):
+                Callback function to be called when a remote value changes.
         """
         self._callback = callback
 
@@ -536,9 +599,135 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
     ) -> None:
         """
         called for every datachange notification from server
+
+        Args:
+            node (asyncua.Node):
+                Node whose data changed.
+            val (Any):
+                New data value.
+            data (DataChangeNotif):
+                Notification object about the data change.
         """
         _logger.debug(
             f"Received new datachange notification for node {node}. Its new value is: {val!r}"
         )
         other = OpcuaSubscriptionArguments(node=node, value=val, notification=data)
         self._callback(val, other)
+
+
+class OpcuaRemoteResourceSpec(RemoteResourceSpec):
+    """
+    Represents node properties that are specific for the OPC UA protocol.
+    """
+
+    def __init__(
+        self,
+        parent: "DataModelNode | None" = None,
+        remote_path: str | None = None,
+        node_id: str | None = None,
+        namespace: str | None = None,
+    ) -> None:
+        """
+        Constructor.
+
+        Args:
+            parent (DataModelNode, optional):
+                Node which owns these properties.
+            remote_path (str, optional):
+                Node's path on the remote OPC UA server.
+            node_id (str, optional):
+                Node's id on the remote OPC UA server.
+            namespace (str, optional):
+                Node's namespace on the remote OPC UA server.
+        """
+        super().__init__(parent=parent, remote_path=remote_path)
+        self._node_id: str | None = node_id
+        self._namespace: str | None = namespace
+
+    @override
+    def remote_path(self) -> str | None:
+        """
+        Returns 'remote_path' when defined,
+        otherwise it returns the 'node_id'.
+        If both are undefined, it tries to build the node's path
+        using the parent's remote path and the node's name (with the namespace, if applicable)
+
+        Returns:
+            str | None:
+                Path used to interact with the node on the server.
+        """
+        if self._remote_path is not None:
+            return self._remote_path
+
+        if self._node_id is not None:
+            return self._node_id
+
+        if self._parent:
+            remote_path = ""
+            if self._parent.parent:
+                parent_remote_path = self._parent.parent.remote_path
+                remote_path = parent_remote_path if parent_remote_path else ""
+            if self._namespace:
+                return remote_path + "/" + self._namespace + ":" + self._parent.name
+            else:
+                return remote_path + "/" + self._parent.name
+
+        return None
+
+    @override
+    def inheritable_spec(self) -> "OpcuaRemoteResourceSpec":
+        """
+        Returns a copy of this object, where the only properties that get copied
+        are properties that will be inherited by child nodes.
+
+        Returns:
+            OpcuaRemoteResourceSpec:
+                Object with inheritable properties.
+        """
+        return OpcuaRemoteResourceSpec(namespace=self._namespace)
+
+    @override
+    def merge_specs(
+        self, spec1: "OpcuaRemoteResourceSpec", spec2: "OpcuaRemoteResourceSpec"
+    ) -> "OpcuaRemoteResourceSpec":
+        """
+        Creates a third object which has the combined properties of spec1 and spec2.
+        > Note that spec1 has priority over spec2: spec1's properties override spec2's
+        > properties when the properties are defined for both objects.
+
+        Args:
+            spec1 (OpcuaRemoteResourceSpec):
+                First object to be merged.
+            spec2 (OpcuaRemoteResourceSpec):
+                Second object to be merged.
+
+        Returns:
+            OpcuaRemoteResourceSpec:
+                Object with merged properties of both spec1 and spec2.
+        """
+        assert isinstance(
+            spec1, OpcuaRemoteResourceSpec
+        ), "spec1 must be a OpcuaRemoteResourceSpec"
+        assert isinstance(
+            spec2, OpcuaRemoteResourceSpec
+        ), "spec2 must be a OpcuaRemoteResourceSpec"
+        new_spec = OpcuaRemoteResourceSpec()
+        new_spec._parent = spec1._parent if spec1._parent else spec2._parent
+        new_spec._remote_path = (
+            spec1._remote_path if spec1._remote_path else spec2._remote_path
+        )
+        new_spec._node_id = spec1._node_id if spec1._node_id else spec2._node_id
+        new_spec._namespace = spec1._namespace if spec1._namespace else spec2._namespace
+        return new_spec
+
+    def __str__(self) -> str:
+        return (
+            "OpcuaRemoteResourceSpec("
+            f"remote_path={repr(self.remote_path)}, "
+            f"node_id={repr(self._node_id)}, "
+            f"namespace={repr(self._namespace)}"
+            ")"
+        )
+
+    def __repr__(self) -> str:
+        return self.__str__()

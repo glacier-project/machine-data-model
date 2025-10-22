@@ -1,3 +1,15 @@
+"""
+Abstract Connector classes.
+
+This module defines the AbstractConnector abstract class,
+which needs to be extended by all the other (synchronous) connectors.
+> The connectors that have an asynchronous implementation need to extend the AbstractAsyncConnector class instead.
+
+The SubscriptionArguments class is used to specify
+the arguments that are given to a subscription's callback.
+> This class also needs to be extended and is connector/protocol specific.
+"""
+
 import os
 from dataclasses import dataclass
 import uuid
@@ -37,6 +49,31 @@ class AbstractConnector(ABC):
         password: str | None = None,
         password_env_var: str | None = None,
     ) -> None:
+        """
+        AbstractConnector constructor.
+
+        Args:
+            id (str | None):
+                Connector's object id.
+            name (str | None):
+                Connector's name/identifier.
+            ip (str | None):
+                Server's IP address.
+            ip_env_var (str | None):
+                Environment variable which contains the server's IP address.
+            port (int | None):
+                Server's port.
+            port_env_var (str | None):
+                Environment variable which contains the server's port.
+            username (str | None):
+                Username used to authenticate to the server.
+            username_env_var (str | None):
+                Environment variable which contains the username used to authenticate to the server.
+            password (str | None):
+                Password used to authenticate to the server.
+            password_env_var (str | None):
+                Environment variable which contains the password used to authenticate to the server.
+        """
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str | None = name
 
@@ -104,6 +141,23 @@ class AbstractConnector(ABC):
         > This can be useful when the yaml_entry has a default value.
 
         > The function type casts the value to the yaml_entry_type type automatically.
+
+        Args:
+            yaml_entry_name (str):
+                The name of the yaml_entry.
+            yaml_entry_type (Type[YamlEntryType]):
+                The data type of the yaml_entry.
+            yaml_entry (YamlEntryType | None):
+                The content of the yaml_entry.
+            env_var (str | None):
+                The name of the environment variable.
+            env_var_overrides_yaml (bool):
+                When false, raise an exception if both the yaml_entry and env_var are set.
+                When true, this method returns the env_var environment variable content (unless env_var is None).
+
+        Returns:
+            YamlEntryType | None:
+                Either the content of the env_var environment variable or the yaml_entry.
         """
 
         if (
@@ -232,5 +286,7 @@ class AbstractConnector(ABC):
         """
 
     def __iter__(self) -> Iterator["AbstractConnector"]:
-        for _ in []:
-            yield _
+        """
+        Connectors don't have child elements.
+        """
+        yield from []

@@ -10,7 +10,10 @@ from collections.abc import Callable, Hashable
 from typing import Any
 
 import yaml
-from machine_data_model.nodes.connectors.opcua_connector import OpcuaConnector
+from machine_data_model.nodes.connectors.opcua_connector import (
+    OpcuaConnector,
+    OpcuaRemoteResourceSpec,
+)
 
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
@@ -30,9 +33,6 @@ from machine_data_model.behavior.remote_execution_node import (
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
-)
-from machine_data_model.nodes.connectors.remote_resource_spec import (
-    OpcuaRemoteResourceSpec,
 )
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits

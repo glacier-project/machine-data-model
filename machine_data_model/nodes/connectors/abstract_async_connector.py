@@ -1,6 +1,14 @@
+"""
+Abstract Async Connector.
+
+This module defines the AbstractAsyncConnector abstract class.
+It is used to define connectors which use libraries that
+follow the async/await programming paradigm.
+"""
+
 from threading import Thread
 from abc import abstractmethod
-from typing import Iterator, Any, TypeVar, Callable
+from typing import Any, TypeVar, Callable
 import logging
 
 import asyncio
@@ -23,11 +31,19 @@ def create_event_loop_thread() -> AbstractEventLoop:
 
     Credits:
     https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
+
+    Returns:
+        AbstractEventLoop:
+            Asyncio event loop which will be run in a separate thread.
     """
 
     def start_background_loop(loop: AbstractEventLoop) -> None:
         """
         Runs the asyncio loop forever.
+
+        Args:
+            loop (AbstractEventLoop):
+                The asyncio event loop.
         """
         asyncio.set_event_loop(loop)
         loop.run_forever()
@@ -49,6 +65,16 @@ def run_coroutine_in_thread(
 
     Credits:
     https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
+
+    Args:
+        loop (AbstractEventLoop):
+            The asyncio event loop.
+        coro (Coroutine[Any, Any, TaskReturnType]):
+            The coroutine which needs to be executed in the event loop.
+
+    Returns:
+        Future[TaskReturnType]:
+            Future which allows to retrieve the result of the coroutine.
     """
     return asyncio.run_coroutine_threadsafe(coro, loop)
 
@@ -73,6 +99,33 @@ class AbstractAsyncConnector(AbstractConnector):
         password: str | None = None,
         password_env_var: str | None = None,
     ) -> None:
+        """
+        AbstractAsyncConnector constructor.
+
+        Args:
+            id (str | None):
+                Connector's object id
+            name (str | None):
+                Connector's name/identifier
+            ip (str | None):
+                Server's IP address
+            ip_env_var (str | None):
+                Environment variable which contains the server's IP address
+            port (int | None):
+                Server's port
+            port_env_var (str | None):
+                Environment variable which contains the server's port
+            event_loop (AbstractEventLoop | None):
+                Event loop which will be used to execute the asynchronous tasks.
+            username (str | None):
+                Username used to authenticate to the server
+            username_env_var (str | None):
+                Environment variable which contains the username used to authenticate to the server
+            password (str | None):
+                Password used to authenticate to the server
+            password_env_var (str | None):
+                Environment variable which contains the password used to authenticate to the server
+        """
         super().__init__(
             id=id,
             name=name,
@@ -263,7 +316,7 @@ class AbstractAsyncConnector(AbstractConnector):
                 Method arguments expressed as key/name - value pairs.
 
         Returns:
-            dict[str, Any]:
+            Any:
                 Method's returned value.
         """
 
@@ -338,7 +391,3 @@ class AbstractAsyncConnector(AbstractConnector):
             f"Ran task {task} using '{self.name}' connector. Its result is {output!r}"
         )
         return output
-
-    def __iter__(self) -> Iterator["AbstractAsyncConnector"]:
-        for _ in []:
-            yield _

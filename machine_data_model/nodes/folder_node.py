@@ -48,7 +48,15 @@ class FolderNode(DataModelNode):
                 The description of the folder.
             children (dict[str, DataModelNode] | None):
                 A dictionary of child nodes of the folder.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_path (str | None):
+                The remote path of the method. Allows to override the qualified name of the node.
+            remote_resource_spec (RemoteResourceSpec | None):
+                remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the remote protocol (for example, namespace for OPC UA).
         """
         super().__init__(
             id=id,

@@ -84,7 +84,19 @@ class VariableNode(DataModelNode):
                 The name of the variable.
             description:
                 The description of the variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_path (str | None):
+                The remote path of the variable.
+                > Only if this variable is a remote node.
+            notify_subscribers_only_if_value_changed (bool | None):
+                If true, the subscribers will only be notified when the value actually changed.
+                > Writing the same value multiple times will notify the subscribers once.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
         super().__init__(
             id=id,
@@ -621,7 +633,19 @@ class NumericalVariableNode(VariableNode):
                 The measure unit of the numerical variable.
             value (float):
                 The initial value of the numerical variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_path (str | None):
+                The remote path of the variable.
+                > Only if this variable is a remote node.
+            notify_subscribers_only_if_value_changed (bool | None):
+                If true, the subscribers will only be notified when the value actually changed.
+                > Writing the same value multiple times will notify the subscribers once.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
         super().__init__(
             id=id,
@@ -795,7 +819,19 @@ class StringVariableNode(VariableNode):
                 The description of the string variable.
             value (str):
                 The initial value of the string variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_path (str | None):
+                The remote path of the variable.
+                > Only if this variable is a remote node.
+            notify_subscribers_only_if_value_changed (bool | None):
+                If true, the subscribers will only be notified when the value actually changed.
+                > Writing the same value multiple times will notify the subscribers once.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
         super().__init__(
             id=id,
@@ -982,7 +1018,19 @@ class BooleanVariableNode(VariableNode):
                 The description of the boolean variable.
             value (bool):
                 The initial value of the boolean variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_path (str | None):
+                The remote path of the variable.
+                > Only if this variable is a remote node.
+            notify_subscribers_only_if_value_changed (bool | None):
+                If true, the subscribers will only be notified when the value actually changed.
+                > Writing the same value multiple times will notify the subscribers once.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
         super().__init__(
             id,
@@ -1170,7 +1218,19 @@ class ObjectVariableNode(VariableNode):
                 The description of the object variable.
             properties (dict[str, VariableNode] | None):
                 The properties of the object variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_path (str | None):
+                The remote path of the variable.
+                > Only if this variable is a remote node.
+            notify_subscribers_only_if_value_changed (bool | None):
+                If true, the subscribers will only be notified when the value actually changed.
+                > Writing the same value multiple times will notify the subscribers once.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
         super().__init__(
             id=id,
