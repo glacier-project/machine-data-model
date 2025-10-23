@@ -397,7 +397,6 @@ class VariableNode(DataModelNode):
                 Variable's internal value.
         """
 
-    @abstractmethod
     def _read_remote_value(self, force_remote_read: bool = False) -> Any:
         """
         Returns the cached value that was recently read from the remote server.
@@ -413,6 +412,14 @@ class VariableNode(DataModelNode):
             Any:
                 Variable's remote (or its cached) value.
         """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        if force_remote_read:
+            result = self._connector.read_node_value(self.remote_path)
+            return result
+        return self._read_internal_value()
 
     def _update_value(self, value: Any) -> Any:
         """
@@ -425,7 +432,6 @@ class VariableNode(DataModelNode):
         else:
             return self._update_internal_value(value)
 
-    @abstractmethod
     def _update_remote_value(self, value: Any) -> Any:
         """
         Update the value of the variable remotely.
@@ -439,7 +445,15 @@ class VariableNode(DataModelNode):
                 New value when the update action is successful.
                 Otherwise, it returns the previous value.
         """
-        pass
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        prev_value = self._read_internal_value()
+        write_successful = self._connector.write_node_value(self.remote_path, value)
+        if write_successful:
+            return value
+        return prev_value
 
     @abstractmethod
     def _update_internal_value(self, value: Any) -> Any:
@@ -693,16 +707,9 @@ class NumericalVariableNode(VariableNode):
             float:
                 The value of the numerical variable.
         """
-        assert self._connector is not None, "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
-
-        if force_remote_read:
-            result = self._connector.read_node_value(self.remote_path)
-            assert isinstance(result, (int, float))
-            return result
-        return self._value.base_value  # type:ignore[no-any-return]
+        result = super()._read_remote_value(force_remote_read)
+        assert isinstance(result, (int, float))
+        return result
 
     @override
     def _update_internal_value(self, value: float) -> float:
@@ -746,15 +753,9 @@ class NumericalVariableNode(VariableNode):
                 The updated value of the numerical variable if the operation was successful.
                 Otherwise, it returns the previous value.
         """
-        assert self._connector is not None, "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
-        prev_value = self._read_internal_value()
-        write_successful = self._connector.write_node_value(self.remote_path, value)
-        if write_successful:
-            return value
-        return prev_value
+        result = super()._update_remote_value(value)
+        assert isinstance(result, (int, float))
+        return result
 
     def __str__(self) -> str:
         """
@@ -871,16 +872,9 @@ class StringVariableNode(VariableNode):
             str:
                 The value of the string variable.
         """
-        assert self._connector is not None, "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
-
-        if force_remote_read:
-            result = self._connector.read_node_value(self.remote_path)
-            assert isinstance(result, str)
-            return result
-        return self._value
+        result = super()._read_remote_value(force_remote_read)
+        assert isinstance(result, str)
+        return result
 
     @override
     def _update_internal_value(self, value: str) -> str:
@@ -914,15 +908,9 @@ class StringVariableNode(VariableNode):
                 The updated value of the string variable if the operation was successful.
                 Otherwise, it returns the previous value.
         """
-        assert self._connector is not None, "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
-        prev_value = self._read_internal_value()
-        write_successful = self._connector.write_node_value(self.remote_path, value)
-        if write_successful:
-            return value
-        return prev_value
+        result = super()._update_remote_value(value)
+        assert isinstance(result, str)
+        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """
@@ -1072,17 +1060,9 @@ class BooleanVariableNode(VariableNode):
                 The value of the boolean variable when the operation was successful.
                 Otherwise, returns the previous value.
         """
-        assert self._connector is not None, "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
-
-        if force_remote_read:
-            result = self._connector.read_node_value(self.remote_path)
-            assert isinstance(result, bool)
-            return result
-
-        return self._value
+        result = super()._read_remote_value(force_remote_read)
+        assert isinstance(result, bool)
+        return result
 
     @override
     def _update_internal_value(self, value: bool) -> bool:
@@ -1116,15 +1096,9 @@ class BooleanVariableNode(VariableNode):
                 The updated value of the boolean variable if the operation was successful.
                 Otherwise, returns the previous value.
         """
-        assert self._connector is not None, "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
-        prev_value = self._read_internal_value()
-        write_successful = self._connector.write_node_value(self.remote_path, value)
-        if write_successful:
-            return value
-        return prev_value
+        result = super()._update_remote_value(value)
+        assert isinstance(result, bool)
+        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """
@@ -1382,7 +1356,7 @@ class ObjectVariableNode(VariableNode):
         value = {}
         for property_name, property_node in self._properties.items():
             if isinstance(property_node, VariableNode):
-                value[property_name] = property_node.read(
+                value[property_name] = property_node._read_remote_value(
                     force_remote_read=force_remote_read
                 )
         return value
