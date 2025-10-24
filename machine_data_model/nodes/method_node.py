@@ -73,7 +73,6 @@ class MethodNode(DataModelNode):
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -96,8 +95,6 @@ class MethodNode(DataModelNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the method. Allows to override the qualified name of the node.
             remote_resource_spec (RemoteResourceSpec | None):
                 remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the remote protocol (for example, namespace for OPC UA).
@@ -107,7 +104,6 @@ class MethodNode(DataModelNode):
             name=name,
             description=description,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
         self._parameters = parameters if parameters is not None else []
@@ -489,8 +485,7 @@ class MethodNode(DataModelNode):
             f"MethodNode("
             f"id={self.id}, "
             f"name={self.name}, "
-            f"description={self.description}, "
-            f"remote_path={repr(self.remote_path)})"
+            f"description={self.description})"
         )
 
     def __repr__(self) -> str:
@@ -535,7 +530,6 @@ class AsyncMethodNode(MethodNode):
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -558,8 +552,6 @@ class AsyncMethodNode(MethodNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the method. Allows to override the qualified name of the node.
             remote_resource_spec (RemoteResourceSpec | None):
                 remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the remote protocol (for example, namespace for OPC UA).
@@ -572,7 +564,6 @@ class AsyncMethodNode(MethodNode):
             returns=returns,
             callback=callback,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
 
@@ -588,4 +579,4 @@ class AsyncMethodNode(MethodNode):
         return True
 
     def __str__(self) -> str:
-        return f"AsyncMethodNode(id={self.id}, name={self.name}, description={self.description}, remote_path={repr(self.remote_path)})"
+        return f"AsyncMethodNode(id={self.id}, name={self.name}, description={self.description})"

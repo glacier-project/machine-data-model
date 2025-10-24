@@ -36,7 +36,9 @@ root:
           description: "Method output"
     - !!MethodNode
       name: "Methods_Output_With_Remote_Path"
-      remote_path: "/Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        remote_path: "/Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
       description: "The remote_path overrides the qualified name. Method with no input, returns the 'Output' string"
       returns:
         - !!StringVariableNode

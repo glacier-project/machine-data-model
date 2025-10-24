@@ -351,3 +351,45 @@ class TestOpcuaDataModel:
         assert isinstance(result, float), "the result should be a floating point number"
         assert math.isclose(result, 5), "the result should be equal to 2.0 + 3 = 5"
         dm.close_connectors()
+
+    def test_call_method_node_with_no_inputs(
+        self,
+        start_opcua_test_server: Tuple[Container, int],
+    ) -> None:
+        docker_container, container_port = start_opcua_test_server
+        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        assert dm is not None, "the data model should be defined"
+        node = dm.get_node("Objects/ReferenceTest/Methods/Methods_Output")
+        assert isinstance(node, MethodNode), "the node should be defined"
+        result = node()
+        result = result.return_values["Result"]
+        assert result == "Output", "the result should be the 'Output' string"
+        dm.close_connectors()
+
+    def test_call_method_node_with_remote_path(
+        self,
+        start_opcua_test_server: Tuple[Container, int],
+    ) -> None:
+        docker_container, container_port = start_opcua_test_server
+        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        assert dm is not None, "the data model should be defined"
+        node = dm.get_node("Objects/Methods_Output_With_Remote_Path")
+        assert isinstance(node, MethodNode), "the node should be defined"
+        result = node()
+        result = result.return_values["Result"]
+        assert result == "Output", "the result should be the 'Output' string"
+        dm.close_connectors()
+
+    def test_call_method_node_with_node_id(
+        self,
+        start_opcua_test_server: Tuple[Container, int],
+    ) -> None:
+        docker_container, container_port = start_opcua_test_server
+        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        assert dm is not None, "the data model should be defined"
+        node = dm.get_node("Objects/Methods_Output_With_Node_Id")
+        assert isinstance(node, MethodNode), "the node should be defined"
+        result = node()
+        result = result.return_values["Result"]
+        assert result == "Output", "the result should be the 'Output' string"
+        dm.close_connectors()

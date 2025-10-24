@@ -33,7 +33,6 @@ class FolderNode(DataModelNode):
         description: str | None = None,
         children: dict[str, DataModelNode] | None = None,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -52,8 +51,6 @@ class FolderNode(DataModelNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the method. Allows to override the qualified name of the node.
             remote_resource_spec (RemoteResourceSpec | None):
                 remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the remote protocol (for example, namespace for OPC UA).
@@ -63,7 +60,6 @@ class FolderNode(DataModelNode):
             name=name,
             description=description,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
         self._children = {} if children is None else children
@@ -193,8 +189,7 @@ class FolderNode(DataModelNode):
         """
         return (
             f"FolderNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, children={self._children}, connector_name={repr(self.connector_name)}, "
-            f"remote_path={repr(self.remote_path)})"
+            f"description={self._description}, children={self._children}, connector_name={repr(self.connector_name)})"
         )
 
     def __repr__(self) -> str:

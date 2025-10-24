@@ -101,7 +101,6 @@ def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
         "description": "",
         "children": [],
         "connector_name": None,
-        "remote_path": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -136,7 +135,6 @@ def _get_numerical_variable(
         "initial_value": None,
         "default_value": None,
         "connector_name": None,
-        "remote_path": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -173,7 +171,6 @@ def _get_string_variable(
         "initial_value": "",
         "default_value": "",
         "connector_name": None,
-        "remote_path": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -211,7 +208,6 @@ def _get_boolean_variable(
         "initial_value": False,
         "default_value": False,
         "connector_name": None,
-        "remote_path": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -247,7 +243,6 @@ def _get_object_variable(
         "description": "",
         "properties": [],
         "connector_name": None,
-        "remote_path": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -284,7 +279,6 @@ def _get_method_node(
         "parameters": [],
         "returns": [],
         "connector_name": None,
-        "remote_path": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -644,6 +638,7 @@ def _get_opcua_remote_resource_spec(
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
+        "remote_path": None,
         "node_id": None,
         "namespace": None,
     }

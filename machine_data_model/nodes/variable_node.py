@@ -70,7 +70,6 @@ class VariableNode(DataModelNode):
         name: str | None = None,
         description: str | None = None,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -87,9 +86,6 @@ class VariableNode(DataModelNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the variable.
-                > Only if this variable is a remote node.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -99,7 +95,6 @@ class VariableNode(DataModelNode):
             name=name,
             description=description,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
         # Read callbacks.
@@ -610,7 +605,6 @@ class NumericalVariableNode(VariableNode):
         measure_unit: Enum | str = NoneMeasureUnits.NONE,
         value: float = 0,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -631,9 +625,6 @@ class NumericalVariableNode(VariableNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the variable.
-                > Only if this variable is a remote node.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -643,7 +634,6 @@ class NumericalVariableNode(VariableNode):
             name=name,
             description=description,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
@@ -780,7 +770,6 @@ class StringVariableNode(VariableNode):
         description: str | None = None,
         value: str = "",
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -799,9 +788,6 @@ class StringVariableNode(VariableNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the variable.
-                > Only if this variable is a remote node.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -811,7 +797,6 @@ class StringVariableNode(VariableNode):
             name=name,
             description=description,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
         self._value = value
@@ -961,7 +946,6 @@ class BooleanVariableNode(VariableNode):
         description: str | None = None,
         value: bool = False,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -980,9 +964,6 @@ class BooleanVariableNode(VariableNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the variable.
-                > Only if this variable is a remote node.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -992,7 +973,6 @@ class BooleanVariableNode(VariableNode):
             name,
             description,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
         self._value = value
@@ -1142,7 +1122,6 @@ class ObjectVariableNode(VariableNode):
         description: str | None = None,
         properties: dict[str, VariableNode] | None = None,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -1161,9 +1140,6 @@ class ObjectVariableNode(VariableNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the variable.
                 > Remote node -> there is a server which contains the value to read/write.
-            remote_path (str | None):
-                The remote path of the variable.
-                > Only if this variable is a remote node.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -1173,7 +1149,6 @@ class ObjectVariableNode(VariableNode):
             name=name,
             description=description,
             connector_name=connector_name,
-            remote_path=remote_path,
             remote_resource_spec=remote_resource_spec,
         )
         self._properties: dict[str, VariableNode] = (

@@ -56,7 +56,6 @@ class DataModelNode(ABC):
         name: str | None = None,
         description: str | None = None,
         connector_name: str | None = None,
-        remote_path: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -76,9 +75,6 @@ class DataModelNode(ABC):
                 The name of the connector to use to interact with the server.
                 If it is `None`, and the hierarchy of the node also doesn't define this attribute,
                 the node is not a remote node: interacting with the node will change the internal value.
-            remote_path (str | None):
-                The remote path of the node in the server.
-                Allows to override the qualified name of the node, defined by the yaml config structure.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the remote protocol (for example, namespace for OPC UA).
 
@@ -97,7 +93,7 @@ class DataModelNode(ABC):
         # -- connector management
         self._connector_name: str | None = connector_name
         self._connector: AbstractConnector | None = None
-        self._remote_path: str | None = remote_path
+        self._remote_path: str | None = None
         self._remote_resource_spec: RemoteResourceSpec | None = remote_resource_spec
         if self._remote_resource_spec is not None:
             self._remote_resource_spec.parent = self
