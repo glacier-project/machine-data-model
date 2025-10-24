@@ -28,53 +28,100 @@ root:
   description: "Objects folder"
   connector_name: "myOpcuaConnector1"
   children:
+    - !!MethodNode
+      name: "Methods_Output_With_Node_Id"
+      description: "OPC-UA nodes can also specify the node_id to access the remote node"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        node_id: "ns=6;s=Methods_Output"
+      returns:
+        - !!StringVariableNode
+          name: "Result"
+          description: "Method output"
+    - !!MethodNode
+      name: "Methods_Output_With_Remote_Path"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        remote_path: "/Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+      description: "The remote_path overrides the qualified name. Method with no input, returns the 'Output' string"
+      returns:
+        - !!StringVariableNode
+          name: "Result"
+          description: "Method output"
     - !!FolderNode
-      name: "4:Boilers"
+      name: "Boilers"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "4"
       description: "Boilers folder"
       children:
         - !!ObjectVariableNode
-          name: "4:Boiler #2"
+          name: "Boiler #2"
           description: "Boiler 2"
           properties:
             - !!StringVariableNode
-              name: "2:AssetId"
+              name: "AssetId"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "2"
               description: "asset id"
 
             - !!ObjectVariableNode
-              name: "2:ParameterSet"
+              name: "ParameterSet"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "2"
               description: "parameter set"
               properties:
                 - !!NumericalVariableNode
-                  name: "4:CurrentTemperature"
+                  name: "CurrentTemperature"
+                  remote_resource_spec:
+                    !!OpcuaRemoteResourceSpec
+                    namespace: "4"
                   description: "current temperature"
                 - !!NumericalVariableNode
-                  name: "4:OverheatedThresholdTemperature"
+                  name: "OverheatedThresholdTemperature"
+                  remote_resource_spec:
+                    !!OpcuaRemoteResourceSpec
+                    namespace: "4"
                   description: "overheated threshold temp"
     - !!FolderNode
-      name: "3:OpcPlc"
+      name: "OpcPlc"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "3"
       description: "Opc PLC"
       children:
         - !!FolderNode
-          name: "3:Methods"
+          name: "Methods"
           description: "methods"
           children:
             - !!MethodNode
-              name: "4:HeaterOff"
+              name: "HeaterOff"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "4"
               description: "heater off"
             - !!MethodNode
-              name: "4:HeaterOn"
+              name: "HeaterOn"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                namespace: "4"
               description: "heater on"
 
     - !!FolderNode
-      name: "6:ReferenceTest"
+      name: "ReferenceTest"
+      remote_resource_spec:
+        !!OpcuaRemoteResourceSpec
+        namespace: "6"
       description: "Reference Test"
       children:
         - !!FolderNode
-          name: "6:Methods"
+          name: "Methods"
           description: "Reference Test Methods"
           children:
             - !!MethodNode
-              name: "6:Methods_Add"
+              name: "Methods_Add"
               description: "Adds a float with an integer and returns the result"
               parameters:
                 - !!NumericalVariableNode
@@ -87,16 +134,25 @@ root:
                 - !!NumericalVariableNode
                   name: "AddResult"
                   description: "addition result"
+
+            - !!MethodNode
+              name: "Methods_Output"
+              description: "Method with no input, returns the 'Output' string"
+              returns:
+                - !!StringVariableNode
+                  name: "Result"
+                  description: "Method output"
+
         - !!FolderNode
-          name: "6:Scalar"
+          name: "Scalar"
           description: "Scalars"
           children:
             - !!FolderNode
-              name: "6:Scalar_Static"
+              name: "Scalar_Static"
               description: "Static Scalars"
               children:
                 - !!BooleanVariableNode
-                  name: "6:Scalar_Static_Boolean"
+                  name: "Scalar_Static_Boolean"
                   description: "Boolean node"
 """
 
@@ -196,7 +252,7 @@ class TestOpcuaDataModel:
         docker_container, container_port = start_opcua_test_server
         dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
         assert dm is not None, "the data model should be defined"
-        node = dm.get_node("Objects/4:Boilers/4:Boiler #2/2:AssetId")
+        node = dm.get_node("Objects/Boilers/Boiler #2/AssetId")
         assert isinstance(node, VariableNode), "the node should be defined"
         value = node.read()
         assert isinstance(value, str), "the value should be a string"
@@ -211,7 +267,7 @@ class TestOpcuaDataModel:
         dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(
-            "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:OverheatedThresholdTemperature"
+            "Objects/Boilers/Boiler #2/ParameterSet/OverheatedThresholdTemperature"
         )
         assert isinstance(node, VariableNode), "the node should be defined"
         value = node.read()
@@ -226,7 +282,7 @@ class TestOpcuaDataModel:
         dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(
-            "Objects/6:ReferenceTest/6:Scalar/6:Scalar_Static/6:Scalar_Static_Boolean"
+            "Objects/ReferenceTest/Scalar/Scalar_Static/Scalar_Static_Boolean"
         )
         assert isinstance(node, VariableNode), "the node should be defined"
         value = node.read()
@@ -241,7 +297,7 @@ class TestOpcuaDataModel:
         dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(
-            "Objects/6:ReferenceTest/6:Scalar/6:Scalar_Static/6:Scalar_Static_Boolean"
+            "Objects/ReferenceTest/Scalar/Scalar_Static/Scalar_Static_Boolean"
         )
         assert isinstance(node, VariableNode), "the node should be defined"
         prev_value = node.read()
@@ -263,7 +319,7 @@ class TestOpcuaDataModel:
         dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(
-            "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/4:OverheatedThresholdTemperature"
+            "Objects/Boilers/Boiler #2/ParameterSet/OverheatedThresholdTemperature"
         )
         assert isinstance(node, VariableNode), "the node should be defined"
         prev_value = node.read()
@@ -288,7 +344,7 @@ class TestOpcuaDataModel:
         docker_container, container_port = start_opcua_test_server
         dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
         assert dm is not None, "the data model should be defined"
-        node = dm.get_node("Objects/6:ReferenceTest/6:Methods/6:Methods_Add")
+        node = dm.get_node("Objects/ReferenceTest/Methods/Methods_Add")
         assert isinstance(node, MethodNode), "the node should be defined"
         result = node(2.0, 3)
         result = result.return_values["AddResult"]
