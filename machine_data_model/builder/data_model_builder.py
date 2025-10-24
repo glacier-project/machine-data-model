@@ -137,7 +137,6 @@ def _get_numerical_variable(
         "default_value": None,
         "connector_name": None,
         "remote_path": None,
-        "notify_subscribers_only_if_value_changed": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -175,7 +174,6 @@ def _get_string_variable(
         "default_value": "",
         "connector_name": None,
         "remote_path": None,
-        "notify_subscribers_only_if_value_changed": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -214,7 +212,6 @@ def _get_boolean_variable(
         "default_value": False,
         "connector_name": None,
         "remote_path": None,
-        "notify_subscribers_only_if_value_changed": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -251,7 +248,6 @@ def _get_object_variable(
         "properties": [],
         "connector_name": None,
         "remote_path": None,
-        "notify_subscribers_only_if_value_changed": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)

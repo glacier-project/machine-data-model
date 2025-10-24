@@ -71,7 +71,6 @@ class VariableNode(DataModelNode):
         description: str | None = None,
         connector_name: str | None = None,
         remote_path: str | None = None,
-        notify_subscribers_only_if_value_changed: bool | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -91,9 +90,6 @@ class VariableNode(DataModelNode):
             remote_path (str | None):
                 The remote path of the variable.
                 > Only if this variable is a remote node.
-            notify_subscribers_only_if_value_changed (bool | None):
-                If true, the subscribers will only be notified when the value actually changed.
-                > Writing the same value multiple times will notify the subscribers once.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -117,12 +113,6 @@ class VariableNode(DataModelNode):
         self._subscription_callback: Callable[
             [VariableSubscription, VariableNode, Any], None
         ] = lambda subscription, node, value: None
-
-        self._notify_subscribers_only_if_value_changed = (
-            notify_subscribers_only_if_value_changed
-            if notify_subscribers_only_if_value_changed is not None
-            else True
-        )
 
     def read(self, force_remote_read: bool = True) -> Any:
         """
@@ -188,11 +178,7 @@ class VariableNode(DataModelNode):
         # Notify subscribers if the update was successful, otherwise restore the
         # previous value.
         if success:
-            should_notify_subscribers = (
-                not self._notify_subscribers_only_if_value_changed
-            ) or prev_value != value
-            if should_notify_subscribers:
-                self.notify_subscribers()
+            self.notify_subscribers()
         else:
             value = self._update_value(prev_value)
             assert value == prev_value
@@ -542,13 +528,8 @@ class VariableNode(DataModelNode):
                 Other data that is available from the remote subscription (differs by the connector's protocol)
                 Unused in this method.
         """
-        prev_value = self._read_internal_value()
         self._update_internal_value(value)
-        should_notify_subscribers = (
-            not self._notify_subscribers_only_if_value_changed
-        ) or prev_value != value
-        if should_notify_subscribers:
-            self.notify_subscribers()
+        self.notify_subscribers()
 
     def __getitem__(self, node_name: str) -> "VariableNode":
         """
@@ -630,7 +611,6 @@ class NumericalVariableNode(VariableNode):
         value: float = 0,
         connector_name: str | None = None,
         remote_path: str | None = None,
-        notify_subscribers_only_if_value_changed: bool | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -654,9 +634,6 @@ class NumericalVariableNode(VariableNode):
             remote_path (str | None):
                 The remote path of the variable.
                 > Only if this variable is a remote node.
-            notify_subscribers_only_if_value_changed (bool | None):
-                If true, the subscribers will only be notified when the value actually changed.
-                > Writing the same value multiple times will notify the subscribers once.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -667,7 +644,6 @@ class NumericalVariableNode(VariableNode):
             description=description,
             connector_name=connector_name,
             remote_path=remote_path,
-            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
             remote_resource_spec=remote_resource_spec,
         )
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
@@ -805,7 +781,6 @@ class StringVariableNode(VariableNode):
         value: str = "",
         connector_name: str | None = None,
         remote_path: str | None = None,
-        notify_subscribers_only_if_value_changed: bool | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -827,9 +802,6 @@ class StringVariableNode(VariableNode):
             remote_path (str | None):
                 The remote path of the variable.
                 > Only if this variable is a remote node.
-            notify_subscribers_only_if_value_changed (bool | None):
-                If true, the subscribers will only be notified when the value actually changed.
-                > Writing the same value multiple times will notify the subscribers once.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -840,7 +812,6 @@ class StringVariableNode(VariableNode):
             description=description,
             connector_name=connector_name,
             remote_path=remote_path,
-            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
             remote_resource_spec=remote_resource_spec,
         )
         self._value = value
@@ -991,7 +962,6 @@ class BooleanVariableNode(VariableNode):
         value: bool = False,
         connector_name: str | None = None,
         remote_path: str | None = None,
-        notify_subscribers_only_if_value_changed: bool | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -1013,9 +983,6 @@ class BooleanVariableNode(VariableNode):
             remote_path (str | None):
                 The remote path of the variable.
                 > Only if this variable is a remote node.
-            notify_subscribers_only_if_value_changed (bool | None):
-                If true, the subscribers will only be notified when the value actually changed.
-                > Writing the same value multiple times will notify the subscribers once.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -1026,7 +993,6 @@ class BooleanVariableNode(VariableNode):
             description,
             connector_name=connector_name,
             remote_path=remote_path,
-            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
             remote_resource_spec=remote_resource_spec,
         )
         self._value = value
@@ -1177,7 +1143,6 @@ class ObjectVariableNode(VariableNode):
         properties: dict[str, VariableNode] | None = None,
         connector_name: str | None = None,
         remote_path: str | None = None,
-        notify_subscribers_only_if_value_changed: bool | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
@@ -1199,9 +1164,6 @@ class ObjectVariableNode(VariableNode):
             remote_path (str | None):
                 The remote path of the variable.
                 > Only if this variable is a remote node.
-            notify_subscribers_only_if_value_changed (bool | None):
-                If true, the subscribers will only be notified when the value actually changed.
-                > Writing the same value multiple times will notify the subscribers once.
             remote_resource_spec (RemoteResourceSpec | None):
                 Properties that are specific to the connector/protocol.
                 > Only if this variable is a remote node.
@@ -1212,7 +1174,6 @@ class ObjectVariableNode(VariableNode):
             description=description,
             connector_name=connector_name,
             remote_path=remote_path,
-            notify_subscribers_only_if_value_changed=notify_subscribers_only_if_value_changed,
             remote_resource_spec=remote_resource_spec,
         )
         self._properties: dict[str, VariableNode] = (

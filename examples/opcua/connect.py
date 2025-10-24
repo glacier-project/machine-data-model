@@ -18,7 +18,7 @@ from machine_data_model.nodes.connectors.abstract_connector import SubscriptionA
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.nodes.subscription.variable_subscription import (
-    VariableSubscription,
+    VariableSubscription, DataChangeSubscription,
 )
 
 # change to logging.DEBUG to show debug messages
@@ -87,7 +87,7 @@ def subscribe_and_write_variable_node(data_model: DataModel, node_path: str):
 
     # subscribe to variable changes
     threshold.set_subscription_callback(my_callback)
-    sub = VariableSubscription(subscriber_id="thresholdUser", correlation_id="c1")
+    sub = DataChangeSubscription(subscriber_id="thresholdUser", correlation_id="c1", deadband=0.5)
     threshold.subscribe(sub)
 
     current_value = threshold.read(force_remote_read=True)
@@ -99,7 +99,7 @@ def subscribe_and_write_variable_node(data_model: DataModel, node_path: str):
     print("writing current value -5")
     threshold.write(new_value - 5)
     print("new current value:", threshold.read())
-    print("write the same value - the callback should NOT get called")
+    print("write the same value - the callback should NOT get called (using DataChangeSubscription)")
     threshold.write(new_value - 5)
     val = threshold.read()
     print("current value should be the same:", val)
