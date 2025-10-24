@@ -14,7 +14,7 @@ import os
 from dataclasses import dataclass
 import uuid
 from abc import ABC, abstractmethod
-from typing import Iterator, Any, TypeVar, Callable, Type
+from typing import Any, TypeVar, Callable, Type
 import logging
 
 TaskReturnType = TypeVar("TaskReturnType")
@@ -284,9 +284,3 @@ class AbstractConnector(ABC):
             int:
                 Handler code which can be used to unsubscribe from new events.
         """
-
-    def __iter__(self) -> Iterator["AbstractConnector"]:
-        """
-        Connectors don't have child elements.
-        """
-        yield from []
