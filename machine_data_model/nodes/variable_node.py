@@ -14,7 +14,8 @@ from typing import Any
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
 
-from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.connectors.abstract_connector import SubscriptionArguments
+from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
 from machine_data_model.nodes.measurement_unit.measure_builder import (
     MeasureBuilder,
     NoneMeasureUnits,
@@ -68,6 +69,8 @@ class VariableNode(DataModelNode):
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
+        connector_name: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new VariableNode instance.
@@ -79,9 +82,21 @@ class VariableNode(DataModelNode):
                 The name of the variable.
             description:
                 The description of the variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            remote_resource_spec=remote_resource_spec,
+        )
         # Read callbacks.
         self._pre_read_value: Callable[[], None] = lambda: None
         self._post_read_value: Callable[[Any], Any] = lambda value: value
@@ -94,9 +109,15 @@ class VariableNode(DataModelNode):
             [VariableSubscription, VariableNode, Any], None
         ] = lambda subscription, node, value: None
 
-    def read(self) -> Any:
+    def read(self, force_remote_read: bool = True) -> Any:
         """
         Get the value of the variable node.
+
+        Args:
+            force_remote_read (bool, optional):
+                If True, when the variable is a remote variable, use the connector to read the remote value.
+                If false, return the cached value.
+                Default is True.
 
         Returns:
             Any:
@@ -106,7 +127,7 @@ class VariableNode(DataModelNode):
         # Execute the pre-read callback.
         self._pre_read_value()
         # Read the actual value (method to be implemented in subclasses).
-        value = self._read_value()
+        value = self._read_value(force_remote_read=force_remote_read)
         # Execute the post-read callback and return the value.
         value = self._post_read_value(value)
         # Trace the variable read operation
@@ -307,7 +328,7 @@ class VariableNode(DataModelNode):
         execute the subscription callback for each subscriber.
         """
         # Get the current value of the node.
-        value = self._read_value()
+        value = self._read_internal_value()
         for subscription in self._subscriptions:
             if not subscription.should_notify(value):
                 continue
@@ -325,17 +346,110 @@ class VariableNode(DataModelNode):
         if isinstance(self.parent, VariableNode):
             self.parent.notify_subscribers()
 
-    @abstractmethod
-    def _read_value(self) -> Any:
+    def _read_value(self, force_remote_read: bool = False) -> Any:
         """
         Get the value of the variable.
+
+        Args:
+            force_remote_read (bool, optional):
+                If True, when the variable is a remote variable, use the connector to read the remote value.
+                If False, return the cached value.
+                Default is False.
+
+        Returns:
+            Any:
+                Variable's value.
         """
+        # a connector could be set only after reading the full yaml file
+        if self.is_remote() and self.is_connector_set():
+            value = self._read_remote_value(force_remote_read=force_remote_read)
+            self._update_internal_value(value)
+            return value
+        else:
+            return self._read_internal_value()
 
     @abstractmethod
+    def _read_internal_value(self) -> Any:
+        """
+        Read the value locally.
+
+        Returns:
+            Any:
+                Variable's internal value.
+        """
+
+    def _read_remote_value(self, force_remote_read: bool = False) -> Any:
+        """
+        Returns the cached value that was recently read from the remote server.
+        If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
+
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the variable's latest value.
+                If False, return the cached value.
+                Default is False.
+
+        Returns:
+            Any:
+                Variable's remote (or its cached) value.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        if force_remote_read:
+            result = self._connector.read_node_value(self.remote_path)
+            return result
+        return self._read_internal_value()
+
     def _update_value(self, value: Any) -> Any:
         """
         Update the value of the variable.
         """
+        if self.is_remote() and self.is_connector_set():
+            self._update_internal_value(value)
+            res = self._update_remote_value(value)
+            return res
+        else:
+            return self._update_internal_value(value)
+
+    def _update_remote_value(self, value: Any) -> Any:
+        """
+        Update the value of the variable remotely.
+
+        Args:
+            value:
+                New value which is written to the remote server.
+
+        Returns:
+            Any:
+                New value when the update action is successful.
+                Otherwise, it returns the previous value.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        prev_value = self._read_internal_value()
+        write_successful = self._connector.write_node_value(self.remote_path, value)
+        if write_successful:
+            return value
+        return prev_value
+
+    @abstractmethod
+    def _update_internal_value(self, value: Any) -> Any:
+        """
+        Update the value of the variable locally.
+
+        Args:
+            value:
+                New value.
+
+        Returns:
+            Any:
+                New updated value.
+        """
+        pass
 
     def set_pre_read_value_callback(self, callback: Callable[[], None]) -> None:
         """
@@ -379,6 +493,38 @@ class VariableNode(DataModelNode):
 
         """
         self._post_update_value = callback
+
+    def subscribe_to_remote_changes(self) -> None:
+        """
+        Uses the connector to subscribe to remote variable changes.
+        When the new value is retrieved, calls the _remote_subscription_callback(),
+        which updates the internal cached value.
+        """
+        if not self.connector or not self._remote_path:
+            return None
+        self.connector.subscribe_to_node_changes(
+            self._remote_path, self._remote_subscription_callback
+        )
+        value = self._read_remote_value(force_remote_read=True)
+        self._update_internal_value(value)
+        return None
+
+    def _remote_subscription_callback(
+        self, value: Any, _other: SubscriptionArguments
+    ) -> None:
+        """
+        Callback that handles remote variable changes.
+        Sets the internal cached value to the new value.
+
+        Args:
+            value (Any):
+                Value that was read from remote.
+            _other (SubscriptionArguments):
+                Other data that is available from the remote subscription (differs by the connector's protocol)
+                Unused in this method.
+        """
+        self._update_internal_value(value)
+        self.notify_subscribers()
 
     def __getitem__(self, node_name: str) -> "VariableNode":
         """
@@ -458,6 +604,8 @@ class NumericalVariableNode(VariableNode):
         description: str | None = None,
         measure_unit: Enum | str = NoneMeasureUnits.NONE,
         value: float = 0,
+        connector_name: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new NumericalVariableNode instance.
@@ -473,9 +621,21 @@ class NumericalVariableNode(VariableNode):
                 The measure unit of the numerical variable.
             value (float):
                 The initial value of the numerical variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            remote_resource_spec=remote_resource_spec,
+        )
         self._measure_unit = NumericalVariableNode._measure_builder.get_measure_unit(
             measure_unit
         )
@@ -486,7 +646,7 @@ class NumericalVariableNode(VariableNode):
         )
 
     @override
-    def _read_value(self) -> float:
+    def _read_internal_value(self) -> float:
         """
         Get the value of the numerical variable.
 
@@ -498,7 +658,27 @@ class NumericalVariableNode(VariableNode):
         return self._value.base_value  # type: ignore[no-any-return]
 
     @override
-    def _update_value(self, value: float) -> float:
+    def _read_remote_value(self, force_remote_read: bool = False) -> float:
+        """
+        Returns the cached numerical value that was recently read from the remote server.
+        If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
+
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the variable's latest value.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            float:
+                The value of the numerical variable.
+        """
+        result = super()._read_remote_value(force_remote_read)
+        assert isinstance(result, (int, float))
+        return result
+
+    @override
+    def _update_internal_value(self, value: float) -> float:
         """
         Update the value of the numerical variable.
 
@@ -525,6 +705,24 @@ class NumericalVariableNode(VariableNode):
         """
         return self._measure_unit
 
+    @override
+    def _update_remote_value(self, value: float) -> float:
+        """
+        Update the value of the numerical variable remotely.
+
+        Args:
+            value (float):
+                New value.
+
+        Returns:
+            float:
+                The updated value of the numerical variable if the operation was successful.
+                Otherwise, it returns the previous value.
+        """
+        result = super()._update_remote_value(value)
+        assert isinstance(result, (int, float))
+        return result
+
     def __str__(self) -> str:
         """
         Returns a string representation of the NumericalVariableNode.
@@ -537,7 +735,7 @@ class NumericalVariableNode(VariableNode):
         return (
             f"NumericalVariableNode(id={self._id}, name={self._name}, "
             f"description={self._description}, measure_unit={self._measure_unit}, "
-            f"value={self._value})"
+            f"value={repr(self._read_internal_value())})"
         )
 
     def __repr__(self) -> str:
@@ -571,6 +769,8 @@ class StringVariableNode(VariableNode):
         name: str | None = None,
         description: str | None = None,
         value: str = "",
+        connector_name: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new StringVariableNode instance.
@@ -584,13 +784,25 @@ class StringVariableNode(VariableNode):
                 The description of the string variable.
             value (str):
                 The initial value of the string variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            remote_resource_spec=remote_resource_spec,
+        )
         self._value = value
 
     @override
-    def _read_value(self) -> str:
+    def _read_internal_value(self) -> str:
         """
         Get the value of the string variable.
 
@@ -601,7 +813,27 @@ class StringVariableNode(VariableNode):
         return self._value
 
     @override
-    def _update_value(self, value: str) -> str:
+    def _read_remote_value(self, force_remote_read: bool = False) -> str:
+        """
+        Returns the cached string value that was recently read from the remote server.
+        If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
+
+        Args:
+            force_remote_read:
+                If True, use the connector to read the variable's latest value.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            str:
+                The value of the string variable.
+        """
+        result = super()._read_remote_value(force_remote_read)
+        assert isinstance(result, str)
+        return result
+
+    @override
+    def _update_internal_value(self, value: str) -> str:
         """
         Update the value of the string variable.
 
@@ -617,6 +849,24 @@ class StringVariableNode(VariableNode):
         assert isinstance(value, str)
         self._value = value
         return self._value
+
+    @override
+    def _update_remote_value(self, value: str) -> str:
+        """
+        Update the value of the string variable remotely.
+
+        Args:
+            value (str):
+                New value.
+
+        Returns:
+            str:
+                The updated value of the string variable if the operation was successful.
+                Otherwise, it returns the previous value.
+        """
+        result = super()._update_remote_value(value)
+        assert isinstance(result, str)
+        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """
@@ -661,7 +911,7 @@ class StringVariableNode(VariableNode):
         """
         return (
             f"StringVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={self._value})"
+            f"description={self._description}, value={repr(self._read_internal_value())})"
         )
 
     def __repr__(self) -> str:
@@ -695,6 +945,8 @@ class BooleanVariableNode(VariableNode):
         name: str | None = None,
         description: str | None = None,
         value: bool = False,
+        connector_name: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new BooleanVariableNode instance.
@@ -708,13 +960,25 @@ class BooleanVariableNode(VariableNode):
                 The description of the boolean variable.
             value (bool):
                 The initial value of the boolean variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
-        super().__init__(id, name, description)
+        super().__init__(
+            id,
+            name,
+            description,
+            connector_name=connector_name,
+            remote_resource_spec=remote_resource_spec,
+        )
         self._value = value
 
     @override
-    def _read_value(self) -> bool:
+    def _read_internal_value(self) -> bool:
         """
         Get the value of the boolean variable.
 
@@ -726,7 +990,28 @@ class BooleanVariableNode(VariableNode):
         return self._value
 
     @override
-    def _update_value(self, value: bool) -> bool:
+    def _read_remote_value(self, force_remote_read: bool = False) -> bool:
+        """
+        Returns the cached boolean value that was recently read from the remote server.
+        If force_remote_read parameter is True, this function reads and returns the remote server's latest value.
+
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the variable's latest value.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            bool:
+                The value of the boolean variable when the operation was successful.
+                Otherwise, returns the previous value.
+        """
+        result = super()._read_remote_value(force_remote_read)
+        assert isinstance(result, bool)
+        return result
+
+    @override
+    def _update_internal_value(self, value: bool) -> bool:
         """
         Update the value of the boolean variable.
 
@@ -742,6 +1027,24 @@ class BooleanVariableNode(VariableNode):
         assert isinstance(value, bool)
         self._value = value
         return self._value
+
+    @override
+    def _update_remote_value(self, value: bool) -> bool:
+        """
+        Update the value of the boolean variable remotely.
+
+        Args:
+            value (bool):
+                New value.
+
+        Returns:
+            bool:
+                The updated value of the boolean variable if the operation was successful.
+                Otherwise, returns the previous value.
+        """
+        result = super()._update_remote_value(value)
+        assert isinstance(result, bool)
+        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """
@@ -786,7 +1089,7 @@ class BooleanVariableNode(VariableNode):
         """
         return (
             f"BooleanVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={self._value})"
+            f"description={self._description}, value={repr(self._read_internal_value())})"
         )
 
     def __repr__(self) -> str:
@@ -818,6 +1121,8 @@ class ObjectVariableNode(VariableNode):
         name: str | None = None,
         description: str | None = None,
         properties: dict[str, VariableNode] | None = None,
+        connector_name: str | None = None,
+        remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
         Initializes a new ObjectVariableNode instance.
@@ -831,9 +1136,21 @@ class ObjectVariableNode(VariableNode):
                 The description of the object variable.
             properties (dict[str, VariableNode] | None):
                 The properties of the object variable.
-
+            connector_name (str | None):
+                The connector's name/identifier if this node is a remote node.
+                Used to interact with the remote server to read/write the variable.
+                > Remote node -> there is a server which contains the value to read/write.
+            remote_resource_spec (RemoteResourceSpec | None):
+                Properties that are specific to the connector/protocol.
+                > Only if this variable is a remote node.
         """
-        super().__init__(id=id, name=name, description=description)
+        super().__init__(
+            id=id,
+            name=name,
+            description=description,
+            connector_name=connector_name,
+            remote_resource_spec=remote_resource_spec,
+        )
         self._properties: dict[str, VariableNode] = (
             properties if properties is not None else {}
         )
@@ -841,7 +1158,7 @@ class ObjectVariableNode(VariableNode):
             assert isinstance(
                 property_node, VariableNode
             ), "Property must be a VariableNode"
-        self.value: dict[str, Any] = self._read_value()
+        self.value: dict[str, Any] = self._read_internal_value()
         self.register_children(self._properties)
 
     def add_property(self, property_node: VariableNode) -> None:
@@ -937,7 +1254,7 @@ class ObjectVariableNode(VariableNode):
         )
 
     @override
-    def _read_value(self) -> dict[str, Any]:
+    def _read_internal_value(self) -> dict[str, Any]:
         """
         Get the value of the object variable.
 
@@ -949,11 +1266,39 @@ class ObjectVariableNode(VariableNode):
         value = {}
         for property_name, property_node in self._properties.items():
             if isinstance(property_node, VariableNode):
-                value[property_name] = property_node.read()
+                value[property_name] = property_node._read_internal_value()
         return value
 
     @override
-    def _update_value(self, value: dict[str, Any]) -> dict[str, Any]:
+    def _read_remote_value(self, force_remote_read: bool = False) -> Any:
+        """
+        Returns the object value that was recently read from the remote server.
+        If force_remote_read parameter is True, this function reads all the properties latest values from the remote server.
+
+        Args:
+            force_remote_read (bool, optional):
+                If True, use the connector to read the properties latest values.
+                If False, returns the cached value.
+                Defaults to False.
+
+        Returns:
+            Any:
+                The value of the object variable.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        value = {}
+        for property_name, property_node in self._properties.items():
+            if isinstance(property_node, VariableNode):
+                value[property_name] = property_node._read_remote_value(
+                    force_remote_read=force_remote_read
+                )
+        return value
+
+    @override
+    def _update_internal_value(self, value: dict[str, Any]) -> dict[str, Any]:
         """
         Update the value of the object variable.
 
@@ -970,8 +1315,41 @@ class ObjectVariableNode(VariableNode):
             prop in self._properties for prop in value
         ), "The value must contain all properties of the object variable"
         for property_name, property_value in value.items():
-            self._properties[property_name]._update_value(property_value)
-        return self._read_value()
+            self._properties[property_name]._update_internal_value(property_value)
+        return self._read_internal_value()
+
+    @override
+    def _update_remote_value(self, value: dict[str, Any]) -> dict[str, Any]:
+        """
+        Update the value of the object variable remotely.
+
+        Args:
+            value:
+                New value.
+
+        Returns:
+            dict[str, Any]:
+                The updated value if the operation was successful.
+                Otherwise, returns the previous value.
+        """
+        assert self._connector is not None, "Remote nodes must have a valid connector"
+        assert (
+            self.remote_path is not None
+        ), "Remote nodes must have a valid remote path"
+        prev_value = self._read_internal_value()
+        write_successful = True
+        for property_name, property_value in value.items():
+            write_successful = self._properties[property_name]._update_remote_value(
+                property_value
+            )
+            if not write_successful:
+                break
+
+        if not write_successful:
+            for property_name, property_value in prev_value.items():
+                self._properties[property_name]._update_remote_value(property_value)
+            return prev_value
+        return value
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """
@@ -1026,7 +1404,7 @@ class ObjectVariableNode(VariableNode):
         """
         return (
             f"ObjectVariableNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, value={self._read_value()})"
+            f"description={self._description}, value={self._read_internal_value()})"
         )
 
     def __repr__(self) -> str:
