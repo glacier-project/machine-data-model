@@ -10,12 +10,13 @@ class FrostMessage(Message):
     """
     This class holds the core data of a message.
 
-    :ivar sender: The sender of the message.
-    :ivar target: The target of the message.
-    :ivar header: The header containing message metadata.
-    :ivar payload: The payload or data sent with the message.
-    :ivar identifier: The unique identifier of the message.
-    :ivar correlation_id: The correlation ID for tracking the message.
+    Attributes:
+        sender (str): The sender of the message.
+        target (str): The target of the message.
+        header (FrostHeader): The header containing message metadata.
+        payload (FrostPayload): The payload or data sent with the message.
+        identifier (str): The unique identifier of the message.
+        correlation_id (str): The correlation ID for tracking the message.
     """
 
     sender: str

@@ -38,12 +38,17 @@ def _build_kwargs(
     data: dict[Hashable, Any], default_kwargs: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Build kwargs by merging data with default values and validating keys.
+    Builds kwargs by merging data with default values and validating keys.
 
-    :param data: Input data from YAML
-    :param default_kwargs: Default values for all allowed keys
-    :return: Merged kwargs dictionary
-    :raises ValueError: If unexpected keys are found in data
+    Args:
+        data (dict[Hashable, Any]): Input data from YAML.
+        default_kwargs (dict[str, Any]): Default values for all allowed keys.
+
+    Returns:
+        dict[str, Any]: Merged kwargs dictionary.
+
+    Raises:
+        ValueError: If unexpected keys are found in data.
     """
     unexpected_keys = set(data.keys()) - set(default_kwargs.keys())
     if unexpected_keys:
@@ -60,10 +65,14 @@ def _build_kwargs(
 
 def _get_folder(loader: yaml.FullLoader, node: yaml.MappingNode) -> FolderNode:
     """
-    Construct a folder node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed folder node.
+    Constructs a folder node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        FolderNode: The constructed folder node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -82,10 +91,14 @@ def _get_numerical_variable(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> NumericalVariableNode:
     """
-    Construct a numerical variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed numerical variable node.
+    Constructs a numerical variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        NumericalVariableNode: The constructed numerical variable node.
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
@@ -113,10 +126,14 @@ def _get_string_variable(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> StringVariableNode:
     """
-    Construct a string variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed string variable node.
+    Constructs a string variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        StringVariableNode: The constructed string variable node.
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
@@ -144,10 +161,14 @@ def _get_boolean_variable(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> BooleanVariableNode:
     """
-    Construct a boolean variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed boolean variable node.
+    Constructs a boolean variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        BooleanVariableNode: The constructed boolean variable node.
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
@@ -174,10 +195,14 @@ def _get_object_variable(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> ObjectVariableNode:
     """
-    Construct an object variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed object variable node.
+    Constructs an object variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        ObjectVariableNode: The constructed object variable node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -197,10 +222,15 @@ def _get_method_node(
     ctor: Callable[..., MethodNode] = MethodNode,
 ) -> MethodNode:
     """
-    Construct a method node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed method node.
+    Constructs a method node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+        ctor (Callable[..., MethodNode]): The constructor for the method node.
+
+    Returns:
+        MethodNode: The constructed method node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -218,10 +248,14 @@ def _get_async_method_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> MethodNode:
     """
-    Construct an async method node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed async method node.
+    Constructs an async method node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        MethodNode: The constructed async method node.
     """
     return _get_method_node(loader, node, AsyncMethodNode)
 
@@ -230,10 +264,14 @@ def _get_read_variable_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
-    Construct a read variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed read variable node.
+    Constructs a read variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        ControlFlowNode: The constructed read variable node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -251,10 +289,14 @@ def _get_write_variable_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
-    Construct a write variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed write variable node.
+    Constructs a write variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        ControlFlowNode: The constructed write variable node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -270,10 +312,14 @@ def _get_write_variable_node(
 
 def _get_wait_node(loader: yaml.FullLoader, node: yaml.MappingNode) -> ControlFlowNode:
     """
-    Construct a wait condition node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed wait condition node.
+    Constructs a wait condition node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        ControlFlowNode: The constructed wait condition node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -293,10 +339,14 @@ def _get_call_method_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
-    Construct a call method node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed call method node.
+    Constructs a call method node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        ControlFlowNode: The constructed call method node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -316,10 +366,14 @@ def _get_call_remote_method_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> CallRemoteMethodNode:
     """
-    Construct a call remote method node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed call remote method node.
+    Constructs a call remote method node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        CallRemoteMethodNode: The constructed call remote method node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -341,10 +395,14 @@ def _get_read_remote_variable_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> ReadRemoteVariableNode:
     """
-    Construct a read remote variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed read remote variable node.
+    Constructs a read remote variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        ReadRemoteVariableNode: The constructed read remote variable node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -364,10 +422,14 @@ def _get_write_remote_variable_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> WriteRemoteVariableNode:
     """
-    Construct a write remote variable node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed write remote variable node.
+    Constructs a write remote variable node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        WriteRemoteVariableNode: The constructed write remote variable node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -387,10 +449,14 @@ def _get_wait_remote_event_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
     """
-    Construct a wait remote event node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed wait remote event node.
+    Constructs a wait remote event node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        ControlFlowNode: The constructed wait remote event node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
@@ -412,10 +478,14 @@ def _get_composite_method_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> MethodNode:
     """
-    Construct a composite method node from a yaml node.
-    :param loader: The yaml loader.
-    :param node: The yaml node.
-    :return: The constructed composite method node.
+    Constructs a composite method node from a yaml node.
+
+    Args:
+        loader (yaml.FullLoader): The yaml loader.
+        node (yaml.MappingNode): The yaml node.
+
+    Returns:
+        MethodNode: The constructed composite method node.
     """
     data = loader.construct_mapping(node, deep=True)
     default_kwargs: dict[str, Any] = {
@@ -467,20 +537,26 @@ _register_yaml_constructors()
 class DataModelBuilder:
     """
     A class to build a data model from a yaml file.
+
+    Attributes:
+        cache (dict[str, DataModel]): A cache for loaded data models.
     """
 
     def __init__(self) -> None:
         """ "
-        Initialize a new DataModelBuilder instance.
+        Initializes a new DataModelBuilder instance.
         """
         self.cache: dict[str, DataModel] = {}
 
     def from_string(self, data_model_string: str) -> DataModel:
         """
-        Create a data model from a YAML string.
+        Creates a data model from a YAML string.
 
-        :param data_model_string: The YAML string containing the data model.
-        :return: The data model.
+        Args:
+            data_model_string (str): The YAML string containing the data model.
+
+        Returns:
+            DataModel: The data model.
         """
 
         # Load the YAML string
@@ -493,9 +569,13 @@ class DataModelBuilder:
 
     def _load_data_model(self, data_model_path: str) -> DataModel:
         """
-        Create a data model from a yaml file.
-        :param data_model_path: The path to the yaml file containing the data model.
-        :return: The data model.
+        Creates a data model from a yaml file.
+
+        Args:
+            data_model_path (str): The path to the yaml file.
+
+        Returns:
+            DataModel: The data model.
         """
         with open(data_model_path) as file:
             data = yaml.load(file, Loader=yaml.FullLoader)
@@ -505,9 +585,13 @@ class DataModelBuilder:
 
     def get_data_model(self, data_model_path: str) -> DataModel:
         """
-        Get a data model from a yaml file.
-        :param data_model_path: The path to the yaml file containing the data model.
-        :return: The data model created from the yaml file.
+        Gets a data model from a yaml file.
+
+        Args:
+            data_model_path (str): The path to the yaml file.
+
+        Returns:
+            DataModel: The data model created from the yaml file.
         """
         full_path = os.path.abspath(data_model_path)
 

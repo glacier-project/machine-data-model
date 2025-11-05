@@ -1,17 +1,15 @@
-from dataclasses import dataclass, field
 import uuid
+from machine_data_model.protocols.message_builder import MessageBuilder
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
     MsgType,
     MsgNamespace,
-    NodeMsgName,
     VariableMsgName,
     MethodMsgName,
     ProtocolMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
-    FrostPayload,
     VariablePayload,
     SubscriptionPayload,
     DataChangeSubscriptionPayload,
@@ -24,406 +22,669 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     ErrorMessages,
 )
 from typing import Any
+from typing_extensions import override
 
 
-@dataclass(init=True)
-class FrostMessageBuilder:
+class FrostMessageBuilder(MessageBuilder):
     """
     Builder class for creating Frost protocol messages.
     """
 
-    _protocol_version: tuple = (1, 0, 0)
-    _sender: str = ""
-    _target: str = ""
-    _header: FrostHeader | None = None
-    _payload: FrostPayload | None = None
-    _identifier: str = ""
-    _correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    def __init__(
+        self,
+        sender: str,
+        protocol_version: tuple = (1, 0, 0),
+    ):
+        """
+        Initializes the FrostMessageBuilder.
 
-    def set_version(self, version: tuple) -> None:
-        """Sets the protocol version for the message."""
+        Args:
+            - sender (str): The sender of the message.
+            - protocol_version (tuple): The version of the protocol.
+        """
+        super().__init__(sender)
+        self._protocol_version: tuple[int, int, int] = protocol_version
+
+    def set_protocol_version(self, version: tuple[int, int, int]) -> None:
+        """
+        Sets the protocol version for the message.
+
+        Args:
+            - version (tuple[int, int, int]): The protocol version to set.
+        """
+        assert isinstance(
+            version, tuple
+        ), f"Version must be a tuple with a list as the first element. Passed: {version}"
+        assert (
+            len(version) == 3
+        ), f"Version list must contain exactly 3 elements. Passed: {version[0]}"
         self._protocol_version = version
 
-    def _reset(self) -> None:
-        """Resets the builder to its initial state."""
-        self._sender = ""
-        self._target = ""
-        self._header = None
-        self._payload = None
-        self._identifier = ""
-        self._correlation_id = ""
-
-    def build(self) -> FrostMessage:
+    def get_protocol_version(self) -> tuple:
         """
-        Constructs a Frost protocol message from the configured parts.
-        """
-        if not self._header:
-            raise ValueError("Header must be set before building a message.")
+        Returns the protocol version.
 
+        Returns:
+            - tuple: The protocol version.
+        """
+        return self._protocol_version
+
+    @override
+    def parse_message(self, message: dict) -> FrostMessage:
+        """
+        Parses a FrostMessage from a dictionary representation.
+
+        Args:
+            - message (dict): The dictionary representation of the message.
+
+        Returns:
+            - FrostMessage: The parsed message.
+        """
+        return self.build_protocol_register_message(
+            target=""
+        )  # Placeholder implementation
+
+    @override
+    def serialize_message(self, message: FrostMessage) -> dict["str", Any]:
+        """
+        Serializes a FrostMessage to a dictionary representation.
+
+        Args:
+            - message: The message to serialize.
+
+        Returns:
+            - dict: The serialized message.
+        """
+        temp = {
+            "sender": message.sender,
+            "target": message.target,
+            "identifier": message.identifier,
+            "correlation_id": message.correlation_id,
+            "header": message.header,
+            "payload": message.payload,
+        }
+        return temp
+
+    def build_read_variable_message(self, target: str, node: str) -> FrostMessage:
+        """
+        Builds a FrostMessage for reading a variable.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node to read.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
         message = FrostMessage(
             sender=self._sender,
-            target=self._target,
-            header=self._header,
-            payload=self._payload if self._payload is not None else FrostPayload(),
-            identifier=self._identifier
-            if self._identifier != ""
-            else field(default_factory=lambda: str(uuid.uuid4())),
-            correlation_id=self._correlation_id
-            if self._correlation_id != ""
-            else field(default_factory=lambda: str(uuid.uuid4())),
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.READ,
+            ),
+            payload=VariablePayload(node=node),
         )
-        self._reset()
         return message
 
-    def with_sender(self, sender: str) -> "FrostMessageBuilder":
-        """Sets the sender of the message."""
-        self._sender = sender
-        return self
+    def build_read_variable_response_message(
+        self, target: str, node: str, value: Any
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage as an answer for reading a variable.
 
-    def with_target(self, target: str) -> "FrostMessageBuilder":
-        """Sets the target of the message."""
-        self._target = target
-        return self
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node that was read.
+            - value (Any): The value of the node.
 
-    def with_identifier(self, identifier: str) -> "FrostMessageBuilder":
-        """Sets the unique identifier of the message."""
-        # Note: FrostMessage automatically generates a UUID if none is provided.
-        # This method is included for completeness but does not set the identifier directly.
-        self._identifier = identifier
-        return self
-
-    def with_correlation_id(self, correlation_id: str) -> "FrostMessageBuilder":
-        """Sets the correlation ID of the message."""
-        # Note: FrostMessage automatically generates a UUID if none is provided.
-        # This method is included for completeness but does not set the correlation_id directly.
-        self._correlation_id = correlation_id
-        return self
-
-    def with_header(self, header: FrostHeader) -> "FrostMessageBuilder":
-        """Sets the header of the message."""
-        self._header = header
-        return self
-
-    def with_payload(self, payload: FrostPayload) -> "FrostMessageBuilder":
-        """Sets the payload of the message."""
-        self._payload = payload
-        return self
-
-    def with_protocol_register_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a protocol register request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.PROTOCOL,
-            msg_name=ProtocolMsgName.REGISTER,
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.READ,
+            ),
+            payload=VariablePayload(node=node, value=value),
         )
-        return self
+        return message
 
-    def with_protocol_register_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a protocol register response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.PROTOCOL,
-            msg_name=ProtocolMsgName.REGISTER,
+    def build_write_variable_message(
+        self, target: str, node: str, value: Any
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for writing a variable.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node to write to.
+            - value (Any): The value to write.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.WRITE,
+            ),
+            payload=VariablePayload(node=node, value=value),
         )
-        return self
+        return message
 
-    def with_protocol_unregister_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a protocol unregister request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.PROTOCOL,
-            msg_name=ProtocolMsgName.UNREGISTER,
+    def build_write_variable_response_message(
+        self, target: str, node: str, value: Any
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage as an answer for writing a variable.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node that was written to.
+            - value (Any): The value that was written.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.WRITE,
+            ),
+            payload=VariablePayload(node=node, value=value),
         )
-        return self
+        return message
 
-    def with_protocol_unregister_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a protocol unregister response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.PROTOCOL,
-            msg_name=ProtocolMsgName.UNREGISTER,
+    def build_subscribe_variable_message(self, target: str, node: str) -> FrostMessage:
+        """
+        Builds a FrostMessage for subscribing to a variable.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node to subscribe to.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE,
+            ),
+            payload=SubscriptionPayload(node=node),
         )
-        return self
+        return message
 
-    def with_node_get_info_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get info request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_INFO,
+    def build_subscribe_variable_response_message(
+        self, target: str, node: str, value: Any
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage as a response for subscribing to a variable.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node that was subscribed to.
+            - value (Any): The current value of the node.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE,
+            ),
+            payload=SubscriptionPayload(node=node, value=value),
         )
-        return self
+        return message
 
-    def with_node_get_info_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get info response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_INFO,
+    def build_data_change_subscription_message(
+        self, target: str, node: str, deadband: float, is_percent: bool
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for a data change subscription.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node to subscribe to.
+            - deadband (float): The deadband for the subscription.
+            - is_percent (bool): Whether the deadband is a percentage.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE,
+            ),
+            payload=DataChangeSubscriptionPayload(
+                node=node, deadband=deadband, is_percent=is_percent
+            ),
         )
-        return self
+        return message
 
-    def with_node_get_children_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get children request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_CHILDREN,
+    def build_in_range_subscription_message(
+        self, target: str, node: str, low: float, high: float
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for an in-range subscription.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node to subscribe to.
+            - low (float): The low end of the range.
+            - high (float): The high end of the range.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE,
+            ),
+            payload=InRangeSubscriptionPayload(node=node, low=low, high=high),
         )
-        return self
+        return message
 
-    def with_node_get_children_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get children response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_CHILDREN,
+    def build_out_of_range_subscription_message(
+        self, target: str, node: str, low: float, high: float
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for an out-of-range subscription.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node to subscribe to.
+            - low (float): The low end of the range.
+            - high (float): The high end of the range.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE,
+            ),
+            payload=OutOfRangeSubscriptionPayload(node=node, low=low, high=high),
         )
-        return self
+        return message
 
-    def with_node_get_variables_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get variables request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_VARIABLES,
+    def build_unsubscribe_variable_message(
+        self, target: str, node: str
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for unsubscribing from a variable.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node to unsubscribe from.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.UNSUBSCRIBE,
+            ),
+            payload=VariablePayload(node=node),
         )
-        return self
+        return message
 
-    def with_node_get_variables_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get variables response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_VARIABLES,
+    def build_unsubscribe_variable_response_message(
+        self, target: str, node: str
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage as a response for unsubscribing from a variable.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node that was unsubscribed from.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.UNSUBSCRIBE,
+            ),
+            payload=SubscriptionPayload(node=node),
         )
-        return self
+        return message
 
-    def with_node_get_methods_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get methods request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_METHODS,
-        )
-        return self
-
-    def with_node_get_methods_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a node get methods response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.NODE,
-            msg_name=NodeMsgName.GET_METHODS,
-        )
-        return self
-
-    def with_variable_read_value_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable read value request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.READ,
-        )
-        return self
-
-    def with_variable_read_value_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable read value response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.READ,
-        )
-        return self
-
-    def with_variable_write_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable set value request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.WRITE,
-        )
-        return self
-
-    def with_variable_write_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable set value response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.WRITE,
-        )
-        return self
-
-    def with_variable_subscribe_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable subscribe request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.SUBSCRIBE,
-        )
-        return self
-
-    def with_variable_subscribe_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable subscribe response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.SUBSCRIBE,
-        )
-        return self
-
-    def with_variable_unsubscribe_request_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable unsubscribe request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.UNSUBSCRIBE,
-        )
-        return self
-
-    def with_variable_unsubscribe_response_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable unsubscribe response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.UNSUBSCRIBE,
-        )
-        return self
-
-    def with_variable_update_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a variable update notification."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.UPDATE,
-        )
-        return self
-
-    def with_method_invoke_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a method invoke request."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.METHOD,
-            msg_name=MethodMsgName.INVOKE,
-        )
-        return self
-
-    def with_method_started_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a method started response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.METHOD,
-            msg_name=MethodMsgName.STARTED,
-        )
-        return self
-
-    def with_method_completed_header(self) -> "FrostMessageBuilder":
-        """Sets the header for a method completed response."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.RESPONSE,
-            namespace=MsgNamespace.METHOD,
-            msg_name=MethodMsgName.COMPLETED,
-        )
-        return self
-
-    def with_error_header(
+    def build_method_invoke_message(
         self,
-        namespace: MsgNamespace,
-        msg_name: NodeMsgName | VariableMsgName | MethodMsgName | ProtocolMsgName,
-    ) -> "FrostMessageBuilder":
-        """Sets the header for an error message."""
-        self._header = FrostHeader(
-            version=self._protocol_version,
-            type=MsgType.ERROR,
-            namespace=namespace,
-            msg_name=msg_name,
+        target: str,
+        node: str,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for invoking a method.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The method to invoke.
+            - args (list[Any] | None): The positional arguments for the method.
+            - kwargs (dict[str, Any] | None): The keyword arguments for the method.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE,
+            ),
+            payload=MethodPayload(
+                node=node,
+                args=args if args is not None else [],
+                kwargs=kwargs if kwargs is not None else {},
+            ),
         )
-        return self
+        return message
 
-    def with_protocol_payload(self) -> "FrostMessageBuilder":
-        """Sets the payload for a protocol message."""
-        self._payload = ProtocolPayload(node="")
-        return self
-
-    def with_variable_payload(
-        self, node: str, value: Any | None = None
-    ) -> "FrostMessageBuilder":
-        """Sets the payload for a variable message."""
-        self._payload = VariablePayload(node=node, value=value)
-        return self
-
-    def with_subscription_payload(self, node: str) -> "FrostMessageBuilder":
-        """Sets the payload for a subscription message."""
-        self._payload = SubscriptionPayload(node=node)
-        return self
-
-    def with_data_change_subscription_payload(
-        self, node: str, deadband: float, is_percent: bool
-    ) -> "FrostMessageBuilder":
-        """Sets the payload for a data change subscription message."""
-        self._payload = DataChangeSubscriptionPayload(
-            node=node, deadband=deadband, is_percent=is_percent
-        )
-        return self
-
-    def with_in_range_subscription_payload(
-        self, node: str, low: float, high: float
-    ) -> "FrostMessageBuilder":
-        """Sets the payload for an in-range subscription message."""
-        self._payload = InRangeSubscriptionPayload(node=node, low=low, high=high)
-        return self
-
-    def with_out_of_range_subscription_payload(
-        self, node: str, low: float, high: float
-    ) -> "FrostMessageBuilder":
-        """Sets the payload for an out-of-range subscription message."""
-        self._payload = OutOfRangeSubscriptionPayload(node=node, low=low, high=high)
-        return self
-
-    def with_method_payload(
+    def build_method_completed_message(
         self,
+        target: str,
         node: str,
         args: list[Any] | None = None,
         kwargs: dict[str, Any] | None = None,
         ret: dict[str, Any] | None = None,
-    ) -> "FrostMessageBuilder":
-        """Sets the payload for a method message."""
-        self._payload = MethodPayload(
-            node=node,
-            args=args if args is not None else [],
-            kwargs=kwargs if kwargs is not None else {},
-            ret=ret if ret is not None else {},
-        )
-        return self
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for a method response.
 
-    def with_error_payload(
-        self, node: str, error_code: ErrorCode, error_message: ErrorMessages
-    ) -> "FrostMessageBuilder":
-        """Sets the payload for an error message."""
-        self._payload = ErrorPayload(
-            node=node, error_code=error_code, error_message=error_message
+        Args:
+            - target (str): The target of the message.
+            - node (str): The method that was invoked.
+            - args (list[Any] | None): The positional arguments for the method.
+            - kwargs (dict[str, Any] | None): The keyword arguments for the method.
+            - ret (dict[str, Any] | None): The return value of the method.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.COMPLETED,
+            ),
+            payload=MethodPayload(
+                node=node,
+                args=args if args is not None else [],
+                kwargs=kwargs if kwargs is not None else {},
+                ret=ret if ret is not None else {},
+            ),
         )
-        return self
+        return message
+
+    def build_method_started_message(
+        self, target: str, node: str, ret: dict[str, Any] | None = None
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for a method started notification.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The method that was started.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.STARTED,
+            ),
+            payload=MethodPayload(node=node, ret=ret if ret is not None else {}),
+        )
+        return message
+
+    def build_variable_update_message(
+        self, target: str, node: str, value: Any
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for a variable update notification.
+
+        Args:
+            - target (str): The target of the message.
+            - node (str): The node that was updated.
+            - value (Any): The new value of the node.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.UPDATE,
+            ),
+            payload=VariablePayload(node=node, value=value),
+        )
+        return message
+
+    def build_protocol_register_message(self, target: str) -> FrostMessage:
+        """
+        Builds a FrostMessage for protocol registration.
+
+        Args:
+            - target (str): The target of the message.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.PROTOCOL,
+                msg_name=ProtocolMsgName.REGISTER,
+            ),
+            payload=ProtocolPayload(node=""),
+        )
+        return message
+
+    def build_protocol_unregister_message(self, target: str) -> FrostMessage:
+        """
+        Builds a FrostMessage for protocol unregistration.
+
+        Args:
+            - target (str): The target of the message.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.PROTOCOL,
+                msg_name=ProtocolMsgName.UNREGISTER,
+            ),
+            payload=ProtocolPayload(node=""),
+        )
+        return message
+
+    def build_protocol_register_response_message(self, target: str) -> FrostMessage:
+        """
+        Builds a FrostMessage as a response for protocol registration.
+
+        Args:
+            - target (str): The target of the message.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.PROTOCOL,
+                msg_name=ProtocolMsgName.REGISTER,
+            ),
+            payload=ProtocolPayload(node=""),
+        )
+        return message
+
+    def build_protocol_unregister_response_message(self, target: str) -> FrostMessage:
+        """
+        Builds a FrostMessage as a response for protocol unregistration.
+
+        Args:
+            - target (str): The target of the message.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=MsgType.RESPONSE,
+                namespace=MsgNamespace.PROTOCOL,
+                msg_name=ProtocolMsgName.UNREGISTER,
+            ),
+            payload=ProtocolPayload(node=""),
+        )
+        return message
+
+    def build_error_message(
+        self,
+        target: str,
+        header: FrostHeader,
+        error_code: ErrorCode,
+        error_message: ErrorMessages,
+    ) -> FrostMessage:
+        """
+        Builds a FrostMessage for an error message.
+
+        Args:
+            - target (str): The target of the message.
+            - header (FrostHeader): The header of the original message.
+            - error_code (ErrorCode): The error code.
+            - error_message (ErrorMessages): The error message.
+
+        Returns:
+            - FrostMessage: The built message.
+        """
+        header.type = MsgType.ERROR
+        message = FrostMessage(
+            sender=self._sender,
+            target=target,
+            identifier=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4()),
+            header=header,
+            payload=ErrorPayload(
+                node="", error_code=error_code, error_message=error_message
+            ),
+        )
+        return message

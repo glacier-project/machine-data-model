@@ -39,8 +39,10 @@ from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 class ExecutionNodeResult:
     """
     Represents the result of executing a control flow node.
-    :ivar success: True if the execution was successful, otherwise False.
-    :ivar messages: A list of FrostMessage to be sent, if any.
+
+    Attributes:
+        success (bool): True if the execution was successful, otherwise False.
+        messages (list[FrostMessage] | None): A list of Frost messages to be sent, if any.
     """
 
     def __init__(self, success: bool, messages: list[FrostMessage] | None = None):
@@ -64,20 +66,22 @@ def execution_failure(
 
 class ControlFlowNode(ABC):
     """
-    Abstract base class representing a node in the control flow graph. A control flow node
-    is a basic unit of the control flow graph that can be executed in the context of a control
-    flow scope.
+    Abstract base class for a node in the control flow graph.
 
-    :ivar node: The identifier of a node in the machine data model.
-    :ivar _successors: A list of control flow nodes that are successors of the current node. (Not used yet)
+    A control flow node is a basic unit that can be executed in the context of a scope.
+
+    Attributes:
+        node (str): The identifier of a node in the machine data model.
+        _successors (list["ControlFlowNode"]): A list of successor nodes (not used yet).
     """
 
     def __init__(self, node: str, successors: list["ControlFlowNode"] | None = None):
         """
-        Initialize a new ControlFlowNode instance.
+        Initializes a new ControlFlowNode instance.
 
-        :param node: The identifier of a node in the machine data model.
-        :param successors: A list of control flow nodes that are successors of the current node.
+        Args:
+            node (str): The identifier of a node in the machine data model.
+            successors (list["ControlFlowNode"] | None): A list of successor nodes.
         """
         self.node = node
         self._successors = [] if successors is None else successors
@@ -85,10 +89,13 @@ class ControlFlowNode(ABC):
     @abstractmethod
     def execute(self, scope: ControlFlowScope) -> ExecutionNodeResult:
         """
-        Execute the control flow node in the context of the specified scope.
+        Executes the control flow node in the context of the specified scope.
 
-        :param scope: The scope of the control flow graph.
-        :return: An ExecutionNodeResult object representing the result of the execution.
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+
+        Returns:
+            ExecutionNodeResult: The result of the execution.
         """
         pass
 

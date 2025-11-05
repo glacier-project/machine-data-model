@@ -9,34 +9,41 @@ from machine_data_model.tracing import trace_control_flow_start, trace_control_f
 
 class ControlFlow:
     """
-    Represents a control flow graph implementing the logic of a run-time method.
-    It consists of a list of control flow nodes that are executed in sequence.
-    Difference execution flows are not supported in this version of the control flow graph.
+    Represents a control flow graph for a run-time method.
 
-    :ivar _nodes: A list of control flow nodes in the control flow graph.
+    It consists of a list of control flow nodes that are executed in sequence.
+
+    Attributes:
+        _nodes (Sequence[ControlFlowNode]): A list of control flow nodes.
     """
 
     def __init__(self, nodes: Sequence[ControlFlowNode] | None = None):
         """
         Initializes a new `ControlFlow` instance.
 
-        :param nodes: A list of control flow nodes in the control flow graph.
+        Args:
+            nodes (Sequence[ControlFlowNode] | None): A list of control flow nodes.
         """
         self._nodes = nodes if nodes is not None else []
 
     def nodes(self) -> Sequence[ControlFlowNode]:
         """
-        Gets the list of control flow nodes in the control flow graph.
+        Gets the list of control flow nodes.
 
-        :return: The list of control flow nodes in the control flow graph.
+        Returns:
+            Sequence[ControlFlowNode]: The list of control flow nodes.
         """
         return self._nodes
 
     def get_current_node(self, scope: ControlFlowScope) -> ControlFlowNode | None:
         """
-        Get the current control flow node based on the program counter in the scope of the control flow graph.
-        :param scope: The scope of the control flow graph.
-        :return: The current control flow node, or None if the program counter is out of bounds.
+        Gets the current control flow node based on the program counter in the scope.
+
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+
+        Returns:
+            ControlFlowNode | None: The current control flow node, or None if the program counter is out of bounds.
         """
 
         # If the cfg is terminated return None
@@ -48,10 +55,14 @@ class ControlFlow:
     def execute(self, scope: ControlFlowScope) -> list[FrostMessage]:
         """
         Executes the control flow graph with the specified scope.
-        The scope is deactivated when the control flow graph reaches the end of the graph.
 
-        :param scope: The scope of the control flow graph.
-        :return: A list of Frost messages to be sent as a result of executing the control flow graph.
+        The scope is deactivated when the control flow graph reaches the end.
+
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+
+        Returns:
+            list[FrostMessage]: A list of Frost messages to be sent.
         """
 
         data_model_id = "NO DATA MODEL"  # TODO: fix this

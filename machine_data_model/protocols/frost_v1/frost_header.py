@@ -102,13 +102,14 @@ class ProtocolMsgName(MsgName):
 @dataclass(init=True, slots=True)
 class FrostHeader:
     """
-    Represents the header of a message, and holds its metadata.
+    Represents the header of a message and holds its metadata.
 
-    :cvar type: The type of the message (e.g., REQUEST, RESPONSE, ERROR).
-    :cvar version: The version of the protocol, represented as a tuple of integers (major, minor, patch).
-    :cvar namespace: The namespace to which the message belongs (e.g., NODE, VARIABLE, METHOD).
-    :cvar msg_name: The specific name of the message that describes its purpose or action (e.g., GET_INFO, READ).
-    :cvar timestamp: The timestamp when the message was created.
+    Attributes:
+        type (MsgType): The type of the message (e.g., REQUEST, RESPONSE, ERROR).
+        version (tuple[int, int, int]): The version of the protocol.
+        namespace (MsgNamespace): The namespace of the message (e.g., NODE, VARIABLE, METHOD).
+        msg_name (MsgName): The specific name of the message.
+        timestamp (datetime): The timestamp when the message was created.
     """
 
     type: MsgType
@@ -126,10 +127,13 @@ class FrostHeader:
         """
         Checks if the header matches the given type, namespace, and message name.
 
-        :param _type: The expected message type (e.g., REQUEST, RESPONSE). If None, it is ignored.
-        :param _namespace: The expected namespace (e.g., VARIABLE, METHOD, PROTOCOL). If None, it is ignored.
-        :param _msg_name: The expected message name (e.g., REGISTER, READ, WRITE). If None, it is ignored.
-        :return: True if the header matches all provided parameters, False otherwise.
+        Args:
+            _type (Optional[MsgType]): The message type to match.
+            _namespace (Optional[MsgNamespace]): The namespace to match.
+            _msg_name (Optional[MsgName]): The message name to match.
+
+        Returns:
+            bool: True if the header matches, False otherwise.
         """
 
         return (
@@ -142,8 +146,8 @@ class FrostHeader:
         """
         Returns a string representation of the FrostHeader.
 
-        The format will be:
-            Type: REQUEST, Version: 1.0.0, Namespace: VARIABLE, Message Name: READ, Timestamp: 2023-02-28T14:20:00+00:00
+        Returns:
+            str: The string representation of the header.
         """
         return (
             f"Type: {self.type}, "
@@ -157,11 +161,8 @@ class FrostHeader:
         """
         Returns an official string representation of the FrostHeader.
 
-        The format will be:
-            FrostHeader(type='REQUEST', version=(1, 0, 0), namespace='VARIABLE',
-                msg_name='READ',
-                timestamp=datetime.datetime(2023, 2, 28, 14, 20, 0, 123456, tzinfo=datetime.timezone.utc)
-            )
+        Returns:
+            str: The official string representation of the header.
         """
         return (
             f"FrostHeader(type={self.type!r}, "

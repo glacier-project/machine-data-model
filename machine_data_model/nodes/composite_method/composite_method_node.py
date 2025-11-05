@@ -16,24 +16,19 @@ SCOPE_ID = "@scope_id"
 
 class CompositeMethodNode(MethodNode):
     """
-    A CompositeMethodNode class is a node that represents a composite method in the
-    machine data model. Composite methods of the machine data model are used to
-    declare functions that are composed of multiple asynchronous sub-methods,
+    A node that represents a composite method in the machine data model.
+
+    Composite methods are composed of multiple asynchronous sub-methods,
     wait conditions, and other control flow elements.
 
-    :ivar _parameters: A list of parameters for the method.
-    :ivar _returns: A list of return values for the method.
-    :ivar _callback: The function to execute when the method is called. The callback
-    function for a composite method is fixed and cannot be changed. It consists of
-    control flow executor that calls the sub-methods in sequence, waits for conditions
-    to be met, and executes other control flow elements.
-    :ivar _pre_call: The function to run before the method is called.
-    :ivar _post_call: The function to run after the method is called.
-    :ivar _scopes: A dictionary of scopes for the method. Each scope represents a
-    separate instance of the method that is being executed. The key of the dictionary
-    is the scope id, and the value is the scope object.
-    :ivar cfg: The control flow graph of the method. The control flow graph consists
-    of control flow nodes implementing the logic of the method.
+    Attributes:
+        _parameters (list[VariableNode]): A list of parameters for the method.
+        _returns (list[VariableNode]): A list of return values for the method.
+        _callback (Callable[..., Any]): The function to execute when the method is called.
+        _pre_call (Callable[..., None]): The function to run before the method is called.
+        _post_call (Callable[..., None]): The function to run after the method is called.
+        _scopes (dict[str, ControlFlowScope]): A dictionary of scopes for the method.
+        cfg (ControlFlow): The control flow graph of the method.
     """
 
     def __init__(
@@ -46,13 +41,15 @@ class CompositeMethodNode(MethodNode):
         cfg: ControlFlow | None = None,
     ):
         """
-        Initialize a new CompositeMethodNode instance.
+        Initializes a new CompositeMethodNode instance.
 
-        :param id: The unique identifier of the method.
-        :param name: The name of the method.
-        :param description: The description of the method.
-        :param parameters: A list of parameters for the method.
-        :param returns: A list of return values for the method.
+        Args:
+            id (str | None): The unique identifier of the method.
+            name (str | None): The name of the method.
+            description (str | None): The description of the method.
+            parameters (list[VariableNode] | None): A list of parameters for the method.
+            returns (list[VariableNode] | None): A list of return values for the method.
+            cfg (ControlFlow | None): The control flow graph of the method.
         """
         super().__init__(
             id=id,
@@ -66,11 +63,14 @@ class CompositeMethodNode(MethodNode):
 
     def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
         """
-        Call the method with the specified arguments.
+        Calls the method with the specified arguments.
 
-        :param args: The positional arguments of the method.
-        :param kwargs: The keyword arguments of the method.
-        :return: The return values of the method.
+        Args:
+            *args (Any): The positional arguments of the method.
+            **kwargs (Any): The keyword arguments of the method.
+
+        Returns:
+            MethodExecutionResult: The result of the method execution.
         """
         kwargs = self._resolve_arguments(*args, **kwargs)
 
@@ -79,9 +79,13 @@ class CompositeMethodNode(MethodNode):
 
     def _terminate_execution(self, scope: ControlFlowScope) -> dict[str, Any]:
         """
-        Terminate the execution of the method with the specified scope. It returns the
-        return values of the method if the method is completed, otherwise it returns
-        the scope id.
+        Terminates the execution of the method for a given scope.
+
+        Args:
+            scope (ControlFlowScope): The scope of the execution to terminate.
+
+        Returns:
+            dict[str, Any]: A dictionary of return values if the method is completed, otherwise the scope id.
         """
         if scope.is_active():
             return {SCOPE_ID: scope.id()}
@@ -93,30 +97,38 @@ class CompositeMethodNode(MethodNode):
 
     def is_terminated(self, scope_id: str) -> bool:
         """
-        Check if the scope with the specified id is terminated.
+        Checks if the scope with the specified id is terminated.
 
-        :param scope_id: The id of the scope to check.
-        :return: True if the scope is terminated, False otherwise.
+        Args:
+            scope_id (str): The id of the scope to check.
+
+        Returns:
+            bool: True if the scope is terminated, False otherwise.
         """
         scope = self._get_scope(scope_id)
         return not scope.is_active()
 
     def delete_scope(self, scope_id: str) -> None:
         """
-        Delete the scope with the specified id.
+        Deletes the scope with the specified id.
 
-        :param scope_id: The id of the scope to delete.
+        Args:
+            scope_id (str): The id of the scope to delete.
         """
         if scope_id not in self._scopes:
             raise ValueError(f"Scope '{scope_id}' not found")
         del self._scopes[scope_id]
 
     def handle_message(self, scope_id: str, message: FrostMessage) -> bool:
-        """Handle the response message in response to the request generated from the execution of the current remote node.
+        """
+        Handles a response message for a remote execution node.
 
-        :param scope: The scope of the control flow graph.
-        :param message: The response to the current remote execution node request.
-        :return: True if the method can be resumed, False otherwise.
+        Args:
+            scope_id (str): The id of the scope.
+            message (FrostMessage): The response message.
+
+        Returns:
+            bool: True if the method can be resumed, False otherwise.
         """
         scope = self._get_scope(scope_id)
 
@@ -129,10 +141,13 @@ class CompositeMethodNode(MethodNode):
 
     def resume_execution(self, scope_id: str) -> MethodExecutionResult:
         """
-        Resume the execution of the method with the specified scope id.
+        Resumes the execution of the method with the specified scope id.
 
-        :param scope_id: The id of the scope to resume.
-        :return: The result of resuming the execution of the method.
+        Args:
+            scope_id (str): The id of the scope to resume.
+
+        Returns:
+            MethodExecutionResult: The result of resuming the execution.
         """
 
         scope = self._get_scope(scope_id)
@@ -145,13 +160,16 @@ class CompositeMethodNode(MethodNode):
 
     def _start_execution(self, **kwargs: dict[str, Any]) -> MethodExecutionResult:
         """
-        Start the execution of the composite method with the specified arguments.
-        It creates a new scope and executes the control flow graph of the method until
-        a wait condition is reached or the method is completed. A scope id is returned
-        if the method is not completed.
+        Starts the execution of the composite method.
 
-        :param kwargs: The arguments of the method.
-        :return: The result of starting the execution of the method.
+        This creates a new scope and executes the control flow graph until a wait
+        condition is reached or the method is completed.
+
+        Args:
+            **kwargs (dict[str, Any]): The arguments of the method.
+
+        Returns:
+            MethodExecutionResult: The result of starting the execution.
         """
 
         scope = self._create_scope(**kwargs)
@@ -162,19 +180,25 @@ class CompositeMethodNode(MethodNode):
 
     def _get_scope(self, scope_id: str) -> ControlFlowScope:
         """
-        Get the scope with the specified id.
+        Gets the scope with the specified id.
 
-        :param scope_id: The id of the scope to get.
-        :return: The scope with the specified id.
+        Args:
+            scope_id (str): The id of the scope to get.
+
+        Returns:
+            ControlFlowScope: The scope with the specified id.
         """
         return self._scopes[scope_id]
 
     def _create_scope(self, **kwargs: dict[str, Any]) -> ControlFlowScope:
         """
-        Create a new scope with the specified arguments.
+        Creates a new scope with the specified arguments.
 
-        :param kwargs: The arguments to create the scope with.
-        :return: The created scope.
+        Args:
+            **kwargs (dict[str, Any]): The arguments to create the scope with.
+
+        Returns:
+            ControlFlowScope: The created scope.
         """
         scope_id = str(uuid.uuid4())
         scope = ControlFlowScope(scope_id, **kwargs)

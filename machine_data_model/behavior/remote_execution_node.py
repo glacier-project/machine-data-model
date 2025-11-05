@@ -32,10 +32,14 @@ from machine_data_model.tracing.events import trace_control_flow_step
 
 class RemoteExecutionNode(ControlFlowNode):
     """
-    Represents a remote execution node in the control flow graph. When executed,
-    it sends a request message to a remote node and waits for a response.
-    :ivar remote_id: The identifier of the remote node.
-    :ivar node: The qualified name of the node to interact with on the remote node.
+    Represents a remote execution node in the control flow graph.
+
+    When executed, it sends a request message to a remote node and waits for a response.
+
+    Attributes:
+        remote_id (str): The identifier of the remote node.
+        node (str): The qualified name of the node to interact with on the remote node.
+        sender_id (str): The identifier of the sender.
     """
 
     def __init__(
@@ -50,9 +54,14 @@ class RemoteExecutionNode(ControlFlowNode):
 
     @abstractmethod
     def _create_request(self, scope: ControlFlowScope) -> FrostMessage:
-        """Create the request message to send to the remote node.
-        :param scope: The scope of the control flow graph.
-        :return: The request message to send to the remote node.
+        """
+        Creates the request message to send to the remote node.
+
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+
+        Returns:
+            FrostMessage: The request message.
         """
         pass
 
@@ -60,25 +69,40 @@ class RemoteExecutionNode(ControlFlowNode):
     def _validate_response(
         self, scope: ControlFlowScope, response: FrostMessage
     ) -> bool:
-        """Validate the response message received from the remote node.
-        :param scope: The scope of the control flow graph.
-        :param response: The response message received from the remote node.
-        :return: True if the response is valid, otherwise False.
+        """
+        Validates the response message from the remote node.
+
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+            response (FrostMessage): The response message.
+
+        Returns:
+            bool: True if the response is valid, otherwise False.
         """
         pass
 
     def _create_cleanup_msg(self, scope: ControlFlowScope) -> FrostMessage | None:
-        """Create a cleanup message to send to the remote target after the node has been executed.
-        :param scope: The scope of the control flow graph.
-        :return: The cleanup message to send to the remote node, or None if no cleanup is needed.
+        """
+        Creates a cleanup message to send after execution.
+
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+
+        Returns:
+            FrostMessage | None: The cleanup message, or None if no cleanup is needed.
         """
         pass
 
     def handle_response(self, scope: ControlFlowScope, response: FrostMessage) -> bool:
-        """Handle the response message received from the remote node.
-        :param scope: The scope of the control flow graph.
-        :param response: The response message received from the remote node.
-        :return: True if the response is valid and has been handled, otherwise False.
+        """
+        Handles the response message from the remote node.
+
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+            response (FrostMessage): The response message.
+
+        Returns:
+            bool: True if the response is valid and handled, otherwise False.
         """
         if (
             response.correlation_id != scope.active_request
@@ -148,10 +172,14 @@ class RemoteExecutionNode(ControlFlowNode):
 
 class CallRemoteMethodNode(RemoteExecutionNode):
     """
-    Represents a remote method call node in the control flow graph. When executed,
-    it sends a request message to a remote node to invoke a method and waits for a response.
-    :ivar _args: The positional arguments to pass to the remote method.
-    :ivar _kwargs: The keyword arguments to pass to the remote method.
+    Represents a remote method call node in the control flow graph.
+
+    When executed, it sends a request to a remote node to invoke a method and
+    waits for a response.
+
+    Attributes:
+        args (list[Any]): The positional arguments for the remote method.
+        kwargs (dict[str, Any]): The keyword arguments for the remote method.
     """
 
     def __init__(
@@ -222,9 +250,13 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
 class ReadRemoteVariableNode(RemoteExecutionNode):
     """
-    Represents a remote variable read node in the control flow graph. When executed,
-    it sends a request message to a remote node to read a variable and waits for a response to store the value in the scope.
-    :ivar _store_as: The name of the variable used to store the value in the scope.
+    Represents a remote variable read node in the control flow graph.
+
+    When executed, it sends a request to a remote node to read a variable and
+    waits for a response to store the value in the scope.
+
+    Attributes:
+        store_as (str): The name to store the value as in the scope.
     """
 
     def __init__(
@@ -287,10 +319,13 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
 class WriteRemoteVariableNode(RemoteExecutionNode):
     """
-    Represents a remote variable write node in the control flow graph. When executed,
-    it sends a request message to a remote node to write a value to a variable and waits for a response.
-    :ivar _value: The value to write to the remote variable. Can be a direct
-        value or a reference to a variable in the scope (e.g., "$var_name").
+    Represents a remote variable write node in the control flow graph.
+
+    When executed, it sends a request to a remote node to write a value to a
+    variable and waits for a response.
+
+    Attributes:
+        value (Any): The value to write to the remote variable.
     """
 
     def __init__(
@@ -349,11 +384,14 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
 
 class WaitRemoteEventNode(RemoteExecutionNode):
     """
-    Represents a remote event wait node in the control flow graph. When executed,
-    it sends a request message to a remote node to subscribe to an event and waits for a response.
+    Represents a remote event wait node in the control flow graph.
 
-    :ivar rhs: The right-hand side of the comparison. It can be a constant value or reference to a variable in the scope.
-    :ivar op: The comparison operator.
+    When executed, it sends a request to a remote node to subscribe to an event
+    and waits for a response.
+
+    Attributes:
+        rhs (Any): The right-hand side of the comparison.
+        op (WaitConditionOperator): The comparison operator.
     """
 
     def __init__(
@@ -421,6 +459,15 @@ class WaitRemoteEventNode(RemoteExecutionNode):
 
     @override
     def _create_cleanup_msg(self, scope: ControlFlowScope) -> FrostMessage:
+        """
+        Creates a cleanup message to unsubscribe from the remote event.
+
+        Args:
+            scope (ControlFlowScope): The scope of the control flow graph.
+
+        Returns:
+            FrostMessage: The unsubscribe message.
+        """
         msg = self._create_request(scope)
         msg.header.msg_name = VariableMsgName.UNSUBSCRIBE
         return msg

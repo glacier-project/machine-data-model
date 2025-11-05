@@ -23,7 +23,16 @@ from machine_data_model.nodes.method_node import MethodNode, MethodExecutionResu
 
 class DataModel:
     """
-    A DataModel represents the structure and data of a machine data model.
+    Represents the structure and data of a machine data model.
+
+    Attributes:
+        _name (str): The name of the data model.
+        _machine_category (str): The category of the machine.
+        _machine_type (str): The type of the machine.
+        _machine_model (str): The model of the machine.
+        _description (str): A description of the data model.
+        _root (FolderNode): The root folder of the data model.
+        _nodes (dict[str, DataModelNode]): A hashmap for fast access to nodes by id.
     """
 
     def __init__(
@@ -51,32 +60,70 @@ class DataModel:
 
     @property
     def name(self) -> str:
+        """
+        Gets the name of the data model.
+
+        Returns:
+            str: The name of the data model.
+        """
         return self._name
 
     @property
     def machine_category(self) -> str:
+        """
+        Gets the machine category.
+
+        Returns:
+            str: The machine category.
+        """
         return self._machine_category
 
     @property
     def machine_type(self) -> str:
+        """
+        Gets the machine type.
+
+        Returns:
+            str: The machine type.
+        """
         return self._machine_type
 
     @property
     def machine_model(self) -> str:
+        """
+        Gets the machine model.
+
+        Returns:
+            str: The machine model.
+        """
         return self._machine_model
 
     @property
     def description(self) -> str:
+        """
+        Gets the description of the data model.
+
+        Returns:
+            str: The description of the data model.
+        """
         return self._description
 
     @property
     def root(self) -> FolderNode:
+        """
+        Gets the root folder of the data model.
+
+        Returns:
+            FolderNode: The root folder of the data model.
+        """
         return self._root
 
     def _register_node(self, node: DataModelNode) -> None:
         """
-        Register a node in the data model for id-based access.
-        :param node: The node to register in the data model.
+        Registers a node in the data model for id-based access.
+
+        Args:
+            node (DataModelNode): The node to register.
         """
         self._nodes[node.id] = node
         node._data_model = weakref.ref(self)
@@ -102,8 +149,10 @@ class DataModel:
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
         """
-        Register all nodes in the data model for id-based access.
-        :param node: The node to register in the data model.
+        Registers all nodes in the data model for id-based access.
+
+        Args:
+            node (FolderNode | ObjectVariableNode): The node to start registration from.
         """
         del self._nodes
         self._nodes = {}
@@ -120,9 +169,11 @@ class DataModel:
         function: Callable[[DataModelNode], None],
     ) -> None:
         """
-        Traverse the data model and apply a function to each node.
-        :param node: The node to start the traversal from.
-        :param function: The function to apply to each node.
+        Traverses the data model and applies a function to each node.
+
+        Args:
+            node (FolderNode | ObjectVariableNode): The node to start the traversal from.
+            function (Callable[[DataModelNode], None]): The function to apply to each node.
         """
         function(node)
         for child in node:
@@ -136,9 +187,13 @@ class DataModel:
 
     def _get_node_from_path(self, path: str) -> DataModelNode | None:
         """
-        Get a node from the data model by path.
-        :param path: The path of the node to get from the data model.
-        :return: The node with the specified path.
+        Gets a node from the data model by path.
+
+        Args:
+            path (str): The path of the node to get.
+
+        Returns:
+            DataModelNode | None: The node with the specified path, or None if not found.
         """
 
         current_node: DataModelNode = self._root
@@ -165,9 +220,13 @@ class DataModel:
 
     def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
         """
-        Get a node from the data model by id.
-        :param node_id: The id of the node to get from the data model.
-        :return: The node with the specified id.
+        Gets a node from the data model by id.
+
+        Args:
+            node_id (str): The id of the node to get.
+
+        Returns:
+            DataModelNode | None: The node with the specified id, or None if not found.
         """
         if node_id not in self._nodes:
             return None
@@ -175,7 +234,14 @@ class DataModel:
 
     def add_child(self, parent_id: str, child: DataModelNode) -> bool:
         """
-        Add a child node to a parent node in the data model.
+        Adds a child node to a parent node in the data model.
+
+        Args:
+            parent_id (str): The id of the parent node.
+            child (DataModelNode): The child node to add.
+
+        Returns:
+            bool: True if the child was added successfully, False otherwise.
         """
         parent_node = self.get_node(parent_id)
         if not isinstance(parent_node, FolderNode):
@@ -185,7 +251,14 @@ class DataModel:
 
     def remove_child(self, parent_id: str, child_id: str) -> bool:
         """
-        Remove a child node from a parent node in the data model.
+        Removes a child node from a parent node in the data model.
+
+        Args:
+            parent_id (str): The id of the parent node.
+            child_id (str): The id of the child node to remove.
+
+        Returns:
+            bool: True if the child was removed successfully, False otherwise.
         """
         parent_node = self.get_node(parent_id)
         if not isinstance(parent_node, FolderNode):
@@ -195,9 +268,13 @@ class DataModel:
 
     def get_node(self, node_id: str) -> DataModelNode | None:
         """
-        Get a node from the data model by its id or path.
-        :param node_id: The id or path of the node to get from the data model.
-        :return: The node with the specified id or path.
+        Gets a node from the data model by its id or path.
+
+        Args:
+            node_id (str): The id or path of the node to get.
+
+        Returns:
+            DataModelNode | None: The node with the specified id or path, or None if not found.
         """
         if "/" not in node_id:
             return self._get_node_from_id(node_id)
@@ -205,9 +282,13 @@ class DataModel:
 
     def read_variable(self, variable_id: str) -> Any:
         """
-        Read a variable from the data model by exploring the structure of the node that contains that variable.
-        :param variable_id: The id or the path of the variable to read from the data model.
-        :return: The value of the variable.
+        Reads a variable from the data model.
+
+        Args:
+            variable_id (str): The id or path of the variable to read.
+
+        Returns:
+            Any: The value of the variable.
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
@@ -216,10 +297,14 @@ class DataModel:
 
     def write_variable(self, variable_id: str, value: Any) -> bool:
         """
-        Write a variable to the data model by exploring the structure of the node that contains that variable.
-        :param variable_id: The id or the path of the variable to write to the data model.
-        :param value: The value to write to the variable.
-        :return: True if the variable was written successfully, False otherwise.
+        Writes a variable to the data model.
+
+        Args:
+            variable_id (str): The id or path of the variable to write to.
+            value (Any): The value to write to the variable.
+
+        Returns:
+            bool: True if the variable was written successfully, False otherwise.
         """
         node = self.get_node(variable_id)
         if isinstance(node, VariableNode):
@@ -228,9 +313,13 @@ class DataModel:
 
     def call_method(self, method_id: str) -> MethodExecutionResult:
         """
-        Executes a method from the data model by exploring the structure of the node that contains that method.
-        :param method_name: The id or the path of the method to call from the data model.
-        :return: The result of the method execution.
+        Executes a method from the data model.
+
+        Args:
+            method_id (str): The id or path of the method to call.
+
+        Returns:
+            MethodExecutionResult: The result of the method execution.
         """
         node = self.get_node(method_id)
         if isinstance(node, MethodNode):
@@ -239,12 +328,14 @@ class DataModel:
 
     def subscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
         """
-        Adds the provided subscription to the target variable node in the data model.
-        Raises a ValueError if the target node is not found or is not a VariableNode.
+        Adds a subscription to a variable node in the data model.
 
-        :param target_node: The id or the path of the variable node to subscribe to.
-        :param subscription: The subscription to add to the variable node.
-        :return: True if the subscription was added successfully, False otherwise.
+        Args:
+            target_node (str): The id or path of the variable node to subscribe to.
+            subscription (VariableSubscription): The subscription to add.
+
+        Returns:
+            bool: True if the subscription was added successfully, False otherwise.
         """
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):
@@ -253,12 +344,14 @@ class DataModel:
 
     def unsubscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
         """
-        Removes the provided subscription from the target variable node in the data model.
-        Raises a ValueError if the target node is not found or is not a VariableNode.
+        Removes a subscription from a variable node in the data model.
 
-        :param target_node: The id or the path of the variable node to unsubscribe from.
-        :param subscription: The subscription to remove from the variable node.
-        :return: True if the subscription was removed successfully, False otherwise.
+        Args:
+            target_node (str): The id or path of the variable node to unsubscribe from.
+            subscription (VariableSubscription): The subscription to remove.
+
+        Returns:
+            bool: True if the subscription was removed successfully, False otherwise.
         """
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):

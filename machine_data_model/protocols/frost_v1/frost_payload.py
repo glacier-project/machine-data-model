@@ -9,10 +9,8 @@ class FrostPayload:
     """
     Abstract base class for the payload of a message in the Frost protocol.
 
-    This class holds the general structure for the payload, which can be
-    extended for different types of messages.
-
-    :cvar node: The node associated with the message payload.
+    Attributes:
+        node (str): The node associated with the message payload.
     """
 
     node: str = ""
@@ -23,11 +21,8 @@ class VariablePayload(FrostPayload):
     """
     Represents the payload of a variable-related message.
 
-    This class extends the base payload and includes the value associated with the
-    variable message.
-
-    :cvar node: The node associated with the message payload (inherited).
-    :cvar value: The value of the variable in the message payload.
+    Attributes:
+        value (Any): The value of the variable in the message payload.
     """
 
     value: Any = None
@@ -37,15 +32,16 @@ class VariablePayload(FrostPayload):
 class SubscriptionPayload(VariablePayload):
     """
     Represents the payload of a subscription-related message.
-
-    This class extends the base payload and includes attributes that are need to handle
-    subscription-related messages.
-
-    :cvar node: The node associated with the message payload (inherited).
     """
 
     @property
     def subscription_type(self) -> EventType:
+        """
+        Returns the type of the subscription.
+
+        Returns:
+            EventType: The type of the subscription.
+        """
         return EventType.ANY
 
 
@@ -54,13 +50,9 @@ class DataChangeSubscriptionPayload(SubscriptionPayload):
     """
     Represents the payload of a data change subscription message.
 
-    This class extends the subscription payload and includes attributes specific to
-    data change subscriptions.
-
-    :cvar node: The node associated with the message payload (inherited).
-    :cvar deadband: Minimum change required to trigger a notification.
-    :cvar is_percent: If True, deadband is treated as a percentage of the
-    previous value; otherwise, it's an absolute value.
+    Attributes:
+        deadband (float): Minimum change required to trigger a notification.
+        is_percent (bool): If True, deadband is a percentage; otherwise, it's an absolute value.
     """
 
     deadband: float = 0.0
@@ -68,6 +60,12 @@ class DataChangeSubscriptionPayload(SubscriptionPayload):
 
     @property
     def subscription_type(self) -> EventType:
+        """
+        Returns the type of the subscription.
+
+        Returns:
+            EventType: The type of the subscription.
+        """
         return EventType.DATA_CHANGE
 
 
@@ -76,12 +74,9 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
     """
     Represents the payload of an in-range subscription message.
 
-    This class extends the subscription payload and includes attributes specific to
-    in-range subscriptions.
-
-    :cvar node: The node associated with the message payload (inherited).
-    :cvar low: The lower bound of the range.
-    :cvar high: The upper bound of the range.
+    Attributes:
+        low (float): The lower bound of the range.
+        high (float): The upper bound of the range.
     """
 
     low: float = 0.0
@@ -89,6 +84,12 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
 
     @property
     def subscription_type(self) -> EventType:
+        """
+        Returns the type of the subscription.
+
+        Returns:
+            EventType: The type of the subscription.
+        """
         return EventType.IN_RANGE
 
 
@@ -96,17 +97,16 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
 class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
     """
     Represents the payload of an out-of-range subscription message.
-
-    This class extends the subscription payload and includes attributes specific to
-    out-of-range subscriptions.
-
-    :cvar node: The node associated with the message payload (inherited).
-    :cvar low: The lower bound of the range.
-    :cvar high: The upper bound of the range.
     """
 
     @property
     def subscription_type(self) -> EventType:
+        """
+        Returns the type of the subscription.
+
+        Returns:
+            EventType: The type of the subscription.
+        """
         return EventType.OUT_OF_RANGE
 
 
@@ -115,13 +115,10 @@ class MethodPayload(FrostPayload):
     """
     Represents the payload of a method-related message.
 
-    This class extends the base payload and includes arguments, keyword arguments, and
-    return values for method invocations.
-
-    :cvar node: The node associated with the message payload (inherited).
-    :cvar args: The list of arguments for the method.
-    :cvar kwargs: The dictionary of keyword arguments for the method.
-    :cvar ret: The dictionary of return values from the method.
+    Attributes:
+        args (list[Any]): The list of arguments for the method.
+        kwargs (dict[str, Any]): The dictionary of keyword arguments for the method.
+        ret (dict[str, Any]): The dictionary of return values from the method.
     """
 
     args: list[Any] = field(default_factory=list)
@@ -133,11 +130,6 @@ class MethodPayload(FrostPayload):
 class ProtocolPayload(FrostPayload):
     """
     Represents the payload of a protocol-related message.
-
-    This class extends the base payload and includes attributes that are need to handle
-    protocol-related messages.
-
-    :cvar node: The node associated with the message payload (inherited).
     """
 
     pass
@@ -195,11 +187,9 @@ class ErrorPayload(FrostPayload):
     """
     Represents the payload of an error message in the Frost protocol.
 
-    This class extends the base payload and includes error-related information.
-
-    :cvar node: The node associated with the message payload (inherited).
-    :cvar error_code: The error code associated with the error message.
-    :cvar error_message: A description of the error.
+    Attributes:
+        error_code (int): The error code associated with the error message.
+        error_message (str): A description of the error.
     """
 
     error_code: int = -1

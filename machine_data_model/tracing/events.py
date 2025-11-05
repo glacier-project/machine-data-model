@@ -879,21 +879,15 @@ def trace_variable_write(
     data_model_id: str = "",
 ) -> None:
     """
-    Trace a variable write operation.
+    Traces a variable write operation.
 
     Args:
-        variable_id (str):
-            The ID of the variable being written.
-        old_value (Any):
-            The old value of the variable.
-        new_value (Any):
-            The new value of the variable.
-        success (bool):
-            Whether the write operation was successful.
-        source (str, optional):
-            The source of the event. Defaults to "".
-        data_model_id (str, optional):
-            The ID of the data model this event belongs to. Defaults to "".
+        variable_id (str): The ID of the variable being written.
+        old_value (Any): The old value of the variable.
+        new_value (Any): The new value of the variable.
+        success (bool): Whether the write operation was successful.
+        source (str, optional): The source of the event. Defaults to "".
+        data_model_id (str, optional): The ID of the data model. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.VARIABLE_WRITE):
@@ -917,17 +911,13 @@ def trace_variable_read(
     data_model_id: str = "",
 ) -> None:
     """
-    Trace a variable read operation.
+    Traces a variable read operation.
 
     Args:
-        variable_id (str):
-            The ID of the variable being read.
-        value (Any):
-            The value of the variable.
-        source (str, optional):
-            The source of the event. Defaults to "".
-        data_model_id (str, optional):
-            The ID of the data model this event belongs to. Defaults to "".
+        variable_id (str): The ID of the variable being read.
+        value (Any): The value of the variable.
+        source (str, optional): The source of the event. Defaults to "".
+        data_model_id (str, optional): The ID of the data model. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.VARIABLE_READ):
@@ -950,17 +940,13 @@ def trace_method_start(
     data_model_id: str = "",
 ) -> float:
     """
-    Trace method start and return start time for duration calculation.
+    Traces a method start and returns the start time.
 
     Args:
-        method_id (str):
-            The ID of the method being called.
-        args (dict[str, Any]):
-            The arguments passed to the method.
-        source (str, optional):
-            The source of the event. Defaults to "".
-        data_model_id (str, optional):
-            The ID of the data model this event belongs to. Defaults to "".
+        method_id (str): The ID of the method being called.
+        args (dict[str, Any]): The arguments passed to the method.
+        source (str, optional): The source of the event. Defaults to "".
+        data_model_id (str, optional): The ID of the data model. Defaults to "".
 
     Returns:
         float: The timestamp when the method started.
@@ -987,19 +973,14 @@ def trace_method_end(
     data_model_id: str = "",
 ) -> None:
     """
-    Trace method end with execution time.
+    Traces a method end with execution time.
 
     Args:
-        method_id (str):
-            The ID of the method that completed.
-        returns (dict[str, Any]):
-            The return values from the method.
-        start_time (float):
-            The timestamp when the method started.
-        source (str, optional):
-            The source of the event. Defaults to "".
-        data_model_id (str, optional):
-            The ID of the data model this event belongs to. Defaults to "".
+        method_id (str): The ID of the method that completed.
+        returns (dict[str, Any]): The return values from the method.
+        start_time (float): The timestamp when the method started.
+        source (str, optional): The source of the event. Defaults to "".
+        data_model_id (str, optional): The ID of the data model. Defaults to "".
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.METHOD_END):
