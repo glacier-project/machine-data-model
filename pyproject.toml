@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.11"
 pyyaml = "^6.0.2"
 unitsnet-py = "^0.1.135"
+asyncua = "1.1.6"
 typing-extensions = "^4.15.0"
 
 
@@ -20,6 +21,7 @@ pre-commit = "^4.0.1"
 mypy = "^1.13.0"
 ruff = "^0.8.3"
 tox = "^4.23.2"
+docker = "^7.1.0"
 
 
 [tool.poetry.group.test.dependencies]
@@ -44,11 +46,13 @@ skip-string-normalization = false
 
 [tool.flake8]
 max-line-length = 88
+target-version = ['py39', 'py310', 'py311']
+skip-string-normalization = false
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
 
 [tool.ruff.lint]
 select = []
 ignore = []
+
