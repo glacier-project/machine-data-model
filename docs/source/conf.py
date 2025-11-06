@@ -22,7 +22,7 @@ extensions = ["sphinx.ext.autodoc", "autoapi.extension"]
 autodoc_typehints = "description"
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns: list[str] = []
 
 # AutoAPI configuration
 autoapi_dirs = ["../../machine_data_model"]

@@ -6,12 +6,11 @@ verification, including variable changes, method executions, communication
 events, and control flow.
 """
 
-from dataclasses import dataclass
-from typing import Any, List, Optional, Dict
-from enum import Enum
-from abc import ABC, abstractmethod
-
 import json
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 
 class TraceLevel(Enum):
@@ -71,6 +70,7 @@ class TraceEvent(ABC):
         data_model_id (str):
             The identifier of the data model this event belongs to, for
             multi-model scenarios.
+
     """
 
     timestamp: float
@@ -78,7 +78,7 @@ class TraceEvent(ABC):
     source: str
     data_model_id: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary for serialization."""
         return {
             "timestamp": self.timestamp,
@@ -89,14 +89,13 @@ class TraceEvent(ABC):
         }
 
     @property
-    def details(self) -> Dict[str, Any]:
+    def details(self) -> dict[str, Any]:
         """Get event-specific details."""
         return self._get_details()
 
     @abstractmethod
-    def _get_details(self) -> Dict[str, Any]:
+    def _get_details(self) -> dict[str, Any]:
         """Get event-specific details. Must be implemented by subclasses."""
-        pass
 
 
 class TraceCollector:
@@ -117,17 +116,21 @@ class TraceCollector:
         Initializes the trace collector.
 
         Args:
-            level (TraceLevel, optional): The initial tracing level. Defaults to TraceLevel.NONE.
+            level (TraceLevel, optional):
+                The initial tracing level. Defaults to TraceLevel.NONE.
+
         """
         self.level = level
-        self.events: List[TraceEvent] = []
+        self.events: list[TraceEvent] = []
 
     def set_level(self, level: TraceLevel) -> None:
         """
         Sets the tracing level.
 
         Args:
-            level (TraceLevel): The new tracing level to apply.
+            level (TraceLevel):
+                The new tracing level to apply.
+
         """
         self.level = level
 
@@ -140,7 +143,9 @@ class TraceCollector:
         Records a trace event if tracing is enabled and the level allows it.
 
         Args:
-            event (TraceEvent): The trace event to record.
+            event (TraceEvent):
+                The trace event to record.
+
         """
         # Filter based on trace level.
         if self.should_record_event_type(event.event_type):
@@ -155,6 +160,7 @@ class TraceCollector:
 
         Returns:
             bool: True if the event type should be recorded, False otherwise.
+
         """
         # If tracing is disabled, do not record any events.
         if self.level == TraceLevel.NONE:
@@ -185,8 +191,8 @@ class TraceCollector:
 
     def get_events(
         self,
-        event_type: Optional[TraceEventType] = None,
-    ) -> List[TraceEvent]:
+        event_type: TraceEventType | None = None,
+    ) -> list[TraceEvent]:
         """
         Gets events, optionally filtered by type.
 
@@ -194,7 +200,8 @@ class TraceCollector:
             event_type (Optional[TraceEventType], optional): Filter events by this type. If None, returns all events.
 
         Returns:
-            List[TraceEvent]: A list of matching trace events.
+            List[TraceEvent]: List of matching trace events.
+
         """
         if event_type is None:
             return self.events.copy()
@@ -205,7 +212,9 @@ class TraceCollector:
         Exports events to a JSON file.
 
         Args:
-            filepath (str): The file path where to save the JSON export.
+            filepath (str):
+                The file path where to save the JSON export.
+
         """
         with open(filepath, "w") as f:
             json.dump([e.to_dict() for e in self.events], f, indent=2)
@@ -221,6 +230,7 @@ def get_global_collector() -> TraceCollector:
 
     Returns:
         TraceCollector: The global trace collector instance.
+
     """
     return _global_collector
 
@@ -230,7 +240,9 @@ def set_global_trace_level(level: TraceLevel) -> None:
     Sets the global tracing level.
 
     Args:
-        level (TraceLevel): The new tracing level to apply globally.
+        level (TraceLevel):
+            The new tracing level to apply globally.
+
     """
     _global_collector.set_level(level)
 
@@ -245,6 +257,8 @@ def export_traces_json(filepath: str) -> None:
     Exports global traces to a JSON file.
 
     Args:
-        filepath (str): The file path where to save the JSON export.
+        filepath (str):
+            The file path where to save the JSON export.
+
     """
     _global_collector.export_json(filepath)

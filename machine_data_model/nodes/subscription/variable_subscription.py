@@ -1,12 +1,32 @@
+"""
+Variable subscription classes for machine data models.
+
+This module provides subscription classes that allow variables to notify
+subscribers of value changes, including data change subscriptions with deadband
+filtering and range-based subscriptions for monitoring value ranges.
+"""
+
 from enum import IntFlag, auto
 from typing import Any
-from typing_extensions import override
 from uuid import uuid4
+
+from typing_extensions import override
 
 
 class EventType(IntFlag):
     """
     Enumeration of possible event types for variable subscriptions.
+
+    Attributes:
+        DATA_CHANGE:
+            Event triggered when variable data changes.
+        OUT_OF_RANGE:
+            Event triggered when variable value goes out of range.
+        IN_RANGE:
+            Event triggered when variable value enters range.
+        ANY:
+            Catch-all for any type of event.
+
     """
 
     DATA_CHANGE = auto()
@@ -17,44 +37,57 @@ class EventType(IntFlag):
 
 class VariableSubscription:
     """
-    Base class for variable subscriptions.
-
-    This class represents a subscription to any change in a variable's value.
+    Base class for variable subscriptions. It represents a subscription to any
+    change.
 
     Attributes:
-        subscriber_id (str): Identifier of the subscriber.
-        correlation_id (str): Correlation identifier for the subscription.
+        subscriber_id (str):
+            Identifier of the subscriber.
+        correlation_id (str):
+            Correlation identifier for the subscription.
+
     """
+
+    subscriber_id: str
+    correlation_id: str
 
     def __init__(self, subscriber_id: str, correlation_id: str = str(uuid4())):
         """
         Initializes a new VariableSubscription instance.
 
         Args:
-            subscriber_id (str): The identifier of the subscriber.
-            correlation_id (str): The correlation identifier for the subscription.
+            subscriber_id (str):
+                Identifier of the subscriber.
+            correlation_id (str):
+                Correlation identifier for the subscription.
+
         """
         self.subscriber_id = subscriber_id
         self.correlation_id = correlation_id
 
     def get_event_type(self) -> EventType:
         """
-        Gets the event types this subscription is interested in.
+        Get the event types this subscription is interested in.
 
         Returns:
-            EventType: The event type for this subscription.
+            EventType:
+                The event types for this subscription.
+
         """
         return EventType.ANY
 
     def should_notify(self, new_value: Any) -> bool:
         """
-        Determines if a notification should be sent based on the new value.
+        Determine if a notification should be sent based on the new value.
 
         Args:
-            new_value (Any): The new value of the variable.
+            new_value (Any):
+                The new value of the variable.
 
         Returns:
-            bool: True if a notification should be sent, False otherwise.
+            bool:
+                True if a notification should be sent, False otherwise.
+
         """
         return True
 
@@ -80,15 +113,23 @@ class VariableSubscription:
 
 class DataChangeSubscription(VariableSubscription):
     """
-    Subscription for data change events.
-
-    Notifies when the variable's value changes beyond a specified deadband.
+    Subscription for data change events. It notifies when the variable's value
+    changes beyond a specified deadband.
 
     Attributes:
-        deadband (float): Minimum change required to trigger a notification.
-        is_percent (bool): If True, deadband is a percentage; otherwise, it's an absolute value.
-        _previous_value (None | float): The last known value of the variable.
+        _previous_value (None | float):
+            The last known value of the variable.
+        deadband (float):
+            Minimum change required to trigger a notification.
+        is_percent (bool):
+            If True, deadband is treated as a percentage of the previous value;
+            otherwise, it's an absolute value.
+
     """
+
+    _previous_value: None | float
+    deadband: float
+    is_percent: bool
 
     def __init__(
         self,
@@ -101,13 +142,19 @@ class DataChangeSubscription(VariableSubscription):
         Initializes a new DataChangeSubscription instance.
 
         Args:
-            subscriber_id (str): The identifier of the subscriber.
-            correlation_id (str): The correlation identifier for the subscription.
-            deadband (float): The minimum change required to trigger a notification.
-            is_percent (bool): If True, the deadband is a percentage; otherwise, it's an absolute value.
+            subscriber_id (str):
+                Identifier of the subscriber.
+            correlation_id (str):
+                Correlation identifier for the subscription.
+            deadband (float):
+                Minimum change required to trigger a notification.
+            is_percent (bool):
+                If True, deadband is treated as a percentage of the previous
+                value; otherwise, it's an absolute value.
+
         """
         super().__init__(subscriber_id, correlation_id)
-        self._previous_value: None | float = None
+        self._previous_value = None
         self.deadband = deadband
         self.is_percent = is_percent
 
@@ -137,13 +184,18 @@ class DataChangeSubscription(VariableSubscription):
     @override
     def should_notify(self, new_value: float) -> bool:
         """
-        Determines if a notification should be sent based on the new value and deadband.
+        Determine if a notification should be sent based on the new value and
+        deadband.
 
         Args:
-            new_value (float): The new value of the variable.
+            new_value (float):
+                The new value of the variable.
 
         Returns:
-            bool: True if a notification should be sent, False otherwise.
+            bool:
+                True if the change exceeds the deadband threshold, False
+                otherwise.
+
         """
         value_changed = self._value_changed(new_value)
 
@@ -154,15 +206,22 @@ class DataChangeSubscription(VariableSubscription):
 
 class RangeSubscription(VariableSubscription):
     """
-    Subscription for range-based events.
-
-    Notifies when the variable's value enters or exits a specified range.
+    Subscription for range-based events. It notifies when the variable's value
+    enters or exits a specified range.
 
     Attributes:
-        low_limit (float): Lower bound of the range.
-        high_limit (float): Upper bound of the range.
-        _check_type (EventType): Type of range check (IN_RANGE or OUT_OF_RANGE).
+        low_limit (float):
+            Lower bound of the range.
+        high_limit (float):
+            Upper bound of the range.
+        _check_type (EventType):
+            Type of range check (IN_RANGE or OUT_OF_RANGE).
+
     """
+
+    low_limit: float
+    high_limit: float
+    _check_type: EventType
 
     def __init__(
         self,
@@ -176,16 +235,21 @@ class RangeSubscription(VariableSubscription):
         Initializes a new RangeSubscription instance.
 
         Args:
-            subscriber_id (str): The identifier of the subscriber.
-            correlation_id (str): The correlation identifier for the subscription.
-            low_limit (float): The lower bound of the range.
-            high_limit (float): The upper bound of the range.
-            check_type (EventType): The type of range check (IN_RANGE or OUT_OF_RANGE).
+            subscriber_id (str):
+                Identifier of the subscriber.
+            correlation_id (str):
+                Correlation identifier for the subscription.
+            low_limit (float):
+                Lower bound of the range.
+            high_limit (float):
+                Upper bound of the range.
+            check_type (EventType):
+                Type of range check (IN_RANGE or OUT_OF_RANGE).
+
         """
         super().__init__(subscriber_id, correlation_id)
         self.low_limit = low_limit
         self.high_limit = high_limit
-
         if check_type not in (EventType.IN_RANGE, EventType.OUT_OF_RANGE):
             raise ValueError("check_type must be either IN_RANGE or OUT_OF_RANGE")
         self._check_type = check_type
@@ -203,13 +267,17 @@ class RangeSubscription(VariableSubscription):
     @override
     def should_notify(self, new_value: float) -> bool:
         """
-        Determines if a notification should be sent based on the new value and range.
+        Determine if a notification should be sent based on range conditions.
 
         Args:
-            new_value (float): The new value of the variable.
+            new_value (float):
+                The new value of the variable.
 
         Returns:
-            bool: True if a notification should be sent, False otherwise.
+            bool:
+                True if the value meets the range condition criteria, False
+                otherwise.
+
         """
         if self._check_type == EventType.IN_RANGE:
             return self.low_limit <= new_value <= self.high_limit

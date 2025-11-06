@@ -6,16 +6,18 @@ including start/end times and return values.
 """
 
 import time
+
+from support import print_trace_events
+
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.tracing import (
-    clear_traces,
     TraceLevel,
+    clear_traces,
     get_global_collector,
 )
 from machine_data_model.tracing.tracing_core import set_global_trace_level
-from support import print_trace_events
 
 
 def calculate_average(temp: float, press: float) -> float:

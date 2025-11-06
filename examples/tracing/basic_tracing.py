@@ -7,14 +7,15 @@ and export the trace data for analysis, similar to VCD files in hardware simulat
 
 import time
 
+from support import print_trace_events
+
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import NumericalVariableNode
-from machine_data_model.tracing import clear_traces, TraceLevel
+from machine_data_model.tracing import TraceLevel, clear_traces
 from machine_data_model.tracing.tracing_core import (
     get_global_collector,
     set_global_trace_level,
 )
-from support import print_trace_events
 
 
 def main() -> None:

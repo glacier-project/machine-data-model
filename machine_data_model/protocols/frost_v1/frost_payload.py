@@ -1,6 +1,15 @@
+"""
+Frost protocol payload definitions.
+
+This module defines various payload classes for different types of Frost
+protocol messages, including variable operations, subscriptions, method calls,
+and error handling.
+"""
+
 from dataclasses import dataclass, field
-from typing import Any
 from enum import Enum
+from typing import Any
+
 from machine_data_model.nodes.subscription.variable_subscription import EventType
 
 
@@ -9,8 +18,13 @@ class FrostPayload:
     """
     Abstract base class for the payload of a message in the Frost protocol.
 
+    This class holds the general structure for the payload, which can be
+    extended for different types of messages.
+
     Attributes:
-        node (str): The node associated with the message payload.
+        node (str):
+            The node associated with the message payload.
+
     """
 
     node: str = ""
@@ -21,8 +35,15 @@ class VariablePayload(FrostPayload):
     """
     Represents the payload of a variable-related message.
 
+    This class extends the base payload and includes the value associated with
+    the variable message.
+
     Attributes:
-        value (Any): The value of the variable in the message payload.
+        node (str):
+            The node associated with the message payload (inherited).
+        value (Any):
+            The value of the variable in the message payload.
+
     """
 
     value: Any = None
@@ -32,6 +53,14 @@ class VariablePayload(FrostPayload):
 class SubscriptionPayload(VariablePayload):
     """
     Represents the payload of a subscription-related message.
+
+    This class extends the subscription payload and includes attributes that are
+    need to handle subscription-related messages.
+
+    Attributes:
+        node (str):
+            The node associated with the message payload (inherited).
+
     """
 
     @property
@@ -50,9 +79,18 @@ class DataChangeSubscriptionPayload(SubscriptionPayload):
     """
     Represents the payload of a data change subscription message.
 
+    This class extends the subscription payload and includes attributes specific
+    to data change subscriptions.
+
     Attributes:
-        deadband (float): Minimum change required to trigger a notification.
-        is_percent (bool): If True, deadband is a percentage; otherwise, it's an absolute value.
+        node (str):
+            The node associated with the message payload (inherited).
+        deadband (float):
+            Minimum change required to trigger a notification.
+        is_percent (bool):
+            If True, deadband is treated as a percentage of the previous value;
+            otherwise, it's an absolute value.
+
     """
 
     deadband: float = 0.0
@@ -74,9 +112,17 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
     """
     Represents the payload of an in-range subscription message.
 
+    This class extends the subscription payload and includes attributes specific
+    to in-range subscriptions.
+
     Attributes:
-        low (float): The lower bound of the range.
-        high (float): The upper bound of the range.
+        node (str):
+            The node associated with the message payload (inherited).
+        low (float):
+            The lower bound of the range.
+        high (float):
+            The upper bound of the range.
+
     """
 
     low: float = 0.0
@@ -97,6 +143,18 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
 class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
     """
     Represents the payload of an out-of-range subscription message.
+
+    This class extends the subscription payload and includes attributes specific
+    to out-of-range subscriptions.
+
+    Attributes:
+        node (str):
+            The node associated with the message payload (inherited).
+        low (float):
+            The lower bound of the range.
+        high (float):
+            The upper bound of the range.
+
     """
 
     @property
@@ -115,10 +173,19 @@ class MethodPayload(FrostPayload):
     """
     Represents the payload of a method-related message.
 
+    This class extends the base payload and includes arguments, keyword
+    arguments, and return values for method invocations.
+
     Attributes:
-        args (list[Any]): The list of arguments for the method.
-        kwargs (dict[str, Any]): The dictionary of keyword arguments for the method.
-        ret (dict[str, Any]): The dictionary of return values from the method.
+        node (str):
+            The node associated with the message payload (inherited).
+        args (list[Any]):
+            The list of arguments for the method.
+        kwargs (dict[str, Any]):
+            The dictionary of keyword arguments for the method.
+        ret (dict[str, Any]):
+            The dictionary of return values from the method.
+
     """
 
     args: list[Any] = field(default_factory=list)
@@ -130,22 +197,39 @@ class MethodPayload(FrostPayload):
 class ProtocolPayload(FrostPayload):
     """
     Represents the payload of a protocol-related message.
-    """
 
-    pass
+    This class extends the base payload and includes attributes that are need to
+    handle protocol-related messages.
+
+    Attributes:
+        node (str):
+            The node associated with the message payload (inherited).
+
+    """
 
 
 class ErrorCode(int, Enum):
     """
     Enum for error codes used in the Frost protocol.
 
-    :cvar UNKNOWN: General unknown error.
-    :cvar BAD_REQUEST: The request is invalid.
-    :cvar NOT_FOUND: The requested node or resource was not found.
-    :cvar NOT_ALLOWED: The requested operation is not allowed.
-    :cvar NOT_SUPPORTED: The requested operation is not supported.
-    :cvar NOT_IMPLEMENTED: The requested operation is not implemented.
-    :cvar VERSION_NOT_SUPPORTED: The requested version of the protocol is not supported.
+    Attributes:
+        UNKNOWN:
+            General unknown error.
+        BAD_REQUEST:
+            The request is invalid.
+        NOT_FOUND:
+            The requested node or resource was not found.
+        NOT_ALLOWED:
+            The requested operation is not allowed.
+        NOT_SUPPORTED:
+            The requested operation is not supported.
+        NOT_IMPLEMENTED:
+            The requested operation is not implemented.
+        VERSION_NOT_SUPPORTED:
+            The requested version of the protocol is not supported.
+        BAD_RESPONSE:
+            The response is invalid or malformed.
+
     """
 
     UNKNOWN = -1
@@ -162,13 +246,26 @@ class ErrorMessages(str, Enum):
     """
     Enum for error messages associated with the Frost protocol errors.
 
-    :cvar INVALID_NAMESPACE: Error message for invalid namespace.
-    :cvar INVALID_REQUEST: Error message for invalid request.
-    :cvar NODE_NOT_FOUND: Error message for node not found.
-    :cvar NOT_SUPPORTED: Error message for unsupported operation.
-    :cvar BAD_REQUEST: Error message for bad request.
-    :cvar NOT_ALLOWED: Error message for not allowed operation.
-    :cvar VERSION_NOT_SUPPORTED: Error message for unsupported protocol version.
+    Attributes:
+        INVALID_NAMESPACE:
+            Error message for invalid namespace.
+        INVALID_REQUEST:
+            Error message for invalid request.
+        INVALID_RESPONSE:
+            Error message for invalid response.
+        NODE_NOT_FOUND:
+            Error message for node not found.
+        NOT_SUPPORTED:
+            Error message for unsupported operation.
+        BAD_REQUEST:
+            Error message for bad request.
+        NOT_ALLOWED:
+            Error message for not allowed operation.
+        VERSION_NOT_SUPPORTED:
+            Error message for unsupported protocol version.
+        BAD_RESPONSE:
+            Error message for invalid or malformed response.
+
     """
 
     INVALID_NAMESPACE = "Invalid namespace"
@@ -187,9 +284,16 @@ class ErrorPayload(FrostPayload):
     """
     Represents the payload of an error message in the Frost protocol.
 
+    This class extends the base payload and includes error-related information.
+
     Attributes:
-        error_code (int): The error code associated with the error message.
-        error_message (str): A description of the error.
+        node (str):
+            The node associated with the message payload (inherited).
+        error_code (int):
+            The error code associated with the error message.
+        error_message (str):
+            A description of the error.
+
     """
 
     error_code: int = -1

@@ -1,22 +1,23 @@
+import os
 import random
+from typing import Any
 
 import pytest
-import os
-from typing import Any
-from machine_data_model.data_model import DataModel
+
 from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.variable_node import (
-    NumericalVariableNode,
-    VariableNode,
-    StringVariableNode,
-)
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.folder_node import FolderNode
+from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
+)
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    StringVariableNode,
+    VariableNode,
 )
 from tests import get_random_folder_node
 
@@ -164,7 +165,7 @@ class TestDataModel:
 
     def test_runtime_resolution_of_nodes(self, root: FolderNode) -> None:
         data_model = get_template_data_model()
-        # scope = ControlFlowScope(str("test"))
+        # context = ExecutionContext(str("test"))
         assert isinstance(data_model, DataModel)
         r = data_model.get_node("folder1/folder2")
         assert isinstance(r, FolderNode)
@@ -175,7 +176,7 @@ class TestDataModel:
         ret = composite_node(*args)
 
         assert not ret.messages
-        assert ret.return_values["@scope_id"]
+        assert ret.return_values["@context_id"]
 
         data_model.write_variable("folder1/boolean", True)
         ret = composite_node(*args)

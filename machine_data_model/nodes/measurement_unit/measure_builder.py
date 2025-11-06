@@ -1,6 +1,13 @@
+"""
+Measurement unit builder for machine data models.
+
+This module provides utilities for creating and working with measurement units
+in the machine data model, including a builder for creating measure objects from
+various unit systems and a NoneMeasure class for dimensionless values.
+"""
+
 import inspect
 from enum import Enum
-from typing import Type, Dict
 
 import unitsnet_py
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -10,21 +17,28 @@ class NoneMeasureUnits(Enum):
     """
     Enum for representing units for `NoneMeasure`.
 
-    :cvar NONE: The only available unit, representing no unit.
+    Attributes:
+        NONE:
+            The only available unit, representing no unit.
+
     """
 
     NONE = 0
 
 
-class NoneMeasure(AbstractMeasure):
+class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
     """
     Represents a value with no unit.
 
     This class is used for values that do not have a unit of measurement.
 
     Attributes:
-        _value (float): The value.
+        _value (float):
+            The value.
+
     """
+
+    _value: float
 
     def __init__(
         self, value: float, from_unit: NoneMeasureUnits = NoneMeasureUnits.NONE
@@ -33,12 +47,15 @@ class NoneMeasure(AbstractMeasure):
         Initializes a `NoneMeasure` instance.
 
         Args:
-            value (float): The value of the `NoneMeasure`.
-            from_unit (NoneMeasureUnits): The unit of the value, which must be `NoneMeasureUnits.NONE`.
-        """
+            value (float):
+                The value of the `NoneMeasure`.
+            from_unit (NoneMeasureUnits):
+                The unit of the value. This is always `NONE`, and an assertion
+                ensures it cannot be anything else.
 
+        """
         assert from_unit == NoneMeasureUnits.NONE
-        self._value: float = value
+        self._value = value
 
     @property
     def base_value(self) -> float:
@@ -46,9 +63,10 @@ class NoneMeasure(AbstractMeasure):
         Returns the base value.
 
         Returns:
-            float: The value with no unit.
-        """
+            float:
+                The value with no unit.
 
+        """
         return self._value
 
     def to_string(
@@ -59,14 +77,22 @@ class NoneMeasure(AbstractMeasure):
         """
         Formats the `NoneMeasure` to a string.
 
+        This method returns the string representation of the value. The unit is
+        always `NONE`, and an optional number of fractional digits can be
+        specified.
+
         Args:
-            unit (NoneMeasureUnits): The unit to format, which must be `NoneMeasureUnits.NONE`.
-            fractional_digits (int | None): The number of fractional digits to keep.
+            unit (NoneMeasureUnits):
+                The unit to format the `NoneMeasure`. The only valid value is
+                `NONE`.
+            fractional_digits (int | None):
+                The number of fractional digits to keep. Optional.
 
         Returns:
-            str: A string representation of the `NoneMeasure`.
-        """
+            str:
+                A string representation of the `NoneMeasure`.
 
+        """
         assert unit == NoneMeasureUnits.NONE
         if fractional_digits is not None:
             return (
@@ -85,17 +111,22 @@ class NoneMeasure(AbstractMeasure):
         Args:
             unit_abbreviation (NoneMeasureUnits): The unit abbreviation, which must be `NoneMeasureUnits.NONE`.
 
+        Args:
+            unit_abbreviation (NoneMeasureUnits):
+                The unit abbreviation. Must be `NONE`.
+
         Returns:
-            str: An empty string.
+            str:
+                An empty string as `NoneMeasure` has no abbreviation.
 
         Raises:
-            ValueError: If the unit is not `NoneMeasureUnits.NONE`.
-        """
+            ValueError:
+                If the unit is not `NONE`.
 
+        """
         if unit_abbreviation == NoneMeasureUnits.NONE:
             return ""
-        else:
-            raise ValueError("Invalid unit for NoneMeasure measure")
+        raise ValueError("Invalid unit for NoneMeasure measure")
 
 
 class MeasureBuilder:
@@ -106,15 +137,19 @@ class MeasureBuilder:
     units from the `unitsnet_py` package, based on the provided unit.
 
     Attributes:
-        _measure_ctor (Dict[Type[Enum], Type[AbstractMeasure]]): A dictionary mapping unit enums to their measure constructors.
+        _measure_ctor (Dict[Type[Enum], Type[AbstractMeasure]]):
+            A dictionary that maps unit classes to their corresponding measure
+            constructors.
+
     """
+
+    _measure_ctor: dict[type[Enum], type[AbstractMeasure]]
 
     def __init__(self) -> None:
         """
         Initializes a new `MeasureBuilder` instance.
         """
-
-        self._measure_ctor: Dict[Type[Enum], Type[AbstractMeasure]] = {}
+        self._measure_ctor = {}
 
         # Explore the unitsnet_py package to store the measure object from the unit.
         units = inspect.getmembers(
@@ -141,21 +176,28 @@ class MeasureBuilder:
         Args:
             unit (str | Enum): The unit as a string or an `Enum`.
 
+        Args:
+            unit (str | Enum):
+                The unit, either as a string (e.g., "LengthUnits.Meter") or an
+                `Enum`.
+
         Returns:
-            Enum: The unit enum corresponding to the provided unit.
+            Enum:
+                The unit class corresponding to the provided unit.
 
         Raises:
-            ValueError: If the unit type is invalid.
-        """
+            ValueError:
+                If the unit type is invalid.
 
+        """
         if isinstance(unit, Enum):
             assert unit.__class__ in self._measure_ctor
             return unit
-        elif isinstance(unit, str):
+        if isinstance(unit, str):
             assert "." in unit
             unit_class, unit_name = unit.split(".")
         else:
-            raise ValueError("Invalid unit type")
+            raise TypeError("Invalid unit type")
 
         if unit_class == "NoneMeasureUnits":
             unit_cl = NoneMeasureUnits
@@ -167,17 +209,27 @@ class MeasureBuilder:
         """
         Creates a measure object from a value and a unit.
 
+        This method looks up the correct measure constructor from
+        `_measure_ctor` and creates an instance of the appropriate measure class
+        with the specified value and unit.
+
         Args:
-            value (float): The value of the measure.
-            unit (str | Enum): The unit of the measure.
+            value (float):
+                The value of the measure.
+            unit (str | Enum):
+                The unit of the measure, provided as a string (e.g.,
+                "LengthUnits.Meter") or an `Enum` representing the unit.
 
         Returns:
-            AbstractMeasure: An instance of the corresponding measure class.
+            AbstractMeasure:
+                An instance of the corresponding measure class (e.g.,
+                `NoneMeasure` or a unit from `unitsnet_py`).
 
         Raises:
-            ValueError: If the unit is invalid.
-        """
+            ValueError:
+                If the unit is invalid or cannot be matched to a known unit.
 
+        """
         unit = self.get_measure_unit(unit)
         measure = self._measure_ctor[unit.__class__]
         return measure(value=value, from_unit=unit)
@@ -191,6 +243,8 @@ def get_measure_builder() -> "MeasureBuilder":
     Gets the MeasureBuilder instance.
 
     Returns:
-        MeasureBuilder: The MeasureBuilder instance.
+        MeasureBuilder:
+            The MeasureBuilder instance.
+
     """
     return _measure_builder

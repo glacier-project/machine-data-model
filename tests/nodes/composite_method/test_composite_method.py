@@ -1,25 +1,25 @@
-from typing import Callable, Any
+import random
+from collections.abc import Callable
+from typing import Any
 
 import pytest
-import random
 
-from machine_data_model.nodes.composite_method.composite_method_node import (
-    CompositeMethodNode,
-    SCOPE_ID,
-)
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
+)
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import VariableNode, NumericalVariableNode
+from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
-    MsgType,
     MethodMsgName,
     MsgNamespace,
+    MsgType,
     VariableMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
@@ -27,7 +27,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
 )
 from tests import NUM_TESTS, get_dummy_method_node
-from tests.nodes.composite_method import get_non_blocking_cf, get_blocking_cf
+from tests.nodes.composite_method import get_blocking_cf, get_non_blocking_cf
 from tests.test_data_model import get_template_data_model
 
 
@@ -92,7 +92,7 @@ class TestCompositeMethod:
         wait_node = get_wait_var_node(c_method.cfg)
         node_val = wait_node.read()
         ret = c_method()
-        scope_id = ret.return_values[SCOPE_ID]
+        context_id = ret.return_values["@context_id"]
 
         assert not ret.messages
         assert len(wait_node.get_subscriptions()) > 0
@@ -102,7 +102,7 @@ class TestCompositeMethod:
             new_val = random.randint(0, 100)
 
         wait_node.write(new_val)
-        ret = c_method.resume_execution(scope_id)
+        ret = c_method.resume_execution(context_id)
 
         assert not ret.messages
         assert len(wait_node.get_subscriptions()) == 0
@@ -192,7 +192,7 @@ class TestCompositeMethod:
             subscription: VariableSubscription, node: VariableNode, value: Any
         ) -> None:
             assert isinstance(dynamic_wait, CompositeMethodNode)
-            res = dynamic_wait.resume_execution(ret.return_values[SCOPE_ID])
+            res = dynamic_wait.resume_execution(ret.return_values["@context_id"])
             assert not res.messages
             assert res.return_values == {}
 
@@ -202,11 +202,11 @@ class TestCompositeMethod:
         ret = dynamic_wait(*args)
 
         assert not ret.messages
-        assert SCOPE_ID in ret.return_values
-        assert not dynamic_wait.is_terminated(ret.return_values[SCOPE_ID])
+        assert "@context_id" in ret.return_values
+        assert not dynamic_wait.is_terminated(ret.return_values["@context_id"])
 
         node.value += 1
-        assert dynamic_wait.is_terminated(ret.return_values[SCOPE_ID])
+        assert dynamic_wait.is_terminated(ret.return_values["@context_id"])
 
     @pytest.mark.parametrize(
         "name_resolution_node",
@@ -234,9 +234,9 @@ class TestCompositeMethod:
 
         # assert that the method does complete
         assert result.messages and len(result.messages) == 1
-        assert SCOPE_ID in result.return_values
-        scope = result.return_values[SCOPE_ID]
-        assert not method.is_terminated(scope)
+        assert "@context_id" in result.return_values
+        context = result.return_values["@context_id"]
+        assert not method.is_terminated(context)
 
         message = result.messages[0]
         assert message.header.matches(
@@ -255,8 +255,8 @@ class TestCompositeMethod:
         message.header.msg_name = MethodMsgName.COMPLETED
         message.payload.ret["remote_return_1"] = 45
 
-        assert method.handle_message(scope, message)
-        result = method.resume_execution(scope)
+        assert method.handle_message(context, message)
+        result = method.resume_execution(context)
         assert not result.messages
         assert result.return_values["remote_return_1"] == 45
 
@@ -271,9 +271,9 @@ class TestCompositeMethod:
 
         # assert that the method does complete
         assert result.messages and len(result.messages) == 1
-        assert SCOPE_ID in result.return_values
-        scope = result.return_values[SCOPE_ID]
-        assert not method.is_terminated(scope)
+        assert "@context_id" in result.return_values
+        context = result.return_values["@context_id"]
+        assert not method.is_terminated(context)
 
         message = result.messages[0]
         assert message.header.matches(
@@ -289,10 +289,10 @@ class TestCompositeMethod:
         message.header.type = MsgType.RESPONSE
         message.payload.value = method.returns[0].read()
 
-        assert method.handle_message(scope, message)
-        result = method.resume_execution(scope)
+        assert method.handle_message(context, message)
+        result = method.resume_execution(context)
         assert not result.messages
-        assert method.is_terminated(scope)
+        assert method.is_terminated(context)
         assert result.return_values[method.returns[0].name] == method.returns[0].read()
 
     def test_remote_write_node(self) -> None:
@@ -306,9 +306,9 @@ class TestCompositeMethod:
 
         # assert that the method does complete
         assert result.messages and len(result.messages) == 1
-        assert SCOPE_ID in result.return_values
-        scope = result.return_values[SCOPE_ID]
-        assert not method.is_terminated(scope)
+        assert "@context_id" in result.return_values
+        context = result.return_values["@context_id"]
+        assert not method.is_terminated(context)
 
         message = result.messages[0]
         assert message.header.matches(
@@ -323,7 +323,7 @@ class TestCompositeMethod:
         message.sender, message.target = message.target, message.sender
         message.header.type = MsgType.RESPONSE
 
-        assert method.handle_message(scope, message)
-        result = method.resume_execution(scope)
+        assert method.handle_message(context, message)
+        result = method.resume_execution(context)
         assert not result.messages
-        assert method.is_terminated(scope)
+        assert method.is_terminated(context)

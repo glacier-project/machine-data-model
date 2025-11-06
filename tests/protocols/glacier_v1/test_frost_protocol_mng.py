@@ -4,39 +4,42 @@ import uuid
 from typing import Any
 
 import pytest
-from machine_data_model.data_model import DataModel
+
 from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.nodes.composite_method.composite_method_node import SCOPE_ID
-from machine_data_model.nodes.data_model_node import DataModelNode
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import (
-    NumericalVariableNode,
-    StringVariableNode,
     BooleanVariableNode,
-    VariableNode,
+    NumericalVariableNode,
     ObjectVariableNode,
+    StringVariableNode,
+    VariableNode,
+)
+from machine_data_model.protocols.frost_v1.frost_header import (
+    FrostHeader,
+    MethodMsgName,
+    MsgNamespace,
+    MsgType,
+    ProtocolMsgName,
+    VariableMsgName,
+)
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
+from machine_data_model.protocols.frost_v1.frost_payload import (
+    ErrorPayload,
+    MethodPayload,
+    ProtocolPayload,
+    SubscriptionPayload,
+    VariablePayload,
 )
 from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
     FrostProtocolMng,
-)
-from machine_data_model.protocols.frost_v1.frost_header import (
-    MsgType,
-    MsgNamespace,
-    MethodMsgName,
-    ProtocolMsgName,
-)
-from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-from machine_data_model.protocols.frost_v1.frost_payload import (
-    VariablePayload,
-    MethodPayload,
-    ErrorPayload,
-    ProtocolPayload,
-)
-from machine_data_model.protocols.frost_v1.frost_message_builder import (
-    FrostMessageBuilder,
 )
 
 # Test data constants
@@ -65,6 +68,28 @@ def get_value(data_model_node: DataModelNode) -> Any:
     if isinstance(data_model_node, BooleanVariableNode):
         return random.choice([True, False])
     return None
+
+
+def create_frost_message(
+    sender: str,
+    target: str,
+    msg_type: MsgType,
+    namespace: MsgNamespace,
+    msg_name: Any,
+    payload: Any,
+) -> FrostMessage:
+    """Helper to create FrostMessage instances with common parameters."""
+    return FrostMessage(
+        sender=sender,
+        target=target,
+        identifier=str(uuid.uuid4()),
+        header=FrostHeader(
+            type=msg_type,
+            namespace=namespace,
+            msg_name=msg_name,
+        ),
+        payload=payload,
+    )
 
 
 def assert_response_matches_request(
@@ -102,7 +127,7 @@ def setup_remote_method_test(
     assert isinstance(response, FrostMessage)
     assert_response_matches_request(response, msg, sender, target)
     assert isinstance(response.payload, MethodPayload)
-    assert SCOPE_ID in response.payload.ret
+    assert "@context_id" in response.payload.ret
 
     return msg, response, method
 
@@ -218,8 +243,7 @@ class TestFrostProtocolMng:
         assert isinstance(node, BooleanVariableNode)
 
         for i in range(11):
-            for msg, value in zip(write_messages, [True, False]):
-                assert isinstance(msg, FrostMessage)
+            for msg, value in zip(write_messages, [True, False], strict=False):
                 response = manager.handle_request(msg)
                 node.write(value)
                 assert isinstance(response, FrostMessage)
@@ -332,7 +356,7 @@ class TestFrostProtocolMng:
 
         assert_response_matches_request(response, msg, sender, target)
         assert isinstance(response.payload, MethodPayload)
-        assert SCOPE_ID in response.payload.ret
+        assert "@context_id" in response.payload.ret
         assert not manager.get_update_messages()
 
         # Update the waiting variable to trigger completion
@@ -394,7 +418,6 @@ class TestFrostProtocolMng:
         assert final_response.payload.ret["remote_return_1"] == 45
         assert not manager.get_update_messages()
 
-    """
     def test_remote_read_request(
         self, manager: FrostProtocolMng, sender: str, target: str
     ) -> None:
@@ -503,4 +526,3 @@ class TestFrostProtocolMng:
             _msg_name=VariableMsgName.UNSUBSCRIBE,
         )
         assert msg.payload.node == node_path
-    """

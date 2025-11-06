@@ -28,6 +28,12 @@ from typing_extensions import override
 class FrostMessageBuilder(MessageBuilder):
     """
     Builder class for creating Frost protocol messages.
+
+    Attributes:
+        - sender (str):
+            The sender of the message.
+        - protocol_version (tuple):
+            The version of the protocol.
     """
 
     def __init__(
@@ -39,8 +45,10 @@ class FrostMessageBuilder(MessageBuilder):
         Initializes the FrostMessageBuilder.
 
         Args:
-            - sender (str): The sender of the message.
-            - protocol_version (tuple): The version of the protocol.
+            - sender (str):
+                The sender of the message.
+            - protocol_version (tuple):
+                The version of the protocol.
         """
         super().__init__(sender)
         self._protocol_version: tuple[int, int, int] = protocol_version
@@ -50,7 +58,8 @@ class FrostMessageBuilder(MessageBuilder):
         Sets the protocol version for the message.
 
         Args:
-            - version (tuple[int, int, int]): The protocol version to set.
+            - version (tuple[int, int, int]):
+                The protocol version to set.
         """
         assert isinstance(
             version, tuple
@@ -65,7 +74,8 @@ class FrostMessageBuilder(MessageBuilder):
         Returns the protocol version.
 
         Returns:
-            - tuple: The protocol version.
+            - tuple:
+                The protocol version.
         """
         return self._protocol_version
 
@@ -75,10 +85,12 @@ class FrostMessageBuilder(MessageBuilder):
         Parses a FrostMessage from a dictionary representation.
 
         Args:
-            - message (dict): The dictionary representation of the message.
+            - message (dict):
+                The dictionary representation of the message.
 
         Returns:
-            - FrostMessage: The parsed message.
+            - FrostMessage:
+                The parsed message.
         """
         return self.build_protocol_register_message(
             target=""
@@ -90,10 +102,12 @@ class FrostMessageBuilder(MessageBuilder):
         Serializes a FrostMessage to a dictionary representation.
 
         Args:
-            - message: The message to serialize.
+            - message:
+                The message to serialize.
 
         Returns:
-            - dict: The serialized message.
+            - dict:
+                The serialized message.
         """
         temp = {
             "sender": message.sender,
@@ -110,11 +124,14 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for reading a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node to read.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node to read.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -138,12 +155,16 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage as an answer for reading a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node that was read.
-            - value (Any): The value of the node.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node that was read.
+            - value (Any):
+                The value of the node.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -167,12 +188,16 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for writing a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node to write to.
-            - value (Any): The value to write.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node to write to.
+            - value (Any):
+                The value to write.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -196,12 +221,16 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage as an answer for writing a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node that was written to.
-            - value (Any): The value that was written.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node that was written to.
+            - value (Any):
+                The value that was written.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -223,11 +252,14 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for subscribing to a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node to subscribe to.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node to subscribe to.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -251,12 +283,16 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage as a response for subscribing to a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node that was subscribed to.
-            - value (Any): The current value of the node.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node that was subscribed to.
+            - value (Any):
+                The current value of the node.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -280,13 +316,18 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for a data change subscription.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node to subscribe to.
-            - deadband (float): The deadband for the subscription.
-            - is_percent (bool): Whether the deadband is a percentage.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node to subscribe to.
+            - deadband (float):
+                The deadband for the subscription.
+            - is_percent (bool):
+                Whether the deadband is a percentage.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -312,13 +353,18 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for an in-range subscription.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node to subscribe to.
-            - low (float): The low end of the range.
-            - high (float): The high end of the range.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node to subscribe to.
+            - low (float):
+                The low end of the range.
+            - high (float):
+                The high end of the range.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -342,13 +388,18 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for an out-of-range subscription.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node to subscribe to.
-            - low (float): The low end of the range.
-            - high (float): The high end of the range.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node to subscribe to.
+            - low (float):
+                The low end of the range.
+            - high (float):
+                The high end of the range.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -372,11 +423,14 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for unsubscribing from a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node to unsubscribe from.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node to unsubscribe from.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -400,11 +454,14 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage as a response for unsubscribing from a variable.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node that was unsubscribed from.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node that was unsubscribed from.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -432,13 +489,18 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for invoking a method.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The method to invoke.
-            - args (list[Any] | None): The positional arguments for the method.
-            - kwargs (dict[str, Any] | None): The keyword arguments for the method.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The method to invoke.
+            - args (list[Any] | None):
+                The positional arguments for the method.
+            - kwargs (dict[str, Any] | None):
+                The keyword arguments for the method.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -471,14 +533,20 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for a method response.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The method that was invoked.
-            - args (list[Any] | None): The positional arguments for the method.
-            - kwargs (dict[str, Any] | None): The keyword arguments for the method.
-            - ret (dict[str, Any] | None): The return value of the method.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The method that was invoked.
+            - args (list[Any] | None):
+                The positional arguments for the method.
+            - kwargs (dict[str, Any] | None):
+                The keyword arguments for the method.
+            - ret (dict[str, Any] | None):
+                The return value of the method.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -507,11 +575,14 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for a method started notification.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The method that was started.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The method that was started.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -535,12 +606,16 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for a variable update notification.
 
         Args:
-            - target (str): The target of the message.
-            - node (str): The node that was updated.
-            - value (Any): The new value of the node.
+            - target (str):
+                The target of the message.
+            - node (str):
+                The node that was updated.
+            - value (Any):
+                The new value of the node.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -562,10 +637,12 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for protocol registration.
 
         Args:
-            - target (str): The target of the message.
+            - target (str):
+                The target of the message.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -587,10 +664,12 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for protocol unregistration.
 
         Args:
-            - target (str): The target of the message.
+            - target (str):
+                The target of the message.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -612,10 +691,12 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage as a response for protocol registration.
 
         Args:
-            - target (str): The target of the message.
+            - target (str):
+                The target of the message.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -637,10 +718,12 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage as a response for protocol unregistration.
 
         Args:
-            - target (str): The target of the message.
+            - target (str):
+                The target of the message.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         message = FrostMessage(
             sender=self._sender,
@@ -668,13 +751,18 @@ class FrostMessageBuilder(MessageBuilder):
         Builds a FrostMessage for an error message.
 
         Args:
-            - target (str): The target of the message.
-            - header (FrostHeader): The header of the original message.
-            - error_code (ErrorCode): The error code.
-            - error_message (ErrorMessages): The error message.
+            - target (str):
+                The target of the message.
+            - header (FrostHeader):
+                The header of the original message.
+            - error_code (ErrorCode):
+                The error code.
+            - error_message (ErrorMessages):
+                The error message.
 
         Returns:
-            - FrostMessage: The built message.
+            - FrostMessage:
+                The built message.
         """
         header.type = MsgType.ERROR
         message = FrostMessage(

@@ -5,11 +5,12 @@ This demonstrates notifications triggered by changes exceeding a deadband.
 """
 
 from typing import Any
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+
 from machine_data_model.nodes.subscription.variable_subscription import (
     DataChangeSubscription,
     VariableSubscription,
 )
+from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
 
 
 def notify_callback(

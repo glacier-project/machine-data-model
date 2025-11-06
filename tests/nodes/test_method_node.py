@@ -1,6 +1,8 @@
-import pytest
 import random
-from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
+
+import pytest
+
+from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from tests import NUM_TESTS, gen_random_string, get_random_numerical_node
 

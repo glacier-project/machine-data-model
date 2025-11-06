@@ -8,15 +8,16 @@ multi-model scenarios.
 
 import time
 
+from support import print_trace_events
+
 from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.nodes.method_node import MethodNode
-from machine_data_model.tracing import clear_traces, TraceLevel
+from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.tracing import TraceLevel, clear_traces
 from machine_data_model.tracing.tracing_core import (
     get_global_collector,
     set_global_trace_level,
 )
-from support import print_trace_events
 
 
 def create_temperature_controller(name: str) -> DataModel:
@@ -45,10 +46,9 @@ def create_temperature_controller(name: str) -> DataModel:
         """Adjust temperature towards setpoint."""
         if temp_sensor < setpoint:
             return min(temp_sensor + 2.0, setpoint)
-        elif temp_sensor > setpoint:
+        if temp_sensor > setpoint:
             return max(temp_sensor - 2.0, setpoint)
-        else:
-            return temp_sensor
+        return temp_sensor
 
     # Create return variable
     new_temp_var = NumericalVariableNode(id="new_temp", name="new_temp", value=0.0)

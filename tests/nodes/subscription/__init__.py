@@ -1,9 +1,10 @@
 import random
+
 from machine_data_model.nodes.subscription.variable_subscription import (
-    EventType,
-    VariableSubscription,
-    RangeSubscription,
     DataChangeSubscription,
+    EventType,
+    RangeSubscription,
+    VariableSubscription,
 )
 
 

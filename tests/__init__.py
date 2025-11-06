@@ -1,15 +1,14 @@
 import random
 import string
-from collections.abc import Callable
-from typing import Any, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any, TypeVar, overload
 
 from unitsnet_py.units.length import LengthUnits
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
-from machine_data_model.nodes.method_node import MethodNode, AsyncMethodNode
-from typing import TypeVar, overload
+from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
