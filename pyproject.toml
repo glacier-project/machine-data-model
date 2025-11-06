@@ -55,4 +55,3 @@ line-length = 88
 [tool.ruff.lint]
 select = []
 ignore = []
-
