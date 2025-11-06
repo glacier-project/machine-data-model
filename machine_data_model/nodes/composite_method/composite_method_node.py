@@ -7,13 +7,14 @@ flow elements within the machine data model framework.
 """
 
 import uuid
-from typing import Any
+from typing import Any, Callable
 
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
 )
 from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
+from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.method_node import MethodExecutionResult, MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
@@ -70,6 +71,7 @@ class CompositeMethodNode(MethodNode):
             returns=returns,
         )
         self._contexts = {}
+        self._internal_nodes: dict[str, DataModelNode] = {}
         self.cfg = cfg if cfg is not None else ControlFlow(composite_method_node=self)
         if cfg is not None and self.cfg._composite_method_node is None:
             self.cfg._composite_method_node = self
@@ -140,6 +142,59 @@ class CompositeMethodNode(MethodNode):
         if context_id not in self._contexts:
             raise ValueError(f"context '{context_id}' not found")
         del self._contexts[context_id]
+
+    def add_internal_node(self, node: DataModelNode) -> None:
+        """
+        Add an internal node to the composite method.
+
+        Internal nodes are not accessible from external clients and are only
+        accessible within the control flow of this composite method.
+
+        Args:
+            node (DataModelNode):
+                The node to add as an internal node.
+
+        """
+        self._internal_nodes[node.id] = node
+        node.parent = self  # Set parent to this composite method
+
+    def get_internal_node(self, node_id: str) -> DataModelNode | None:
+        """
+        Get an internal node by its id.
+
+        Args:
+            node_id (str):
+                The id of the internal node to get.
+
+        Returns:
+            DataModelNode | None:
+                The internal node with the specified id, or None if not found.
+
+        """
+        return self._internal_nodes.get(node_id)
+
+    def get_node_resolver(self) -> Callable[[str], DataModelNode | None]:
+        """
+        Get a node resolver function that checks internal nodes first, then
+        falls back to the data model.
+
+        Returns:
+            Callable[[str], DataModelNode | None]:
+                A function that takes a node id/path and returns the node.
+
+        """
+
+        def resolver(node_id: str) -> DataModelNode | None:
+            # First check internal nodes
+            internal_node = self.get_internal_node(node_id)
+            if internal_node is not None:
+                return internal_node
+            # Then check data model
+            if self.data_model is not None:
+                return self.data_model.get_node(node_id)
+            return None
+
+        return resolver
 
     def handle_message(self, context_id: str, message: FrostMessage) -> bool:
         """

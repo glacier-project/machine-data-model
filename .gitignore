@@ -166,3 +166,10 @@ cython_debug/
 bin/
 dump/
 .vscode
+
+# OPC-UA Selfsigned certificates
+*.pem
+*.der
+
+# Environment variable files
+.envrc
