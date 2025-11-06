@@ -1,3 +1,12 @@
+"""
+A module defining the MessageBuilder abstract base class for building and parsing messages.
+
+This module provides an abstract base class `MessageBuilder` that outlines the
+structure for building and parsing messages in a communication protocol. It includes
+methods for getting and setting the sender of the message, as well as abstract methods
+for parsing and serializing messages.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Any
 from machine_data_model.protocols.message import Message
@@ -8,7 +17,7 @@ class MessageBuilder(ABC):
         self._sender = sender
 
     def get_sender(self) -> str:
-        """Returns the sender of the message.
+        """Return the sender of the message.
 
         Returns:
             str:
@@ -17,7 +26,7 @@ class MessageBuilder(ABC):
         return self._sender
 
     def set_sender(self, sender: str) -> None:
-        """Sets the sender of the message.
+        """Set the sender of the message.
 
         Args:
             sender (str):
@@ -27,7 +36,7 @@ class MessageBuilder(ABC):
 
     @abstractmethod
     def parse_message(self, message: dict) -> Message:
-        """Parses a message from a dictionary and returns a Message object.
+        """Parse a message from a dictionary and returns a Message object.
 
         Args:
             message (dict):
@@ -41,7 +50,7 @@ class MessageBuilder(ABC):
 
     @abstractmethod
     def serialize_message(self, message: Any) -> dict:
-        """Serializes the message into a dictionary.
+        """Serialize the message into a dictionary.
 
         Args:
             message (Any):

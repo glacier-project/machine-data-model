@@ -171,6 +171,11 @@ def manager(data_model: DataModel) -> FrostProtocolMng:
     return FrostProtocolMng(data_model)
 
 
+@pytest.fixture
+def message_builder(sender: str) -> FrostMessageBuilder:
+    return FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+
+
 @pytest.mark.parametrize(
     "sender, target",
     [(str(uuid.uuid4()), "machine1")],
@@ -178,12 +183,14 @@ def manager(data_model: DataModel) -> FrostProtocolMng:
 class TestFrostProtocolMng:
     @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_variable_read_request(
-        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
+        self,
+        manager: FrostProtocolMng,
+        message_builder: FrostMessageBuilder,
+        sender: str,
+        target: str,
+        var_name: str,
     ) -> None:
-        builder = FrostMessageBuilder(
-            sender=sender, protocol_version=manager.get_protocol_version()
-        )
-        msg = builder.build_read_variable_message(target=target, node=var_name)
+        msg = message_builder.build_read_variable_message(target=target, node=var_name)
         assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)
@@ -197,16 +204,18 @@ class TestFrostProtocolMng:
 
     @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_variable_write_request(
-        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
+        self,
+        manager: FrostProtocolMng,
+        message_builder: FrostMessageBuilder,
+        sender: str,
+        target: str,
+        var_name: str,
     ) -> None:
         node = manager.get_data_model().get_node(var_name)
         assert isinstance(node, VariableNode)
         value = get_value(node)
 
-        builder = FrostMessageBuilder(
-            sender=sender, protocol_version=manager.get_protocol_version()
-        )
-        msg = builder.build_write_variable_message(
+        msg = message_builder.build_write_variable_message(
             target=target, node=var_name, value=value
         )
         assert isinstance(msg, FrostMessage)
@@ -221,20 +230,21 @@ class TestFrostProtocolMng:
         )
 
     def test_handle_multiple_write_request(
-        self, manager: FrostProtocolMng, sender: str, target: str
+        self,
+        manager: FrostProtocolMng,
+        message_builder: FrostMessageBuilder,
+        sender: str,
+        target: str,
     ) -> None:
         node_path = "folder1/boolean"
-        builder = FrostMessageBuilder(
-            sender=sender, protocol_version=manager.get_protocol_version()
-        )
         write_messages = []
         write_messages.append(
-            builder.build_write_variable_message(
+            message_builder.build_write_variable_message(
                 target=target, node=node_path, value=True
             )
         )
         write_messages.append(
-            builder.build_write_variable_message(
+            message_builder.build_write_variable_message(
                 target=target, node=node_path, value=False
             )
         )
@@ -250,17 +260,20 @@ class TestFrostProtocolMng:
                 assert not isinstance(response.payload, ErrorPayload)
 
     def test_handle_variable_subscribe(
-        self, manager: FrostProtocolMng, sender: str, target: str
+        self,
+        manager: FrostProtocolMng,
+        message_builder: FrostMessageBuilder,
+        sender: str,
+        target: str,
     ) -> None:
         var_name = "folder1/o_variable2"
         node = manager.get_data_model().get_node(var_name)
         assert isinstance(node, ObjectVariableNode)
         value = get_value(node)
 
-        builder = FrostMessageBuilder(
-            sender=sender, protocol_version=manager.get_protocol_version()
+        msg = message_builder.build_subscribe_variable_message(
+            target=target, node=var_name
         )
-        msg = builder.build_subscribe_variable_message(target=target, node=var_name)
         assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)
@@ -294,17 +307,19 @@ class TestFrostProtocolMng:
 
     @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_method_call_request(
-        self, manager: FrostProtocolMng, sender: str, target: str, var_name: str
+        self,
+        manager: FrostProtocolMng,
+        message_builder: FrostMessageBuilder,
+        sender: str,
+        target: str,
+        var_name: str,
     ) -> None:
         node = manager.get_data_model().get_node(var_name)
         method_name = "method2"
         assert isinstance(node, VariableNode)
         param_value = get_value(node)
 
-        builder = FrostMessageBuilder(
-            sender=sender, protocol_version=manager.get_protocol_version()
-        )
-        msg = builder.build_method_invoke_message(
+        msg = message_builder.build_method_invoke_message(
             target=target,
             node=f"folder1/{method_name}",
             args=[param_value],
@@ -337,15 +352,20 @@ class TestFrostProtocolMng:
         assert response.payload.ret["out_var"] == param_value
 
     def test_handle_composite_msg_request(
-        self, manager: FrostProtocolMng, sender: str, target: str
+        self,
+        manager: FrostProtocolMng,
+        message_builder: FrostMessageBuilder,
+        sender: str,
+        target: str,
     ) -> None:
         wait_node = manager.get_data_model().get_node("/folder1/n_variable2")
         assert isinstance(wait_node, VariableNode)
 
-        builder = FrostMessageBuilder(
-            sender=sender, protocol_version=manager.get_protocol_version()
+        msg = message_builder.build_method_invoke_message(
+            target=target,
+            node="/folder1/folder2/composite_method1",
         )
-        msg = builder.build_method_invoke_message(
+        msg = message_builder.build_method_invoke_message(
             target=target,
             node="/folder1/folder2/composite_method1",
         )
@@ -364,12 +384,13 @@ class TestFrostProtocolMng:
         assert manager.get_update_messages()
 
     def test_handle_protocol_register(
-        self, manager: FrostProtocolMng, sender: str, target: str
+        self,
+        manager: FrostProtocolMng,
+        message_builder: FrostMessageBuilder,
+        sender: str,
+        target: str,
     ) -> None:
-        builder = FrostMessageBuilder(
-            sender=sender, protocol_version=manager.get_protocol_version()
-        )
-        msg = builder.build_protocol_register_message(target=target)
+        msg = message_builder.build_protocol_register_message(target=target)
         assert isinstance(msg, FrostMessage)
 
         response = manager.handle_request(msg)

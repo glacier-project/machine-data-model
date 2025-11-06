@@ -55,7 +55,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def set_protocol_version(self, version: tuple[int, int, int]) -> None:
         """
-        Sets the protocol version for the message.
+        Set the protocol version for the message.
 
         Args:
             - version (tuple[int, int, int]):
@@ -71,7 +71,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def get_protocol_version(self) -> tuple:
         """
-        Returns the protocol version.
+        Return the protocol version.
 
         Returns:
             - tuple:
@@ -82,7 +82,7 @@ class FrostMessageBuilder(MessageBuilder):
     @override
     def parse_message(self, message: dict) -> FrostMessage:
         """
-        Parses a FrostMessage from a dictionary representation.
+        Parse a FrostMessage from a dictionary representation.
 
         Args:
             - message (dict):
@@ -99,7 +99,7 @@ class FrostMessageBuilder(MessageBuilder):
     @override
     def serialize_message(self, message: FrostMessage) -> dict["str", Any]:
         """
-        Serializes a FrostMessage to a dictionary representation.
+        Serialize a FrostMessage to a dictionary representation.
 
         Args:
             - message:
@@ -121,7 +121,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def build_read_variable_message(self, target: str, node: str) -> FrostMessage:
         """
-        Builds a FrostMessage for reading a variable.
+        Build a FrostMessage for reading a variable.
 
         Args:
             - target (str):
@@ -152,7 +152,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, value: Any
     ) -> FrostMessage:
         """
-        Builds a FrostMessage as an answer for reading a variable.
+        Build a FrostMessage as an answer for reading a variable.
 
         Args:
             - target (str):
@@ -185,7 +185,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, value: Any
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for writing a variable.
+        Build a FrostMessage for writing a variable.
 
         Args:
             - target (str):
@@ -218,7 +218,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, value: Any
     ) -> FrostMessage:
         """
-        Builds a FrostMessage as an answer for writing a variable.
+        Build a FrostMessage as an answer for writing a variable.
 
         Args:
             - target (str):
@@ -249,7 +249,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def build_subscribe_variable_message(self, target: str, node: str) -> FrostMessage:
         """
-        Builds a FrostMessage for subscribing to a variable.
+        Build a FrostMessage for subscribing to a variable.
 
         Args:
             - target (str):
@@ -280,7 +280,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, value: Any
     ) -> FrostMessage:
         """
-        Builds a FrostMessage as a response for subscribing to a variable.
+        Build a FrostMessage as a response for subscribing to a variable.
 
         Args:
             - target (str):
@@ -313,7 +313,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, deadband: float, is_percent: bool
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for a data change subscription.
+        Build a FrostMessage for a data change subscription.
 
         Args:
             - target (str):
@@ -350,7 +350,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, low: float, high: float
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for an in-range subscription.
+        Build a FrostMessage for an in-range subscription.
 
         Args:
             - target (str):
@@ -385,7 +385,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, low: float, high: float
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for an out-of-range subscription.
+        Build a FrostMessage for an out-of-range subscription.
 
         Args:
             - target (str):
@@ -420,7 +420,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for unsubscribing from a variable.
+        Build a FrostMessage for unsubscribing from a variable.
 
         Args:
             - target (str):
@@ -451,7 +451,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str
     ) -> FrostMessage:
         """
-        Builds a FrostMessage as a response for unsubscribing from a variable.
+        Build a FrostMessage as a response for unsubscribing from a variable.
 
         Args:
             - target (str):
@@ -486,7 +486,7 @@ class FrostMessageBuilder(MessageBuilder):
         kwargs: dict[str, Any] | None = None,
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for invoking a method.
+        Build a FrostMessage for invoking a method.
 
         Args:
             - target (str):
@@ -530,7 +530,7 @@ class FrostMessageBuilder(MessageBuilder):
         ret: dict[str, Any] | None = None,
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for a method response.
+        Build a FrostMessage for a method response.
 
         Args:
             - target (str):
@@ -572,7 +572,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, ret: dict[str, Any] | None = None
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for a method started notification.
+        Build a FrostMessage for a method started notification.
 
         Args:
             - target (str):
@@ -603,7 +603,7 @@ class FrostMessageBuilder(MessageBuilder):
         self, target: str, node: str, value: Any
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for a variable update notification.
+        Build a FrostMessage for a variable update notification.
 
         Args:
             - target (str):
@@ -634,7 +634,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def build_protocol_register_message(self, target: str) -> FrostMessage:
         """
-        Builds a FrostMessage for protocol registration.
+        Build a FrostMessage for protocol registration.
 
         Args:
             - target (str):
@@ -661,7 +661,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def build_protocol_unregister_message(self, target: str) -> FrostMessage:
         """
-        Builds a FrostMessage for protocol unregistration.
+        Build a FrostMessage for protocol unregistration.
 
         Args:
             - target (str):
@@ -688,7 +688,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def build_protocol_register_response_message(self, target: str) -> FrostMessage:
         """
-        Builds a FrostMessage as a response for protocol registration.
+        Build a FrostMessage as a response for protocol registration.
 
         Args:
             - target (str):
@@ -715,7 +715,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def build_protocol_unregister_response_message(self, target: str) -> FrostMessage:
         """
-        Builds a FrostMessage as a response for protocol unregistration.
+        Build a FrostMessage as a response for protocol unregistration.
 
         Args:
             - target (str):
@@ -748,7 +748,7 @@ class FrostMessageBuilder(MessageBuilder):
         error_message: ErrorMessages,
     ) -> FrostMessage:
         """
-        Builds a FrostMessage for an error message.
+        Build a FrostMessage for an error message.
 
         Args:
             - target (str):
