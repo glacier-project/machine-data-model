@@ -142,7 +142,7 @@ class ProtocolMsgName(MsgName):
 @dataclass(init=True, slots=True)
 class FrostHeader:
     """
-    Represents the header of a message and holds its metadata.
+    Represents the header of a message, and holds its metadata.
 
     Attributes:
         type (MsgType):

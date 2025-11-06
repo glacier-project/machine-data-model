@@ -566,7 +566,7 @@ class DataModelDumper:
 
     def dump(self) -> str:
         """
-        Dumps the machine data model to a YAML string.
+        Dump the machine data model to a YAML string.
 
         Returns:
             str:

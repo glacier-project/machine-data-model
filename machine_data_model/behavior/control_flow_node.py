@@ -110,7 +110,7 @@ class ControlFlowNode(ABC):
         parent_cfg: "ControlFlow | None" = None,
     ):
         """
-        Initializes a new ControlFlowNode instance.
+        Initialize a new ControlFlowNode instance.
 
         Args:
             node (str):

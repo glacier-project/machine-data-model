@@ -49,7 +49,7 @@ def _build_kwargs(
     data: dict[Hashable, Any], default_kwargs: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Builds kwargs by merging data with default values and validating keys.
+    Build kwargs by merging data with default values and validating keys.
 
     Args:
         data (dict[Hashable, Any]):
@@ -141,10 +141,6 @@ def _get_numerical_variable(
     kwargs["value"] = (
         kwargs["initial_value"] if kwargs["initial_value"] is not None else 0
     )
-    if not isinstance(kwargs["value"], int | float):
-        raise ValueError(
-            f"Invalid value for 'value': {kwargs['value']} is not a number"
-        )
     del kwargs["initial_value"]
     del kwargs["default_value"]
     return NumericalVariableNode(**kwargs)
@@ -181,10 +177,6 @@ def _get_string_variable(
     kwargs["value"] = (
         kwargs["initial_value"] if kwargs["initial_value"] is not None else ""
     )
-    if not isinstance(kwargs["value"], str):
-        raise ValueError(
-            f"Invalid value for 'value': {kwargs['value']} is not a string"
-        )
     del kwargs["initial_value"]
     del kwargs["default_value"]
 
@@ -222,10 +214,6 @@ def _get_boolean_variable(
     kwargs["value"] = (
         kwargs["initial_value"] if kwargs["initial_value"] is not None else False
     )
-    if not isinstance(kwargs["value"], bool):
-        raise ValueError(
-            f"Invalid value for 'value': {kwargs['value']} is not a boolean"
-        )
     del kwargs["initial_value"]
     del kwargs["default_value"]
     return BooleanVariableNode(**kwargs)
@@ -715,10 +703,7 @@ class DataModelBuilder:
 
     def from_string(self, data_model_string: str) -> DataModel:
         """
-        Creates a data model from a YAML string.
-
-        Args:
-            data_model_string (str): The YAML string containing the data model.
+        Create a data model from a YAML string.
 
         Args:
             data_model_string:

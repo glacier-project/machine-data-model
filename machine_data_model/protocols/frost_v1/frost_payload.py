@@ -65,12 +65,6 @@ class SubscriptionPayload(VariablePayload):
 
     @property
     def subscription_type(self) -> EventType:
-        """
-        Returns the type of the subscription.
-
-        Returns:
-            EventType: The type of the subscription.
-        """
         return EventType.ANY
 
 
@@ -98,12 +92,6 @@ class DataChangeSubscriptionPayload(SubscriptionPayload):
 
     @property
     def subscription_type(self) -> EventType:
-        """
-        Returns the type of the subscription.
-
-        Returns:
-            EventType: The type of the subscription.
-        """
         return EventType.DATA_CHANGE
 
 
@@ -130,12 +118,6 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
 
     @property
     def subscription_type(self) -> EventType:
-        """
-        Returns the type of the subscription.
-
-        Returns:
-            EventType: The type of the subscription.
-        """
         return EventType.IN_RANGE
 
 
@@ -159,12 +141,6 @@ class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
 
     @property
     def subscription_type(self) -> EventType:
-        """
-        Returns the type of the subscription.
-
-        Returns:
-            EventType: The type of the subscription.
-        """
         return EventType.OUT_OF_RANGE
 
 

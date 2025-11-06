@@ -52,7 +52,7 @@ class CompositeMethodNode(MethodNode):
         cfg: ControlFlow | None = None,
     ):
         """
-        Initializes a new CompositeMethodNode instance.
+        Initialize a new CompositeMethodNode instance.
 
         Args:
             id (str | None): The unique identifier of the method.
@@ -78,7 +78,7 @@ class CompositeMethodNode(MethodNode):
 
     def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
         """
-        Calls the method with the specified arguments.
+        Call the method with the specified arguments.
 
         Args:
             *args (Any):

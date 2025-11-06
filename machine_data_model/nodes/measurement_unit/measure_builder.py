@@ -30,7 +30,8 @@ class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
     """
     Represents a value with no unit.
 
-    This class is used for values that do not have a unit of measurement.
+    This class is used to represent a value that does not have any unit
+    associated with it. The unit of measurement is always `NONE`.
 
     Attributes:
         _value (float):
@@ -44,7 +45,7 @@ class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
         self, value: float, from_unit: NoneMeasureUnits = NoneMeasureUnits.NONE
     ):
         """
-        Initializes a `NoneMeasure` instance.
+        Initializes a `NoneMeasure` instance with a value and a unit.
 
         Args:
             value (float):
@@ -75,7 +76,7 @@ class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
         fractional_digits: int | None = None,
     ) -> str:
         """
-        Formats the `NoneMeasure` to a string.
+        Format the `NoneMeasure` to a string.
 
         This method returns the string representation of the value. The unit is
         always `NONE`, and an optional number of fractional digits can be
@@ -104,12 +105,9 @@ class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
         self, unit_abbreviation: NoneMeasureUnits = NoneMeasureUnits.NONE
     ) -> str:
         """
-        Gets the abbreviation of the `NoneMeasure` unit.
+        Get the abbreviation of the `NoneMeasure` unit.
 
-        This method returns an empty string since `NoneMeasure` has no unit.
-
-        Args:
-            unit_abbreviation (NoneMeasureUnits): The unit abbreviation, which must be `NoneMeasureUnits.NONE`.
+        This method returns an empty string since the only valid unit is `NONE`.
 
         Args:
             unit_abbreviation (NoneMeasureUnits):
@@ -133,8 +131,9 @@ class MeasureBuilder:
     """
     A utility class for building measure objects from a value and a unit.
 
-    This class creates an appropriate measure object, such as `NoneMeasure` or
-    units from the `unitsnet_py` package, based on the provided unit.
+    This class helps in creating an appropriate measure object, such as
+    `NoneMeasure` or units from the `unitsnet_py` package, based on the provided
+    unit.
 
     Attributes:
         _measure_ctor (Dict[Type[Enum], Type[AbstractMeasure]]):
@@ -148,6 +147,10 @@ class MeasureBuilder:
     def __init__(self) -> None:
         """
         Initializes a new `MeasureBuilder` instance.
+
+        This constructor dynamically loads unit classes from the `unitsnet_py`
+        package, mapping each unit class to its corresponding measure class, and
+        sets up the `_measure_ctor` dictionary for quick lookup.
         """
         self._measure_ctor = {}
 
@@ -169,12 +172,10 @@ class MeasureBuilder:
 
     def get_measure_unit(self, unit: str | Enum) -> Enum:
         """
-        Retrieves the unit enum based on a string or enum.
+        Retrieves the unit class based on the given unit name or unit enum.
 
-        If a string is passed, it should be in the format "Module.Unit".
-
-        Args:
-            unit (str | Enum): The unit as a string or an `Enum`.
+        If a string is passed, it is expected to be in the format "Module.Unit".
+        If an enum is passed, the corresponding unit is returned.
 
         Args:
             unit (str | Enum):
@@ -207,7 +208,7 @@ class MeasureBuilder:
 
     def create_measure(self, value: float, unit: str | Enum) -> AbstractMeasure:
         """
-        Creates a measure object from a value and a unit.
+        Creates a measure object using the provided value and unit.
 
         This method looks up the correct measure constructor from
         `_measure_ctor` and creates an instance of the appropriate measure class
@@ -240,7 +241,7 @@ _measure_builder: "MeasureBuilder" = MeasureBuilder()
 
 def get_measure_builder() -> "MeasureBuilder":
     """
-    Gets the MeasureBuilder instance.
+    Get the MeasureBuilder instance.
 
     Returns:
         MeasureBuilder:

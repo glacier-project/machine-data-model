@@ -76,7 +76,7 @@ class MethodNode(DataModelNode):
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
-        Initializes a new MethodNode instance.
+        Initialize a new MethodNode instance.
 
         Args:
             id (str | None):
@@ -138,7 +138,7 @@ class MethodNode(DataModelNode):
 
     def add_parameter(self, parameter: VariableNode) -> None:
         """
-        Adds a parameter to the method.
+        Add a parameter to the method.
 
         Args:
             parameter (VariableNode):
@@ -151,7 +151,7 @@ class MethodNode(DataModelNode):
 
     def remove_parameter(self, parameter: VariableNode) -> None:
         """
-        Removes a parameter from the method.
+        Remove a parameter from the method.
 
         Args:
             parameter (VariableNode):
@@ -182,7 +182,7 @@ class MethodNode(DataModelNode):
 
     def add_return_value(self, return_value: VariableNode) -> None:
         """
-        Adds a return value to the method.
+        Add a return value to the method.
 
         Args:
             return_value (VariableNode):
@@ -197,7 +197,7 @@ class MethodNode(DataModelNode):
 
     def remove_return_value(self, return_value: VariableNode) -> None:
         """
-        Removes a return value from the method.
+        Remove a return value from the method.
 
         Args:
             return_value (VariableNode):
@@ -301,10 +301,7 @@ class MethodNode(DataModelNode):
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """
-        Gets a parameter or return value of the method by name.
-
-        Args:
-            node_name (str): The name of the parameter or return value to get.
+        Get a parameter or return value of the method by name.
 
         Args:
             node_name (str):
@@ -357,7 +354,7 @@ class MethodNode(DataModelNode):
     @override
     def __iter__(self) -> Iterator[VariableNode]:
         """
-        Iterates over the parameters and return values of the method.
+        Iterate over the parameters and return values of the method.
 
         Returns:
             Iterator[VariableNode]:
@@ -369,7 +366,7 @@ class MethodNode(DataModelNode):
 
     def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
         """
-        Calls the method with the specified arguments.
+        Call the method with the specified arguments.
 
         Args:
             *args (Any):
@@ -456,10 +453,7 @@ class MethodNode(DataModelNode):
 
     def _build_return_dict(self, ret: Any) -> dict[str, Any]:
         """
-        Builds a dictionary of return values from the method.
-
-        Args:
-            ret (Any): The return values of the method.
+        Build a dictionary of return values from the method.
 
         Args:
             ret (Any):
@@ -539,7 +533,7 @@ class AsyncMethodNode(MethodNode):
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
         """
-        Initializes a new AsyncMethodNode instance.
+        Initialize a new AsyncMethodNode instance.
 
         Args:
             id (str | None):
@@ -585,10 +579,4 @@ class AsyncMethodNode(MethodNode):
         return True
 
     def __str__(self) -> str:
-        """
-        Returns a string representation of the AsyncMethodNode.
-
-        Returns:
-            str: A string describing the AsyncMethodNode.
-        """
         return f"AsyncMethodNode(id={self.id}, name={self.name}, description={self.description})"

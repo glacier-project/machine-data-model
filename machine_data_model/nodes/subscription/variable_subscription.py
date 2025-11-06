@@ -160,12 +160,6 @@ class DataChangeSubscription(VariableSubscription):
 
     @override
     def get_event_type(self) -> EventType:
-        """
-        Gets the event type for this subscription.
-
-        Returns:
-            EventType: The event type, which is always DATA_CHANGE.
-        """
         return EventType.DATA_CHANGE
 
     def _value_changed(self, new_value: float) -> bool:
@@ -256,12 +250,6 @@ class RangeSubscription(VariableSubscription):
 
     @override
     def get_event_type(self) -> EventType:
-        """
-        Gets the event type for this subscription.
-
-        Returns:
-            EventType: The event type, which is either IN_RANGE or OUT_OF_RANGE.
-        """
         return self._check_type
 
     @override

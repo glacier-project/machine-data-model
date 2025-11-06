@@ -907,7 +907,7 @@ def trace_variable_write(
     data_model_id: str = "",
 ) -> None:
     """
-    Traces a variable write operation.
+    Trace a variable write operation.
 
     Args:
         variable_id (str):
@@ -946,7 +946,7 @@ def trace_variable_read(
     data_model_id: str = "",
 ) -> None:
     """
-    Traces a variable read operation.
+    Trace a variable read operation.
 
     Args:
         variable_id (str):
@@ -980,13 +980,17 @@ def trace_method_start(
     data_model_id: str = "",
 ) -> float:
     """
-    Traces a method start and returns the start time.
+    Trace method start and return start time for duration calculation.
 
     Args:
-        method_id (str): The ID of the method being called.
-        args (dict[str, Any]): The arguments passed to the method.
-        source (str, optional): The source of the event. Defaults to "".
-        data_model_id (str, optional): The ID of the data model. Defaults to "".
+        method_id (str):
+            The ID of the method being called.
+        args (dict[str, Any]):
+            The arguments passed to the method.
+        source (str, optional):
+            The source of the event. Defaults to "".
+        data_model_id (str, optional):
+            The ID of the data model this event belongs to. Defaults to "".
 
     Returns:
         float: The timestamp when the method started.
@@ -1014,7 +1018,7 @@ def trace_method_end(
     data_model_id: str = "",
 ) -> None:
     """
-    Traces a method end with execution time.
+    Trace method end with execution time.
 
     Args:
         method_id (str):

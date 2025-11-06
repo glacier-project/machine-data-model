@@ -105,15 +105,11 @@ class TraceCollector:
     Provides configurable tracing levels and multiple export formats. Manages
     the collection, filtering, and export of trace events for CPS simulation
     verification.
-
-    Attributes:
-        level (TraceLevel): The current tracing level.
-        events (List[TraceEvent]): A list of collected trace events.
     """
 
     def __init__(self, level: TraceLevel = TraceLevel.NONE):
         """
-        Initializes the trace collector.
+        Initialize the trace collector.
 
         Args:
             level (TraceLevel, optional):
@@ -125,7 +121,7 @@ class TraceCollector:
 
     def set_level(self, level: TraceLevel) -> None:
         """
-        Sets the tracing level.
+        Set the tracing level.
 
         Args:
             level (TraceLevel):
@@ -135,12 +131,12 @@ class TraceCollector:
         self.level = level
 
     def clear(self) -> None:
-        """Clears all collected events."""
+        """Clear all collected events."""
         self.events.clear()
 
     def record_event(self, event: TraceEvent) -> None:
         """
-        Records a trace event if tracing is enabled and the level allows it.
+        Record a trace event if tracing is enabled and level allows it.
 
         Args:
             event (TraceEvent):
@@ -153,10 +149,11 @@ class TraceCollector:
 
     def should_record_event_type(self, event_type: TraceEventType) -> bool:
         """
-        Determines if an event type should be recorded based on the current level.
+        Determine if an event type should be recorded based on current level.
 
         Args:
-            event_type (TraceEventType): The type of event to check.
+            event_type (TraceEventType):
+                The type of event to check.
 
         Returns:
             bool: True if the event type should be recorded, False otherwise.
@@ -194,10 +191,11 @@ class TraceCollector:
         event_type: TraceEventType | None = None,
     ) -> list[TraceEvent]:
         """
-        Gets events, optionally filtered by type.
+        Get events, optionally filtered by type.
 
         Args:
-            event_type (Optional[TraceEventType], optional): Filter events by this type. If None, returns all events.
+            event_type (Optional[TraceEventType], optional):
+                Filter events by this type. If None, return all events.
 
         Returns:
             List[TraceEvent]: List of matching trace events.
@@ -209,7 +207,7 @@ class TraceCollector:
 
     def export_json(self, filepath: str) -> None:
         """
-        Exports events to a JSON file.
+        Export events to JSON format.
 
         Args:
             filepath (str):
@@ -226,7 +224,7 @@ _global_collector = TraceCollector()
 
 def get_global_collector() -> TraceCollector:
     """
-    Gets the global trace collector instance.
+    Get the global trace collector instance.
 
     Returns:
         TraceCollector: The global trace collector instance.
@@ -237,7 +235,7 @@ def get_global_collector() -> TraceCollector:
 
 def set_global_trace_level(level: TraceLevel) -> None:
     """
-    Sets the global tracing level.
+    Set the global tracing level.
 
     Args:
         level (TraceLevel):
@@ -248,13 +246,13 @@ def set_global_trace_level(level: TraceLevel) -> None:
 
 
 def clear_traces() -> None:
-    """Clears all global traces."""
+    """Clear all global traces."""
     _global_collector.clear()
 
 
 def export_traces_json(filepath: str) -> None:
     """
-    Exports global traces to a JSON file.
+    Export global traces to JSON.
 
     Args:
         filepath (str):

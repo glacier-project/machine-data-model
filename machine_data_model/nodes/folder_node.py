@@ -82,7 +82,7 @@ class FolderNode(DataModelNode):
 
     def add_child(self, child: DataModelNode) -> None:
         """
-        Adds a child node to the folder.
+        Add a child node to the folder.
 
         Args:
             child (DataModelNode):
@@ -95,7 +95,7 @@ class FolderNode(DataModelNode):
 
     def remove_child(self, child_name: str) -> None:
         """
-        Removes a child node from the folder.
+        Remove a child node from the folder.
 
         Args:
             child_name (str):
@@ -117,10 +117,7 @@ class FolderNode(DataModelNode):
 
     def has_child(self, child_name: str) -> bool:
         """
-        Checks if the folder has a child node with the specified name.
-
-        Args:
-            child_name (str): The name of the child node to check.
+        Check if the folder has a child node with the specified name.
 
         Args:
             child_name (str):
@@ -137,10 +134,7 @@ class FolderNode(DataModelNode):
     @override
     def __getitem__(self, child_name: str) -> DataModelNode:
         """
-        Gets a child node from the folder by name.
-
-        Args:
-            child_name (str): The name of the child node to get from the folder.
+        Get a child node from the folder by name.
 
         Args:
             child_name (str):
@@ -156,10 +150,7 @@ class FolderNode(DataModelNode):
     @override
     def __contains__(self, child_name: str) -> bool:
         """
-        Checks if the folder has a child node with the specified name.
-
-        Args:
-            child_name (str): The name of the child node to check.
+        Check if the folder has a child node with the specified name.
 
         Args:
             child_name (str):
@@ -176,7 +167,7 @@ class FolderNode(DataModelNode):
     @override
     def __iter__(self) -> Iterator[DataModelNode]:
         """
-        Iterates over the children of the folder.
+        Iterate over the children of the folder.
 
         Returns:
             Iterator[DataModelNode]:

@@ -274,7 +274,7 @@ class DataModelNode(ABC):
         self, child_nodes: Mapping[str, "DataModelNode"] | Sequence["DataModelNode"]
     ) -> None:
         """
-        Sets this node as the parent of the child nodes.
+        Set this node as the parent of the child nodes.
 
         Args:
             child_nodes (Mapping[str, "DataModelNode"] |
@@ -292,10 +292,7 @@ class DataModelNode(ABC):
     @abstractmethod
     def __getitem__(self, child_name: str) -> "DataModelNode":
         """
-        Gets a child node by name.
-
-        Args:
-            child_name (str): The name of the child node.
+        Get a child node by name.
 
         Args:
             child_name (str):
@@ -310,10 +307,7 @@ class DataModelNode(ABC):
     @abstractmethod
     def __contains__(self, child_name: str) -> bool:
         """
-        Checks if the node contains a child with the specified name.
-
-        Args:
-            child_name (str): The name of the child node.
+        Check if the node contains a child with the specified name.
 
         Args:
             child_name (str):
@@ -328,7 +322,7 @@ class DataModelNode(ABC):
     @abstractmethod
     def __iter__(self) -> Iterator["DataModelNode"]:
         """
-        Iterates over the children of the node.
+        Iterate over the children of the node.
 
         Returns:
             Iterator[DataModelNode]:

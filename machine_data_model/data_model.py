@@ -23,16 +23,7 @@ from machine_data_model.nodes.connectors.abstract_connector import AbstractConne
 
 class DataModel:
     """
-    Represents the structure and data of a machine data model.
-
-    Attributes:
-        _name (str): The name of the data model.
-        _machine_category (str): The category of the machine.
-        _machine_type (str): The type of the machine.
-        _machine_model (str): The model of the machine.
-        _description (str): A description of the data model.
-        _root (FolderNode): The root folder of the data model.
-        _nodes (dict[str, DataModelNode]): A hashmap for fast access to nodes by id.
+    A DataModel represents the structure and data of a machine data model.
     """
 
     def __init__(
@@ -206,12 +197,6 @@ class DataModel:
     @property
     def name(self) -> str:
         """
-        Gets the name of the data model.
-
-        Returns:
-            str: The name of the data model.
-        """
-        """
         Get the name of the data model.
 
         Returns:
@@ -223,12 +208,6 @@ class DataModel:
 
     @property
     def machine_category(self) -> str:
-        """
-        Gets the machine category.
-
-        Returns:
-            str: The machine category.
-        """
         """
         Get the machine category.
 
@@ -242,12 +221,6 @@ class DataModel:
     @property
     def machine_type(self) -> str:
         """
-        Gets the machine type.
-
-        Returns:
-            str: The machine type.
-        """
-        """
         Get the machine type.
 
         Returns:
@@ -259,12 +232,6 @@ class DataModel:
 
     @property
     def machine_model(self) -> str:
-        """
-        Gets the machine model.
-
-        Returns:
-            str: The machine model.
-        """
         """
         Get the machine model.
 
@@ -278,12 +245,6 @@ class DataModel:
     @property
     def description(self) -> str:
         """
-        Gets the description of the data model.
-
-        Returns:
-            str: The description of the data model.
-        """
-        """
         Get the description of the data model.
 
         Returns:
@@ -295,12 +256,6 @@ class DataModel:
 
     @property
     def root(self) -> FolderNode:
-        """
-        Gets the root folder of the data model.
-
-        Returns:
-            FolderNode: The root folder of the data model.
-        """
         """
         Get the root folder node.
 
@@ -338,10 +293,6 @@ class DataModel:
 
     def _register_node(self, node: DataModelNode) -> None:
         """
-        Registers a node in the data model for id-based access.
-
-        Args:
-            node (DataModelNode): The node to register.
         Register a node in the data model for id-based access.
 
         Args:
@@ -373,10 +324,6 @@ class DataModel:
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
         """
-        Registers all nodes in the data model for id-based access.
-
-        Args:
-            node (FolderNode | ObjectVariableNode): The node to start registration from.
         Register all nodes in the data model for id-based access.
 
         Args:
@@ -399,11 +346,6 @@ class DataModel:
         function: Callable[[DataModelNode], None],
     ) -> None:
         """
-        Traverses the data model and applies a function to each node.
-
-        Args:
-            node (FolderNode | ObjectVariableNode): The node to start the traversal from.
-            function (Callable[[DataModelNode], None]): The function to apply to each node.
         Traverse the data model and apply a function to each node.
 
         Args:
@@ -425,13 +367,6 @@ class DataModel:
 
     def _get_node_from_path(self, path: str) -> DataModelNode | None:
         """
-        Gets a node from the data model by path.
-
-        Args:
-            path (str): The path of the node to get.
-
-        Returns:
-            DataModelNode | None: The node with the specified path, or None if not found.
         Get a node from the data model by path.
 
         Args:
@@ -468,13 +403,6 @@ class DataModel:
 
     def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
         """
-        Gets a node from the data model by id.
-
-        Args:
-            node_id (str): The id of the node to get.
-
-        Returns:
-            DataModelNode | None: The node with the specified id, or None if not found.
         Get a node from the data model by id.
 
         Args:
@@ -492,14 +420,6 @@ class DataModel:
 
     def add_child(self, parent_id: str, child: DataModelNode) -> bool:
         """
-        Adds a child node to a parent node in the data model.
-
-        Args:
-            parent_id (str): The id of the parent node.
-            child (DataModelNode): The child node to add.
-
-        Returns:
-            bool: True if the child was added successfully, False otherwise.
         Add a child node to a parent node in the data model.
 
         Args:
@@ -521,14 +441,6 @@ class DataModel:
 
     def remove_child(self, parent_id: str, child_id: str) -> bool:
         """
-        Removes a child node from a parent node in the data model.
-
-        Args:
-            parent_id (str): The id of the parent node.
-            child_id (str): The id of the child node to remove.
-
-        Returns:
-            bool: True if the child was removed successfully, False otherwise.
         Remove a child node from a parent node in the data model.
 
         Args:
@@ -550,13 +462,6 @@ class DataModel:
 
     def get_node(self, node_id: str) -> DataModelNode | None:
         """
-        Gets a node from the data model by its id or path.
-
-        Args:
-            node_id (str): The id or path of the node to get.
-
-        Returns:
-            DataModelNode | None: The node with the specified id or path, or None if not found.
         Get a node from the data model by its id or path.
 
         Args:
@@ -574,13 +479,6 @@ class DataModel:
 
     def read_variable(self, variable_id: str) -> Any:
         """
-        Reads a variable from the data model.
-
-        Args:
-            variable_id (str): The id or path of the variable to read.
-
-        Returns:
-            Any: The value of the variable.
         Read a variable from the data model by exploring the structure of the
         node that contains that variable.
 
@@ -604,14 +502,6 @@ class DataModel:
 
     def write_variable(self, variable_id: str, value: Any) -> bool:
         """
-        Writes a variable to the data model.
-
-        Args:
-            variable_id (str): The id or path of the variable to write to.
-            value (Any): The value to write to the variable.
-
-        Returns:
-            bool: True if the variable was written successfully, False otherwise.
         Write a variable to the data model by exploring the structure of the
         node that contains that variable.
 
@@ -637,13 +527,6 @@ class DataModel:
 
     def call_method(self, method_id: str) -> MethodExecutionResult:
         """
-        Executes a method from the data model.
-
-        Args:
-            method_id (str): The id or path of the method to call.
-
-        Returns:
-            MethodExecutionResult: The result of the method execution.
         Executes a method from the data model by exploring the structure of the
         node that contains that method.
 
@@ -667,14 +550,6 @@ class DataModel:
 
     def subscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
         """
-        Adds a subscription to a variable node in the data model.
-
-        Args:
-            target_node (str): The id or path of the variable node to subscribe to.
-            subscription (VariableSubscription): The subscription to add.
-
-        Returns:
-            bool: True if the subscription was added successfully, False otherwise.
         Adds the provided subscription to the target variable node in the data
         model.
 

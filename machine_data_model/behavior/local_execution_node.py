@@ -98,7 +98,7 @@ class LocalExecutionNode(ControlFlowNode):
 
     def set_ref_node(self, ref_node: DataModelNode) -> None:
         """
-        Sets the reference to the node in the machine data model.
+        Set the reference to the node in the machine data model.
 
         Args:
             ref_node (DataModelNode):
@@ -110,7 +110,7 @@ class LocalExecutionNode(ControlFlowNode):
 
     def get_ref_node(self) -> DataModelNode | None:
         """
-        Gets the reference to the node in the machine data model.
+        Get the reference to the node in the machine data model.
 
         Returns:
             DataModelNode | None:
@@ -189,7 +189,7 @@ class ReadVariableNode(LocalExecutionNode):
         successors: list["ControlFlowNode"] | None = None,
     ):
         """
-        Initializes a new ReadVariableNode instance.
+        Initialize a new ReadVariableNode instance.
 
         Args:
             variable_node (str):
@@ -208,10 +208,7 @@ class ReadVariableNode(LocalExecutionNode):
 
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """
-        Executes the read operation of the variable.
-
-        Args:
-            scope (ControlFlowScope): The scope of the control flow graph.
+        Execute the read operation of the variable in the machine data model.
 
         Args:
             context (ExecutionContext):
@@ -288,7 +285,7 @@ class WriteVariableNode(LocalExecutionNode):
         successors: list["ControlFlowNode"] | None = None,
     ):
         """
-        Initializes a new WriteVariableNode instance.
+        Initialize a new WriteVariableNode instance.
 
         Args:
             variable_node (str):
@@ -307,7 +304,7 @@ class WriteVariableNode(LocalExecutionNode):
     @property
     def value(self) -> Any:
         """
-        Gets the value to write to the variable.
+        Get the value to write to the variable.
 
         Returns:
             Any:
@@ -318,10 +315,7 @@ class WriteVariableNode(LocalExecutionNode):
 
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """
-        Executes the write operation of the variable.
-
-        Args:
-            scope (ControlFlowScope): The scope of the control flow graph.
+        Execute the write operation of the variable in the machine data model.
 
         Args:
             context (ExecutionContext):
@@ -420,7 +414,7 @@ class CallMethodNode(LocalExecutionNode):
     @property
     def args(self) -> list[Any]:
         """
-        Gets the list of positional arguments for the method.
+        Get the list of positional arguments to pass to the method.
 
         Returns:
             list[Any]:
@@ -432,7 +426,7 @@ class CallMethodNode(LocalExecutionNode):
     @property
     def kwargs(self) -> dict[str, Any]:
         """
-        Gets the dictionary of keyword arguments for the method.
+        Get the dictionary of keyword arguments to pass to the method.
 
         Returns:
             dict[str, Any]:
@@ -443,10 +437,7 @@ class CallMethodNode(LocalExecutionNode):
 
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """
-        Executes the call operation of the method.
-
-        Args:
-            scope (ControlFlowScope): The scope of the control flow graph.
+        Execute the call operation of the method in the machine data model.
 
         Args:
             context (ExecutionContext):
@@ -570,7 +561,7 @@ class WaitConditionNode(LocalExecutionNode):
         successors: list["ControlFlowNode"] | None = None,
     ):
         """
-        Initializes a new WaitConditionNode instance.
+        Initialize a new WaitConditionNode instance.
 
         Args:
             variable_node (str):
@@ -596,7 +587,7 @@ class WaitConditionNode(LocalExecutionNode):
     @property
     def rhs(self) -> Any:
         """
-        Gets the right-hand side of the comparison.
+        Get the right-hand side of the comparison.
 
         Returns:
             Any:
@@ -608,7 +599,7 @@ class WaitConditionNode(LocalExecutionNode):
     @property
     def op(self) -> WaitConditionOperator:
         """
-        Gets the comparison operator.
+        Get the comparison operator.
 
         Returns:
             WaitConditionOperator:
