@@ -119,7 +119,9 @@ class FrostMessageBuilder(MessageBuilder):
         }
         return temp
 
-    def build_read_variable_message(self, target: str, node: str) -> FrostMessage:
+    def build_read_variable_message(
+        self, target: str, node: str, correlation_id: str | None = None
+    ) -> FrostMessage:
         """
         Build a FrostMessage for reading a variable.
 
@@ -137,7 +139,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -149,7 +153,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_read_variable_response_message(
-        self, target: str, node: str, value: Any
+        self, target: str, node: str, value: Any, correlation_id: str | None = None
     ) -> FrostMessage:
         """
         Build a FrostMessage as an answer for reading a variable.
@@ -170,7 +174,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -182,7 +188,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_write_variable_message(
-        self, target: str, node: str, value: Any
+        self, target: str, node: str, value: Any, correlation_id: str | None = None
     ) -> FrostMessage:
         """
         Build a FrostMessage for writing a variable.
@@ -203,7 +209,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -215,7 +223,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_write_variable_response_message(
-        self, target: str, node: str, value: Any
+        self, target: str, node: str, value: Any, correlation_id: str | None = None
     ) -> FrostMessage:
         """
         Build a FrostMessage as an answer for writing a variable.
@@ -236,7 +244,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -247,7 +257,9 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
-    def build_subscribe_variable_message(self, target: str, node: str) -> FrostMessage:
+    def build_subscribe_variable_message(
+        self, target: str, node: str, correlation_id: str | None = None
+    ) -> FrostMessage:
         """
         Build a FrostMessage for subscribing to a variable.
 
@@ -265,7 +277,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -277,7 +291,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_subscribe_variable_response_message(
-        self, target: str, node: str, value: Any
+        self, target: str, node: str, value: Any, correlation_id: str | None = None
     ) -> FrostMessage:
         """
         Build a FrostMessage as a response for subscribing to a variable.
@@ -298,7 +312,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -310,7 +326,12 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_data_change_subscription_message(
-        self, target: str, node: str, deadband: float, is_percent: bool
+        self,
+        target: str,
+        node: str,
+        deadband: float,
+        is_percent: bool,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
         """
         Build a FrostMessage for a data change subscription.
@@ -333,7 +354,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -347,7 +370,12 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_in_range_subscription_message(
-        self, target: str, node: str, low: float, high: float
+        self,
+        target: str,
+        node: str,
+        low: float,
+        high: float,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
         """
         Build a FrostMessage for an in-range subscription.
@@ -370,7 +398,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -382,7 +412,12 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_out_of_range_subscription_message(
-        self, target: str, node: str, low: float, high: float
+        self,
+        target: str,
+        node: str,
+        low: float,
+        high: float,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
         """
         Build a FrostMessage for an out-of-range subscription.
@@ -405,7 +440,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -417,7 +454,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_unsubscribe_variable_message(
-        self, target: str, node: str
+        self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
         """
         Build a FrostMessage for unsubscribing from a variable.
@@ -436,7 +473,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -448,7 +487,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_unsubscribe_variable_response_message(
-        self, target: str, node: str
+        self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
         """
         Build a FrostMessage as a response for unsubscribing from a variable.
@@ -467,7 +506,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -482,6 +523,7 @@ class FrostMessageBuilder(MessageBuilder):
         self,
         target: str,
         node: str,
+        correlation_id: str | None = None,
         args: list[Any] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> FrostMessage:
@@ -506,7 +548,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.REQUEST,
@@ -528,6 +572,7 @@ class FrostMessageBuilder(MessageBuilder):
         args: list[Any] | None = None,
         kwargs: dict[str, Any] | None = None,
         ret: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
         """
         Build a FrostMessage for a method response.
@@ -552,7 +597,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -569,7 +616,11 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_method_started_message(
-        self, target: str, node: str, ret: dict[str, Any] | None = None
+        self,
+        target: str,
+        node: str,
+        ret: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
         """
         Build a FrostMessage for a method started notification.
@@ -588,7 +639,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -600,7 +653,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_variable_update_message(
-        self, target: str, node: str, value: Any
+        self, target: str, node: str, value: Any, correlation_id: str | None = None
     ) -> FrostMessage:
         """
         Build a FrostMessage for a variable update notification.
@@ -621,7 +674,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -686,7 +741,9 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
-    def build_protocol_register_response_message(self, target: str) -> FrostMessage:
+    def build_protocol_register_response_message(
+        self, target: str, correlation_id: str | None = None
+    ) -> FrostMessage:
         """
         Build a FrostMessage as a response for protocol registration.
 
@@ -702,7 +759,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -713,7 +772,9 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
-    def build_protocol_unregister_response_message(self, target: str) -> FrostMessage:
+    def build_protocol_unregister_response_message(
+        self, target: str, correlation_id: str | None = None
+    ) -> FrostMessage:
         """
         Build a FrostMessage as a response for protocol unregistration.
 
@@ -729,7 +790,9 @@ class FrostMessageBuilder(MessageBuilder):
             sender=self._sender,
             target=target,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
+            correlation_id=str(uuid.uuid4())
+            if correlation_id is None
+            else correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
                 type=MsgType.RESPONSE,
@@ -742,8 +805,7 @@ class FrostMessageBuilder(MessageBuilder):
 
     def build_error_message(
         self,
-        target: str,
-        header: FrostHeader,
+        message: FrostMessage,
         error_code: ErrorCode,
         error_message: ErrorMessages,
     ) -> FrostMessage:
@@ -764,15 +826,160 @@ class FrostMessageBuilder(MessageBuilder):
             - FrostMessage:
                 The built message.
         """
-        header.type = MsgType.ERROR
-        message = FrostMessage(
+        msg = self.build_replica(message)
+        msg.header.type = MsgType.ERROR
+        new_msg = FrostMessage(
             sender=self._sender,
-            target=target,
+            target=msg.sender,
             identifier=str(uuid.uuid4()),
-            correlation_id=str(uuid.uuid4()),
-            header=header,
+            correlation_id=str(uuid.uuid4())
+            if message.correlation_id is None or ""
+            else message.correlation_id,
+            header=msg.header,
             payload=ErrorPayload(
                 node="", error_code=error_code, error_message=error_message
             ),
         )
-        return message
+        return new_msg
+
+    def build_replica(self, message: FrostMessage) -> FrostMessage:
+        """
+        Build a copy of a FrostMessage.
+
+        Args:
+            - message (FrostMessage):
+                The message to copy.
+
+        Returns:
+            - FrostMessage:
+                The copied message.
+        """
+        message_copy = FrostMessage(
+            sender=message.sender,
+            target=message.target,
+            identifier=message.identifier,
+            correlation_id=message.correlation_id,
+            header=message.header,
+            payload=message.payload,
+        )
+        return message_copy
+
+    def build_response(self, message: FrostMessage) -> FrostMessage:
+        """
+        Build a FrostMessage as a response to the given message.
+
+        Args:
+            - msg (FrostMessage):
+                The message to respond to.
+
+        Returns:
+            - FrostMessage:
+                The built response message.
+        """
+        response = None
+
+        if message.header.type != MsgType.REQUEST:
+            raise ValueError(
+                "Cannot build a response for a message that is not a REQUEST."
+            )
+
+        if message.header.namespace == MsgNamespace.VARIABLE:
+            response = self.build_variable_response_message(message)
+        elif message.header.namespace == MsgNamespace.METHOD:
+            response = self.build_method_response_message(message)
+        elif message.header.namespace == MsgNamespace.PROTOCOL:
+            response = (
+                self.build_protocol_register_response_message(
+                    target=message.sender, correlation_id=message.correlation_id
+                )
+                if message.header.msg_name == ProtocolMsgName.REGISTER
+                else self.build_protocol_unregister_response_message(
+                    target=message.sender, correlation_id=message.correlation_id
+                )
+            )
+
+        assert isinstance(response, FrostMessage)
+        return response
+
+    def build_variable_response_message(
+        self,
+        message: FrostMessage,
+    ) -> FrostMessage:
+        """
+        Build a FrostMessage as a response to the given variable message.
+
+        Args:
+            - msg (FrostMessage):
+                The message to respond to.
+        Returns:
+            - FrostMessage:
+                The built response message.
+        """
+
+        assert isinstance(message.payload, VariablePayload)
+        if message.header.msg_name == VariableMsgName.READ:
+            return self.build_read_variable_response_message(
+                target=message.sender,
+                correlation_id=message.correlation_id,
+                node=message.payload.node,
+                value=message.payload.value,
+            )
+        elif message.header.msg_name == VariableMsgName.WRITE:
+            return self.build_write_variable_response_message(
+                target=message.sender,
+                correlation_id=message.correlation_id,
+                node=message.payload.node,
+                value=message.payload.value,
+            )
+        elif message.header.msg_name == VariableMsgName.SUBSCRIBE:
+            return self.build_subscribe_variable_response_message(
+                target=message.sender,
+                correlation_id=message.correlation_id,
+                node=message.payload.node,
+                value=message.payload.value,
+            )
+        elif message.header.msg_name == VariableMsgName.UNSUBSCRIBE:
+            return self.build_unsubscribe_variable_response_message(
+                target=message.sender,
+                node=message.payload.node,
+                correlation_id=message.correlation_id,
+            )
+        raise ValueError(
+            f"Cannot build a response for variable message with name {message.header.msg_name}."
+        )
+
+    def build_method_response_message(
+        self,
+        message: FrostMessage,
+    ) -> FrostMessage:
+        """
+        Build a FrostMessage as a response to the given method message.
+
+        Args:
+            - msg (FrostMessage):
+                The message to respond to.
+        Returns:
+            - FrostMessage:
+                The built response message.
+        """
+
+        assert isinstance(message.payload, MethodPayload)
+        if message.header.msg_name == MethodMsgName.STARTED:
+            return self.build_method_started_message(
+                target=message.sender,
+                correlation_id=message.correlation_id,
+                node=message.payload.node,
+                ret=message.payload.ret,
+            )
+        elif message.header.msg_name == MethodMsgName.COMPLETED:
+            return self.build_method_completed_message(
+                target=message.sender,
+                correlation_id=message.correlation_id,
+                node=message.payload.node,
+                args=message.payload.args,
+                kwargs=message.payload.kwargs,
+                ret=message.payload.ret,
+            )
+        raise ValueError(
+            f"Cannot build a response for method message with name {message.header.msg_name}."
+        )

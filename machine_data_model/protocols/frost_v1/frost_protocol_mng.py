@@ -488,8 +488,8 @@ class FrostProtocolMng(ProtocolMng):
             target=subscription.subscriber_id,
             node=node.name,
             value=value,
+            correlation_id=subscription.correlation_id,
         )
-        response_msg.correlation_id = subscription.correlation_id
         # append update message.
         self._update_messages.append(
             self._trace_and_return_response(
@@ -516,36 +516,16 @@ class FrostProtocolMng(ProtocolMng):
             FrostMessage:
                 A new FrostMessage that is a response to the original message.
         """
-        # Set the sender and target for the response message.
-        _sender = msg.target
-        _target = msg.sender
-
-        # Make a deep copy of the header to avoid modifying the original message.
-        _header = copy.deepcopy(msg.header)
-
-        # By default, use the original payload.
-        _payload = msg.payload
 
         # If we receive an error message, create an ErrorPayload.
         if error_message is not None:
             return self._message_builder.build_error_message(
-                target=msg.sender,
-                header=_header,
+                message=msg,
                 error_code=ErrorCode.BAD_REQUEST,
                 error_message=error_message,
             )
 
-        # Set the message type to RESPONSE.
-        _header.type = MsgType.RESPONSE
-
-        response = FrostMessage(
-            sender=_sender,
-            target=_target,
-            identifier=str(uuid.uuid4()),
-            header=_header,
-            payload=_payload,
-            correlation_id=msg.correlation_id,
-        )
+        response = self._message_builder.build_response(message=msg)
 
         return self._trace_and_return_response(response, msg)
 

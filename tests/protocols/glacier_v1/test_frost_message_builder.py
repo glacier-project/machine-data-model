@@ -1,5 +1,7 @@
+import uuid
 import pytest
 import random
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
     MsgType,
@@ -89,11 +91,13 @@ class TestFrostMessageBuilder:
         node: str,
         value: float,
     ) -> None:
+        msg_id = str(uuid.uuid4())
         message = message_builder.build_read_variable_response_message(
-            target=target, node=node, value=value
+            target=target, node=node, value=value, correlation_id=msg_id
         )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == msg_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
@@ -153,11 +157,13 @@ class TestFrostMessageBuilder:
         node: str,
         value: float,
     ) -> None:
+        msg_id = str(uuid.uuid4())
         message = message_builder.build_write_variable_response_message(
-            target=target, node=node, value=value
+            target=target, node=node, value=value, correlation_id=msg_id
         )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == msg_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
@@ -214,11 +220,13 @@ class TestFrostMessageBuilder:
         node: str,
         value: float,
     ) -> None:
+        msg_id = str(uuid.uuid4())
         message = message_builder.build_subscribe_variable_response_message(
-            target=target, node=node, value=value
+            target=target, node=node, value=value, correlation_id=msg_id
         )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == msg_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
@@ -349,8 +357,9 @@ class TestFrostMessageBuilder:
         target: str,
         node: str,
     ) -> None:
+        msg_id = str(uuid.uuid4())
         message = message_builder.build_unsubscribe_variable_message(
-            target=target, node=node
+            target=target, node=node, correlation_id=msg_id
         )
         assert message.sender == sender
         assert message.target == target
@@ -378,11 +387,13 @@ class TestFrostMessageBuilder:
         target: str,
         node: str,
     ) -> None:
+        msg_id = str(uuid.uuid4())
         message = message_builder.build_unsubscribe_variable_response_message(
-            target=target, node=node
+            target=target, node=node, correlation_id=msg_id
         )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == msg_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
@@ -448,11 +459,18 @@ class TestFrostMessageBuilder:
         kwargs: dict,
         ret: dict,
     ) -> None:
+        msg_id = str(uuid.uuid4())
         message = message_builder.build_method_completed_message(
-            target=target, node=node, args=args, kwargs=kwargs, ret=ret
+            target=target,
+            node=node,
+            args=args,
+            kwargs=kwargs,
+            ret=ret,
+            correlation_id=msg_id,
         )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == msg_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.METHOD
@@ -480,9 +498,13 @@ class TestFrostMessageBuilder:
         target: str,
         node: str,
     ) -> None:
-        message = message_builder.build_method_started_message(target=target, node=node)
+        msg_id = str(uuid.uuid4())
+        message = message_builder.build_method_started_message(
+            target=target, node=node, correlation_id=msg_id
+        )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == msg_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.METHOD
@@ -509,11 +531,13 @@ class TestFrostMessageBuilder:
         node: str,
         value: float,
     ) -> None:
+        msg_id = str(uuid.uuid4())
         message = message_builder.build_variable_update_message(
-            target=target, node=node, value=value
+            target=target, node=node, value=value, correlation_id=msg_id
         )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == msg_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
@@ -621,23 +645,123 @@ class TestFrostMessageBuilder:
         error_code: ErrorCode,
         error_message: ErrorMessages,
     ) -> None:
-        header = FrostHeader(
-            version=message_builder.get_protocol_version(),
-            type=MsgType.REQUEST,
-            namespace=MsgNamespace.VARIABLE,
-            msg_name=VariableMsgName.READ,
+        another_builder = FrostMessageBuilder(sender=target, protocol_version=(1, 0, 0))
+        incoming_message = another_builder.build_read_variable_message(
+            target=sender, node="some_node"
         )
         message = message_builder.build_error_message(
-            target=target,
-            header=header,
+            message=incoming_message,
             error_code=error_code,
             error_message=error_message,
         )
         assert message.sender == sender
         assert message.target == target
+        assert message.correlation_id == incoming_message.correlation_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.ERROR
         assert message.header.timestamp is not None
         assert isinstance(message.payload, ErrorPayload)
         assert message.payload.error_code == error_code
         assert message.payload.error_message == error_message
+
+    @pytest.mark.parametrize(
+        "target",
+        [(gen_random_string(10),) for _ in range(NUM_TESTS)],
+    )
+    def test_build_replica_message(
+        self,
+        message_builder: FrostMessageBuilder,
+        target: str,
+    ) -> None:
+        message = message_builder.build_write_variable_message(
+            target=target, node="some_node", value=42
+        )
+        assert message.sender == sender
+        assert message.target == target
+        assert message.payload is not None and isinstance(
+            message.payload, VariablePayload
+        )
+
+        replica = message_builder.build_replica(message=message)
+        assert isinstance(replica, FrostMessage)
+        assert replica.sender == message.sender
+        assert replica.target == message.target
+        assert replica.correlation_id == message.correlation_id
+        assert replica.header.version == message_builder.get_protocol_version()
+        assert replica.header.type == MsgType.REQUEST
+        assert replica.header.namespace == MsgNamespace.VARIABLE
+        assert replica.header.msg_name == VariableMsgName.WRITE
+        assert replica.header.timestamp is not None
+        assert isinstance(replica.payload, VariablePayload)
+        assert replica.payload.node == message.payload.node
+        assert replica.payload.value is not None
+        assert replica.payload.value == message.payload.value
+
+    @pytest.mark.parametrize(
+        "target",
+        [(gen_random_string(10),) for _ in range(NUM_TESTS)],
+    )
+    def test_build_response(
+        self,
+        message_builder: FrostMessageBuilder,
+        target: str,
+    ) -> None:
+        response_builder = FrostMessageBuilder(
+            sender=target, protocol_version=(1, 0, 0)
+        )
+        message_write = message_builder.build_write_variable_message(
+            target=target, node="some_node", value=42
+        )
+        assert message_write.payload is not None and isinstance(
+            message_write.payload, VariablePayload
+        )
+        message_read = message_builder.build_read_variable_message(
+            target=target, node="some_node"
+        )
+        message_subscribe = message_builder.build_subscribe_variable_message(
+            target=target, node="some_node"
+        )
+        message_unsubscribe = message_builder.build_unsubscribe_variable_message(
+            target=target, node="some_node"
+        )
+        response = response_builder.build_response(message=message_read)
+        assert isinstance(response, FrostMessage)
+        assert response.sender == message_read.target
+        assert response.target == message_read.sender
+        assert response.correlation_id == message_read.correlation_id
+        assert isinstance(response.payload, VariablePayload)
+        assert response.payload.node == message_read.payload.node
+
+        response = response_builder.build_response(message=message_write)
+        assert isinstance(response, FrostMessage)
+        assert response.sender == message_write.target
+        assert response.target == message_write.sender
+        assert response.correlation_id == message_write.correlation_id
+        assert isinstance(response.payload, VariablePayload)
+        assert response.payload.node == message_write.payload.node
+        assert response.payload.value == message_write.payload.value
+
+        response = response_builder.build_response(message=message_subscribe)
+        assert isinstance(response, FrostMessage)
+        assert response.sender == message_subscribe.target
+        assert response.target == message_subscribe.sender
+        assert response.correlation_id == message_subscribe.correlation_id
+        assert isinstance(response.payload, SubscriptionPayload)
+        assert response.payload.node == message_subscribe.payload.node
+        response = response_builder.build_response(message=message_unsubscribe)
+        assert isinstance(response, FrostMessage)
+        assert response.sender == message_unsubscribe.target
+        assert response.target == message_unsubscribe.sender
+        assert response.correlation_id == message_unsubscribe.correlation_id
+        assert isinstance(response.payload, VariablePayload)
+        assert response.payload.node == message_unsubscribe.payload.node
+
+        message_protocol_unregister = message_builder.build_protocol_unregister_message(
+            target=target
+        )
+        response = response_builder.build_response(message=message_protocol_unregister)
+        assert isinstance(response, FrostMessage)
+        assert response.sender == message_protocol_unregister.target
+        assert response.target == message_protocol_unregister.sender
+        assert response.correlation_id == message_protocol_unregister.correlation_id
+        assert isinstance(response.payload, ProtocolPayload)
