@@ -17,7 +17,7 @@ def start_opcua_test_server() -> Generator[Tuple[Container, int], Any, None]:
         auto_remove=True,
         remove=True,
         detach=True,
-        ports={container_guest_port: 55000},  # None: random host port
+        ports={container_guest_port: None},  # None: random host port
     )
 
     # retrieve randomly generated port
@@ -32,8 +32,10 @@ def start_opcua_test_server() -> Generator[Tuple[Container, int], Any, None]:
     while "PLC simulation started, press Ctrl+C to exit" not in str(container.logs()):
         time.sleep(0.5)
 
-    yield container, container_host_port
+    try:
+        yield container, container_host_port
+    finally:
+        # teardown
+        container.stop()
 
-    # teardown
-    container.stop()
     return None
