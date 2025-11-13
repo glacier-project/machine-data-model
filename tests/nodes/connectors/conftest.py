@@ -37,7 +37,7 @@ def start_opcua_test_server() -> Generator[Tuple[Container, int], Any, None]:
         time.sleep(0.5)
         container.reload()
 
-    async def check_opcua_connection():
+    async def check_opcua_connection() -> None:
         # Setup self-signed certificate for the client
         cert_dir = Path("tests/certificates/opcua")
         cert_dir.mkdir(parents=True, exist_ok=True)
