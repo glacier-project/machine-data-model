@@ -17,6 +17,9 @@ from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
 from machine_data_model.protocols.frost_v1.frost_header import (
     MethodMsgName,
     MsgNamespace,
@@ -231,6 +234,9 @@ class TestCompositeMethod:
         method = data_model.get_node(method_path)
 
         assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+        )
         result = method()
 
         # assert that the method does complete
@@ -240,6 +246,7 @@ class TestCompositeMethod:
         assert not method.is_terminated(context)
 
         message = result.messages[0]
+        assert message.target != "undefined" and message.sender != "undefined"
         assert message.header.matches(
             _type=MsgType.REQUEST,
             _namespace=MsgNamespace.METHOD,
@@ -251,14 +258,21 @@ class TestCompositeMethod:
         assert not message.payload.kwargs
 
         # create response
-        message.sender, message.target = message.target, message.sender
-        message.header.type = MsgType.RESPONSE
-        message.header.msg_name = MethodMsgName.COMPLETED
-        message.payload.ret["remote_return_1"] = 45
+        message_builder = FrostMessageBuilder(
+            sender=message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_method_completed_message(
+            target=message.sender,
+            node=method.cfg.nodes()[0].node,
+            args=message.payload.args,
+            kwargs=message.payload.kwargs,
+            ret={"remote_return_1": 45},
+            correlation_id=message.correlation_id,
+        )
 
-        assert method.handle_message(context, message)
+        assert method.handle_message(context, response), "Failed to handle response"
         result = method.resume_execution(context)
-        assert not result.messages
+        assert not result.messages, "Method did not complete after resume"
         assert result.return_values["remote_return_1"] == 45
 
     def test_remote_read_node(self) -> None:
@@ -266,6 +280,9 @@ class TestCompositeMethod:
         data_model = get_template_data_model()
         method = data_model.get_node(method_path)
         assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+        )
         remote_read_node = method.cfg.nodes()[0]
 
         result = method()
@@ -286,11 +303,17 @@ class TestCompositeMethod:
         assert message.payload.node == remote_read_node.node
 
         # create response
-        message.sender, message.target = message.target, message.sender
-        message.header.type = MsgType.RESPONSE
-        message.payload.value = method.returns[0].read()
+        message_builder = FrostMessageBuilder(
+            message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_read_variable_response_message(
+            target=message.sender,
+            node=remote_read_node.node,
+            value=method.returns[0].read(),
+            correlation_id=message.correlation_id,
+        )
 
-        assert method.handle_message(context, message)
+        assert method.handle_message(context, response)
         result = method.resume_execution(context)
         assert not result.messages
         assert method.is_terminated(context)
@@ -301,6 +324,9 @@ class TestCompositeMethod:
         data_model = get_template_data_model()
         method = data_model.get_node(method_path)
         assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+        )
         remote_read_node = method.cfg.nodes()[0]
 
         result = method()
@@ -321,10 +347,17 @@ class TestCompositeMethod:
         assert message.payload.node == remote_read_node.node
 
         # create response
-        message.sender, message.target = message.target, message.sender
-        message.header.type = MsgType.RESPONSE
+        message_builder = FrostMessageBuilder(
+            message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_write_variable_response_message(
+            target=message.sender,
+            node=remote_read_node.node,
+            value=message.payload.value,
+            correlation_id=message.correlation_id,
+        )
 
-        assert method.handle_message(context, message)
+        assert method.handle_message(context, response)
         result = method.resume_execution(context)
         assert not result.messages
         assert method.is_terminated(context)

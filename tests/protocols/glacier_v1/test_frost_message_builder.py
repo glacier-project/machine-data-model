@@ -414,7 +414,7 @@ class TestFrostMessageBuilder:
             for _ in range(NUM_TESTS)
         ],
     )
-    def test_build_method_invoke_message(
+    def test_build_invoke_method_message(
         self,
         message_builder: FrostMessageBuilder,
         target: str,
@@ -422,7 +422,7 @@ class TestFrostMessageBuilder:
         args: list,
         kwargs: dict,
     ) -> None:
-        message = message_builder.build_method_invoke_message(
+        message = message_builder.build_invoke_method_message(
             target=target, node=node, args=args, kwargs=kwargs
         )
         assert message.sender == sender
@@ -696,72 +696,3 @@ class TestFrostMessageBuilder:
         assert replica.payload.node == message.payload.node
         assert replica.payload.value is not None
         assert replica.payload.value == message.payload.value
-
-    @pytest.mark.parametrize(
-        "target",
-        [(gen_random_string(10),) for _ in range(NUM_TESTS)],
-    )
-    def test_build_response(
-        self,
-        message_builder: FrostMessageBuilder,
-        target: str,
-    ) -> None:
-        response_builder = FrostMessageBuilder(
-            sender=target, protocol_version=(1, 0, 0)
-        )
-        message_write = message_builder.build_write_variable_message(
-            target=target, node="some_node", value=42
-        )
-        assert message_write.payload is not None and isinstance(
-            message_write.payload, VariablePayload
-        )
-        message_read = message_builder.build_read_variable_message(
-            target=target, node="some_node"
-        )
-        message_subscribe = message_builder.build_subscribe_variable_message(
-            target=target, node="some_node"
-        )
-        message_unsubscribe = message_builder.build_unsubscribe_variable_message(
-            target=target, node="some_node"
-        )
-        response = response_builder.build_response(message=message_read)
-        assert isinstance(response, FrostMessage)
-        assert response.sender == message_read.target
-        assert response.target == message_read.sender
-        assert response.correlation_id == message_read.correlation_id
-        assert isinstance(response.payload, VariablePayload)
-        assert response.payload.node == message_read.payload.node
-
-        response = response_builder.build_response(message=message_write)
-        assert isinstance(response, FrostMessage)
-        assert response.sender == message_write.target
-        assert response.target == message_write.sender
-        assert response.correlation_id == message_write.correlation_id
-        assert isinstance(response.payload, VariablePayload)
-        assert response.payload.node == message_write.payload.node
-        assert response.payload.value == message_write.payload.value
-
-        response = response_builder.build_response(message=message_subscribe)
-        assert isinstance(response, FrostMessage)
-        assert response.sender == message_subscribe.target
-        assert response.target == message_subscribe.sender
-        assert response.correlation_id == message_subscribe.correlation_id
-        assert isinstance(response.payload, SubscriptionPayload)
-        assert response.payload.node == message_subscribe.payload.node
-        response = response_builder.build_response(message=message_unsubscribe)
-        assert isinstance(response, FrostMessage)
-        assert response.sender == message_unsubscribe.target
-        assert response.target == message_unsubscribe.sender
-        assert response.correlation_id == message_unsubscribe.correlation_id
-        assert isinstance(response.payload, VariablePayload)
-        assert response.payload.node == message_unsubscribe.payload.node
-
-        message_protocol_unregister = message_builder.build_protocol_unregister_message(
-            target=target
-        )
-        response = response_builder.build_response(message=message_protocol_unregister)
-        assert isinstance(response, FrostMessage)
-        assert response.sender == message_protocol_unregister.target
-        assert response.target == message_protocol_unregister.sender
-        assert response.correlation_id == message_protocol_unregister.correlation_id
-        assert isinstance(response.payload, ProtocolPayload)

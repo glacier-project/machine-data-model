@@ -117,7 +117,7 @@ def setup_remote_method_test(
     builder = FrostMessageBuilder(
         sender=sender, protocol_version=manager.get_protocol_version()
     )
-    msg = builder.build_method_invoke_message(
+    msg = builder.build_invoke_method_message(
         target=target,
         node=method_path,
     )
@@ -282,7 +282,9 @@ class TestFrostProtocolMng:
         assert_response_matches_request(response, msg, sender, target)
         assert isinstance(response.payload, VariablePayload)
         assert response.payload.node == var_name
-        assert response.payload.value == value
+        assert (
+            response.payload.value == value
+        ), f"Expected 2 {value}, got {response.payload.value}, node.value={node.value}"
         assert msg.correlation_id == response.correlation_id
 
         # Test subscription updates
@@ -319,7 +321,7 @@ class TestFrostProtocolMng:
         assert isinstance(node, VariableNode)
         param_value = get_value(node)
 
-        msg = message_builder.build_method_invoke_message(
+        msg = message_builder.build_invoke_method_message(
             target=target,
             node=f"folder1/{method_name}",
             args=[param_value],
@@ -361,11 +363,11 @@ class TestFrostProtocolMng:
         wait_node = manager.get_data_model().get_node("/folder1/n_variable2")
         assert isinstance(wait_node, VariableNode)
 
-        msg = message_builder.build_method_invoke_message(
+        msg = message_builder.build_invoke_method_message(
             target=target,
             node="/folder1/folder2/composite_method1",
         )
-        msg = message_builder.build_method_invoke_message(
+        msg = message_builder.build_invoke_method_message(
             target=target,
             node="/folder1/folder2/composite_method1",
         )
@@ -425,19 +427,36 @@ class TestFrostProtocolMng:
         assert not request.payload.kwargs
 
         # Simulate response and resume method
-        request.sender, request.target = request.target, request.sender
-        request.header.type = MsgType.RESPONSE
-        request.header.msg_name = MethodMsgName.COMPLETED
-        request.payload.ret["remote_return_1"] = 45
+        message_builder = FrostMessageBuilder(
+            sender=request.target, protocol_version=manager.get_protocol_version()
+        )
+        message = message_builder.build_method_completed_message(
+            target=request.sender,
+            correlation_id=request.correlation_id,
+            ret={"remote_return_1": 45},
+            node=request.payload.node,
+        )
 
-        final_response = manager.handle_response(request)
-        assert isinstance(final_response, FrostMessage)
-        assert final_response.header.type == MsgType.RESPONSE
-        assert final_response.header.msg_name == MethodMsgName.COMPLETED
-        assert isinstance(final_response.payload, MethodPayload)
-        assert len(final_response.payload.ret) == 1
-        assert final_response.payload.ret["remote_return_1"] == 45
-        assert not manager.get_update_messages()
+        final_response = manager.handle_response(message)
+        assert isinstance(
+            final_response, FrostMessage
+        ), f"final_response should be FrostMessage, {final_response}"
+        assert (
+            final_response.header.type == MsgType.RESPONSE
+        ), f"Expected MsgType.RESPONSE, got {final_response.header.type}"
+        assert (
+            final_response.header.msg_name == MethodMsgName.COMPLETED
+        ), f"Expected MethodMsgName.COMPLETED, got {final_response.header.msg_name}"
+        assert isinstance(
+            final_response.payload, MethodPayload
+        ), f"Expected MethodPayload, got {type(final_response.payload)}"
+        assert (
+            len(final_response.payload.ret) == 1
+        ), f"Expected 1 return value, got {len(final_response.payload.ret)}"
+        assert (
+            final_response.payload.ret["remote_return_1"] == 45
+        ), f"Expected remote_return_1=45, got {final_response.payload.ret.get('remote_return_1')}"
+        assert not manager.get_update_messages(), f"Expected no update messages, got {len(manager.get_update_messages())} messages"
 
     def test_remote_read_request(
         self, manager: FrostProtocolMng, sender: str, target: str
@@ -459,11 +478,17 @@ class TestFrostProtocolMng:
         assert request.payload.value is None
 
         # Simulate response and resume method
-        request.sender, request.target = request.target, request.sender
-        request.header.type = MsgType.RESPONSE
-        request.payload.value = method.returns[0].read()
+        message_builder = FrostMessageBuilder(
+            sender=request.target, protocol_version=manager.get_protocol_version()
+        )
+        message = message_builder.build_read_variable_response_message(
+            target=request.sender,
+            correlation_id=request.correlation_id,
+            node=request.payload.node,
+            value=method.returns[0].read(),
+        )
 
-        final_response = manager.handle_response(request)
+        final_response = manager.handle_response(message)
         assert isinstance(final_response, FrostMessage)
         assert final_response.header.type == MsgType.RESPONSE
         assert final_response.header.msg_name == MethodMsgName.COMPLETED
@@ -494,11 +519,17 @@ class TestFrostProtocolMng:
         assert request.payload.value == method.parameters[0].read()
 
         # Simulate response and resume method
-        request.sender, request.target = request.target, request.sender
-        request.header.type = MsgType.RESPONSE
-        assert request.payload.value == method.parameters[0].read()
+        message_builder = FrostMessageBuilder(
+            sender=request.target, protocol_version=manager.get_protocol_version()
+        )
+        message = message_builder.build_write_variable_response_message(
+            target=request.sender,
+            correlation_id=request.correlation_id,
+            node=request.payload.node,
+            value=method.parameters[0].read(),
+        )
 
-        final_response = manager.handle_response(request)
+        final_response = manager.handle_response(message)
         assert isinstance(final_response, FrostMessage)
         assert final_response.header.type == MsgType.RESPONSE
         assert final_response.header.msg_name == MethodMsgName.COMPLETED
@@ -526,12 +557,17 @@ class TestFrostProtocolMng:
         assert isinstance(request.payload, SubscriptionPayload)
 
         # Simulate response and resume method
-        request.sender, request.target = request.target, request.sender
-        request.header.type = MsgType.RESPONSE
-        request.header.msg_name = VariableMsgName.UPDATE
-        request.payload.value = 35
+        message_builder = FrostMessageBuilder(
+            sender=request.target, protocol_version=manager.get_protocol_version()
+        )
+        message = message_builder.build_variable_update_message(
+            target=request.sender,
+            correlation_id=request.correlation_id,
+            node=request.payload.node,
+            value=35,
+        )
 
-        final_response = manager.handle_response(request)
+        final_response = manager.handle_response(message)
         assert isinstance(final_response, FrostMessage)
         assert final_response.header.type == MsgType.RESPONSE
         assert final_response.header.msg_name == MethodMsgName.COMPLETED

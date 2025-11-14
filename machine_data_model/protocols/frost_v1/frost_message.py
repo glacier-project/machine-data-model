@@ -13,7 +13,7 @@ from machine_data_model.protocols.frost_v1.frost_payload import FrostPayload
 from machine_data_model.protocols.message import Message
 
 
-@dataclass(init=True, slots=True)
+@dataclass(init=True, slots=True, frozen=True)
 class FrostMessage(Message):
     """
     This class holds the core data of a message.

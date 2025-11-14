@@ -3,7 +3,9 @@ import uuid
 from typing import Any
 
 import pytest
-
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
 )
@@ -54,7 +56,9 @@ class TestRemoteExecutionNode:
             kwargs=kwargs,
             remote_id=target,
         )
-        c_remote_node.sender_id = sender
+        c_remote_node.set_message_builder(
+            FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+        )
         ret = c_remote_node.execute(context)
         msgs = ret.messages
 
@@ -94,19 +98,27 @@ class TestRemoteExecutionNode:
             kwargs=kwargs,
             remote_id=target,
         )
-        c_remote_node.sender_id = sender
+        c_remote_node.set_message_builder(
+            FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+        )
         ret = c_remote_node.execute(context)
         msg = ret.messages[0]
 
         # create a valid response message
-        msg.sender = target
-        msg.target = sender
-        msg.header.type = MsgType.RESPONSE
-        msg.header.msg_name = MethodMsgName.COMPLETED
         assert isinstance(msg.payload, MethodPayload)
         assert len(method_node.returns) > 0
-        msg.payload.ret = {param.name: param.read() for param in method_node.returns}
-        is_valid = c_remote_node.handle_response(context, msg)
+        message_builder = FrostMessageBuilder(
+            sender=msg.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_method_completed_message(
+            target=sender,
+            node=method_node.qualified_name,
+            args=[],
+            kwargs=kwargs,
+            ret={param.name: param.read() for param in method_node.returns},
+            correlation_id=msg.correlation_id,
+        )
+        is_valid = c_remote_node.handle_response(context, response)
         assert is_valid
 
         # try resume the execution
@@ -136,7 +148,9 @@ class TestRemoteExecutionNode:
             remote_id=target,
             store_as=store_as,
         )
-        r_remote_node.sender_id = sender
+        r_remote_node.set_message_builder(
+            FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+        )
         ret = r_remote_node.execute(context)
         msgs = ret.messages
 
@@ -177,17 +191,26 @@ class TestRemoteExecutionNode:
             remote_id=target,
             store_as=store_as,
         )
-        r_remote_node.sender_id = sender
+        r_remote_node.set_message_builder(
+            FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+        )
         ret = r_remote_node.execute(context)
         msg = ret.messages[0]
 
-        # create a valid response message
-        msg.sender = target
-        msg.target = sender
-        msg.header.type = MsgType.RESPONSE
         assert isinstance(msg.payload, VariablePayload)
-        msg.payload.value = variable_node.read()
-        is_valid = r_remote_node.handle_response(context, msg)
+        assert msg.payload.node == variable_node.qualified_name
+        # create a valid response message
+        message_builder = FrostMessageBuilder(
+            sender=msg.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_read_variable_response_message(
+            target=sender,
+            node=variable_node.qualified_name,
+            value=variable_node.read(),
+            correlation_id=context.active_request,
+        )
+        assert response.sender == target and response.target == sender
+        is_valid = r_remote_node.handle_response(context, response)
         assert is_valid
 
         # try resume the execution
@@ -217,7 +240,9 @@ class TestRemoteExecutionNode:
             remote_id=target,
             value=variable_name,
         )
-        w_remote_node.sender_id = sender
+        w_remote_node.set_message_builder(
+            FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+        )
         ret = w_remote_node.execute(context)
         msgs = ret.messages
 
@@ -259,18 +284,24 @@ class TestRemoteExecutionNode:
             remote_id=target,
             value=variable_name,
         )
-        w_remote_node.sender_id = sender
+        w_remote_node.set_message_builder(
+            FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+        )
         ret = w_remote_node.execute(context)
         msg = ret.messages[0]
 
         # create a valid response message
-        msg.sender = target
-        msg.target = sender
-        msg.header.type = MsgType.RESPONSE
-        assert isinstance(msg.payload, VariablePayload)
-        msg.payload.value = variable_node.read()
-        is_valid = w_remote_node.handle_response(context, msg)
-        assert is_valid
+        message_builder = FrostMessageBuilder(
+            sender=msg.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_write_variable_response_message(
+            target=sender,
+            node=variable_node.qualified_name,
+            correlation_id=msg.correlation_id,
+            value=variable_node.read(),
+        )
+        is_valid = w_remote_node.handle_response(context, response)
+        assert is_valid, "Response should be valid"
 
         # try resume the execution
         ret = w_remote_node.execute(context)
@@ -301,7 +332,9 @@ class TestRemoteExecutionNode:
             op=op,
             remote_id=target,
         )
-        w_remote_event_node.sender_id = sender
+        w_remote_event_node.set_message_builder(
+            FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+        )
 
         ret = w_remote_event_node.execute(context)
         if isinstance(variable_node, StringVariableNode):
@@ -325,13 +358,17 @@ class TestRemoteExecutionNode:
         assert msg.payload.value is None
 
         # create a valid response message
-        msg.sender = target
-        msg.target = sender
-        msg.header.type = MsgType.RESPONSE
-        msg.header.msg_name = VariableMsgName.UPDATE
-        msg.payload.value = variable_node.read()
+        message_builder = FrostMessageBuilder(
+            sender=msg.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_variable_update_message(
+            target=sender,
+            node=variable_node.qualified_name,
+            value=variable_node.read(),
+            correlation_id=msg.correlation_id,
+        )
 
-        is_condition_met = w_remote_event_node.handle_response(context, msg)
+        is_condition_met = w_remote_event_node.handle_response(context, response)
 
         assert is_condition_met == comparison_result
         if is_condition_met:

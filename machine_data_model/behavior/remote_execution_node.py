@@ -31,6 +31,9 @@ from machine_data_model.protocols.frost_v1.frost_header import (
     VariableMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
 from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
     SubscriptionPayload,
@@ -51,11 +54,13 @@ class RemoteExecutionNode(ControlFlowNode):
             The identifier of the sender node.
         remote_id (str):
             The identifier of the remote node.
-
+        _message_builder (FrostMessageBuilder):
+            The FrostMessageBuilder instance used to build messages.
     """
 
     sender_id: str
     remote_id: str
+    _message_builder: FrostMessageBuilder
 
     def __init__(
         self,
@@ -80,6 +85,18 @@ class RemoteExecutionNode(ControlFlowNode):
         super().__init__(node, successors)
         self.sender_id: str = "undefined"
         self.remote_id: str = remote_id
+
+    def set_message_builder(self, message_builder: FrostMessageBuilder) -> None:
+        """
+        Set the FrostMessageBuilder for the remote execution node.
+
+        Args:
+            message_builder (FrostMessageBuilder):
+                The FrostMessageBuilder instance to use for building messages.
+
+        """
+        self._message_builder = message_builder
+        self.sender_id = message_builder.get_sender()
 
     @abstractmethod
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
@@ -336,20 +353,12 @@ class CallRemoteMethodNode(RemoteExecutionNode):
                 The request message to send to the remote node.
 
         """
-        return FrostMessage(
+        return self._message_builder.build_invoke_method_message(
             correlation_id=context.id(),
-            sender=self.sender_id,
             target=resolve_string_in_context(self.remote_id, context),
-            header=FrostHeader(
-                type=MsgType.REQUEST,
-                namespace=MsgNamespace.METHOD,
-                msg_name=MethodMsgName.INVOKE,
-            ),
-            payload=MethodPayload(
-                node=resolve_string_in_context(self.node, context),
-                args=[resolve_value(arg, context) for arg in self.args],
-                kwargs={k: resolve_value(v, context) for k, v in self.kwargs.items()},
-            ),
+            node=resolve_string_in_context(self.node, context),
+            args=[resolve_value(arg, context) for arg in self.args],
+            kwargs={k: resolve_value(v, context) for k, v in self.kwargs.items()},
         )
 
     def __eq__(self, other: object) -> bool:
@@ -470,18 +479,10 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
                 The request message to send to the remote node.
 
         """
-        return FrostMessage(
+        return self._message_builder.build_read_variable_message(
             correlation_id=context.id(),
-            sender=self.sender_id,
             target=resolve_string_in_context(self.remote_id, context),
-            header=FrostHeader(
-                type=MsgType.REQUEST,
-                namespace=MsgNamespace.VARIABLE,
-                msg_name=VariableMsgName.READ,
-            ),
-            payload=VariablePayload(
-                node=resolve_string_in_context(self.node, context),
-            ),
+            node=resolve_string_in_context(self.node, context),
         )
 
     def __eq__(self, other: object) -> bool:
@@ -593,19 +594,11 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
                 The request message to send to the remote node.
 
         """
-        return FrostMessage(
+        return self._message_builder.build_write_variable_message(
             correlation_id=context.id(),
-            sender=self.sender_id,
-            target=resolve_value(self.remote_id, context),
-            header=FrostHeader(
-                type=MsgType.REQUEST,
-                namespace=MsgNamespace.VARIABLE,
-                msg_name=VariableMsgName.WRITE,
-            ),
-            payload=VariablePayload(
-                node=resolve_string_in_context(self.node, context),
-                value=resolve_value(self.value, context),
-            ),
+            target=resolve_string_in_context(self.remote_id, context),
+            node=resolve_string_in_context(self.node, context),
+            value=resolve_value(self.value, context),
         )
 
     def __eq__(self, other: object) -> bool:
@@ -745,18 +738,10 @@ class WaitRemoteEventNode(RemoteExecutionNode):
                 The request message to send to the remote node.
 
         """
-        return FrostMessage(
+        return self._message_builder.build_subscribe_variable_message(
             correlation_id=context.id(),
-            sender=self.sender_id,
             target=resolve_string_in_context(self.remote_id, context),
-            header=FrostHeader(
-                type=MsgType.REQUEST,
-                namespace=MsgNamespace.VARIABLE,
-                msg_name=VariableMsgName.SUBSCRIBE,
-            ),
-            payload=SubscriptionPayload(
-                node=resolve_string_in_context(self.node, context)
-            ),
+            node=resolve_string_in_context(self.node, context),
         )
 
     @override
@@ -773,9 +758,11 @@ class WaitRemoteEventNode(RemoteExecutionNode):
                 The unsubscribe message to send to the remote node.
 
         """
-        msg = self._create_request(context)
-        msg.header.msg_name = VariableMsgName.UNSUBSCRIBE
-        return msg
+        return self._message_builder.build_unsubscribe_variable_message(
+            correlation_id=context.id(),
+            target=resolve_string_in_context(self.remote_id, context),
+            node=resolve_string_in_context(self.node, context),
+        )
 
     def __eq__(self, other: object) -> bool:
         """

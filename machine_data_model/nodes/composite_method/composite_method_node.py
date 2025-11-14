@@ -18,6 +18,9 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.method_node import MethodExecutionResult, MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
 
 
 class CompositeMethodNode(MethodNode):
@@ -95,6 +98,18 @@ class CompositeMethodNode(MethodNode):
 
         self._pre_call(**kwargs)
         return self._start_execution(**kwargs)
+
+    def set_message_builder(self, message_builder: FrostMessageBuilder) -> None:
+        """
+        Set the message builder for the composite method node.
+
+        Args:
+            message_builder (FrostMessageBuilder):
+                The message builder to be set.
+        """
+        for node in self.cfg.nodes():
+            if isinstance(node, RemoteExecutionNode):
+                node.set_message_builder(message_builder)
 
     def _terminate_execution(self, context: ExecutionContext) -> dict[str, Any]:
         """

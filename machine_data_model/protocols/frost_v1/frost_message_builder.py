@@ -5,6 +5,7 @@ from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
     MsgType,
     MsgNamespace,
+    MsgName,
     VariableMsgName,
     MethodMsgName,
     ProtocolMsgName,
@@ -39,7 +40,7 @@ class FrostMessageBuilder(MessageBuilder):
     def __init__(
         self,
         sender: str,
-        protocol_version: tuple = (1, 0, 0),
+        protocol_version: tuple,
     ):
         """
         Initializes the FrostMessageBuilder.
@@ -519,7 +520,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
-    def build_method_invoke_message(
+    def build_invoke_method_message(
         self,
         target: str,
         node: str,
@@ -835,7 +836,12 @@ class FrostMessageBuilder(MessageBuilder):
             correlation_id=str(uuid.uuid4())
             if message.correlation_id is None or ""
             else message.correlation_id,
-            header=msg.header,
+            header=FrostHeader(
+                version=self._protocol_version,
+                type=msg.header.type,
+                namespace=msg.header.namespace,
+                msg_name=msg.header.msg_name,
+            ),
             payload=ErrorPayload(
                 node="", error_code=error_code, error_message=error_message
             ),
@@ -854,132 +860,17 @@ class FrostMessageBuilder(MessageBuilder):
             - FrostMessage:
                 The copied message.
         """
-        message_copy = FrostMessage(
+        replica = FrostMessage(
             sender=message.sender,
             target=message.target,
             identifier=message.identifier,
             correlation_id=message.correlation_id,
-            header=message.header,
+            header=FrostHeader(
+                version=message.header.version,
+                type=message.header.type,
+                namespace=message.header.namespace,
+                msg_name=message.header.msg_name,
+            ),
             payload=message.payload,
         )
-        return message_copy
-
-    def build_response(self, message: FrostMessage) -> FrostMessage:
-        """
-        Build a FrostMessage as a response to the given message.
-
-        Args:
-            - msg (FrostMessage):
-                The message to respond to.
-
-        Returns:
-            - FrostMessage:
-                The built response message.
-        """
-        response = None
-
-        if message.header.type != MsgType.REQUEST:
-            raise ValueError(
-                "Cannot build a response for a message that is not a REQUEST."
-            )
-
-        if message.header.namespace == MsgNamespace.VARIABLE:
-            response = self.build_variable_response_message(message)
-        elif message.header.namespace == MsgNamespace.METHOD:
-            response = self.build_method_response_message(message)
-        elif message.header.namespace == MsgNamespace.PROTOCOL:
-            response = (
-                self.build_protocol_register_response_message(
-                    target=message.sender, correlation_id=message.correlation_id
-                )
-                if message.header.msg_name == ProtocolMsgName.REGISTER
-                else self.build_protocol_unregister_response_message(
-                    target=message.sender, correlation_id=message.correlation_id
-                )
-            )
-
-        assert isinstance(response, FrostMessage)
-        return response
-
-    def build_variable_response_message(
-        self,
-        message: FrostMessage,
-    ) -> FrostMessage:
-        """
-        Build a FrostMessage as a response to the given variable message.
-
-        Args:
-            - msg (FrostMessage):
-                The message to respond to.
-        Returns:
-            - FrostMessage:
-                The built response message.
-        """
-
-        assert isinstance(message.payload, VariablePayload)
-        if message.header.msg_name == VariableMsgName.READ:
-            return self.build_read_variable_response_message(
-                target=message.sender,
-                correlation_id=message.correlation_id,
-                node=message.payload.node,
-                value=message.payload.value,
-            )
-        elif message.header.msg_name == VariableMsgName.WRITE:
-            return self.build_write_variable_response_message(
-                target=message.sender,
-                correlation_id=message.correlation_id,
-                node=message.payload.node,
-                value=message.payload.value,
-            )
-        elif message.header.msg_name == VariableMsgName.SUBSCRIBE:
-            return self.build_subscribe_variable_response_message(
-                target=message.sender,
-                correlation_id=message.correlation_id,
-                node=message.payload.node,
-                value=message.payload.value,
-            )
-        elif message.header.msg_name == VariableMsgName.UNSUBSCRIBE:
-            return self.build_unsubscribe_variable_response_message(
-                target=message.sender,
-                node=message.payload.node,
-                correlation_id=message.correlation_id,
-            )
-        raise ValueError(
-            f"Cannot build a response for variable message with name {message.header.msg_name}."
-        )
-
-    def build_method_response_message(
-        self,
-        message: FrostMessage,
-    ) -> FrostMessage:
-        """
-        Build a FrostMessage as a response to the given method message.
-
-        Args:
-            - msg (FrostMessage):
-                The message to respond to.
-        Returns:
-            - FrostMessage:
-                The built response message.
-        """
-
-        assert isinstance(message.payload, MethodPayload)
-        if message.header.msg_name == MethodMsgName.STARTED:
-            return self.build_method_started_message(
-                target=message.sender,
-                correlation_id=message.correlation_id,
-                node=message.payload.node,
-                ret=message.payload.ret,
-            )
-        elif message.header.msg_name == MethodMsgName.COMPLETED:
-            return self.build_method_completed_message(
-                target=message.sender,
-                correlation_id=message.correlation_id,
-                node=message.payload.node,
-                args=message.payload.args,
-                kwargs=message.payload.kwargs,
-                ret=message.payload.ret,
-            )
-        raise ValueError(
-            f"Cannot build a response for method message with name {message.header.msg_name}."
-        )
+        return replica
