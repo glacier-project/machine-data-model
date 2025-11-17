@@ -181,6 +181,15 @@ def message_builder(sender: str) -> FrostMessageBuilder:
     [(str(uuid.uuid4()), "machine1")],
 )
 class TestFrostProtocolMng:
+    def test_message_builder(
+        self, manager: FrostProtocolMng, sender: str, target: str
+    ) -> None:
+        builder = manager.get_message_builder()
+        assert builder is not None
+        assert isinstance(builder, FrostMessageBuilder)
+        assert builder.get_protocol_version() == manager.get_protocol_version()
+        assert builder.get_sender() == manager.get_data_model().name
+
     @pytest.mark.parametrize("var_name", VAR_PATHS)
     def test_handle_variable_read_request(
         self,

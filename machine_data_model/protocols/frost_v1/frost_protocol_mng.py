@@ -90,11 +90,26 @@ class FrostProtocolMng(ProtocolMng):
         )
 
     def _add_frost_message_builder(self, node: DataModelNode) -> None:
-        """ """
+        """
+        Add the FrostMessageBuilder to CompositeMethodNodes in the data model.
+        Args:
+            node (DataModelNode):
+                The current node being traversed in the data model.
+
+        """
         if not isinstance(node, CompositeMethodNode):
             return
 
         node.set_message_builder(self._message_builder)
+
+    def get_message_builder(self) -> FrostMessageBuilder:
+        """
+        Return the FrostMessageBuilder associated with this protocol manager.
+
+        Returns:
+            - FrostMessageBuilder: The message builder used for constructing Frost messages.
+        """
+        return self._message_builder
 
     def _validate_message(self, msg: Message) -> bool:
         """
