@@ -575,6 +575,7 @@ class TestFrostProtocolMng:
             node=request.payload.node,
             value=35,
         )
+        assert request.payload.node == node_path
 
         final_response = manager.handle_response(message)
         assert isinstance(final_response, FrostMessage)
@@ -582,6 +583,8 @@ class TestFrostProtocolMng:
         assert final_response.header.msg_name == MethodMsgName.COMPLETED
         assert isinstance(final_response.payload, MethodPayload)
         assert len(final_response.payload.ret) == 0
+        assert final_response.correlation_id == original_msg.correlation_id
+        assert final_response.payload.node == method_path
 
         # check that the unsubscribe message was created
         assert manager.get_update_messages()

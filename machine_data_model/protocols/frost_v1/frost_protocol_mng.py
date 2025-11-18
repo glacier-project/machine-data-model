@@ -576,7 +576,7 @@ class FrostProtocolMng(ProtocolMng):
 
         response_msg = self._message_builder.build_variable_update_message(
             target=subscription.subscriber_id,
-            node=node.name,
+            node=node.qualified_name,
             value=value,
             correlation_id=subscription.correlation_id,
         )

@@ -669,7 +669,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
                 node.
 
         """
-        super().__init__(variable_node, remote_id, successors)
+        super().__init__(node=variable_node, remote_id=remote_id, successors=successors)
         self.rhs = rhs
         self.op = op
 

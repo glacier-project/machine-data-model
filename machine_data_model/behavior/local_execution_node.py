@@ -64,7 +64,7 @@ class LocalExecutionNode(ControlFlowNode):
                 node.
 
         """
-        super().__init__(node, successors)
+        super().__init__(node=node, successors=successors)
 
         self._ref_node: DataModelNode | None = None
         self.get_data_model_node: Callable[[str], DataModelNode | None] | None = None
@@ -203,7 +203,7 @@ class ReadVariableNode(LocalExecutionNode):
                 node.
 
         """
-        super().__init__(variable_node, successors)
+        super().__init__(node=variable_node, successors=successors)
         self.store_as = store_as
 
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
@@ -298,7 +298,7 @@ class WriteVariableNode(LocalExecutionNode):
                 node.
 
         """
-        super().__init__(variable_node, successors)
+        super().__init__(node=variable_node, successors=successors)
         self._value = value
 
     @property
@@ -407,7 +407,7 @@ class CallMethodNode(LocalExecutionNode):
                 node.
 
         """
-        super().__init__(method_node, successors)
+        super().__init__(node=method_node, successors=successors)
         self._args = args
         self._kwargs = kwargs
 
@@ -576,7 +576,7 @@ class WaitConditionNode(LocalExecutionNode):
                 node.
 
         """
-        super().__init__(variable_node, successors)
+        super().__init__(node=variable_node, successors=successors)
         self._rhs = rhs
         self._op = op
 

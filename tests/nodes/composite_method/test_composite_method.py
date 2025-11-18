@@ -8,6 +8,7 @@ from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
 )
+from machine_data_model.behavior.remote_execution_node import WaitRemoteEventNode
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -360,6 +361,54 @@ class TestCompositeMethod:
         assert method.handle_message(context, response)
         result = method.resume_execution(context)
         assert not result.messages
+        assert method.is_terminated(context)
+
+    def test_remote_wait_node(self) -> None:
+        method_path = "folder1/remote_cfg/remote_wait_event"
+        data_model = get_template_data_model()
+        method = data_model.get_node(method_path)
+        assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+        )
+        remote_wait_node = method.cfg.nodes()[0]
+        assert isinstance(remote_wait_node, WaitRemoteEventNode)
+        result = method()
+
+        # assert that the method does complete
+        assert result.messages and len(result.messages) == 1
+        assert "@context_id" in result.return_values
+        context = result.return_values["@context_id"]
+        assert not method.is_terminated(context)
+
+        message = result.messages[0]
+        assert message.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.SUBSCRIBE,
+        )
+        assert isinstance(message.payload, VariablePayload)
+        assert message.payload.node == remote_wait_node.node
+
+        # create response
+        message_builder = FrostMessageBuilder(
+            message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_variable_update_message(
+            target=message.sender,
+            node=remote_wait_node.node,
+            correlation_id=message.correlation_id,
+            value=35,
+        )
+
+        assert method.handle_message(context, response)
+        result = method.resume_execution(context)
+        assert result.messages
+        assert result.messages[0].header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.UNSUBSCRIBE,
+        )
         assert method.is_terminated(context)
 
 
