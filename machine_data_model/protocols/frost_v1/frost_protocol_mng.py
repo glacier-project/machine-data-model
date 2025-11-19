@@ -171,9 +171,6 @@ class FrostProtocolMng(ProtocolMng):
             data_model_id=self._data_model.name,
         )
 
-        if not self._is_version_supported(msg.header.version):
-            return self._create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
-
         if msg.header.type != MsgType.REQUEST:
             return self._create_response_msg(msg, ErrorMessages.INVALID_REQUEST)
 
@@ -218,12 +215,7 @@ class FrostProtocolMng(ProtocolMng):
                 None.
 
         """
-        if not isinstance(msg, FrostMessage):
-            raise ValueError("msg must be an instance of FrostMessage")
         header = msg.header
-
-        if not self._is_version_supported(header.version):
-            return self._create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
 
         if header.type != MsgType.RESPONSE:
             return self._create_response_msg(msg, ErrorMessages.INVALID_RESPONSE)
@@ -233,6 +225,33 @@ class FrostProtocolMng(ProtocolMng):
             cm, _ = self._running_methods[msg.correlation_id]
             if cm.handle_message(msg.correlation_id, msg):
                 return self._resume_composite_method(msg.correlation_id)
+        return None
+
+    def handle_message(self, msg: Message) -> Message | None:
+        """
+        Handle a Frost message received by the data model. This includes
+        resuming composite methods waiting for a message.
+
+        Args:
+            msg (FrostMessage):
+                The message to be handled.
+        Returns:
+            Message | None:
+                A response message if a composite method is completed, otherwise
+                None.
+        """
+        if not isinstance(msg, FrostMessage):
+            raise ValueError("msg must be an instance of FrostMessage")
+
+        if not self._is_version_supported(msg.header.version):
+            return self._create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+
+        if msg.header.type == MsgType.REQUEST:
+            return self.handle_request(msg)
+        elif msg.header.type == MsgType.RESPONSE:
+            return self.handle_response(msg)
+        elif msg.header.type == MsgType.ERROR:
+            assert isinstance(msg.payload, ErrorPayload)
         return None
 
     def clear_update_messages(self) -> None:

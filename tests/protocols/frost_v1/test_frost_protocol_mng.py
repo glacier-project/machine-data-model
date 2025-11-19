@@ -123,7 +123,7 @@ def setup_remote_method_test(
     )
     assert isinstance(msg, FrostMessage)
 
-    response = manager.handle_request(msg)
+    response = manager.handle_message(msg)
     assert isinstance(response, FrostMessage)
     assert_response_matches_request(response, msg, sender, target)
     assert isinstance(response.payload, MethodPayload)
@@ -202,7 +202,7 @@ class TestFrostProtocolMng:
         msg = message_builder.build_read_variable_message(target=target, node=var_name)
         assert isinstance(msg, FrostMessage)
 
-        response = manager.handle_request(msg)
+        response = manager.handle_message(msg)
         assert isinstance(response, FrostMessage)
 
         assert_response_matches_request(response, msg, sender, target)
@@ -229,7 +229,7 @@ class TestFrostProtocolMng:
         )
         assert isinstance(msg, FrostMessage)
 
-        response = manager.handle_request(msg)
+        response = manager.handle_message(msg)
         assert isinstance(response, FrostMessage)
 
         assert_response_matches_request(response, msg, sender, target)
@@ -263,7 +263,7 @@ class TestFrostProtocolMng:
 
         for i in range(11):
             for msg, value in zip(write_messages, [True, False], strict=False):
-                response = manager.handle_request(msg)
+                response = manager.handle_message(msg)
                 node.write(value)
                 assert isinstance(response, FrostMessage)
                 assert not isinstance(response.payload, ErrorPayload)
@@ -285,7 +285,7 @@ class TestFrostProtocolMng:
         )
         assert isinstance(msg, FrostMessage)
 
-        response = manager.handle_request(msg)
+        response = manager.handle_message(msg)
         assert isinstance(response, FrostMessage)
 
         assert_response_matches_request(response, msg, sender, target)
@@ -354,7 +354,7 @@ class TestFrostProtocolMng:
         method_node.add_return_value(output_param)
         manager.get_data_model().add_child("/folder1", method_node)
 
-        response = manager.handle_request(msg)
+        response = manager.handle_message(msg)
         assert isinstance(response, FrostMessage)
 
         assert_response_matches_request(response, msg, sender, target)
@@ -382,7 +382,7 @@ class TestFrostProtocolMng:
         )
         assert isinstance(msg, FrostMessage)
 
-        response = manager.handle_request(msg)
+        response = manager.handle_message(msg)
         assert isinstance(response, FrostMessage)
 
         assert_response_matches_request(response, msg, sender, target)
@@ -404,7 +404,7 @@ class TestFrostProtocolMng:
         msg = message_builder.build_protocol_register_message(target=target)
         assert isinstance(msg, FrostMessage)
 
-        response = manager.handle_request(msg)
+        response = manager.handle_message(msg)
         assert isinstance(response, FrostMessage)
 
         assert response.target == sender
@@ -446,7 +446,7 @@ class TestFrostProtocolMng:
             node=request.payload.node,
         )
 
-        final_response = manager.handle_response(message)
+        final_response = manager.handle_message(message)
         assert isinstance(
             final_response, FrostMessage
         ), f"final_response should be FrostMessage, {final_response}"
@@ -497,7 +497,7 @@ class TestFrostProtocolMng:
             value=method.returns[0].read(),
         )
 
-        final_response = manager.handle_response(message)
+        final_response = manager.handle_message(message)
         assert isinstance(final_response, FrostMessage)
         assert final_response.header.type == MsgType.RESPONSE
         assert final_response.header.msg_name == MethodMsgName.COMPLETED
@@ -538,7 +538,7 @@ class TestFrostProtocolMng:
             value=method.parameters[0].read(),
         )
 
-        final_response = manager.handle_response(message)
+        final_response = manager.handle_message(message)
         assert isinstance(final_response, FrostMessage)
         assert final_response.header.type == MsgType.RESPONSE
         assert final_response.header.msg_name == MethodMsgName.COMPLETED
@@ -577,7 +577,7 @@ class TestFrostProtocolMng:
         )
         assert request.payload.node == node_path
 
-        final_response = manager.handle_response(message)
+        final_response = manager.handle_message(message)
         assert isinstance(final_response, FrostMessage)
         assert final_response.header.type == MsgType.RESPONSE
         assert final_response.header.msg_name == MethodMsgName.COMPLETED
