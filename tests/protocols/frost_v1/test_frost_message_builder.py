@@ -663,36 +663,3 @@ class TestFrostMessageBuilder:
         assert isinstance(message.payload, ErrorPayload)
         assert message.payload.error_code == error_code
         assert message.payload.error_message == error_message
-
-    @pytest.mark.parametrize(
-        "target",
-        [(gen_random_string(10),) for _ in range(NUM_TESTS)],
-    )
-    def test_build_replica_message(
-        self,
-        message_builder: FrostMessageBuilder,
-        target: str,
-    ) -> None:
-        message = message_builder.build_write_variable_message(
-            target=target, node="some_node", value=42
-        )
-        assert message.sender == sender
-        assert message.target == target
-        assert message.payload is not None and isinstance(
-            message.payload, VariablePayload
-        )
-
-        replica = message_builder.build_replica(message=message)
-        assert isinstance(replica, FrostMessage)
-        assert replica.sender == message.sender
-        assert replica.target == message.target
-        assert replica.correlation_id == message.correlation_id
-        assert replica.header.version == message_builder.get_protocol_version()
-        assert replica.header.type == MsgType.REQUEST
-        assert replica.header.namespace == MsgNamespace.VARIABLE
-        assert replica.header.msg_name == VariableMsgName.WRITE
-        assert replica.header.timestamp is not None
-        assert isinstance(replica.payload, VariablePayload)
-        assert replica.payload.node == message.payload.node
-        assert replica.payload.value is not None
-        assert replica.payload.value == message.payload.value

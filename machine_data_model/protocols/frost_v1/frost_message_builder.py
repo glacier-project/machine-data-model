@@ -80,46 +80,6 @@ class FrostMessageBuilder(MessageBuilder):
         """
         return self._protocol_version
 
-    @override
-    def parse_message(self, message: dict) -> FrostMessage:
-        """
-        Parse a FrostMessage from a dictionary representation.
-
-        Args:
-            - message (dict):
-                The dictionary representation of the message.
-
-        Returns:
-            - FrostMessage:
-                The parsed message.
-        """
-        return self.build_protocol_register_message(
-            target=""
-        )  # Placeholder implementation
-
-    @override
-    def serialize_message(self, message: FrostMessage) -> dict["str", Any]:
-        """
-        Serialize a FrostMessage to a dictionary representation.
-
-        Args:
-            - message:
-                The message to serialize.
-
-        Returns:
-            - dict:
-                The serialized message.
-        """
-        temp = {
-            "sender": message.sender,
-            "target": message.target,
-            "identifier": message.identifier,
-            "correlation_id": message.correlation_id,
-            "header": message.header,
-            "payload": message.payload,
-        }
-        return temp
-
     def build_read_variable_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
@@ -827,50 +787,21 @@ class FrostMessageBuilder(MessageBuilder):
             - FrostMessage:
                 The built message.
         """
-        msg = self.build_replica(message)
-        msg.header.type = MsgType.ERROR
         new_msg = FrostMessage(
             sender=self._sender,
-            target=msg.sender,
+            target=message.sender,
             identifier=str(uuid.uuid4()),
             correlation_id=str(uuid.uuid4())
             if message.correlation_id is None or ""
             else message.correlation_id,
             header=FrostHeader(
                 version=self._protocol_version,
-                type=msg.header.type,
-                namespace=msg.header.namespace,
-                msg_name=msg.header.msg_name,
+                type=MsgType.ERROR,
+                namespace=message.header.namespace,
+                msg_name=message.header.msg_name,
             ),
             payload=ErrorPayload(
                 node="", error_code=error_code, error_message=error_message
             ),
         )
         return new_msg
-
-    def build_replica(self, message: FrostMessage) -> FrostMessage:
-        """
-        Build a copy of a FrostMessage.
-
-        Args:
-            - message (FrostMessage):
-                The message to copy.
-
-        Returns:
-            - FrostMessage:
-                The copied message.
-        """
-        replica = FrostMessage(
-            sender=message.sender,
-            target=message.target,
-            identifier=message.identifier,
-            correlation_id=message.correlation_id,
-            header=FrostHeader(
-                version=message.header.version,
-                type=message.header.type,
-                namespace=message.header.namespace,
-                msg_name=message.header.msg_name,
-            ),
-            payload=message.payload,
-        )
-        return replica

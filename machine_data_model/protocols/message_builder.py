@@ -33,32 +33,3 @@ class MessageBuilder(ABC):
                 The sender to be set.
         """
         self._sender = sender
-
-    @abstractmethod
-    def parse_message(self, message: dict) -> Message:
-        """Parse a message from a dictionary and returns a Message object.
-
-        Args:
-            message (dict):
-                The message represented as a dictionary.
-
-        Returns:
-            Message:
-                The parsed Message object.
-        """
-        pass
-
-    @abstractmethod
-    def serialize_message(self, message: Any) -> dict:
-        """Serialize the message into a dictionary.
-
-        Args:
-            message (Any):
-                The message to be serialized.
-
-        Returns:
-            dict:
-                The serialized message as a dictionary.
-
-        """
-        pass

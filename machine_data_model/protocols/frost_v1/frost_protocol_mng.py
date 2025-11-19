@@ -82,9 +82,10 @@ class FrostProtocolMng(ProtocolMng):
         self._update_messages: list[FrostMessage] = []
         self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
         self._protocol_version = (1, 0, 0)
-        self._message_builder = FrostMessageBuilder(
+        self._message_builder: FrostMessageBuilder = FrostMessageBuilder(
             sender=self._data_model.name, protocol_version=self._protocol_version
         )
+        assert isinstance(self._message_builder, FrostMessageBuilder)
         self._data_model.traverse(
             self._data_model.root, self._add_frost_message_builder
         )
@@ -464,10 +465,6 @@ class FrostProtocolMng(ProtocolMng):
                 ),
                 msg,
             )
-
-        elif msg.header.msg_name == VariableMsgName.UPDATE:
-            # UPDATE is handled, just return success response
-            pass
 
         else:
             error = ErrorMessages.NOT_SUPPORTED
