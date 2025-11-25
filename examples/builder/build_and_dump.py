@@ -20,7 +20,7 @@ def main() -> None:
     dumper.dumps("dumped_data_model.yml")
 
     print("Data model successfully dumped to dumped_data_model.yml")
-    
+
     # Delete the dumpped file after creation to avoid clutter
     import os
     os.remove("dumped_data_model.yml")
