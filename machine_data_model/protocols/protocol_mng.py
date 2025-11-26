@@ -43,7 +43,7 @@ class ProtocolMng(ABC):
         """
         self._data_model = data_model
         data_model.traverse(data_model.root, self._set_variable_callback)
-        self._message_builder = MessageBuilder(sender=self._data_model.name)
+        self._message_builder: MessageBuilder
 
     def _set_variable_callback(self, node: DataModelNode) -> None:
         """

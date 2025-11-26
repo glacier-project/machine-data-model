@@ -30,56 +30,62 @@ class FrostMessageBuilder(MessageBuilder):
     """
     Builder class for creating Frost protocol messages.
 
+    This class extends the abstract MessageBuilder and provides concrete
+    implementations for building Frost protocol-specific messages.
+
     Attributes:
-        - sender (str):
-            The sender of the message.
-        - protocol_version (tuple):
-            The version of the protocol.
+        _protocol_version (tuple[int, int, int]):
+            The Frost protocol version as (major, minor, patch).
+
     """
 
     def __init__(
         self,
         sender: str,
-        protocol_version: tuple,
+        protocol_version: tuple[int, int, int],
     ):
         """
-        Initializes the FrostMessageBuilder.
+        Initialize the FrostMessageBuilder.
 
         Args:
-            - sender (str):
-                The sender of the message.
-            - protocol_version (tuple):
-                The version of the protocol.
+            sender (str):
+                The sender identifier for messages created by this builder.
+            protocol_version (tuple[int, int, int]):
+                The Frost protocol version as (major, minor, patch).
         """
         super().__init__(sender)
-        self._protocol_version: tuple[int, int, int] = protocol_version
+        self._protocol_version = protocol_version
 
-    def set_protocol_version(self, version: tuple[int, int, int]) -> None:
+    def get_protocol_version(self) -> tuple[int, int, int]:
         """
-        Set the protocol version for the message.
-
-        Args:
-            - version (tuple[int, int, int]):
-                The protocol version to set.
-        """
-        assert isinstance(
-            version, tuple
-        ), f"Version must be a tuple with a list as the first element. Passed: {version}"
-        assert (
-            len(version) == 3
-        ), f"Version list must contain exactly 3 elements. Passed: {version[0]}"
-        self._protocol_version = version
-
-    def get_protocol_version(self) -> tuple:
-        """
-        Return the protocol version.
+        Get the Frost protocol version.
 
         Returns:
-            - tuple:
-                The protocol version.
+            tuple[int, int, int]:
+                The Frost protocol version as (major, minor, patch).
         """
         return self._protocol_version
 
+    def set_protocol_version(self, protocol_version: tuple[int, int, int]) -> None:
+        """
+        Set the Frost protocol version.
+
+        Args:
+            protocol_version (tuple[int, int, int]):
+                The Frost protocol version as (major, minor, patch).
+
+        Returns:
+            None
+        """
+        assert (
+            len(protocol_version) == 3
+        ), "Protocol version must be a tuple of (major, minor, patch)."
+        assert all(
+            isinstance(v, int) and v >= 0 for v in protocol_version
+        ), "Protocol version values must be non-negative integers."
+        self._protocol_version = protocol_version
+
+    @override
     def build_read_variable_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
@@ -148,6 +154,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_write_variable_message(
         self, target: str, node: str, value: Any, correlation_id: str | None = None
     ) -> FrostMessage:
@@ -480,6 +487,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_invoke_method_message(
         self,
         target: str,

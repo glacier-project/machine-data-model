@@ -64,6 +64,14 @@ class FrostProtocolMng(ProtocolMng):
     Attributes:
         _protocol_version (tuple[int, int, int]):
             The version of the Frost protocol in use.
+        _message_builder (FrostMessageBuilder):
+            The message builder used for constructing Frost messages.
+        _update_messages (list[FrostMessage]):
+            A list of update messages generated during processing.
+        _running_methods (dict[str, tuple[CompositeMethodNode, FrostMessage]]):
+            A dictionary tracking currently running methods and their associated messages.
+        _data_model (DataModel):
+            The machine data model that is updated based on the processed messages.
 
     """
 
@@ -172,7 +180,7 @@ class FrostProtocolMng(ProtocolMng):
         )
 
         if msg.header.type != MsgType.REQUEST:
-            return self._create_response_msg(msg, ErrorMessages.INVALID_REQUEST)
+            return self._create_error_message(msg, ErrorMessages.INVALID_REQUEST)
 
         # Handle PROTOCOL messages separately.
         if msg.header.namespace == MsgNamespace.PROTOCOL:
@@ -180,24 +188,24 @@ class FrostProtocolMng(ProtocolMng):
 
         node = self._data_model.get_node(msg.payload.node)
         if node is None:
-            return self._create_response_msg(msg, ErrorMessages.NODE_NOT_FOUND)
+            return self._create_error_message(msg, ErrorMessages.NODE_NOT_FOUND)
 
         # Handle VARIABLE messages.
         if msg.header.namespace == MsgNamespace.VARIABLE:
             if not isinstance(node, VariableNode):
-                return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
 
             return self._handle_variable_message(msg, node)
 
         # Handle METHOD messages.
         if msg.header.namespace == MsgNamespace.METHOD:
             if not isinstance(node, MethodNode):
-                return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
 
             return self._handle_method_message(msg, node)
 
         # Return invalid namespace.
-        return self._create_response_msg(msg, ErrorMessages.INVALID_NAMESPACE)
+        return self._create_error_message(msg, ErrorMessages.INVALID_NAMESPACE)
 
     def handle_response(self, msg: FrostMessage) -> Message | None:
         """
@@ -218,7 +226,7 @@ class FrostProtocolMng(ProtocolMng):
         header = msg.header
 
         if header.type != MsgType.RESPONSE:
-            return self._create_response_msg(msg, ErrorMessages.INVALID_RESPONSE)
+            return self._create_error_message(msg, ErrorMessages.INVALID_RESPONSE)
 
         # Resume methods waiting for a response
         if msg.correlation_id in self._running_methods:
@@ -244,7 +252,7 @@ class FrostProtocolMng(ProtocolMng):
             raise ValueError("msg must be an instance of FrostMessage")
 
         if not self._is_version_supported(msg.header.version):
-            return self._create_response_msg(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+            return self._create_error_message(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
 
         if msg.header.type == MsgType.REQUEST:
             return self.handle_request(msg)
@@ -309,10 +317,10 @@ class FrostProtocolMng(ProtocolMng):
         assert msg.header.namespace == MsgNamespace.METHOD
 
         if not isinstance(msg.payload, MethodPayload):
-            return self._create_response_msg(msg, ErrorMessages.BAD_REQUEST)
+            return self._create_error_message(msg, ErrorMessages.BAD_REQUEST)
 
         if msg.header.msg_name != MethodMsgName.INVOKE:
-            return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
+            return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
 
         return self._invoke_method(
             msg,
@@ -431,64 +439,147 @@ class FrostProtocolMng(ProtocolMng):
             error = ErrorMessages.BAD_REQUEST
 
         elif msg.header.msg_name == VariableMsgName.READ:
-            value = variable_node.read()
-            msg.payload.value = value
-            return self._trace_and_return_response(
-                self._message_builder.build_read_variable_response_message(
-                    target=msg.sender,
-                    node=msg.payload.node,
-                    value=value,
-                    correlation_id=msg.correlation_id,
-                ),
-                msg,
-            )
+            return self._handle_read_request(msg, variable_node)
 
         elif msg.header.msg_name == VariableMsgName.WRITE:
             if not variable_node.write(msg.payload.value):
                 error = ErrorMessages.NOT_ALLOWED
-            return self._trace_and_return_response(
-                self._message_builder.build_write_variable_response_message(
-                    target=msg.sender,
-                    node=msg.payload.node,
-                    correlation_id=msg.correlation_id,
-                    value=variable_node.read(),
-                ),
-                msg,
-            )
+            else:
+                return self._handle_write_request(msg, variable_node)
 
         elif msg.header.msg_name == VariableMsgName.SUBSCRIBE:
-            subscription = VariableSubscription(
-                subscriber_id=msg.sender, correlation_id=msg.correlation_id
-            )
-            variable_node.subscribe(subscription)
-            return self._trace_and_return_response(
-                self._message_builder.build_subscribe_variable_response_message(
-                    target=msg.sender,
-                    node=msg.payload.node,
-                    value=msg.payload.value,
-                    correlation_id=msg.correlation_id,
-                ),
-                msg,
-            )
+            return self._handle_subscribe_request(msg, variable_node)
 
         elif msg.header.msg_name == VariableMsgName.UNSUBSCRIBE:
-            subscription = VariableSubscription(
-                subscriber_id=msg.sender, correlation_id=msg.correlation_id
-            )
-            variable_node.unsubscribe(subscription)
-            return self._trace_and_return_response(
-                self._message_builder.build_unsubscribe_variable_response_message(
-                    target=msg.sender,
-                    node=msg.payload.node,
-                    correlation_id=msg.correlation_id,
-                ),
-                msg,
-            )
+            return self._handle_unsubscribe_request(msg, variable_node)
 
         else:
             error = ErrorMessages.NOT_SUPPORTED
 
-        return self._create_response_msg(msg, error)
+        return self._create_error_message(msg, error)
+
+    def _handle_read_request(
+        self, msg: FrostMessage, variable_node: VariableNode
+    ) -> FrostMessage:
+        """
+        Handle a read request for a variable node.
+        Args:
+            msg (FrostMessage):
+                The read request message.
+            variable_node (VariableNode):
+                The variable node to read the value from.
+        Returns:
+            FrostMessage:
+                A response message containing the read value.
+        """
+        assert isinstance(variable_node, VariableNode)
+        assert isinstance(msg.payload, VariablePayload)
+
+        value = variable_node.read()
+
+        response = self._message_builder.build_read_variable_response_message(
+            target=msg.sender,
+            node=msg.payload.node,
+            value=value,
+            correlation_id=msg.correlation_id,
+        )
+
+        return self._trace_and_return_response(
+            response,
+            msg,
+        )
+
+    def _handle_write_request(
+        self, msg: FrostMessage, variable_node: VariableNode
+    ) -> FrostMessage:
+        """
+        Handle a write request for a variable node.
+        Args:
+            msg (FrostMessage):
+                The write request message.
+            variable_node (VariableNode):
+                The variable node to write the value to.
+        Returns:
+            FrostMessage:
+                A response message confirming the write operation.
+        """
+        assert isinstance(variable_node, VariableNode)
+        assert isinstance(msg.payload, VariablePayload)
+
+        response = self._message_builder.build_write_variable_response_message(
+            target=msg.sender,
+            node=msg.payload.node,
+            correlation_id=msg.correlation_id,
+            value=variable_node.read(),
+        )
+
+        return self._trace_and_return_response(
+            response,
+            msg,
+        )
+
+    def _handle_subscribe_request(
+        self, msg: FrostMessage, variable_node: VariableNode
+    ) -> FrostMessage:
+        """
+        Handle a subscribe request for a variable node.
+        Args:
+            msg (FrostMessage):
+                The subscribe request message.
+            variable_node (VariableNode):
+                The variable node to subscribe to.
+        Returns:
+            FrostMessage:
+                A response message confirming the subscription.
+        """
+        assert isinstance(variable_node, VariableNode)
+        assert isinstance(msg.payload, VariablePayload)
+
+        subscription = VariableSubscription(
+            subscriber_id=msg.sender, correlation_id=msg.correlation_id
+        )
+        variable_node.subscribe(subscription)
+        response = self._message_builder.build_subscribe_variable_response_message(
+            target=msg.sender,
+            node=msg.payload.node,
+            value=msg.payload.value,
+            correlation_id=msg.correlation_id,
+        )
+        return self._trace_and_return_response(
+            response,
+            msg,
+        )
+
+    def _handle_unsubscribe_request(
+        self, msg: FrostMessage, variable_node: VariableNode
+    ) -> FrostMessage:
+        """
+        Handle an unsubscribe request for a variable node.
+        Args:
+            msg (FrostMessage):
+                The unsubscribe request message.
+            variable_node (VariableNode):
+                The variable node to unsubscribe from.
+        Returns:
+            FrostMessage:
+                A response message confirming the unsubscription.
+        """
+        assert isinstance(variable_node, VariableNode)
+        assert isinstance(msg.payload, VariablePayload)
+
+        subscription = VariableSubscription(
+            subscriber_id=msg.sender, correlation_id=msg.correlation_id
+        )
+        variable_node.unsubscribe(subscription)
+        response = self._message_builder.build_unsubscribe_variable_response_message(
+            target=msg.sender,
+            node=msg.payload.node,
+            correlation_id=msg.correlation_id,
+        )
+        return self._trace_and_return_response(
+            response,
+            msg,
+        )
 
     def _handle_protocol_message(self, msg: FrostMessage) -> FrostMessage:
         """
@@ -519,7 +610,7 @@ class FrostProtocolMng(ProtocolMng):
                 msg,
             )
 
-        return self._create_response_msg(msg, ErrorMessages.NOT_SUPPORTED)
+        return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
 
     def _resume_composite_method(self, context_id: str) -> FrostMessage | None:
         """
@@ -604,7 +695,7 @@ class FrostProtocolMng(ProtocolMng):
             )
         )
 
-    def _create_response_msg(
+    def _create_error_message(
         self,
         msg: FrostMessage,
         error_message: ErrorMessages,
