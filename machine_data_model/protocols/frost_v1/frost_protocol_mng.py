@@ -39,12 +39,9 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
 )
 from machine_data_model.protocols.protocol_mng import ProtocolMng, Message
-from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-from machine_data_model.protocols.frost_v1.frost_header import FrostHeader
 from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
 from machine_data_model.tracing import trace_message_receive, trace_message_send
-import uuid
-import copy
+from machine_data_model.protocols.frost_v1 import FROST_PROTOCOL_VERSION
 from machine_data_model.protocols.frost_v1.frost_message_builder import (
     FrostMessageBuilder,
 )
@@ -75,21 +72,27 @@ class FrostProtocolMng(ProtocolMng):
 
     """
 
-    def __init__(self, data_model: Any):
+    def __init__(
+        self, data_model: Any, protocol_version: tuple[int, int, int] | None = None
+    ):
         """
         Initialize the FrostProtocolMng with the provided data model.
 
         Args:
-            - data_model (DataModel): The machine data model to be updated based on received messages.
-        Args:
             data_model (Any):
                 The machine data model to be updated based on received messages.
+            protocol_version (tuple[int, int, int] | None):
+                The Frost protocol version as (major, minor, patch).
+                If None, defaults to the latest version defined in FROST_PROTOCOL_VERSION.
 
         """
         super().__init__(data_model)
         self._update_messages: list[FrostMessage] = []
         self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
-        self._protocol_version = (1, 0, 0)
+        self._protocol_version = (
+            protocol_version if protocol_version is not None else FROST_PROTOCOL_VERSION
+        )
+
         self._message_builder: FrostMessageBuilder = FrostMessageBuilder(
             sender=self._data_model.name, protocol_version=self._protocol_version
         )

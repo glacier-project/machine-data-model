@@ -114,9 +114,7 @@ def setup_remote_method_test(
     method = manager.get_data_model().get_node(method_path)
     assert isinstance(method, CompositeMethodNode)
 
-    builder = FrostMessageBuilder(
-        sender=sender, protocol_version=manager.get_protocol_version()
-    )
+    builder = FrostMessageBuilder(sender=sender)
     msg = builder.build_invoke_method_message(
         target=target,
         node=method_path,
@@ -173,7 +171,7 @@ def manager(data_model: DataModel) -> FrostProtocolMng:
 
 @pytest.fixture
 def message_builder(sender: str) -> FrostMessageBuilder:
-    return FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+    return FrostMessageBuilder(sender=sender)
 
 
 @pytest.mark.parametrize(
@@ -436,9 +434,7 @@ class TestFrostProtocolMng:
         assert not request.payload.kwargs
 
         # Simulate response and resume method
-        message_builder = FrostMessageBuilder(
-            sender=request.target, protocol_version=manager.get_protocol_version()
-        )
+        message_builder = FrostMessageBuilder(sender=request.target)
         message = message_builder.build_method_completed_message(
             target=request.sender,
             correlation_id=request.correlation_id,
@@ -487,9 +483,7 @@ class TestFrostProtocolMng:
         assert request.payload.value is None
 
         # Simulate response and resume method
-        message_builder = FrostMessageBuilder(
-            sender=request.target, protocol_version=manager.get_protocol_version()
-        )
+        message_builder = FrostMessageBuilder(sender=request.target)
         message = message_builder.build_read_variable_response_message(
             target=request.sender,
             correlation_id=request.correlation_id,
@@ -528,9 +522,7 @@ class TestFrostProtocolMng:
         assert request.payload.value == method.parameters[0].read()
 
         # Simulate response and resume method
-        message_builder = FrostMessageBuilder(
-            sender=request.target, protocol_version=manager.get_protocol_version()
-        )
+        message_builder = FrostMessageBuilder(sender=request.target)
         message = message_builder.build_write_variable_response_message(
             target=request.sender,
             correlation_id=request.correlation_id,
@@ -566,9 +558,7 @@ class TestFrostProtocolMng:
         assert isinstance(request.payload, SubscriptionPayload)
 
         # Simulate response and resume method
-        message_builder = FrostMessageBuilder(
-            sender=request.target, protocol_version=manager.get_protocol_version()
-        )
+        message_builder = FrostMessageBuilder(sender=request.target)
         message = message_builder.build_variable_update_message(
             target=request.sender,
             correlation_id=request.correlation_id,

@@ -1,5 +1,6 @@
 import uuid
 from machine_data_model.protocols.message_builder import MessageBuilder
+from machine_data_model.protocols.frost_v1 import FROST_PROTOCOL_VERSION
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
@@ -42,7 +43,7 @@ class FrostMessageBuilder(MessageBuilder):
     def __init__(
         self,
         sender: str,
-        protocol_version: tuple[int, int, int],
+        protocol_version: tuple[int, int, int] | None = None,
     ):
         """
         Initialize the FrostMessageBuilder.
@@ -50,11 +51,14 @@ class FrostMessageBuilder(MessageBuilder):
         Args:
             sender (str):
                 The sender identifier for messages created by this builder.
-            protocol_version (tuple[int, int, int]):
+            protocol_version (tuple[int, int, int] | None):
                 The Frost protocol version as (major, minor, patch).
+                If None, defaults to the latest version defined in FROST_PROTOCOL_VERSION.
         """
         super().__init__(sender)
-        self._protocol_version = protocol_version
+        self._protocol_version = (
+            protocol_version if protocol_version is not None else FROST_PROTOCOL_VERSION
+        )
 
     def get_protocol_version(self) -> tuple[int, int, int]:
         """

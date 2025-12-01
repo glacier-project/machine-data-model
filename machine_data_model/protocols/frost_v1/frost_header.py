@@ -5,7 +5,7 @@ This module defines the header structures for Frost protocol messages, including
 message types, namespaces, names, and the FrostHeader dataclass.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -147,9 +147,9 @@ class FrostHeader:
     Attributes:
         type (MsgType):
             The type of the message (e.g., REQUEST, RESPONSE, ERROR).
-        version (tuple[int, int, int]):
+        version (tuple[int, int, int] | None):
             The version of the protocol, represented as a tuple of integers
-            (major, minor, patch).
+            (major, minor, patch). If None, defaults to FROST_PROTOCOL_VERSION.
         namespace (MsgNamespace):
             The namespace to which the message belongs (e.g., NODE, VARIABLE,
             METHOD).
@@ -164,10 +164,17 @@ class FrostHeader:
     type: MsgType
     namespace: MsgNamespace
     msg_name: MsgName
-    # The version is optional. When not provided by callers, the protocol
-    # manager will assume and supply its configured protocol version.
     version: tuple[int, int, int] | None = None
-    timestamp: datetime = datetime.now(timezone.utc)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self) -> None:
+        """
+        Initialize version with default if not provided.
+        """
+        if self.version is None:
+            from machine_data_model.protocols.frost_v1 import FROST_PROTOCOL_VERSION
+
+            object.__setattr__(self, "version", FROST_PROTOCOL_VERSION)
 
     def matches(
         self,

@@ -32,7 +32,7 @@ sender = "test_sender"
 
 @pytest.fixture
 def message_builder() -> FrostMessageBuilder:
-    return FrostMessageBuilder(sender=sender, protocol_version=(1, 0, 0))
+    return FrostMessageBuilder(sender=sender)
 
 
 class TestFrostMessageBuilder:
@@ -645,7 +645,7 @@ class TestFrostMessageBuilder:
         error_code: ErrorCode,
         error_message: ErrorMessages,
     ) -> None:
-        another_builder = FrostMessageBuilder(sender=target, protocol_version=(1, 0, 0))
+        another_builder = FrostMessageBuilder(sender=target)
         incoming_message = another_builder.build_read_variable_message(
             target=sender, node="some_node"
         )
