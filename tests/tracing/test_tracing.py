@@ -63,7 +63,7 @@ class TestDataModelTracing:
         assert event.details["new_value"] == 20.0
         assert event.details["success"]
         assert event.data_model_id == "test_dm"
-        assert isinstance(event.timestamp, float)
+        assert isinstance(event.timestamp_ns, int)
 
     def test_tracing_records_reads(self) -> None:
         clear_traces()
@@ -82,7 +82,7 @@ class TestDataModelTracing:
         assert event.details["variable_id"] == "test_var"
         assert event.details["value"] == 15.0
         assert value == 15.0
-        assert isinstance(event.timestamp, float)
+        assert isinstance(event.timestamp_ns, int)
 
     def test_export_trace(self, tmp_path: Path) -> None:
         clear_traces()
@@ -140,13 +140,13 @@ class TestDataModelTracing:
 
         assert start_event.details["method_id"] == "test_method"
         assert start_event.details["args"] == {}
-        assert isinstance(start_event.timestamp, float)
+        assert isinstance(start_event.timestamp_ns, int)
 
         assert end_event.details["method_id"] == "test_method"
         assert end_event.details["returns"] == {"return": 10}  # x=5 * 2 = 10
         assert isinstance(end_event.details["execution_time"], float)
         assert end_event.details["execution_time"] > 0
-        assert isinstance(end_event.timestamp, float)
+        assert isinstance(end_event.timestamp_ns, int)
 
         # Verify the method actually executed correctly
         assert result.return_values == {"return": 10}
@@ -200,7 +200,7 @@ class TestDataModelTracing:
         receive_event = receive_events[0]
         assert receive_event.details["message_type"] == "VARIABLE.READ"
         assert receive_event.details["sender"] == "client"
-        assert isinstance(receive_event.timestamp, float)
+        assert isinstance(receive_event.timestamp_ns, int)
 
         # Check MESSAGE_SEND event (response)
         send_events = collector.get_events(TraceEventType.MESSAGE_SEND)
@@ -209,7 +209,7 @@ class TestDataModelTracing:
         assert send_event.details["message_type"] == "VARIABLE.READ"
         assert send_event.details["target"] == "client"
         assert send_event.details["payload"]["value"] == 10.0
-        assert isinstance(send_event.timestamp, float)
+        assert isinstance(send_event.timestamp_ns, int)
 
         # Verify response is correct
         assert response is not None
@@ -251,7 +251,7 @@ class TestDataModelTracing:
         assert start_event.details["variable_id"] == "counter"
         assert start_event.details["condition"] == "0 >= 5"  # Full condition string
         assert start_event.details["expected_value"] == 5
-        assert isinstance(start_event.timestamp, float)
+        assert isinstance(start_event.timestamp_ns, int)
 
         # Update the variable to meet the condition
         data_model.write_variable("counter", 7)
@@ -268,7 +268,7 @@ class TestDataModelTracing:
         assert end_event.details["variable_id"] == "counter"
         assert isinstance(end_event.details["wait_duration"], float)
         assert end_event.details["wait_duration"] > 0
-        assert isinstance(end_event.timestamp, float)
+        assert isinstance(end_event.timestamp_ns, int)
 
     def test_tracing_records_subscriptions(self) -> None:
         clear_traces()
@@ -287,7 +287,7 @@ class TestDataModelTracing:
         event = subscribe_events[0]
         assert event.details["variable_id"] == "test_var"
         assert event.details["subscriber_id"] == "subscriber_1"
-        assert isinstance(event.timestamp, float)
+        assert isinstance(event.timestamp_ns, int)
 
     def test_tracing_records_unsubscriptions(self) -> None:
         clear_traces()
@@ -308,7 +308,7 @@ class TestDataModelTracing:
         event = unsubscribe_events[0]
         assert event.details["variable_id"] == "test_var"
         assert event.details["subscriber_id"] == "subscriber_1"
-        assert isinstance(event.timestamp, float)
+        assert isinstance(event.timestamp_ns, int)
 
     def test_tracing_records_notifications(self) -> None:
         clear_traces()
@@ -346,14 +346,14 @@ class TestDataModelTracing:
         assert event1.details["variable_id"] == "test_var"
         assert event1.details["subscriber_id"] in ["subscriber_1", "subscriber_2"]
         assert event1.details["value"] == 20.0
-        assert isinstance(event1.timestamp, float)
+        assert isinstance(event1.timestamp_ns, int)
 
         # Check second notification
         event2 = notification_events[1]
         assert event2.details["variable_id"] == "test_var"
         assert event2.details["subscriber_id"] in ["subscriber_1", "subscriber_2"]
         assert event2.details["value"] == 20.0
-        assert isinstance(event2.timestamp, float)
+        assert isinstance(event2.timestamp_ns, int)
 
         # Ensure different subscribers were notified
         assert event1.details["subscriber_id"] != event2.details["subscriber_id"]
@@ -409,7 +409,7 @@ class TestDataModelTracing:
         assert read_event.details["execution_result"]
         assert read_event.details["program_counter"] == 0
         assert read_event.source == "test_context"
-        assert isinstance(read_event.timestamp, float)
+        assert isinstance(read_event.timestamp_ns, int)
 
         # Check second event (write node)
         write_event = control_flow_events[1]
@@ -418,7 +418,7 @@ class TestDataModelTracing:
         assert write_event.details["execution_result"]
         assert write_event.details["program_counter"] == 1
         assert write_event.source == "test_context"
-        assert isinstance(write_event.timestamp, float)
+        assert isinstance(write_event.timestamp_ns, int)
 
         # Verify the control flow executed correctly
         assert context.get_value("read_value") == 10.0

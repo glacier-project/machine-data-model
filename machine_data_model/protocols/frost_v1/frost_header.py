@@ -6,8 +6,9 @@ message types, namespaces, names, and the FrostHeader dataclass.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
+
+from machine_data_model.utils.timestamp import get_timestamp_ns
 
 
 class MsgType(str, Enum):
@@ -156,7 +157,7 @@ class FrostHeader:
         msg_name (MsgName):
             The specific name of the message that describes its purpose or
             action (e.g., GET_INFO, READ).
-        timestamp (datetime):
+        timestamp_ns (int):
             The timestamp when the message was created.
 
     """
@@ -165,7 +166,7 @@ class FrostHeader:
     namespace: MsgNamespace
     msg_name: MsgName
     version: tuple[int, int, int] | None = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp_ns: int = field(default_factory=get_timestamp_ns)
 
     def __post_init__(self) -> None:
         """
@@ -215,7 +216,7 @@ class FrostHeader:
 
         The format will be:
             Type: REQUEST, Version: 1.0.0, Namespace: VARIABLE, Message Name:
-            READ, Timestamp: 2023-02-28T14:20:00+00:00
+            READ, Timestamp: 1677594000000000000 ns
         """
         version_str = (
             ".".join(map(str, self.version)) if self.version is not None else "unknown"
@@ -225,7 +226,7 @@ class FrostHeader:
             f"Version: {version_str}, "
             f"Namespace: {self.namespace}, "
             f"Message Name: {self.msg_name}, "
-            f"Timestamp: {self.timestamp.isoformat()}"
+            f"Timestamp: {self.timestamp_ns} ns"
         )
 
     def __repr__(self) -> str:
@@ -234,14 +235,12 @@ class FrostHeader:
 
         The format will be:
             FrostHeader(type='REQUEST', version=(1, 0, 0), namespace='VARIABLE',
-                msg_name='READ', timestamp=datetime.datetime(2023, 2, 28, 14,
-                20, 0, 123456, tzinfo=datetime.timezone.utc)
-            )
+                msg_name='READ', timestamp_ns=1677594000000000000)
         """
         return (
             f"FrostHeader(type={self.type!r}, "
             f"version={self.version!r}, "
             f"namespace={self.namespace!r}, "
             f"msg_name={self.msg_name!r}, "
-            f"timestamp={self.timestamp!r})"
+            f"timestamp_ns={self.timestamp_ns!r})"
         )

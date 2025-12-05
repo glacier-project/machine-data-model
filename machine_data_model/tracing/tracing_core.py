@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from machine_data_model.utils.timestamp import get_timestamp_ns
+
 
 class TraceLevel(Enum):
     """
@@ -60,8 +62,9 @@ class TraceEvent(ABC):
     Base class for all trace events.
 
     Attributes:
-        timestamp (float):
-            The time when the event occurred, as seconds since epoch.
+        timestamp_ns (int):
+            The time when the event occurred, as nanoseconds since the Unix
+            epoch (January 1, 1970 UTC).
         event_type (TraceEventType):
             The type of event that occurred.
         source (str):
@@ -73,7 +76,7 @@ class TraceEvent(ABC):
 
     """
 
-    timestamp: float
+    timestamp_ns: int
     event_type: TraceEventType
     source: str
     data_model_id: str
@@ -81,7 +84,7 @@ class TraceEvent(ABC):
     def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary for serialization."""
         return {
-            "timestamp": self.timestamp,
+            "timestamp_ns": self.timestamp_ns,
             "event_type": self.event_type.value,
             "source": self.source,
             "data_model_id": self.data_model_id,

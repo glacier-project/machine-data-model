@@ -68,7 +68,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.READ
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, VariablePayload)
         assert message.payload.value is None
         assert message.payload.node == node
@@ -102,7 +102,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.READ
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, VariablePayload)
         assert message.payload.value == value
         assert message.payload.node == node
@@ -134,7 +134,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.WRITE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, VariablePayload)
         assert message.payload.value == value
         assert message.payload.node == node
@@ -168,7 +168,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.WRITE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, VariablePayload)
         assert message.payload.value == value
         assert message.payload.node == node
@@ -198,7 +198,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.SUBSCRIBE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, SubscriptionPayload)
         assert message.payload.node == node
 
@@ -231,7 +231,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.SUBSCRIBE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, SubscriptionPayload)
         assert message.payload.node == node
         assert message.payload.value == value
@@ -265,7 +265,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.SUBSCRIBE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, DataChangeSubscriptionPayload)
         assert message.payload.node == node
         assert message.payload.deadband == deadband
@@ -300,7 +300,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.SUBSCRIBE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, InRangeSubscriptionPayload)
         assert message.payload.node == node
         assert message.payload.low == low
@@ -335,7 +335,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.SUBSCRIBE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, OutOfRangeSubscriptionPayload)
         assert message.payload.node == node
         assert message.payload.low == low
@@ -367,7 +367,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.UNSUBSCRIBE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, VariablePayload)
         assert message.payload.node == node
 
@@ -398,7 +398,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.UNSUBSCRIBE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, VariablePayload)
         assert message.payload.node == node
 
@@ -431,7 +431,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.METHOD
         assert message.header.msg_name == MethodMsgName.INVOKE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, MethodPayload)
         assert message.payload.node == node
         assert message.payload.args == args
@@ -475,7 +475,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.METHOD
         assert message.header.msg_name == MethodMsgName.COMPLETED
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, MethodPayload)
         assert message.payload.node == node
         assert message.payload.args == args
@@ -509,7 +509,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.METHOD
         assert message.header.msg_name == MethodMsgName.STARTED
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, MethodPayload)
         assert message.payload.node == node
 
@@ -542,7 +542,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.VARIABLE
         assert message.header.msg_name == VariableMsgName.UPDATE
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, VariablePayload)
         assert message.payload.node == node
         assert message.payload.value == value
@@ -563,7 +563,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.PROTOCOL
         assert message.header.msg_name == ProtocolMsgName.REGISTER
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, ProtocolPayload)
 
     @pytest.mark.parametrize(
@@ -582,7 +582,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.REQUEST
         assert message.header.namespace == MsgNamespace.PROTOCOL
         assert message.header.msg_name == ProtocolMsgName.UNREGISTER
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, ProtocolPayload)
 
     @pytest.mark.parametrize(
@@ -603,7 +603,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.PROTOCOL
         assert message.header.msg_name == ProtocolMsgName.REGISTER
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, ProtocolPayload)
 
     @pytest.mark.parametrize(
@@ -624,7 +624,7 @@ class TestFrostMessageBuilder:
         assert message.header.type == MsgType.RESPONSE
         assert message.header.namespace == MsgNamespace.PROTOCOL
         assert message.header.msg_name == ProtocolMsgName.UNREGISTER
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, ProtocolPayload)
 
     @pytest.mark.parametrize(
@@ -659,7 +659,7 @@ class TestFrostMessageBuilder:
         assert message.correlation_id == incoming_message.correlation_id
         assert message.header.version == message_builder.get_protocol_version()
         assert message.header.type == MsgType.ERROR
-        assert message.header.timestamp is not None
+        assert message.header.timestamp_ns is not None
         assert isinstance(message.payload, ErrorPayload)
         assert message.payload.error_code == error_code
         assert message.payload.error_message == error_message
