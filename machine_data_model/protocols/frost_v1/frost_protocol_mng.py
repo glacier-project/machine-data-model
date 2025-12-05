@@ -177,7 +177,7 @@ class FrostProtocolMng(ProtocolMng):
             sender=msg.sender,
             correlation_id=msg.correlation_id or "",
             payload=self._get_tracing_payload(msg),
-            send_time=0.0,
+            send_time=0,
             source=msg.sender,
             data_model_id=self._data_model.name,
         )
