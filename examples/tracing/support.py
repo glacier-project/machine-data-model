@@ -38,27 +38,28 @@ def print_trace_events(events: list[TraceEvent], title: str = "Trace Events") ->
         return
 
     # Find the ideal time scale to display relative timestamps.
-    first_event_time = events[0].timestamp
-    last_event_time = events[-1].timestamp
-    total_duration = last_event_time - first_event_time
-    if total_duration < 1e-6:
+    # Timestamps are in nanoseconds.
+    first_event_time = events[0].timestamp_ns
+    last_event_time = events[-1].timestamp_ns
+    total_duration_ns = last_event_time - first_event_time
+    if total_duration_ns < 1_000:
         time_unit = "ns"
-        time_scale = 1_000_000_000
-    elif total_duration < 1e-3:
+        time_divisor = 1
+    elif total_duration_ns < 1_000_000:
         time_unit = "μs"
-        time_scale = 1_000_000
-    elif total_duration < 1.0:
+        time_divisor = 1_000
+    elif total_duration_ns < 1_000_000_000:
         time_unit = "ms"
-        time_scale = 1_000
+        time_divisor = 1_000_000
     else:
         time_unit = "s"
-        time_scale = 1
+        time_divisor = 1_000_000_000
 
-    runtime = (last_event_time - first_event_time) * time_scale
+    runtime = total_duration_ns / time_divisor
 
     print(f"{title} ({len(events)} total, runtime: {runtime:8.2f} {time_unit}):")
     for i, event in enumerate(events, 1):
-        event_time = (event.timestamp - first_event_time) * time_scale
+        event_time = (event.timestamp_ns - first_event_time) / time_divisor
         print(
             f"{i:2d}. {event.event_type.value:18} "
             f"({event_time:8.2f} {time_unit}, "
