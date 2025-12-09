@@ -133,13 +133,16 @@ def _get_numerical_variable(
         "description": "",
         "measure_unit": NoneMeasureUnits.NONE,
         "initial_value": None,
-        "default_value": None,
+        "default_value": 0,
         "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
-        kwargs["initial_value"] if kwargs["initial_value"] is not None else 0
+        kwargs["initial_value"]
+        if kwargs["initial_value"] is not None
+        and isinstance(kwargs["initial_value"], (int, float))
+        else kwargs["default_value"]
     )
     del kwargs["initial_value"]
     del kwargs["default_value"]
@@ -168,14 +171,17 @@ def _get_string_variable(
         "id": None,
         "name": "",
         "description": "",
-        "initial_value": "",
+        "initial_value": None,
         "default_value": "",
         "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
-        kwargs["initial_value"] if kwargs["initial_value"] is not None else ""
+        kwargs["initial_value"]
+        if kwargs["initial_value"] is not None
+        and isinstance(kwargs["initial_value"], str)
+        else kwargs["default_value"]
     )
     del kwargs["initial_value"]
     del kwargs["default_value"]
@@ -205,14 +211,17 @@ def _get_boolean_variable(
         "id": None,
         "name": "",
         "description": "",
-        "initial_value": False,
+        "initial_value": None,
         "default_value": False,
         "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
-        kwargs["initial_value"] if kwargs["initial_value"] is not None else False
+        kwargs["initial_value"]
+        if kwargs["initial_value"] is not None
+        and isinstance(kwargs["initial_value"], bool)
+        else kwargs["default_value"]
     )
     del kwargs["initial_value"]
     del kwargs["default_value"]
