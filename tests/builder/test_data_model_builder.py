@@ -32,6 +32,7 @@ from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     ObjectVariableNode,
     StringVariableNode,
+    VariableNode,
 )
 from machine_data_model.nodes.connectors.opcua_connector import (
     OpcuaConnector,
@@ -160,6 +161,7 @@ class TestDataModelBuilder:
         variable_node = yaml.safe_load(yaml_content)
 
         assert isinstance(variable_node, expected_type)
+        assert isinstance(variable_node, VariableNode)  # mypy workaround
         assert variable_node.value == expected_value
 
     def test_build_object_variable_node_with_properties(self) -> None:
@@ -263,6 +265,7 @@ class TestDataModelBuilder:
         method_node = yaml.safe_load(yaml_content)
 
         assert isinstance(method_node, expected_type)
+        assert isinstance(method_node, MethodNode)  # mypy workaround
         assert method_node.name == "test_method"
         assert method_node.description == "A test method"
         assert len(method_node.parameters) == 1
