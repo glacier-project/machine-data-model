@@ -18,13 +18,15 @@ def start_opcua_test_server() -> Generator[tuple[Container, int], Any, None]:
     docker_client = docker.from_env()
     container_guest_port = "50000/tcp"
     container = docker_client.containers.run(
-        "mcr.microsoft.com/iotedge/opc-plc@sha256:1fda0e687dee9bd86e1d40ad3e1e4a81d087777d59cab5abd62fdba9c3eefa9e",
-        "--pn=50000 --autoaccept --sph --sn=5 --sr=10 --st=uint --fn=5 --fr=1"
-        "--ft=uint --gn=5",
+        "mcr.microsoft.com/iotedge/opc-plc@sha256:"
+        "1fda0e687dee9bd86e1d40ad3e1e4a81d087777d59cab5abd62fdba9c3eefa9e",
+        "--pn=50000 --autoaccept --sph --sn=5 --sr=10 --st=uint "
+        "--fn=5 --fr=1 --ft=uint --gn=5",
         auto_remove=True,
         remove=True,
         detach=True,
-        ports={container_guest_port: None},  # None: random host port
+        # None: random host port
+        ports={container_guest_port: None},
     )
 
     # retrieve randomly generated port
@@ -40,6 +42,11 @@ def start_opcua_test_server() -> Generator[tuple[Container, int], Any, None]:
     while container.status != "running":
         time.sleep(0.5)
         container.reload()
+        # if the container has exited, raise an error
+        if container.status == "exited":
+            raise RuntimeError(
+                "OPC UA test server container exited unexpectedly."
+            )
 
     async def check_opcua_connection() -> None:
         # Setup self-signed certificate for the client
