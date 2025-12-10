@@ -29,7 +29,9 @@ from machine_data_model.protocols.frost_v1.frost_message_builder import (
 
 
 class CompositeMethodNode(MethodNode):
-    """A CompositeMethodNode class is a node that represents a composite method
+    """Composite method node in the machine data model.
+
+    A CompositeMethodNode class is a node that represents a composite method
     in the machine data model. Composite methods of the machine data model are
     used to declare functions that are composed of multiple asynchronous
     sub-methods, wait conditions, and other control flow elements.
@@ -117,9 +119,18 @@ class CompositeMethodNode(MethodNode):
                 node.set_message_builder(message_builder)
 
     def _terminate_execution(self, context: ExecutionContext) -> dict[str, Any]:
-        """Terminate the execution of the method with the specified context. It
-        returns the return values of the method if the method is completed,
+        """Terminate the execution of the method with the specified context.
+
+        It returns the return values of the method if the method is completed,
         otherwise it returns the context id.
+
+        Args:
+            context (ExecutionContext):
+                The context of the method to terminate.
+
+        Returns:
+            dict[str, Any]:
+                The return values of the method or the context id.
         """
         if context.is_active():
             return {"@context_id": context.id()}
@@ -189,8 +200,7 @@ class CompositeMethodNode(MethodNode):
         return self._internal_nodes.get(node_id)
 
     def get_node_resolver(self) -> Callable[[str], DataModelNode | None]:
-        """Get a node resolver function that checks internal nodes first, then
-        falls back to the data model.
+        """Returns a node resolver function for this composite method.
 
         Returns:
             Callable[[str], DataModelNode | None]:
@@ -211,8 +221,7 @@ class CompositeMethodNode(MethodNode):
         return resolver
 
     def handle_message(self, context_id: str, message: FrostMessage) -> bool:
-        """Handle the response message in response to the request generated from
-        the execution of the current remote node.
+        """Handle a message for the method with the specified context id.
 
         Args:
             context_id (str):
@@ -262,8 +271,9 @@ class CompositeMethodNode(MethodNode):
     def _start_execution(
         self, **kwargs: dict[str, Any]
     ) -> MethodExecutionResult:
-        """Start the execution of the composite method with the specified
-        arguments. It creates a new context and executes the control flow graph
+        """Start a composite method with the specified arguments.
+
+        It creates a new context and executes the control flow graph
         of the method until a wait condition is reached or the method is
         completed. A context id is returned if the method is not completed.
 

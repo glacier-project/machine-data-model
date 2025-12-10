@@ -129,8 +129,7 @@ class RemoteExecutionNode(ControlFlowNode):
     def _create_cleanup_msg(
         self, context: ExecutionContext
     ) -> FrostMessage | None:
-        """Create a cleanup message to send to the remote target after the node
-        has been executed.
+        """Create a cleanup message to send to the remote node after execution.
 
         Args:
             context (ExecutionContext):

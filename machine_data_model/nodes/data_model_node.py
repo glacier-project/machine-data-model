@@ -168,10 +168,10 @@ class DataModelNode(ABC):
         self._connector_name = value
 
     def is_remote(self) -> bool:
-        """Returns True if the current node is a remote node,
-        which means that to interact with it, we need to use its connector.
-        A node is a remote node if the user defined the 'connector_name'
-        attribute in the yaml file.
+        """Returns True if the current node is a remote node.
+
+        Remote nodes are nodes that represent remote resources, i.e., resources
+        that are not stored locally but are accessed via a connector.
 
         Returns:
             bool:
@@ -181,6 +181,7 @@ class DataModelNode(ABC):
 
     def is_connector_set(self) -> bool:
         """Returns True if the connector was set.
+
         A remote node (is_remote() == True) must have, at some point, its
         connector set up.
 
@@ -206,6 +207,7 @@ class DataModelNode(ABC):
 
     def is_remote_path_set(self) -> bool:
         """Returns True if the remote path is set.
+
         The remote path is the path used by the connector to interact with the
         remote variable.
 
@@ -216,14 +218,13 @@ class DataModelNode(ABC):
         return self._remote_path is not None
 
     def set_remote_path(self, remote_path: str | None) -> None:
-        """Sets the remote path, which is used to interact with the remote
-        variable.
-        """
+        """Sets the remote path used by the connector."""
         self._remote_path = remote_path
 
     @property
     def remote_path(self) -> str | None:
         """Returns the remote path.
+
         If the node doesn't have a remote path,
         it tries to use the remote resource specs to retrieve it.
         """

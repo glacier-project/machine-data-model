@@ -13,8 +13,9 @@ template_re = re.compile(r"\$\{([^}]+)\}")
 
 
 def is_template_variable(string: str) -> bool:
-    """Check if the string is a template variable of the form
-    `${variable_name}`.
+    """Check if the string is a template variable.
+
+    Template variables are defined as `${variable_name}`.
 
     Args:
         string (str):
@@ -29,8 +30,9 @@ def is_template_variable(string: str) -> bool:
 
 
 def contains_template_variables(string: str) -> bool:
-    """Check if the string contains any template variable of the form
-    `${variable_name}`.
+    """Check if the string contains any template variable.
+
+    Template variables are defined as `${variable_name}`.
 
     Args:
         string (str):

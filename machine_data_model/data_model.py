@@ -1,7 +1,3 @@
-"""A module defining the DataModel class and its associated methods for managing
-a machine data model.
-"""
-
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -101,7 +97,9 @@ class DataModel:
     def _initialize_connectors(
         self, connectors: list[AbstractConnector] | None
     ) -> dict[str, AbstractConnector]:
-        """Given a list of connectors, returns a dictionary mapping connector
+        """Initialize the data model's connectors.
+
+        Given a list of connectors, returns a dictionary mapping connector
         names to their respective connectors.
         The connectors are used to connect to the remote servers.
 
@@ -154,7 +152,9 @@ class DataModel:
         return connectors_dict
 
     def _set_node_connector(self, node: DataModelNode) -> None:
-        """Find the closest connector to the node by moving upwards in the tree.
+        """Set up the connector for the given node.
+
+        Find the closest connector to the node by moving upwards in the tree.
         When/if found, set it as the node's connector.
         """
         node_ptr: DataModelNode | None = node
@@ -187,8 +187,7 @@ class DataModel:
     def _setup_child_inherited_specs(
         self, node: DataModelNode, parent: DataModelNode | None
     ) -> None:
-        """Recursively sets the remote resource specs for the current node
-        from its parent's specs.
+        """Sets the remote resource specs for the given node and its children.
 
         Args:
             node (DataModelNode):
@@ -290,6 +289,7 @@ class DataModel:
 
     def _get_connector_by_name(self, name: str) -> AbstractConnector:
         """Returns the connector associated with the given name.
+
         Raises an exception if a connector with the given name is not found.
 
         Args:
@@ -488,8 +488,7 @@ class DataModel:
         return self._get_node_from_path(node_id)
 
     def read_variable(self, variable_id: str) -> Any:
-        """Read a variable from the data model by exploring the structure of the
-        node that contains that variable.
+        """Return the value of the specified variable in the data model.
 
         Args:
             variable_id (str):
@@ -510,8 +509,7 @@ class DataModel:
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def write_variable(self, variable_id: str, value: Any) -> bool:
-        """Write a variable to the data model by exploring the structure of the
-        node that contains that variable.
+        """Update the value of the specified variable in the data model.
 
         Args:
             variable_id (str):
@@ -534,8 +532,9 @@ class DataModel:
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def call_method(self, method_id: str) -> MethodExecutionResult:
-        """Executes a method from the data model by exploring the structure of
-        the node that contains that method.
+        """Invoke the specified method in the data model.
+
+        If the method is a composite method, it starts its execution.
 
         Args:
             method_id (str):
@@ -558,8 +557,7 @@ class DataModel:
     def subscribe(
         self, target_node: str, subscription: VariableSubscription
     ) -> bool:
-        """Adds the provided subscription to the target variable node in the
-        data model.
+        """Adds the provided subscription to the target node.
 
         Args:
             target_node (str):
@@ -587,8 +585,7 @@ class DataModel:
     def unsubscribe(
         self, target_node: str, subscription: VariableSubscription
     ) -> bool:
-        """Removes the provided subscription from the target variable node in
-        the data model.
+        """Removes the provided subscription from the target node.
 
         Args:
             target_node (str):

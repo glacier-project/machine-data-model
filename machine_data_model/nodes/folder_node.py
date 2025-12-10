@@ -15,7 +15,9 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 
 
 class FolderNode(DataModelNode):
-    """A FolderNode class is a node that represents a folder in the machine data
+    """Represents a folder node in the machine data model.
+
+    A FolderNode class is a node that represents a folder in the machine data
     model. Folders of the machine data model are used to organize the node of
     the machine data model in a hierarchical structure.
 

@@ -32,8 +32,7 @@ from machine_data_model.tracing.events import trace_control_flow_step
 
 
 class LocalExecutionNode(ControlFlowNode):
-    """Abstract base class representing a control flow action node in the
-    control flow graph.
+    """Local execution node in the control flow graph.
 
     A control flow action node is a basic unit of the control flow graph that
     can be executed locally in the context of a control flow context.
@@ -71,8 +70,7 @@ class LocalExecutionNode(ControlFlowNode):
         ) = None
 
     def get_successors(self) -> list["ControlFlowNode"]:
-        """Get the list of control flow nodes that are successors of the current
-        node.
+        """Return the successors of the current node.
 
         Returns:
             list["ControlFlowNode"]:
@@ -304,8 +302,7 @@ class WriteVariableNode(LocalExecutionNode):
         return self._value
 
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
-        """Execute the write operation of the variable in the machine data
-        model.
+        """Write the value to the variable in the machine data model.
 
         Args:
             context (ExecutionContext):

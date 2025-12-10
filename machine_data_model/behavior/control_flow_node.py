@@ -133,8 +133,7 @@ class ControlFlowNode(ABC):
         return self._parent_cfg
 
     def get_data_model_id(self) -> str:
-        """Get the data model ID of the composite method that owns the control
-        flow graph.
+        """Get the data model ID associated with this control flow node.
 
         Returns:
             str:
@@ -160,8 +159,7 @@ class ControlFlowNode(ABC):
 
     @abstractmethod
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
-        """Execute the control flow node in the context of the specified
-        execution context.
+        """Execute the control flow node in the given execution context.
 
         Args:
             context (ExecutionContext):

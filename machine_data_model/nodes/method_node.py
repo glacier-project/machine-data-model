@@ -324,8 +324,7 @@ class MethodNode(DataModelNode):
 
     @override
     def __contains__(self, node_name: str) -> bool:
-        """Check if the method has a parameter or return value with the given
-        name.
+        """Check if the method has the specified parameter or return value.
 
         Args:
             node_name (str):
@@ -413,8 +412,7 @@ class MethodNode(DataModelNode):
     def _resolve_arguments(
         self, *args: list[Any], **kwargs: dict[str, Any]
     ) -> dict[str, Any]:
-        """Resolve arguments, filling missing ones with defaults or parameter
-        values.
+        """Resolve the arguments for the method call.
 
         Args:
             *args (list[Any]):

@@ -175,8 +175,7 @@ class FrostHeader:
         _namespace: MsgNamespace | None = None,
         _msg_name: MsgName | None = None,
     ) -> bool:
-        """Check if the header matches the given type, namespace, and message
-        name.
+        """Check if the header matches the given parameters.
 
         Args:
             _type (Optional[MsgType]):

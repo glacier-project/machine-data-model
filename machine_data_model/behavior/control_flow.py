@@ -24,8 +24,7 @@ if TYPE_CHECKING:
 
 
 class ControlFlow:
-    """Represents a control flow graph implementing the logic of a run-time
-    method.
+    """Control flow graph for specifying dynamic behavior inside the data model.
 
     It consists of a list of control flow nodes that are executed in sequence.
     Different execution flows are not supported in this version of the control
@@ -86,8 +85,7 @@ class ControlFlow:
         return self._composite_method_node
 
     def get_data_model_id(self) -> str:
-        """Get the data model ID of the composite method node that owns this
-        control flow graph.
+        """Get the data model ID associated with this control flow graph.
 
         Returns:
             str:
@@ -102,8 +100,7 @@ class ControlFlow:
         return ""
 
     def get_composite_method_id(self) -> str:
-        """Get the ID of the composite method node that owns this control flow
-        graph.
+        """Get the ID of the composite method that owns the control flow graph.
 
         Returns:
             str:
@@ -117,8 +114,7 @@ class ControlFlow:
     def get_current_node(
         self, context: ExecutionContext
     ) -> ControlFlowNode | None:
-        """Get the current control flow node based on the program counter in the
-        execution context.
+        """Get the control flow node pointed by the program counter.
 
         Args:
             context (ExecutionContext):

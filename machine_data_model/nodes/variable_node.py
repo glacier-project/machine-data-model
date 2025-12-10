@@ -265,8 +265,7 @@ class VariableNode(DataModelNode):
         subscription_or_id: VariableSubscription | str,
         correlation_id: str | None = None,
     ) -> bool:
-        """Delete a subscription by subscription object or by
-        subscriber/correlation ID.
+        """Unsubscribe a subscriber from the variable node.
 
         Args:
             subscription_or_id (VariableSubscription | str):
@@ -851,8 +850,9 @@ class StringVariableNode(VariableNode):
         return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
-        """Raise NotImplementedError as StringVariableNode does not support
-        children.
+        """Raise NotImplementedError.
+
+        StringVariableNode does not support children.
 
         Args:
             node_name (str):
@@ -1019,8 +1019,9 @@ class BooleanVariableNode(VariableNode):
         return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
-        """Raise NotImplementedError as BooleanVariableNode does not support
-        children.
+        """Raise NotImplementedError.
+
+        BooleanVariableNode does not support children.
 
         Args:
             node_name (str):

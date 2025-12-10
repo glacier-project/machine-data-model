@@ -34,8 +34,11 @@ class EventType(IntFlag):
 
 
 class VariableSubscription:
-    """Base class for variable subscriptions representing a subscription to any
-    change.
+    """Base class for variable subscriptions.
+
+    Instances of this class represent a subscription to variable changes,
+    allowing subscribers to receive notifications when the variable's value
+    changes.
 
     Attributes:
         subscriber_id (str):
@@ -168,8 +171,7 @@ class DataChangeSubscription(VariableSubscription):
 
     @override
     def should_notify(self, new_value: float) -> bool:
-        """Determine if a notification should be sent based on new value and
-        deadband.
+        """Check if the change exceeds the deadband threshold.
 
         Args:
             new_value (float):

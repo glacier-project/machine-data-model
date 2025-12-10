@@ -105,8 +105,7 @@ class FrostProtocolMng(ProtocolMng):
         )
 
     def _add_frost_message_builder(self, node: DataModelNode) -> None:
-        """Add the FrostMessageBuilder to CompositeMethodNodes in the data
-        model.
+        """Add the FrostMessageBuilder to CompositeMethodNodes.
 
         Args:
             node (DataModelNode):
@@ -286,8 +285,7 @@ class FrostProtocolMng(ProtocolMng):
     def resume_composite_method(
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
-        """Resume the execution of a composite method waiting for the
-        subscriber.
+        """Resume the execution of a composite method.
 
         Args:
             subscriber (str):

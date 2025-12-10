@@ -26,9 +26,7 @@ _logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class SubscriptionArguments:
-    """Superclass which is common for all data that is returned
-    to subscription callbacks.
-    """
+    """Represents the arguments passed to a subscription's callback."""
 
 
 class AbstractConnector(ABC):
@@ -132,7 +130,9 @@ class AbstractConnector(ABC):
         env_var: str | None,
         env_var_overrides_yaml: bool = False,
     ) -> YamlEntryType | None:
-        """Returns the content of the env_var environment variable when set,
+        """Returns the value of a yaml entry or an environment variable.
+
+        Returns the content of the env_var environment variable when set,
         otherwise it returns yaml_entry.
 
         When env_var_overrides_yaml is False, the function can throw an error
@@ -207,6 +207,7 @@ class AbstractConnector(ABC):
     @abstractmethod
     def _get_remote_node(self, path: str) -> Any:
         """Try to retrieve the node from the server.
+
         The node's type depends on the library used to interact with the server.
 
         Args:
@@ -268,6 +269,7 @@ class AbstractConnector(ABC):
         self, path: str, callback: Callable[[Any, SubscriptionArguments], None]
     ) -> int:
         """Subscribes to remote node changes.
+
         Calls the callback function every time the remote value changes.
 
         The callback must accept two parameters:

@@ -52,7 +52,7 @@ _logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class OpcuaSubscriptionArguments(SubscriptionArguments):
-    """Data returned to the OPC-UA subscription callback."""
+    """Data returned to the OPC UA subscription callback."""
 
     node: asyncua.Node
     value: Any
@@ -62,8 +62,7 @@ class OpcuaSubscriptionArguments(SubscriptionArguments):
 def _security_policy_string_to_asyncua_policy(
     policy_string: str | None,
 ) -> type[SecurityPolicy] | None:
-    """Converts a string containing the desired security policy into an asyncua
-    SecurityPolicy type.
+    """Converts a security policy string to an asyncua SecurityPolicy type.
 
     Args:
         policy_string (str | None):
@@ -81,7 +80,9 @@ def _security_policy_string_to_asyncua_policy(
 
 
 async def get_input_arguments(node: asyncua.Node) -> asyncua.Node | None:
-    """Given a method node, returns its input arguments.
+    """Returns the InputArguments node of a OPC UA method node.
+
+    Given a OPCU UA method node, returns its input arguments.
     If the method doesn't have input arguments, it returns None.
 
     Args:
@@ -132,15 +133,15 @@ class OpcuaConnector(AbstractAsyncConnector):
             name (str | None):
                 Client name.
             ip (str | None):
-                OPC-UA server address.
+                OPC UA server address.
             ip_env_var (str | None):
-                Environment variable which contains the OPC-UA server address.
+                Environment variable which contains the OPC UA server address.
             port (int | None):
-                OPC-UA server port.
+                OPC UA server port.
             port_env_var (str | None):
-                Environment variable which contains the OPC-UA server port.
+                Environment variable which contains the OPC UA server port.
             security_policy (str | None):
-                OPC-UA security mode.
+                OPC UA security mode.
             host_name (str | None):
                 Host name.
             client_app_uri (str | None):
@@ -152,15 +153,15 @@ class OpcuaConnector(AbstractAsyncConnector):
             trust_store_certificates_paths (list[str] | None):
                 Paths which contains certificates for the trust store.
             username (str | None):
-                OPC-UA username. Keep it set to None if the username is not
+                OPC UA username. Keep it set to None if the username is not
                 required.
             username_env_var (str | None):
-                Environment variable which contains the OPC-UA username.
+                Environment variable which contains the OPC UA username.
             password (str | None):
-                OPC-UA password. Keep it set to None if the password is not
+                OPC UA password. Keep it set to None if the password is not
                 required.
             password_env_var (str | None):
-                Environment variable which contains the OPC-UA password.
+                Environment variable which contains the OPC UA password.
         """
         super().__init__(
             id=id,
@@ -268,8 +269,7 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @override
     async def _async_connect(self) -> bool:
-        """Async function which uses the asyncua library to connect to the
-        OPC-UA server.
+        """Asynchronously connects to the OPC UA server.
 
         Returns:
             bool:
@@ -277,7 +277,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         """
         url = f"opc.tcp://{self.ip}:{self.port}"
         _logger.debug(
-            f"Connecting '{self.name}' connector to OPC-UA server. Url is: "
+            f"Connecting '{self.name}' connector to OPC UA server. Url is: "
             f"{url}"
         )
         _logger.debug(
@@ -356,27 +356,26 @@ class OpcuaConnector(AbstractAsyncConnector):
             await self._client.connect()
         except Exception as e:
             _logger.debug(
-                f"Couldn't connect the '{self.name}' connector to the OPC-UA "
+                f"Couldn't connect the '{self.name}' connector to the OPC UA "
                 f"server"
             )
             _logger.error(e)
             return False
         _logger.debug(
-            f"Connected the '{self.name}' connector to the OPC-UA server"
+            f"Connected the '{self.name}' connector to the OPC UA server"
         )
         return True
 
     @override
     async def _async_disconnect(self) -> bool:
-        """Async function which uses the asyncua library to disconnect from the
-        OPC-UA server.
+        """Asynchronously disconnects from the OPC UA server.
 
         Returns:
             bool:
                 True if the client is disconnected from the server.
         """
         _logger.debug(
-            f"Disconnecting '{self.name}' connector from OPC-UA server"
+            f"Disconnecting '{self.name}' connector from OPC UA server"
         )
         if self._client is None:
             _logger.debug(
@@ -396,7 +395,7 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @override
     async def _async_get_remote_node(self, path: str) -> asyncua.Node | None:
-        """Asynchronous function which returns the node from the OPC-UA server.
+        """Asynchronous function which returns the node from the OPC UA server.
 
         Args:
             path (str):
@@ -404,9 +403,9 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         Returns:
             asyncua.Node | None:
-                The node from the OPC-UA server if it exists, None otherwise.
+                The node from the OPC UA server if it exists, None otherwise.
         """
-        _logger.debug(f"Retrieving node '{path}' from OPC-UA server")
+        _logger.debug(f"Retrieving node '{path}' from OPC UA server")
 
         if self._client is None:
             raise Exception(
@@ -423,7 +422,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                 node = await self._client.get_root_node().get_child(path)
             assert isinstance(
                 node, asyncua.Node
-            ), "Node read by remote OPC-UA server must be an asyncua.Node"
+            ), "Node read by remote OPC UA server must be an asyncua.Node"
             _logger.debug(f"Retrieved node '{path}' successfully")
         except UaError as exp:
             _logger.error(exp)
@@ -455,7 +454,7 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @override
     async def _async_write_node_value(self, path: str, value: Any) -> bool:
-        """Function which asynchronously writes the value to the OPC-UA server.
+        """Function which asynchronously writes the value to the OPC UA server.
 
         Args:
             path (str):
@@ -497,8 +496,7 @@ class OpcuaConnector(AbstractAsyncConnector):
     async def _async_call_node_as_method(
         self, path: str, kwargs: dict[str, Any]
     ) -> Any:
-        """Asynchronously calls the method at path <path> with <kwargs> as its
-        arguments.
+        """Asynchronously calls a method on the OPC UA server.
 
         Args:
             path (str):
@@ -565,8 +563,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         path: str,
         callback: Callable[[Any, OpcuaSubscriptionArguments], None],
     ) -> int:
-        """Asynchronous function which subscribes to remote variable data
-        changes.
+        """Asynchronously subscribes to changes of the node at path <path>.
 
         Args:
             path (str):
@@ -625,7 +622,7 @@ class OpcuaConnector(AbstractAsyncConnector):
 
 
 class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[misc]
-    """Handles OPC-UA data changes by calling a callback function."""
+    """Handles OPC UA data changes by calling a callback function."""
 
     def __init__(
         self, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
@@ -689,12 +686,11 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
 
     @override
     def remote_path(self) -> str | None:
-        """Returns the 'remote_path' used to interact with the node on the
-        server.
+        """Returns the 'remote_path' used to interact with the remote node.
 
         Returns:
             str | None:
-                Path used to interact with the node on the server.
+                Path used to interact with the remote node.
         """
         if self._remote_path is not None:
             return self._remote_path
@@ -722,8 +718,10 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
 
     @override
     def inheritable_spec(self) -> "OpcuaRemoteResourceSpec":
-        """Returns a copy of this object, where the only properties that get
-        copied are properties that will be inherited by child nodes.
+        """Returns the inheritable part of this object.
+
+        Returns a copy of this object containing only the properties that can be
+        inherited by child nodes.
 
         Returns:
             OpcuaRemoteResourceSpec:
@@ -737,8 +735,10 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
         spec1: "OpcuaRemoteResourceSpec",
         spec2: "OpcuaRemoteResourceSpec",
     ) -> "OpcuaRemoteResourceSpec":
-        """Creates a third object which has the combined properties of spec1 and
-        spec2.
+        """Merge two OpcuaRemoteResourceSpec objects.
+
+        Creates a new OpcuaRemoteResourceSpec which has the combined properties
+        of spec1 and spec2.
         > Note that spec1 has priority over spec2: spec1's properties override
         spec2's properties when the properties are defined for both objects.
 
