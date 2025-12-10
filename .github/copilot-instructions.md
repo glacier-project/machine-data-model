@@ -6,6 +6,9 @@ applyTo: '**'
 
 ## Python Coding Guidelines
 
+Follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) as the primary reference for
+Python code style. The sections below highlight key points and project-specific customizations.
+
 ### Comments
 
 - Comments should never be on the right-hand side of code. They should always be on their own line above the code they
