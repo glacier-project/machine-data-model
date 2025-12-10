@@ -14,14 +14,14 @@ from typing import Any
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
 
-from machine_data_model.nodes.connectors.abstract_connector import SubscriptionArguments
-from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
-from machine_data_model.nodes.measurement_unit.measure_builder import (
+from .connectors.abstract_connector import SubscriptionArguments
+from .data_model_node import DataModelNode, RemoteResourceSpec
+from .measurement_unit.measure_builder import (
     MeasureBuilder,
     NoneMeasureUnits,
     get_measure_builder,
 )
-from machine_data_model.nodes.subscription.variable_subscription import (
+from .subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.tracing import (

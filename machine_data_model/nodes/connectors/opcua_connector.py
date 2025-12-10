@@ -34,7 +34,7 @@ from asyncua.ua import UaError, VariantType
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override
 
-from ..data_model_node import DataModelNode
+from machine_data_model.nodes.data_model_node import DataModelNode
 from .abstract_connector import SubscriptionArguments
 from .abstract_async_connector import AbstractAsyncConnector
 from .remote_resource_spec import RemoteResourceSpec

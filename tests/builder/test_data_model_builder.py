@@ -160,7 +160,9 @@ class TestDataModelBuilder:
         """
         variable_node = yaml.safe_load(yaml_content)
 
-        assert isinstance(variable_node, expected_type)
+        assert isinstance(
+            variable_node, expected_type
+        ), f"Expected type {expected_type}, got {type(variable_node)}"
         assert isinstance(variable_node, VariableNode)  # mypy workaround
         assert variable_node.value == expected_value
 
