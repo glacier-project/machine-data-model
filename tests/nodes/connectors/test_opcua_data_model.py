@@ -1,12 +1,11 @@
 import math
 import socket
-from typing import Tuple
 
-import pytest
 from docker.models.containers import Container
+import pytest
 
-from machine_data_model.data_model import DataModel
 from machine_data_model.builder.data_model_builder import DataModelBuilder
+from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 
@@ -30,7 +29,8 @@ root:
   children:
     - !!MethodNode
       name: "Methods_Output_With_Node_Id"
-      description: "OPC-UA nodes can also specify the node_id to access the remote node"
+      description: "OPC-UA nodes can also specify the node_id to access the
+      remote node."
       remote_resource_spec:
         !!OpcuaRemoteResourceSpec
         node_id: "ns=6;s=Methods_Output"
@@ -43,7 +43,8 @@ root:
       remote_resource_spec:
         !!OpcuaRemoteResourceSpec
         remote_path: "/Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
-      description: "The remote_path overrides the qualified name. Method with no input, returns the 'Output' string"
+      description: "The remote_path overrides the qualified name. Method with no
+      input, returns the 'Output' string."
       returns:
         - !!StringVariableNode
           name: "Result"
@@ -181,7 +182,7 @@ def free_port() -> int:
 class TestOpcuaDataModel:
     def test_connector_without_name(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
         yaml = """
@@ -196,7 +197,7 @@ class TestOpcuaDataModel:
 
     def test_multiple_connector_definitions(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
         yaml = """
@@ -212,12 +213,14 @@ class TestOpcuaDataModel:
             port: {opcua_port}
             security_policy: "SecurityPolicyBasic256Sha256"
         """
-        with pytest.raises(Exception, match="two connectors with the same name"):
+        with pytest.raises(
+            Exception, match="two connectors with the same name"
+        ):
             create_yaml_data_model(yaml.format(opcua_port=container_port))
 
     def test_connector_not_defined(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
         yaml = """
@@ -232,25 +235,33 @@ class TestOpcuaDataModel:
 
     def test_connection_failure(self) -> None:
         port = free_port()
-        with pytest.raises(Exception, match="Failed to connect to the remote server"):
+        with pytest.raises(
+            Exception, match="Failed to connect to the remote server"
+        ):
             create_yaml_data_model(yaml_template.format(opcua_port=port))
 
     def test_data_model_creation(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
-        assert len(dm.connectors.values()) == 1, "there should be exactly one connector"
+        assert (
+            len(dm.connectors.values()) == 1
+        ), "there should be exactly one connector"
         dm.close_connectors()
 
     def test_read_string_node(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node("Objects/Boilers/Boiler #2/AssetId")
         assert isinstance(node, VariableNode), "the node should be defined"
@@ -261,25 +272,32 @@ class TestOpcuaDataModel:
 
     def test_read_numerical_node(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(
-            "Objects/Boilers/Boiler #2/ParameterSet/OverheatedThresholdTemperature"
+            "Objects/Boilers/Boiler #2/ParameterSet/"
+            "OverheatedThresholdTemperature"
         )
         assert isinstance(node, VariableNode), "the node should be defined"
         value = node.read()
-        assert isinstance(value, float), "the value should be a floating point number"
+        assert isinstance(
+            value, float
+        ), "the value should be a floating point number"
         dm.close_connectors()
 
     def test_read_boolean_node(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(
             "Objects/ReferenceTest/Scalar/Scalar_Static/Scalar_Static_Boolean"
@@ -291,17 +309,21 @@ class TestOpcuaDataModel:
 
     def test_write_boolean_node(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(
             "Objects/ReferenceTest/Scalar/Scalar_Static/Scalar_Static_Boolean"
         )
         assert isinstance(node, VariableNode), "the node should be defined"
         prev_value = node.read()
-        assert isinstance(prev_value, bool), "the prev value should be a boolean"
+        assert isinstance(
+            prev_value, bool
+        ), "the prev value should be a boolean"
         success = node.write(not prev_value)
         assert success, "the value should be written successfully"
         value = node.read()
@@ -313,14 +335,18 @@ class TestOpcuaDataModel:
 
     def test_write_numerical_node(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
-        assert dm is not None, "the data model should be defined"
-        node = dm.get_node(
-            "Objects/Boilers/Boiler #2/ParameterSet/OverheatedThresholdTemperature"
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
         )
+        opcua_node = (
+            "Objects/Boilers/Boiler #2/ParameterSet/"
+            "OverheatedThresholdTemperature"
+        )
+        assert dm is not None, "the data model should be defined"
+        node = dm.get_node(opcua_node)
         assert isinstance(node, VariableNode), "the node should be defined"
         prev_value = node.read()
         assert isinstance(
@@ -339,25 +365,33 @@ class TestOpcuaDataModel:
 
     def test_call_method_node(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node("Objects/ReferenceTest/Methods/Methods_Add")
         assert isinstance(node, MethodNode), "the node should be defined"
         result = node(2.0, 3)
         result = result.return_values["AddResult"]
-        assert isinstance(result, float), "the result should be a floating point number"
-        assert math.isclose(result, 5), "the result should be equal to 2.0 + 3 = 5"
+        assert isinstance(
+            result, float
+        ), "the result should be a floating point number"
+        assert math.isclose(
+            result, 5
+        ), "the result should be equal to 2.0 + 3 = 5"
         dm.close_connectors()
 
     def test_call_method_node_with_no_inputs(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node("Objects/ReferenceTest/Methods/Methods_Output")
         assert isinstance(node, MethodNode), "the node should be defined"
@@ -368,10 +402,12 @@ class TestOpcuaDataModel:
 
     def test_call_method_node_with_remote_path(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node("Objects/Methods_Output_With_Remote_Path")
         assert isinstance(node, MethodNode), "the node should be defined"
@@ -382,10 +418,12 @@ class TestOpcuaDataModel:
 
     def test_call_method_node_with_node_id(
         self,
-        start_opcua_test_server: Tuple[Container, int],
+        start_opcua_test_server: tuple[Container, int],
     ) -> None:
         docker_container, container_port = start_opcua_test_server
-        dm = create_yaml_data_model(yaml_template.format(opcua_port=container_port))
+        dm = create_yaml_data_model(
+            yaml_template.format(opcua_port=container_port)
+        )
         assert dm is not None, "the data model should be defined"
         node = dm.get_node("Objects/Methods_Output_With_Node_Id")
         assert isinstance(node, MethodNode), "the node should be defined"

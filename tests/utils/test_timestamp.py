@@ -7,8 +7,6 @@ verifying default behavior, custom providers, and reset functionality.
 
 import time
 
-import pytest
-
 from machine_data_model.utils.timestamp import (
     get_timestamp_ns,
     get_timestamp_provider,
@@ -49,7 +47,8 @@ class TestTimestampProvider:
 
     def test_get_timestamp_ns_increases_over_time(self) -> None:
         """
-        Verify that successive calls to get_timestamp_ns return increasing values.
+        Verify that successive calls to get_timestamp_ns return increasing
+        values.
         """
         timestamp1 = get_timestamp_ns()
         # Small delay to ensure time passes
@@ -93,7 +92,9 @@ class TestTimestampProvider:
         assert callable(default_provider)
 
         # Set custom provider and verify it's returned
-        custom_provider = lambda: 42
+        def custom_provider() -> int:
+            return 42
+
         set_timestamp_provider(custom_provider)
 
         assert get_timestamp_provider() is custom_provider

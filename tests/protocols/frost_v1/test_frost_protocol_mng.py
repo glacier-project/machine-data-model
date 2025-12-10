@@ -1,7 +1,7 @@
 import os
 import random
-import uuid
 from typing import Any
+import uuid
 
 import pytest
 
@@ -197,7 +197,9 @@ class TestFrostProtocolMng:
         target: str,
         var_name: str,
     ) -> None:
-        msg = message_builder.build_read_variable_message(target=target, node=var_name)
+        msg = message_builder.build_read_variable_message(
+            target=target, node=var_name
+        )
         assert isinstance(msg, FrostMessage)
 
         response = manager.handle_message(msg)
@@ -259,7 +261,7 @@ class TestFrostProtocolMng:
         node = manager.get_data_model().get_node(node_path)
         assert isinstance(node, BooleanVariableNode)
 
-        for i in range(11):
+        for _ in range(11):
             for msg, value in zip(write_messages, [True, False], strict=False):
                 response = manager.handle_message(msg)
                 node.write(value)
@@ -291,7 +293,8 @@ class TestFrostProtocolMng:
         assert response.payload.node == var_name
         assert (
             response.payload.value == value
-        ), f"Expected 2 {value}, got {response.payload.value}, node.value={node.value}"
+        ), f"Expected 2 {value}, got {response.payload.value}, "
+        f" node.value={node.value}"
         assert msg.correlation_id == response.correlation_id
 
         # Test subscription updates
@@ -343,7 +346,9 @@ class TestFrostProtocolMng:
             name=method_name, description="A test method", callback=callback
         )
         input_param = type(node)(name="in_var", description="A test parameter")
-        output_param = type(node)(name="out_var", description="A test return value")
+        output_param = type(node)(
+            name="out_var", description="A test return value"
+        )
 
         assert isinstance(input_param, VariableNode)
         assert isinstance(output_param, VariableNode)
@@ -451,7 +456,8 @@ class TestFrostProtocolMng:
         ), f"Expected MsgType.RESPONSE, got {final_response.header.type}"
         assert (
             final_response.header.msg_name == MethodMsgName.COMPLETED
-        ), f"Expected MethodMsgName.COMPLETED, got {final_response.header.msg_name}"
+        ), "Expected MethodMsgName.COMPLETED, got "
+        f"{final_response.header.msg_name}"
         assert isinstance(
             final_response.payload, MethodPayload
         ), f"Expected MethodPayload, got {type(final_response.payload)}"
@@ -460,8 +466,10 @@ class TestFrostProtocolMng:
         ), f"Expected 1 return value, got {len(final_response.payload.ret)}"
         assert (
             final_response.payload.ret["remote_return_1"] == 45
-        ), f"Expected remote_return_1=45, got {final_response.payload.ret.get('remote_return_1')}"
-        assert not manager.get_update_messages(), f"Expected no update messages, got {len(manager.get_update_messages())} messages"
+        ), "Expected remote_return_1=45, got "
+        f"{final_response.payload.ret.get('remote_return_1')}"
+        assert not manager.get_update_messages(), "Expected no update "
+        f"messages, got {len(manager.get_update_messages())} messages"
 
     def test_remote_read_request(
         self, manager: FrostProtocolMng, sender: str, target: str
@@ -498,7 +506,8 @@ class TestFrostProtocolMng:
         assert isinstance(final_response.payload, MethodPayload)
         assert len(final_response.payload.ret) == 1
         assert (
-            final_response.payload.ret["return_variable_1"] == method.returns[0].read()
+            final_response.payload.ret["return_variable_1"]
+            == method.returns[0].read()
         )
         assert not manager.get_update_messages()
 

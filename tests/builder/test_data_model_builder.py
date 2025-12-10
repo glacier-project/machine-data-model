@@ -1,20 +1,15 @@
 from pathlib import Path
 
 import pytest
-
-from unitsnet_py import LengthUnits
 import yaml
-from machine_data_model.builder.data_model_builder import (
-    DataModelBuilder,
-    _register_yaml_constructors,
-)
+
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     CallMethodNode,
     ReadVariableNode,
     WaitConditionNode,
-    WriteVariableNode,
     WaitConditionOperator,
+    WriteVariableNode,
 )
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
@@ -22,8 +17,15 @@ from machine_data_model.behavior.remote_execution_node import (
     WaitRemoteEventNode,
     WriteRemoteVariableNode,
 )
+from machine_data_model.builder.data_model_builder import (
+    _register_yaml_constructors,
+)
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
+)
+from machine_data_model.nodes.connectors.opcua_connector import (
+    OpcuaConnector,
+    OpcuaRemoteResourceSpec,
 )
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
@@ -33,10 +35,6 @@ from machine_data_model.nodes.variable_node import (
     ObjectVariableNode,
     StringVariableNode,
     VariableNode,
-)
-from machine_data_model.nodes.connectors.opcua_connector import (
-    OpcuaConnector,
-    OpcuaRemoteResourceSpec,
 )
 
 
@@ -260,7 +258,9 @@ class TestDataModelBuilder:
             ),
         ],
     )
-    def test_build_method_node(self, yaml_content: str, expected_type: type) -> None:
+    def test_build_method_node(
+        self, yaml_content: str, expected_type: type
+    ) -> None:
         """
         Test MethodNode and AsyncMethodNode build from YAML.
         """
@@ -350,7 +350,8 @@ class TestDataModelBuilder:
 
         Verify that different operators are correctly parsed.
         Args:
-            expected_operator(WaitConditionOperator): The expected operator enum value.
+            expected_operator(WaitConditionOperator): The expected operator enum
+            value.
         """
         yaml_content = f"""
             !!WaitConditionNode
@@ -463,7 +464,8 @@ class TestDataModelBuilder:
         Verify that different operators are correctly parsed.
 
         Args:
-            expected_operator(WaitConditionOperator): The expected operator enum value.
+            expected_operator(WaitConditionOperator): The expected operator enum
+            value.
         """
         yaml_content = f"""
             !!WaitRemoteEventNode
@@ -535,9 +537,11 @@ class TestDataModelBuilder:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """
-        Test OpcuaConnector build from YAML with environment variable references.
+        Test OpcuaConnector build from YAML with environment variable
+        references.
 
-        Verify that environment variable parameters correctly override direct values.
+        Verify that environment variable parameters correctly override direct
+        values.
 
         Args:
             monkeypatch (pytest.MonkeyPatch):

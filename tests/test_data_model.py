@@ -55,7 +55,9 @@ class TestDataModel:
         assert root_node == root
         assert node == child
 
-    def test_data_model_search_by_path_not_found(self, root: FolderNode) -> None:
+    def test_data_model_search_by_path_not_found(
+        self, root: FolderNode
+    ) -> None:
         data_model = DataModel(name="dm", root=root)
 
         node = data_model.get_node("not_found")

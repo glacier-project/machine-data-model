@@ -1,15 +1,15 @@
 import random
-import uuid
 from typing import Any
+import uuid
 
 import pytest
-from machine_data_model.protocols.frost_v1.frost_message_builder import (
-    FrostMessageBuilder,
-)
+
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
 )
-from machine_data_model.behavior.local_execution_node import WaitConditionOperator
+from machine_data_model.behavior.local_execution_node import (
+    WaitConditionOperator,
+)
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
     ReadRemoteVariableNode,
@@ -17,12 +17,18 @@ from machine_data_model.behavior.remote_execution_node import (
     WriteRemoteVariableNode,
 )
 from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
-from machine_data_model.nodes.variable_node import StringVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    StringVariableNode,
+    VariableNode,
+)
 from machine_data_model.protocols.frost_v1.frost_header import (
     MethodMsgName,
     MsgNamespace,
     MsgType,
     VariableMsgName,
+)
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
@@ -86,7 +92,9 @@ class TestRemoteExecutionNode:
             get_dummy_method_node(method_types=[AsyncMethodNode]),
         ],
     )
-    def test_call_remote_node_validate_response(self, method_node: MethodNode) -> None:
+    def test_call_remote_node_validate_response(
+        self, method_node: MethodNode
+    ) -> None:
         context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
@@ -228,7 +236,9 @@ class TestRemoteExecutionNode:
             [get_random_string_node(), random.choice(["a", "b", "c"])],
         ],
     )
-    def test_write_remote_node(self, variable_node: VariableNode, value: Any) -> None:
+    def test_write_remote_node(
+        self, variable_node: VariableNode, value: Any
+    ) -> None:
         context = ExecutionContext(str(uuid.uuid4()))
         sender = "local"
         target = "remote"
@@ -318,7 +328,7 @@ class TestRemoteExecutionNode:
     )
     @pytest.mark.parametrize(
         "op",
-        [enum_op for enum_op in WaitConditionOperator],
+        list(WaitConditionOperator),
     )
     def test_wait_remote_event_node(
         self, variable_node: VariableNode, rhs: Any, op: WaitConditionOperator
@@ -338,7 +348,9 @@ class TestRemoteExecutionNode:
 
         ret = w_remote_event_node.execute(context)
         if isinstance(variable_node, StringVariableNode):
-            comparison_result = eval(f'"{variable_node.read()}"' + op + f'"{rhs}"')
+            comparison_result = eval(
+                f'"{variable_node.read()}"' + op + f'"{rhs}"'
+            )
         else:
             comparison_result = eval(f"{variable_node.read()}" + op + f"{rhs}")
 
@@ -368,7 +380,9 @@ class TestRemoteExecutionNode:
             correlation_id=msg.correlation_id,
         )
 
-        is_condition_met = w_remote_event_node.handle_response(context, response)
+        is_condition_met = w_remote_event_node.handle_response(
+            context, response
+        )
 
         assert is_condition_met == comparison_result
         if is_condition_met:

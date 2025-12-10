@@ -9,7 +9,12 @@ from machine_data_model.nodes.subscription.variable_subscription import (
     RangeSubscription,
     VariableSubscription,
 )
-from tests import NUM_TESTS, gen_random_bool, gen_random_float, gen_random_simple_value
+from tests import (
+    NUM_TESTS,
+    gen_random_bool,
+    gen_random_float,
+    gen_random_simple_value,
+)
 
 
 @pytest.mark.parametrize(
@@ -29,7 +34,9 @@ class TestSubscription:
         assert subscription.should_notify(value)
         assert subscription.get_event_type() == EventType.ANY
 
-    @pytest.mark.parametrize("values", [[gen_random_float() for _ in range(NUM_TESTS)]])
+    @pytest.mark.parametrize(
+        "values", [[gen_random_float() for _ in range(NUM_TESTS)]]
+    )
     def test_data_change_subscription(
         self, values: list[float], subscription_id: str, correlation_id: str
     ) -> None:
@@ -48,26 +55,34 @@ class TestSubscription:
         [(gen_random_float(), gen_random_float()) for _ in range(NUM_TESTS)],
     )
     def test_data_change_deadband(
-        self, subscription_id: str, correlation_id: str, value: float, deadband: float
+        self,
+        subscription_id: str,
+        correlation_id: str,
+        value: float,
+        deadband: float,
     ) -> None:
         subscription = DataChangeSubscription(
             subscription_id, correlation_id, deadband=deadband
         )
 
-        expected_notifications = [True] + [gen_random_bool() for _ in range(NUM_TESTS)]
+        expected_notifications = [True] + [
+            gen_random_bool() for _ in range(NUM_TESTS)
+        ]
         test_values = [value]
         last_notify_idx = 0
         for i, notify in enumerate(expected_notifications[1:]):
             if notify:
                 test_values.append(
                     test_values[last_notify_idx]
-                    + (deadband * gen_random_float(1.0, 2.0)) * random.choice([-1, 1])
+                    + (deadband * gen_random_float(1.0, 2.0))
+                    * random.choice([-1, 1])
                 )
                 last_notify_idx = i + 1
             else:
                 test_values.append(
                     test_values[last_notify_idx]
-                    + (deadband * gen_random_float(0.0, 0.99)) * random.choice([-1, 1])
+                    + (deadband * gen_random_float(0.0, 0.99))
+                    * random.choice([-1, 1])
                 )
 
         assert subscription.subscriber_id == subscription_id
@@ -75,21 +90,32 @@ class TestSubscription:
         assert subscription.get_event_type() == EventType.DATA_CHANGE
         assert subscription.deadband == deadband
         assert not subscription.is_percent
-        for value, expected in zip(test_values, expected_notifications, strict=False):
+        for value, expected in zip(
+            test_values, expected_notifications, strict=False
+        ):
             assert subscription.should_notify(value) == expected
 
     @pytest.mark.parametrize(
         "value, deadband",
-        [(gen_random_float(), gen_random_float(1, 20)) for _ in range(NUM_TESTS)],
+        [
+            (gen_random_float(), gen_random_float(1, 20))
+            for _ in range(NUM_TESTS)
+        ],
     )
     def test_data_change_percent_deadband(
-        self, subscription_id: str, correlation_id: str, value: float, deadband: float
+        self,
+        subscription_id: str,
+        correlation_id: str,
+        value: float,
+        deadband: float,
     ) -> None:
         subscription = DataChangeSubscription(
             subscription_id, correlation_id, deadband=deadband, is_percent=True
         )
 
-        expected_notifications = [True] + [gen_random_bool() for _ in range(NUM_TESTS)]
+        expected_notifications = [True] + [
+            gen_random_bool() for _ in range(NUM_TESTS)
+        ]
         test_values = [value]
         last_notify_idx = 0
         for i, notify in enumerate(expected_notifications[1:]):
@@ -100,7 +126,8 @@ class TestSubscription:
                     * gen_random_float(1.0, 2.0)
                 )
                 test_values.append(
-                    test_values[last_notify_idx] + change * random.choice([-1, 1])
+                    test_values[last_notify_idx]
+                    + change * random.choice([-1, 1])
                 )
                 last_notify_idx = i + 1
             else:
@@ -110,7 +137,8 @@ class TestSubscription:
                     * gen_random_float(0.0, 0.99)
                 )
                 test_values.append(
-                    test_values[last_notify_idx] + change * random.choice([-1, 1])
+                    test_values[last_notify_idx]
+                    + change * random.choice([-1, 1])
                 )
 
         assert subscription.subscriber_id == subscription_id
@@ -118,7 +146,9 @@ class TestSubscription:
         assert subscription.get_event_type() == EventType.DATA_CHANGE
         assert subscription.deadband == deadband
         assert subscription.is_percent
-        for value, expected in zip(test_values, expected_notifications, strict=False):
+        for value, expected in zip(
+            test_values, expected_notifications, strict=False
+        ):
             assert subscription.should_notify(value) == expected
 
     @pytest.mark.parametrize(
@@ -131,7 +161,9 @@ class TestSubscription:
             )
         ],
     )
-    @pytest.mark.parametrize("check_type", [EventType.IN_RANGE, EventType.OUT_OF_RANGE])
+    @pytest.mark.parametrize(
+        "check_type", [EventType.IN_RANGE, EventType.OUT_OF_RANGE]
+    )
     def test_subscription_range(
         self,
         subscription_id: str,

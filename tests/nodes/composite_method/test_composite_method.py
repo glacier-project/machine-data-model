@@ -1,5 +1,5 @@
-import random
 from collections.abc import Callable
+import random
 from typing import Any
 
 import pytest
@@ -8,7 +8,9 @@ from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
 )
-from machine_data_model.behavior.remote_execution_node import WaitRemoteEventNode
+from machine_data_model.behavior.remote_execution_node import (
+    WaitRemoteEventNode,
+)
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -17,15 +19,18 @@ from machine_data_model.nodes.method_node import AsyncMethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
-from machine_data_model.protocols.frost_v1.frost_message_builder import (
-    FrostMessageBuilder,
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
 )
 from machine_data_model.protocols.frost_v1.frost_header import (
     MethodMsgName,
     MsgNamespace,
     MsgType,
     VariableMsgName,
+)
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
@@ -197,7 +202,9 @@ class TestCompositeMethod:
             subscription: VariableSubscription, node: VariableNode, value: Any
         ) -> None:
             assert isinstance(dynamic_wait, CompositeMethodNode)
-            res = dynamic_wait.resume_execution(ret.return_values["@context_id"])
+            res = dynamic_wait.resume_execution(
+                ret.return_values["@context_id"]
+            )
             assert not res.messages
             assert res.return_values == {}
 
@@ -223,9 +230,9 @@ class TestCompositeMethod:
         assert isinstance(dynamic_resolution, CompositeMethodNode)
 
         assert (
-            dynamic_resolution(*["empty_folder", "n_variable_empty"]).return_values.get(
-                "result"
-            )
+            dynamic_resolution(
+                *["empty_folder", "n_variable_empty"]
+            ).return_values.get("result")
             == 10
         ), "Failed on dynamic_resolution"
 
@@ -236,7 +243,9 @@ class TestCompositeMethod:
 
         assert isinstance(method, CompositeMethodNode)
         method.set_message_builder(
-            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
         )
         result = method()
 
@@ -271,7 +280,9 @@ class TestCompositeMethod:
             correlation_id=message.correlation_id,
         )
 
-        assert method.handle_message(context, response), "Failed to handle response"
+        assert method.handle_message(
+            context, response
+        ), "Failed to handle response"
         result = method.resume_execution(context)
         assert not result.messages, "Method did not complete after resume"
         assert result.return_values["remote_return_1"] == 45
@@ -282,7 +293,9 @@ class TestCompositeMethod:
         method = data_model.get_node(method_path)
         assert isinstance(method, CompositeMethodNode)
         method.set_message_builder(
-            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
         )
         remote_read_node = method.cfg.nodes()[0]
 
@@ -318,7 +331,10 @@ class TestCompositeMethod:
         result = method.resume_execution(context)
         assert not result.messages
         assert method.is_terminated(context)
-        assert result.return_values[method.returns[0].name] == method.returns[0].read()
+        assert (
+            result.return_values[method.returns[0].name]
+            == method.returns[0].read()
+        )
 
     def test_remote_write_node(self) -> None:
         method_path = "folder1/remote_cfg/remote_write"
@@ -326,7 +342,9 @@ class TestCompositeMethod:
         method = data_model.get_node(method_path)
         assert isinstance(method, CompositeMethodNode)
         method.set_message_builder(
-            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
         )
         remote_read_node = method.cfg.nodes()[0]
 
@@ -369,7 +387,9 @@ class TestCompositeMethod:
         method = data_model.get_node(method_path)
         assert isinstance(method, CompositeMethodNode)
         method.set_message_builder(
-            FrostMessageBuilder(sender="test_sender", protocol_version=(1, 0, 0))
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
         )
         remote_wait_node = method.cfg.nodes()[0]
         assert isinstance(remote_wait_node, WaitRemoteEventNode)
@@ -413,7 +433,8 @@ class TestCompositeMethod:
 
 
 def test_internal_nodes() -> None:
-    """Test that internal nodes are accessible within composite methods but not externally."""
+    """Test that internal nodes are accessible within composite methods but not
+    externally."""
     from machine_data_model.nodes.folder_node import FolderNode
     from machine_data_model.nodes.variable_node import BooleanVariableNode
 
@@ -423,7 +444,10 @@ def test_internal_nodes() -> None:
 
     # Add a regular variable to the data model
     regular_var = BooleanVariableNode(
-        id="regular_var", name="regular_var", description="Regular variable", value=True
+        id="regular_var",
+        name="regular_var",
+        description="Regular variable",
+        value=True,
     )
     root.add_child(regular_var)
     data_model._register_node(regular_var)

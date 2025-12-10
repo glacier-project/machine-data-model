@@ -1,29 +1,29 @@
-import uuid
-import pytest
 import random
-from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+import uuid
+
+import pytest
+
 from machine_data_model.protocols.frost_v1.frost_header import (
-    FrostHeader,
-    MsgType,
-    MsgNamespace,
-    VariableMsgName,
     MethodMsgName,
+    MsgNamespace,
+    MsgType,
     ProtocolMsgName,
-)
-from machine_data_model.protocols.frost_v1.frost_payload import (
-    VariablePayload,
-    SubscriptionPayload,
-    DataChangeSubscriptionPayload,
-    InRangeSubscriptionPayload,
-    OutOfRangeSubscriptionPayload,
-    MethodPayload,
-    ProtocolPayload,
-    ErrorPayload,
-    ErrorCode,
-    ErrorMessages,
+    VariableMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_message_builder import (
     FrostMessageBuilder,
+)
+from machine_data_model.protocols.frost_v1.frost_payload import (
+    DataChangeSubscriptionPayload,
+    ErrorCode,
+    ErrorMessages,
+    ErrorPayload,
+    InRangeSubscriptionPayload,
+    MethodPayload,
+    OutOfRangeSubscriptionPayload,
+    ProtocolPayload,
+    SubscriptionPayload,
+    VariablePayload,
 )
 from tests import NUM_TESTS, gen_random_string
 
@@ -61,7 +61,9 @@ class TestFrostMessageBuilder:
         target: str,
         node: str,
     ) -> None:
-        message = message_builder.build_read_variable_message(target=target, node=node)
+        message = message_builder.build_read_variable_message(
+            target=target, node=node
+        )
         assert message.sender == sender
         assert message.target == target
         assert message.header.version == message_builder.get_protocol_version()
@@ -575,7 +577,9 @@ class TestFrostMessageBuilder:
         message_builder: FrostMessageBuilder,
         target: str,
     ) -> None:
-        message = message_builder.build_protocol_unregister_message(target=target)
+        message = message_builder.build_protocol_unregister_message(
+            target=target
+        )
         assert message.sender == sender
         assert message.target == target
         assert message.header.version == message_builder.get_protocol_version()

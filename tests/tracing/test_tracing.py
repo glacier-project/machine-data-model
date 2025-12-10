@@ -1,7 +1,7 @@
 import json
-import uuid
 from pathlib import Path
 from typing import Any
+import uuid
 
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import ExecutionContext
@@ -19,7 +19,10 @@ from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
+)
 from machine_data_model.tracing import (
     TraceEventType,
     TraceLevel,
@@ -121,7 +124,10 @@ class TestDataModelTracing:
             return x * 2
 
         method = MethodNode(
-            id="test_method", name="test", returns=[return_var], callback=test_callback
+            id="test_method",
+            name="test",
+            returns=[return_var],
+            callback=test_callback,
         )
         data_model.root.add_child(method)
         data_model._register_nodes(data_model.root)
@@ -168,8 +174,12 @@ class TestDataModelTracing:
             MsgType,
             VariableMsgName,
         )
-        from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-        from machine_data_model.protocols.frost_v1.frost_payload import VariablePayload
+        from machine_data_model.protocols.frost_v1.frost_message import (
+            FrostMessage,
+        )
+        from machine_data_model.protocols.frost_v1.frost_payload import (
+            VariablePayload,
+        )
         from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
             FrostProtocolMng,
         )
@@ -189,7 +199,8 @@ class TestDataModelTracing:
             payload=VariablePayload(node="test_var"),
         )
 
-        # Handle the request - this should generate MESSAGE_RECEIVE and MESSAGE_SEND events
+        # Handle the request - this should generate MESSAGE_RECEIVE and
+        # MESSAGE_SEND events
         response = protocol_mng.handle_request(read_msg)
 
         collector = get_global_collector()
@@ -223,7 +234,9 @@ class TestDataModelTracing:
         data_model = DataModel()
 
         # Create a variable to wait on
-        counter_var = NumericalVariableNode(id="counter", name="counter", value=0)
+        counter_var = NumericalVariableNode(
+            id="counter", name="counter", value=0
+        )
         data_model.root.add_child(counter_var)
         data_model._register_nodes(data_model.root)
 
@@ -249,7 +262,9 @@ class TestDataModelTracing:
 
         start_event = wait_start_events[0]
         assert start_event.details["variable_id"] == "counter"
-        assert start_event.details["condition"] == "0 >= 5"  # Full condition string
+        assert (
+            start_event.details["condition"] == "0 >= 5"
+        )  # Full condition string
         assert start_event.details["expected_value"] == 5
         assert isinstance(start_event.timestamp_ns, int)
 
@@ -344,19 +359,27 @@ class TestDataModelTracing:
         # Check first notification
         event1 = notification_events[0]
         assert event1.details["variable_id"] == "test_var"
-        assert event1.details["subscriber_id"] in ["subscriber_1", "subscriber_2"]
+        assert event1.details["subscriber_id"] in [
+            "subscriber_1",
+            "subscriber_2",
+        ]
         assert event1.details["value"] == 20.0
         assert isinstance(event1.timestamp_ns, int)
 
         # Check second notification
         event2 = notification_events[1]
         assert event2.details["variable_id"] == "test_var"
-        assert event2.details["subscriber_id"] in ["subscriber_1", "subscriber_2"]
+        assert event2.details["subscriber_id"] in [
+            "subscriber_1",
+            "subscriber_2",
+        ]
         assert event2.details["value"] == 20.0
         assert isinstance(event2.timestamp_ns, int)
 
         # Ensure different subscribers were notified
-        assert event1.details["subscriber_id"] != event2.details["subscriber_id"]
+        assert (
+            event1.details["subscriber_id"] != event2.details["subscriber_id"]
+        )
 
         # Verify callbacks were called
         assert len(notifications) == 2
@@ -382,7 +405,9 @@ class TestDataModelTracing:
         data_model._register_nodes(data_model.root)
 
         # Create control flow nodes
-        read_node = ReadVariableNode(variable_node="test_var", store_as="read_value")
+        read_node = ReadVariableNode(
+            variable_node="test_var", store_as="read_value"
+        )
         read_node.set_ref_node(var)
 
         write_node = WriteVariableNode(variable_node="test_var", value=20.0)
@@ -399,7 +424,9 @@ class TestDataModelTracing:
 
         # Check control flow step events
         collector = get_global_collector()
-        control_flow_events = collector.get_events(TraceEventType.CONTROL_FLOW_STEP)
+        control_flow_events = collector.get_events(
+            TraceEventType.CONTROL_FLOW_STEP
+        )
         assert len(control_flow_events) == 2  # One for each node
 
         # Check first event (read node)
