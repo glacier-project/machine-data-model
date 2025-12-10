@@ -1,8 +1,8 @@
-"""
-Example demonstrating basic variable tracing in DataModel.
+"""Example demonstrating basic variable tracing in DataModel.
 
 This example shows how to enable tracing for variable changes and reads,
-and export the trace data for analysis, similar to VCD files in hardware simulations.
+and export the trace data for analysis, similar to VCD files in hardware
+simulations.
 """
 
 import time
@@ -19,7 +19,7 @@ from machine_data_model.tracing.tracing_core import (
 
 
 def main() -> None:
-
+    """Example demonstrating basic variable tracing."""
     # Clear any previous traces
     clear_traces()
 
@@ -64,6 +64,7 @@ def main() -> None:
     collector = get_global_collector()
     events = collector.get_events()
     print_trace_events(events)
+
 
 if __name__ == "__main__":
     main()

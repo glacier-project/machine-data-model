@@ -1,5 +1,4 @@
-"""
-Example: Range notifications using RangeSubscription.
+"""Example: Range notifications using RangeSubscription.
 
 This demonstrates notifications on entering/exiting a specified range.
 """
@@ -11,7 +10,10 @@ from machine_data_model.nodes.subscription.variable_subscription import (
     RangeSubscription,
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
+)
 
 
 def notify_callback(
@@ -19,10 +21,24 @@ def notify_callback(
     node: VariableNode,
     value: Any,
 ) -> None:
-    print(f"Notification to {subscription.subscriber_id}: {node.name} = {value}")
+    """Callback to notify subscriber of variable change.
+
+    Args:
+        subscription (VariableSubscription):
+            The subscription information.
+        node (VariableNode):
+            The variable node that changed.
+        value (Any):
+            The new value of the variable.
+
+    """
+    print(
+        f"Notification to {subscription.subscriber_id}: {node.name} = {value}"
+    )
 
 
 def main() -> None:
+    """Run the range notification example."""
     # Create a numerical variable node.
     node = NumericalVariableNode(name="temperature", value=20.0)
 

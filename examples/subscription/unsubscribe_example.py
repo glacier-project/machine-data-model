@@ -1,5 +1,4 @@
-"""
-Example: Unsubscribing from a VariableNode.
+"""Example: Unsubscribing from a VariableNode.
 
 This demonstrates subscribing and then unsubscribing, showing that notifications
 stop.
@@ -10,7 +9,10 @@ from typing import Any
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
+)
 
 
 def notify_callback(
@@ -18,16 +20,34 @@ def notify_callback(
     node: VariableNode,
     value: Any,
 ) -> None:
-    print(f"Notification to {subscription.subscriber_id}: {node.name} = {value}")
+    """Callback to notify subscriber of variable change.
+
+    Args:
+        subscription (VariableSubscription):
+            The subscription information.
+        node (VariableNode):
+            The variable node that changed.
+        value (Any):
+            The new value of the variable.
+
+    """
+    print(
+        f"Notification to {subscription.subscriber_id}: {node.name} = {value}"
+    )
 
 
 def main() -> None:
+    """Run the unsubscribe example."""
     # Create a numerical variable node.
     node = NumericalVariableNode(name="counter", value=0)
 
     # Define subscriptions
-    sub1 = VariableSubscription(subscriber_id="listener1", correlation_id="corr1")
-    sub2 = VariableSubscription(subscriber_id="listener2", correlation_id="corr2")
+    sub1 = VariableSubscription(
+        subscriber_id="listener1", correlation_id="corr1"
+    )
+    sub2 = VariableSubscription(
+        subscriber_id="listener2", correlation_id="corr2"
+    )
 
     node.set_subscription_callback(notify_callback)
 

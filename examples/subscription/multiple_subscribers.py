@@ -1,5 +1,4 @@
-"""
-Example: Multiple subscribers to the same VariableNode.
+"""Example: Multiple subscribers to the same VariableNode.
 
 This demonstrates handling multiple subscriptions on a single node.
 """
@@ -9,7 +8,10 @@ from typing import Any
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
+)
 
 
 def notify_callback(
@@ -17,10 +19,24 @@ def notify_callback(
     node: VariableNode,
     value: Any,
 ) -> None:
-    print(f"Notification to {subscription.subscriber_id}: {node.name} = {value}")
+    """Callback to notify subscriber of variable change.
+
+    Args:
+        subscription (VariableSubscription):
+            The subscription information.
+        node (VariableNode):
+            The variable node that changed.
+        value (Any):
+            The new value of the variable.
+
+    """
+    print(
+        f"Notification to {subscription.subscriber_id}: {node.name} = {value}"
+    )
 
 
 def main() -> None:
+    """Multiple subscribers example."""
     # Create a numerical variable node.
     node = NumericalVariableNode(name="shared_value", value=0)
 

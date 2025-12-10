@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Message Send and Receive Tracing Example
+"""Message Send and Receive Tracing Example.
 
 This example demonstrates the message send and receive tracing capabilities
 of the GLACIER machine data model. It shows how to trace protocol messages
@@ -8,7 +7,8 @@ at the COMMUNICATION trace level, including both incoming requests and
 outgoing responses.
 
 The example creates a protocol manager, sends various types of messages,
-and demonstrates how the tracing system captures MESSAGE_SEND and MESSAGE_RECEIVE events.
+and demonstrates how the tracing system captures MESSAGE_SEND and
+MESSAGE_RECEIVE events.
 """
 
 from support import print_trace_events
@@ -30,7 +30,9 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     ProtocolPayload,
     VariablePayload,
 )
-from machine_data_model.protocols.frost_v1.frost_protocol_mng import FrostProtocolMng
+from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
+    FrostProtocolMng,
+)
 from machine_data_model.tracing import (
     TraceLevel,
     clear_traces,
@@ -40,7 +42,7 @@ from machine_data_model.tracing import (
 
 
 def main() -> None:
-
+    """Example demonstrating message send and receive tracing."""
     # Clear any existing traces
     clear_traces()
 

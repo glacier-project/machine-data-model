@@ -1,5 +1,4 @@
-"""
-Example demonstrating tracing across multiple data models.
+"""Example demonstrating tracing across multiple data models.
 
 This example shows how trace events include data_model_id to distinguish
 between operations in different data models, enabling debugging in
@@ -51,7 +50,9 @@ def create_temperature_controller(name: str) -> DataModel:
         return temp_sensor
 
     # Create return variable
-    new_temp_var = NumericalVariableNode(id="new_temp", name="new_temp", value=0.0)
+    new_temp_var = NumericalVariableNode(
+        id="new_temp", name="new_temp", value=0.0
+    )
 
     adjust_method = MethodNode(
         id="adjust_temp",
@@ -73,6 +74,7 @@ def create_temperature_controller(name: str) -> DataModel:
 
 
 def main() -> None:
+    """Example demonstrating multi-data model tracing."""
     # Clear any previous traces
     clear_traces()
 
@@ -93,7 +95,9 @@ def main() -> None:
     # Simulate operations on Controller 1
     print("\n--- Controller A Operations ---")
     controller1.write_variable("temperature_sensor", 18.0)  # Too cold
-    controller1.write_variable("temperature_setpoint", 25.0)  # Target temperature
+    controller1.write_variable(
+        "temperature_setpoint", 25.0
+    )  # Target temperature
 
     # Call method on Controller 1 (uses current values of parameter variables)
     result1 = controller1.call_method("adjust_temp")
@@ -110,7 +114,9 @@ def main() -> None:
     # Simulate operations on Controller 2
     print("\n--- Controller B Operations ---")
     controller2.write_variable("temperature_sensor", 28.0)  # Too hot
-    controller2.write_variable("temperature_setpoint", 22.0)  # Target temperature
+    controller2.write_variable(
+        "temperature_setpoint", 22.0
+    )  # Target temperature
 
     # Call method on Controller 2 (uses current values of parameter variables)
     result2 = controller2.call_method("adjust_temp")
@@ -130,18 +136,19 @@ def main() -> None:
     print("MULTI-DATA MODEL TRACING RESULTS")
     print(f"{'='*80}")
     print(f"Total events: {len(events)}")
-    print(
-        f"Controller A events: {sum(1 for e in events if e.data_model_id == 'Controller_A')}"
-    )
-    print(
-        f"Controller B events: {sum(1 for e in events if e.data_model_id == 'Controller_B')}"
-    )
+    n_ca_events = sum(1 for e in events if e.data_model_id == "Controller_A")
+    print(f"Controller A events: {n_ca_events}")
+    n_cb_events = sum(1 for e in events if e.data_model_id == "Controller_B")
+    print(f"Controller B events: {n_cb_events}")
 
     print_trace_events(events, "Multi-Data Model Trace Events")
 
     print("\n" + "=" * 80)
     print("KEY INSIGHT: Each trace event includes data_model_id to distinguish")
-    print("operations across multiple data models, enabling multi-model debugging!")
+    print(
+        "operations across multiple data models, enabling multi-model "
+        "debugging!"
+    )
     print("=" * 80)
 
 

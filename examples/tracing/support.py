@@ -1,5 +1,4 @@
-"""
-Tracing Examples Utilities
+"""Tracing Examples Utilities.
 
 This module provides utility functions for displaying trace events in a
 well-formatted manner across all tracing examples.
@@ -23,9 +22,10 @@ from machine_data_model.tracing.events import (
 from machine_data_model.tracing.tracing_core import TraceEvent
 
 
-def print_trace_events(events: list[TraceEvent], title: str = "Trace Events") -> None:
-    """
-    Print trace events in a well-formatted manner with relative timestamps.
+def print_trace_events(
+    events: list[TraceEvent], title: str = "Trace Events"
+) -> None:
+    """Print trace events in a well-formatted manner with relative timestamps.
 
     Args:
         events: List of trace events to display
@@ -57,7 +57,9 @@ def print_trace_events(events: list[TraceEvent], title: str = "Trace Events") ->
 
     runtime = total_duration_ns / time_divisor
 
-    print(f"{title} ({len(events)} total, runtime: {runtime:8.2f} {time_unit}):")
+    print(
+        f"{title} ({len(events)} total, runtime: {runtime:8.2f} {time_unit}):"
+    )
     for i, event in enumerate(events, 1):
         event_time = (event.timestamp_ns - first_event_time) / time_divisor
         print(
@@ -69,8 +71,7 @@ def print_trace_events(events: list[TraceEvent], title: str = "Trace Events") ->
 
 
 def _print_event_details(event: TraceEvent) -> None:
-    """
-    Print event-specific details based on event type.
+    """Print event-specific details based on event type.
 
     Args:
         event: The trace event to format
@@ -78,22 +79,28 @@ def _print_event_details(event: TraceEvent) -> None:
     """
     if isinstance(event, MessageSendEvent):
         print(
-            f"    ID: {event.correlation_id} | {event.message_type:24} | TARGET: {event.target}"
+            f"    ID: {event.correlation_id} | {event.message_type:24} | "
+            f"TARGET: {event.target}"
         )
-        print(f"    Payload: {json.dumps(event.payload) if event.payload else 'None'}")
+        payload = json.dumps(event.payload) if event.payload else "None"
+        print(f"    Payload: {payload}")
 
     elif isinstance(event, MessageReceiveEvent):
         print(
-            f"    ID: {event.correlation_id} | {event.message_type:24} | SOURCE: {event.sender}"
+            f"    ID: {event.correlation_id} | {event.message_type:24} | "
+            f"SOURCE: {event.sender}"
         )
-        print(f"    Payload: {json.dumps(event.payload) if event.payload else 'None'}")
+        payload = json.dumps(event.payload) if event.payload else "None"
+        print(f"    Payload: {payload}")
 
     elif isinstance(event, VariableReadEvent):
         print(f'    Variable Read: {event.variable_id} = "{event.value}"')
 
     elif isinstance(event, VariableWriteEvent):
         print(
-            f'    Variable Write: {event.variable_id} = "{event.new_value}" (was "{event.old_value}", succeeded: {event.success})'
+            f"    Variable Write: {event.variable_id} = "
+            f'"{event.new_value}" (was "{event.old_value}", '
+            f"succeeded: {event.success})"
         )
 
     elif isinstance(event, MethodStartEvent):
@@ -114,7 +121,7 @@ def _print_event_details(event: TraceEvent) -> None:
         print(f"    Variable: {event.variable_id}")
         print(f"    Duration: {event.wait_duration:.2f} ms")
 
-    elif isinstance(event, SubscribeEvent) or isinstance(event, UnsubscribeEvent):
+    elif isinstance(event, SubscribeEvent | UnsubscribeEvent):
         print(f"    Variable: {event.variable_id}")
         print(f"    Subscriber: {event.subscriber_id}")
 

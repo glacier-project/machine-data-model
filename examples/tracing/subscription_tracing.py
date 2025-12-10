@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Subscription and Notification Tracing Example
+"""Subscription and Notification Tracing Example.
 
 This example demonstrates the subscription and notification tracing capabilities
 of the GLACIER machine data model. It shows how to trace variable subscriptions,
@@ -18,7 +17,10 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
+)
 from machine_data_model.tracing import (
     TraceLevel,
     clear_traces,
@@ -32,11 +34,23 @@ def notify_callback(
     node: VariableNode,
     value: Any,
 ) -> None:
-    print(f"Notification to {subscription.subscriber_id}: {node.name} = {value}")
+    """Callback function to handle notifications for variable subscriptions.
+
+    Args:
+        subscription (VariableSubscription):
+            The subscription details.
+        node (VariableNode):
+            The variable node that triggered the notification.
+        value (Any):
+            The new value of the variable.
+    """
+    print(
+        f"Notification to {subscription.subscriber_id}: {node.name} = {value}"
+    )
 
 
 def main() -> None:
-
+    """Example demonstrating subscription and notification tracing."""
     # Clear any existing traces
     clear_traces()
 
@@ -71,7 +85,9 @@ def main() -> None:
 
     # Subscribe multiple entities to the temperature variable
     print("Subscribing entities to temperature variable...")
-    temperature.subscribe(VariableSubscription("thermostat_controller", "corr_1"))
+    temperature.subscribe(
+        VariableSubscription("thermostat_controller", "corr_1")
+    )
     temperature.subscribe(VariableSubscription("monitoring_system", "corr_2"))
     temperature.subscribe(VariableSubscription("alert_system", "corr_3"))
 
@@ -91,7 +107,8 @@ def main() -> None:
     print("Updating temperature to 25.0°C...")
     data_model.write_variable("temperature", 25.0)
 
-    # Update humidity - this should trigger notification to monitoring system only
+    # Update humidity - this should trigger notification to monitoring system
+    # only
     print("Updating humidity to 70.0%...")
     data_model.write_variable("humidity", 70.0)
 
@@ -106,7 +123,10 @@ def main() -> None:
     temperature.unsubscribe(VariableSubscription("alert_system", "corr_3"))
 
     # Update temperature again - alert_system should not be notified
-    print("Updating temperature to 26.0°C (alert_system should not be notified)...")
+    print(
+        "Updating temperature to 26.0°C (alert_system should not be"
+        " notified)..."
+    )
     data_model.write_variable("temperature", 26.0)
 
     print("\n=== Tracing Results ===")

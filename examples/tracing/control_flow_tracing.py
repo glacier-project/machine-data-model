@@ -1,9 +1,8 @@
-"""
-Example demonstrating control flow tracing in DataModel.
+"""Example demonstrating control flow tracing in DataModel.
 
-This example shows how to enable FULL-level tracing to capture control flow execution,
-including each step in the control flow graph with node types, execution results,
-and program counter positions.
+This example shows how to enable FULL-level tracing to capture control flow
+execution, including each step in the control flow graph with node types,
+execution results, and program counter positions.
 """
 
 import time
@@ -30,7 +29,7 @@ from machine_data_model.tracing.tracing_core import set_global_trace_level
 
 
 def main() -> None:
-
+    """Example demonstrating control flow tracing."""
     # Clear any previous traces
     clear_traces()
 
@@ -65,7 +64,9 @@ def main() -> None:
 
     # Create control flow nodes
     # Node 1: Read the counter variable
-    read_counter = ReadVariableNode(variable_node="counter", store_as="current_count")
+    read_counter = ReadVariableNode(
+        variable_node="counter", store_as="current_count"
+    )
     read_counter.set_ref_node(counter_var)
 
     # Node 2: Write a fixed value to result

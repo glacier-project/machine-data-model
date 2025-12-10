@@ -1,5 +1,5 @@
-"""
-Simple example of distributed tracing: local machine reads temperature from remote machine.
+"""Simple example of distributed tracing.
+
 This version uses multiprocessing to simulate truly separate entities.
 """
 
@@ -13,7 +13,9 @@ from support import print_trace_events
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.behavior.local_execution_node import WriteVariableNode
-from machine_data_model.behavior.remote_execution_node import ReadRemoteVariableNode
+from machine_data_model.behavior.remote_execution_node import (
+    ReadRemoteVariableNode,
+)
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -30,13 +32,16 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     FrostPayload,
     VariablePayload,
 )
-from machine_data_model.tracing import TraceLevel, clear_traces, get_global_collector
+from machine_data_model.tracing import (
+    TraceLevel,
+    clear_traces,
+    get_global_collector,
+)
 from machine_data_model.tracing.tracing_core import set_global_trace_level
 
 
 def cleanup_process(machine_name: str) -> None:
-    """
-    Cleanup function called when a process terminates.
+    """Cleanup function called when a process terminates.
 
     Args:
         machine_name (str, optional):
@@ -56,7 +61,9 @@ def cleanup_process(machine_name: str) -> None:
 
 def serialize_frost_message(msg: FrostMessage) -> dict[str, Any]:
     """Serialize a FrostMessage for inter-process communication."""
-    from machine_data_model.protocols.frost_v1.frost_payload import VariablePayload
+    from machine_data_model.protocols.frost_v1.frost_payload import (
+        VariablePayload,
+    )
 
     payload_data = None
     if isinstance(msg.payload, VariablePayload):
@@ -117,14 +124,14 @@ def remote_machine_process(
     # Set the tracing level to FULL to capture all events.
     set_global_trace_level(TraceLevel.FULL)
 
-    INIT_TEMP = 25.5
+    init_temp = 25.5
 
     # Initialize remote machine
     remote_machine = DataModel(name="RemoteMachine")
     remote_temp = NumericalVariableNode(
         id="temperature",
         name="temperature",
-        value=INIT_TEMP,
+        value=init_temp,
     )
     remote_machine.root.add_child(remote_temp)
     remote_machine._register_nodes(remote_machine.root)
@@ -132,7 +139,7 @@ def remote_machine_process(
     def machine_log(msg: str) -> None:
         print(f"[RemoteMachine] {msg}")
 
-    machine_log(f"Initialized with temperature: {INIT_TEMP}")
+    machine_log(f"Initialized with temperature: {init_temp}")
 
     # Process requests
     while True:
@@ -199,7 +206,7 @@ def local_machine_process(
     # Set the tracing level to FULL to capture all events.
     set_global_trace_level(TraceLevel.FULL)
 
-    INIT_TEMP = 0.0
+    init_temp = 0.0
 
     def machine_log(msg: str) -> None:
         print(f"[LocalMachine ] {msg}")
@@ -210,7 +217,7 @@ def local_machine_process(
         local_temp = NumericalVariableNode(
             id="local_temp",
             name="local_temp",
-            value=INIT_TEMP,
+            value=init_temp,
         )
         composite_method = CompositeMethodNode(
             id="temp_sync_method",
@@ -220,7 +227,7 @@ def local_machine_process(
         local_machine.root.add_child(composite_method)
         local_machine._register_nodes(local_machine.root)
 
-        machine_log(f"Initialized with temperature: {INIT_TEMP}")
+        machine_log(f"Initialized with temperature: {init_temp}")
 
         # Control flow: read remote temperature, store locally
         read_remote_temp = ReadRemoteVariableNode(
@@ -261,15 +268,21 @@ def local_machine_process(
         max_wait_time = 5.0  # 5 seconds timeout
         start_time = time.time()
 
-        while not response_received and (time.time() - start_time) < max_wait_time:
+        while (
+            not response_received and (time.time() - start_time) < max_wait_time
+        ):
             if not response_queue.empty():
                 response_data = response_queue.get_nowait()
                 response_msg = deserialize_frost_message(response_data)
 
-                machine_log(f"Received response for {response_msg.payload.node}")
+                machine_log(
+                    f"Received response for {response_msg.payload.node}"
+                )
 
                 # Handle the response.
-                handled = read_remote_temp.handle_response(context, response_msg)
+                handled = read_remote_temp.handle_response(
+                    context, response_msg
+                )
                 machine_log(f"Response handled: {handled}")
                 response_received = True
 
@@ -298,6 +311,7 @@ def local_machine_process(
 
 
 def main() -> None:
+    """Main function to start local and remote machine processes."""
     # Set up multiprocessing
     multiprocessing.set_start_method("spawn")  # Required for some systems
 
@@ -352,7 +366,8 @@ def main() -> None:
         print("\nDistributed tracing completed successfully!")
         print(f"Final local temperature: {result_dict['local_temp']}")
         print(
-            "\nNote: Trace events are displayed by cleanup functions when processes terminate."
+            "\nNote: Trace events are displayed by cleanup functions when"
+            "   processes terminate."
         )
     else:
         error_msg = result_dict.get("error", "Unknown error")

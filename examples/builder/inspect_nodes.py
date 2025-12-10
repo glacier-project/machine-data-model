@@ -1,19 +1,16 @@
-"""
-Example of building a data model and inspecting its nodes.
+"""Example of building a data model and inspecting its nodes.
 
-This example demonstrates how to traverse and inspect the nodes in a built data model,
-showing their types, properties, and relationships.
+This example demonstrates how to traverse and inspect the nodes in a built data
+model, showing their types, properties, and relationships.
 """
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.variable_node import VariableNode
 
 
 def main() -> None:
-    """
-    Build a data model and inspect its nodes.
-    """
+    """Build a data model and inspect its nodes."""
     builder = DataModelBuilder()
     data_model = builder.get_data_model("template/data_model.yml")
 
@@ -27,7 +24,7 @@ def main() -> None:
             print(f"{indent}  Value: {node.value}")
         elif isinstance(node, MethodNode):
             print(f"{indent}  Parameters: {len(node.parameters)}")
-        if hasattr(node, '__iter__'):
+        if hasattr(node, "__iter__"):
             for child in node:
                 traverse_nodes(child, depth + 1)
 

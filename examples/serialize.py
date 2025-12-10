@@ -3,6 +3,7 @@ from machine_data_model.builder.data_model_dumper import DataModelDumper
 
 
 def main() -> None:
+    """Serialize a data model to a YAML file."""
     builder = DataModelBuilder()
     data_model = builder.get_data_model("template/data_model.yml")
 

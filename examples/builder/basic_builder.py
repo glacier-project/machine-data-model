@@ -1,17 +1,14 @@
-"""
-Basic example of using DataModelBuilder to construct a data model from a YAML template.
+"""Basic example of using DataModelBuilder.
 
-This example demonstrates the fundamental usage of the DataModelBuilder class to load
-a data model from a YAML file and access its basic properties.
+This example demonstrates the fundamental usage of the DataModelBuilder class
+to load a data model from a YAML file and access its basic properties.
 """
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
 
 
 def main() -> None:
-    """
-    Build a data model from a YAML template and print basic information.
-    """
+    """Build a data model from a YAML template and print basic information."""
     builder = DataModelBuilder()
     data_model = builder.get_data_model("template/data_model.yml")
 
