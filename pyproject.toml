@@ -40,8 +40,8 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.ruff]
-# Google style uses 80 chars, but 79 is PEP 8 strict
-line-length = 79
+# Google style uses 80 chars
+line-length = 80
 target-version = "py311" # Minimum supported Python version
 
 [tool.ruff.lint]
