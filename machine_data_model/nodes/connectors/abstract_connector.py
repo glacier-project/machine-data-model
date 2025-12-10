@@ -106,18 +106,22 @@ class AbstractConnector(ABC):
 
     @property
     def id(self) -> str:
+        """Returns the identifier of the connector."""
         return self._id
 
     @property
     def name(self) -> str | None:
+        """Returns the name of the connector."""
         return self._name
 
     @property
     def ip(self) -> str | None:
+        """Returns the IP address of the connector."""
         return self._ip
 
     @property
     def port(self) -> int | None:
+        """Returns the port number of the connector."""
         return self._port
 
     def _get_yaml_entry_or_env_var_value(

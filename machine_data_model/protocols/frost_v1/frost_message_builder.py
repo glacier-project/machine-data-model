@@ -98,13 +98,15 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for reading a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node to read.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -134,15 +136,17 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage as an answer for reading a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node that was read.
-            - value (Any):
+            value (Any):
                 The value of the node.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -173,15 +177,17 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for writing a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node to write to.
-            - value (Any):
+            value (Any):
                 The value to write.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -211,15 +217,17 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage as an answer for writing a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node that was written to.
-            - value (Any):
+            value (Any):
                 The value that was written.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -245,13 +253,15 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for subscribing to a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node to subscribe to.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -281,15 +291,17 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage as a response for subscribing to a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node that was subscribed to.
-            - value (Any):
+            value (Any):
                 The current value of the node.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -320,17 +332,19 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for a data change subscription.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node to subscribe to.
-            - deadband (float):
+            deadband (float):
                 The deadband for the subscription.
-            - is_percent (bool):
+            is_percent (bool):
                 Whether the deadband is a percentage.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -363,17 +377,19 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for an in-range subscription.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node to subscribe to.
-            - low (float):
+            low (float):
                 The low end of the range.
-            - high (float):
+            high (float):
                 The high end of the range.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -404,17 +420,19 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for an out-of-range subscription.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node to subscribe to.
-            - low (float):
+            low (float):
                 The low end of the range.
-            - high (float):
+            high (float):
                 The high end of the range.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -442,13 +460,15 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for unsubscribing from a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node to unsubscribe from.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -474,13 +494,15 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage as a response for unsubscribing from a variable.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node that was unsubscribed from.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -512,17 +534,19 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for invoking a method.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The method to invoke.
-            - args (list[Any] | None):
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
+            args (list[Any] | None):
                 The positional arguments for the method.
-            - kwargs (dict[str, Any] | None):
+            kwargs (dict[str, Any] | None):
                 The keyword arguments for the method.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -558,19 +582,21 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for a method response.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The method that was invoked.
-            - args (list[Any] | None):
+            args (list[Any] | None):
                 The positional arguments for the method.
-            - kwargs (dict[str, Any] | None):
+            kwargs (dict[str, Any] | None):
                 The keyword arguments for the method.
-            - ret (dict[str, Any] | None):
+            ret (dict[str, Any] | None):
                 The return value of the method.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -605,13 +631,17 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for a method started notification.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The method that was started.
+            ret (dict[str, Any] | None):
+                The initial return values. Defaults to None.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -643,15 +673,17 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for a variable update notification.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
-            - node (str):
+            node (str):
                 The node that was updated.
-            - value (Any):
+            value (Any):
                 The new value of the node.
+            correlation_id (str | None):
+                The correlation ID for the message. Defaults to None.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -675,11 +707,11 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for protocol registration.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -701,11 +733,11 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for protocol unregistration.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -729,11 +761,13 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage as a response for protocol registration.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
+            correlation_id (str | None):
+                The correlation ID of the original message.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -759,11 +793,13 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage as a response for protocol unregistration.
 
         Args:
-            - target (str):
+            target (str):
                 The target of the message.
+            correlation_id (str | None):
+                The correlation ID of the original message.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         message = FrostMessage(
@@ -792,17 +828,15 @@ class FrostMessageBuilder(MessageBuilder):
         """Build a FrostMessage for an error message.
 
         Args:
-            - target (str):
-                The target of the message.
-            - header (FrostHeader):
-                The header of the original message.
-            - error_code (ErrorCode):
+            message (FrostMessage):
+                The original message that caused the error.
+            error_code (ErrorCode):
                 The error code.
-            - error_message (ErrorMessages):
+            error_message (ErrorMessages):
                 The error message.
 
         Returns:
-            - FrostMessage:
+            FrostMessage:
                 The built message.
         """
         new_msg = FrostMessage(

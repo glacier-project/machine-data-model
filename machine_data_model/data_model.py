@@ -59,7 +59,9 @@ class DataModel:
             root (FolderNode | None, optional):
                 The root folder node. If None, a default root is created.
                 Defaults to None.
-
+            connectors (list[AbstractConnector] | None, optional):
+                A list of connectors used to connect to remote servers.
+                Defaults to None.
         """
         self._name = name
         self._machine_category = machine_category
@@ -277,6 +279,13 @@ class DataModel:
 
     @property
     def connectors(self) -> dict[str, AbstractConnector]:
+        """Returns all the connectors in the data model.
+
+        Returns:
+            dict[str, AbstractConnector]:
+                A dictionary of the following key - value pairs: (connector's
+                name, connector).
+        """
         return self._connectors
 
     def _get_connector_by_name(self, name: str) -> AbstractConnector:

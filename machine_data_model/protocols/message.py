@@ -9,5 +9,4 @@ from dataclasses import dataclass
 
 @dataclass(init=True, slots=True, frozen=True)
 class Message:
-    """Base class representing a message in the protocol.
-    """
+    """Base class representing a message in the protocol."""

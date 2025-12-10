@@ -44,9 +44,10 @@ class MethodExecutionResult:
 
 
 class MethodNode(DataModelNode):
-    """A MethodNode class is a node that represents a synchronous method in the
-    machine data model. Methods of the machine data model are used to declare
-    functions that can be executed on the machine data model.
+    """Represent a synchronous method in the machine data model.
+
+    Methods of the machine data model are used to declare functions that can be
+    executed on the machine data model.
 
     Attributes:
         _parameters (list[VariableNode]):
@@ -323,8 +324,8 @@ class MethodNode(DataModelNode):
 
     @override
     def __contains__(self, node_name: str) -> bool:
-        """Check if the method has a parameter or return value with the
-        specified name.
+        """Check if the method has a parameter or return value with the given
+        name.
 
         Args:
             node_name (str):
@@ -412,8 +413,8 @@ class MethodNode(DataModelNode):
     def _resolve_arguments(
         self, *args: list[Any], **kwargs: dict[str, Any]
     ) -> dict[str, Any]:
-        """Resolves the arguments for the method. It fills in the missing
-        arguments with default values or reads them from the parameters.
+        """Resolve arguments, filling missing ones with defaults or parameter
+        values.
 
         Args:
             *args (list[Any]):
@@ -503,11 +504,12 @@ class MethodNode(DataModelNode):
 
 
 class AsyncMethodNode(MethodNode):
-    """An AsyncMethodNode class is a node that represents an asynchronous method
-    in the machine data model. Asynchronous methods of the machine data model
-    are used to declare functions whose return values are not immediately
-    available. Instead, the result is obtained asynchronously, typically through
-    variable monitoring or event-based mechanisms.
+    """Represent an asynchronous method in the machine data model.
+
+    Asynchronous methods of the machine data model are used to declare functions
+    whose return values are not immediately available. Instead, the result is
+    obtained asynchronously, typically through variable monitoring or
+    event-based mechanisms.
     """
 
     def __init__(

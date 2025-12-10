@@ -3,6 +3,7 @@
 This module defines the FrostMessage dataclass which represents messages in the
 Frost protocol, containing sender, target, header, and payload information.
 """
+
 from dataclasses import dataclass, field
 import uuid
 

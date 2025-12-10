@@ -45,8 +45,7 @@ from machine_data_model.tracing import (
 
 
 class FrostProtocolMng(ProtocolMng):
-    """Manage messages encoded with the Frost protocol and updates the machine
-    data model accordingly.
+    """Manage Frost protocol messages and update the machine data model.
 
     This class handles the reception, processing, and encoding of messages
     according to the Frost protocol.
@@ -129,8 +128,7 @@ class FrostProtocolMng(ProtocolMng):
         return self._message_builder
 
     def _validate_message(self, msg: Message) -> bool:
-        """Validate the provided message to ensure it is a FrostMessage and
-        checks if the protocol version is supported.
+        """Validate the message is a FrostMessage with a supported version.
 
         Args:
             msg (Message):
@@ -158,8 +156,7 @@ class FrostProtocolMng(ProtocolMng):
 
     @override
     def handle_request(self, msg: Message) -> Message:
-        """Handle a Frost request message and updates the data model
-        accordingly.
+        """Handle a Frost request message and update the data model accordingly.
 
         Args:
             msg (Message):
@@ -220,9 +217,7 @@ class FrostProtocolMng(ProtocolMng):
         return self._create_error_message(msg, ErrorMessages.INVALID_NAMESPACE)
 
     def handle_response(self, msg: FrostMessage) -> Message | None:
-        """Handle a Frost response message received in response to a request
-        sent by the data model. This includes resuming composite methods waiting
-        for a response.
+        """Handle a Frost response message and resume waiting composite methods.
 
         Args:
             msg (FrostMessage):
@@ -249,8 +244,7 @@ class FrostProtocolMng(ProtocolMng):
         return None
 
     def handle_message(self, msg: Message) -> Message | None:
-        """Handle a Frost message received by the data model. This includes
-        resuming composite methods waiting for a message.
+        """Handle a Frost message and resume waiting composite methods.
 
         Args:
             msg (FrostMessage):
@@ -292,7 +286,7 @@ class FrostProtocolMng(ProtocolMng):
     def resume_composite_method(
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
-        """Resume the execution of a composite method waiting for the specified
+        """Resume the execution of a composite method waiting for the
         subscriber.
 
         Args:

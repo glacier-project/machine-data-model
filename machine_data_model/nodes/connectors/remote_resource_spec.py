@@ -31,6 +31,12 @@ class RemoteResourceSpec(ABC):
 
     @property
     def parent(self) -> "DataModelNode | None":
+        """Returns the parent DataModelNode.
+
+        Returns:
+            DataModelNode | None:
+                Parent node
+        """
         return self._parent
 
     @parent.setter

@@ -155,6 +155,12 @@ class DataModelNode(ABC):
 
     @property
     def connector_name(self) -> str | None:
+        """Gets the connector name.
+
+        Returns:
+            str | None:
+                The connector name, or None if not set.
+        """
         return self._connector_name
 
     def set_connector_name(self, value: str | None) -> None:
@@ -236,7 +242,7 @@ class DataModelNode(ABC):
 
     @remote_resource_spec.setter
     def remote_resource_spec(self, value: "RemoteResourceSpec | None") -> None:
-        """Remote resource spec setter"""
+        """Remote resource spec setter."""
         self._remote_resource_spec = value
 
     @property
@@ -267,8 +273,7 @@ class DataModelNode(ABC):
         """Set this node as the parent of the child nodes.
 
         Args:
-            child_nodes (Mapping[str, "DataModelNode"] |
-            Sequence["DataModelNode"]):
+            child_nodes:
                 The child nodes to set the parent for.
 
         """

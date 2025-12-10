@@ -103,7 +103,7 @@ async def get_input_arguments(node: asyncua.Node) -> asyncua.Node | None:
 
 
 class OpcuaConnector(AbstractAsyncConnector):
-    """Represents an OPCUA client"""
+    """Represents an OPCUA client."""
 
     def __init__(
         self,
@@ -243,22 +243,27 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @property
     def security_policy(self) -> str | None:
+        """Returns the security policy used by the connector."""
         return self._security_policy
 
     @property
     def host_name(self) -> str:
+        """Returns the host name used by the connector."""
         return self._host_name
 
     @property
     def client_app_uri(self) -> str:
+        """Returns the client application URI used by the connector."""
         return self._client_app_uri
 
     @property
     def private_key_file_path(self) -> Path | None:
+        """Returns the path to the private key file."""
         return self._private_key_file_path
 
     @property
     def certificate_file_path(self) -> Path | None:
+        """Returns the path to the certificate file."""
         return self._certificate_file_path
 
     @override
@@ -636,7 +641,7 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
     def datachange_notification(
         self, node: asyncua.Node, val: Any, data: DataChangeNotif
     ) -> None:
-        """Called for every datachange notification from server
+        """Called for every datachange notification from server.
 
         Args:
             node (asyncua.Node):
@@ -684,11 +689,8 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
 
     @override
     def remote_path(self) -> str | None:
-        """Returns 'remote_path' when defined,
-        otherwise it returns the 'node_id'.
-        If both are undefined, it tries to build the node's path
-        using the parent's remote path and the node's name (with the namespace,
-        if applicable)
+        """Returns the 'remote_path' used to interact with the node on the
+        server.
 
         Returns:
             str | None:

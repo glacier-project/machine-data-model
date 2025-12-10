@@ -52,7 +52,7 @@ class MsgNamespace(str, Enum):
 
 
 class MsgName(str, Enum):
-    pass
+    """Base enum class for message names."""
 
 
 class NodeMsgName(MsgName):
@@ -175,7 +175,7 @@ class FrostHeader:
         _namespace: MsgNamespace | None = None,
         _msg_name: MsgName | None = None,
     ) -> bool:
-        """Checks if the header matches the given type, namespace, and message
+        """Check if the header matches the given type, namespace, and message
         name.
 
         Args:

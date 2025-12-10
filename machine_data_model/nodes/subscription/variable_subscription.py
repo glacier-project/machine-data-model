@@ -34,8 +34,8 @@ class EventType(IntFlag):
 
 
 class VariableSubscription:
-    """Base class for variable subscriptions. It represents a subscription to
-    any change.
+    """Base class for variable subscriptions representing a subscription to any
+    change.
 
     Attributes:
         subscriber_id (str):
@@ -106,8 +106,7 @@ class VariableSubscription:
 
 
 class DataChangeSubscription(VariableSubscription):
-    """Subscription for data change events. It notifies when the variable's
-    value changes beyond a specified deadband.
+    """Subscription for data change events when value changes beyond a deadband.
 
     Attributes:
         _previous_value (None | float):
@@ -169,7 +168,7 @@ class DataChangeSubscription(VariableSubscription):
 
     @override
     def should_notify(self, new_value: float) -> bool:
-        """Determine if a notification should be sent based on the new value and
+        """Determine if a notification should be sent based on new value and
         deadband.
 
         Args:
@@ -190,8 +189,7 @@ class DataChangeSubscription(VariableSubscription):
 
 
 class RangeSubscription(VariableSubscription):
-    """Subscription for range-based events. It notifies when the variable's
-    value enters or exits a specified range.
+    """Subscription for range-based events when value enters or exits a range.
 
     Attributes:
         low_limit (float):
