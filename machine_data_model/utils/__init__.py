@@ -1,6 +1,4 @@
-"""
-Utility functions and classes for the machine data model.
-"""
+"""Utility functions and classes for the machine data model."""
 
 from .timestamp import (
     get_timestamp_ns,

@@ -1,5 +1,4 @@
-"""
-Specific trace event classes and convenience functions.
+"""Specific trace event classes and convenience functions.
 
 This module defines concrete event classes for different types of traceable
 operations in the GLACIER machine data model, including variable access, method
@@ -11,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from machine_data_model.utils.timestamp import get_timestamp_ns
+
 from .tracing_core import (
     TraceEvent,
     TraceEventType,
@@ -20,8 +20,7 @@ from .tracing_core import (
 
 @dataclass
 class VariableWriteEvent(TraceEvent):
-    """
-    Event for variable value changes.
+    """Event for variable value changes.
 
     Attributes:
         variable_id (str):
@@ -49,8 +48,7 @@ class VariableWriteEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a variable write event.
+        """Initialize a variable write event.
 
         Args:
             variable_id (str):
@@ -90,8 +88,7 @@ class VariableWriteEvent(TraceEvent):
 
 @dataclass
 class VariableReadEvent(TraceEvent):
-    """
-    Event for variable reads.
+    """Event for variable reads.
 
     Attributes:
         variable_id (str):
@@ -111,8 +108,7 @@ class VariableReadEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a variable read event.
+        """Initialize a variable read event.
 
         Args:
             variable_id (str):
@@ -144,8 +140,7 @@ class VariableReadEvent(TraceEvent):
 
 @dataclass
 class MethodStartEvent(TraceEvent):
-    """
-    Event for method execution start.
+    """Event for method execution start.
 
     Attributes:
         method_id (str):
@@ -166,8 +161,7 @@ class MethodStartEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a method start event.
+        """Initialize a method start event.
 
         Args:
             method_id (str):
@@ -199,8 +193,7 @@ class MethodStartEvent(TraceEvent):
 
 @dataclass
 class MethodEndEvent(TraceEvent):
-    """
-    Event for method execution completion.
+    """Event for method execution completion.
 
     Attributes:
         method_id (str):
@@ -225,8 +218,7 @@ class MethodEndEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a method end event.
+        """Initialize a method end event.
 
         Args:
             method_id (str):
@@ -262,8 +254,7 @@ class MethodEndEvent(TraceEvent):
 
 @dataclass
 class WaitStartEvent(TraceEvent):
-    """
-    Event for wait condition start.
+    """Event for wait condition start.
 
     Attributes:
         variable_id (str):
@@ -289,8 +280,7 @@ class WaitStartEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a wait start event.
+        """Initialize a wait start event.
 
         Args:
             variable_id (str):
@@ -326,8 +316,7 @@ class WaitStartEvent(TraceEvent):
 
 @dataclass
 class WaitEndEvent(TraceEvent):
-    """
-    Event for wait condition completion.
+    """Event for wait condition completion.
 
     Attributes:
         variable_id (str):
@@ -349,8 +338,7 @@ class WaitEndEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a wait end event.
+        """Initialize a wait end event.
 
         Args:
             variable_id (str):
@@ -382,8 +370,7 @@ class WaitEndEvent(TraceEvent):
 
 @dataclass
 class MessageSendEvent(TraceEvent):
-    """
-    Event for message sending.
+    """Event for message sending.
 
     Attributes:
         message_type (str):
@@ -412,8 +399,7 @@ class MessageSendEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a message send event.
+        """Initialize a message send event.
 
         Args:
             message_type (str):
@@ -453,8 +439,7 @@ class MessageSendEvent(TraceEvent):
 
 @dataclass
 class MessageReceiveEvent(TraceEvent):
-    """
-    Event for message receiving.
+    """Event for message receiving.
 
     Attributes:
         message_type (str):
@@ -489,8 +474,7 @@ class MessageReceiveEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a message receive event.
+        """Initialize a message receive event.
 
         Args:
             message_type (str):
@@ -534,8 +518,7 @@ class MessageReceiveEvent(TraceEvent):
 
 @dataclass
 class SubscribeEvent(TraceEvent):
-    """
-    Event for subscription to a variable.
+    """Event for subscription to a variable.
 
     Attributes:
         variable_id (str):
@@ -555,8 +538,7 @@ class SubscribeEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a subscribe event.
+        """Initialize a subscribe event.
 
         Args:
             variable_id (str):
@@ -588,8 +570,7 @@ class SubscribeEvent(TraceEvent):
 
 @dataclass
 class UnsubscribeEvent(TraceEvent):
-    """
-    Event for unsubscription from a variable.
+    """Event for unsubscription from a variable.
 
     Attributes:
         variable_id (str):
@@ -609,8 +590,7 @@ class UnsubscribeEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize an unsubscribe event.
+        """Initialize an unsubscribe event.
 
         Args:
             variable_id (str):
@@ -642,8 +622,7 @@ class UnsubscribeEvent(TraceEvent):
 
 @dataclass
 class NotificationEvent(TraceEvent):
-    """
-    Event for notification sent to subscribers.
+    """Event for notification sent to subscribers.
 
     Attributes:
         variable_id (str):
@@ -668,8 +647,7 @@ class NotificationEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a notification event.
+        """Initialize a notification event.
 
         Args:
             variable_id (str):
@@ -705,8 +683,7 @@ class NotificationEvent(TraceEvent):
 
 @dataclass
 class ControlFlowStepEvent(TraceEvent):
-    """
-    Event for control flow step execution.
+    """Event for control flow step execution.
 
     Attributes:
         node_id (str):
@@ -737,8 +714,7 @@ class ControlFlowStepEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a control flow step event.
+        """Initialize a control flow step event.
 
         Args:
             node_id (str):
@@ -779,8 +755,7 @@ class ControlFlowStepEvent(TraceEvent):
 
 @dataclass
 class ControlFlowStartEvent(TraceEvent):
-    """
-    Event for control flow execution start.
+    """Event for control flow execution start.
 
     Attributes:
         control_flow_id (str):
@@ -800,8 +775,7 @@ class ControlFlowStartEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a control flow start event.
+        """Initialize a control flow start event.
 
         Args:
             control_flow_id (str):
@@ -833,8 +807,7 @@ class ControlFlowStartEvent(TraceEvent):
 
 @dataclass
 class ControlFlowEndEvent(TraceEvent):
-    """
-    Event for control flow execution end.
+    """Event for control flow execution end.
 
     Attributes:
         control_flow_id (str):
@@ -862,8 +835,7 @@ class ControlFlowEndEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a control flow end event.
+        """Initialize a control flow end event.
 
         Args:
             control_flow_id (str):
@@ -910,8 +882,7 @@ def trace_variable_write(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a variable write operation.
+    """Trace a variable write operation.
 
     Args:
         variable_id (str):
@@ -949,8 +920,7 @@ def trace_variable_read(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a variable read operation.
+    """Trace a variable read operation.
 
     Args:
         variable_id (str):
@@ -983,8 +953,7 @@ def trace_method_start(
     source: str = "",
     data_model_id: str = "",
 ) -> int:
-    """
-    Trace method start and return start time for duration calculation.
+    """Trace method start and return start time for duration calculation.
 
     Args:
         method_id (str):
@@ -1023,8 +992,7 @@ def trace_method_end(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace method end with execution time.
+    """Trace method end with execution time.
 
     Args:
         method_id (str):
@@ -1063,8 +1031,7 @@ def trace_wait_start(
     source: str = "",
     data_model_id: str = "",
 ) -> int:
-    """
-    Trace wait start and return start time.
+    """Trace wait start and return start time.
 
     Args:
         variable_id (str):
@@ -1105,8 +1072,7 @@ def trace_wait_end(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace wait end with duration.
+    """Trace wait end with duration.
 
     Args:
         variable_id (str):
@@ -1143,8 +1109,7 @@ def trace_message_send(
     source: str = "",
     data_model_id: str = "",
 ) -> int:
-    """
-    Trace message send and return send time.
+    """Trace message send and return send time.
 
     Args:
         message_type (str):
@@ -1191,8 +1156,7 @@ def trace_message_receive(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace message receive with latency.
+    """Trace message receive with latency.
 
     Args:
         message_type (str):
@@ -1236,8 +1200,7 @@ def trace_subscribe(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a subscription operation.
+    """Trace a subscription operation.
 
     Args:
         variable_id (str):
@@ -1270,8 +1233,7 @@ def trace_unsubscribe(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace an unsubscription operation.
+    """Trace an unsubscription operation.
 
     Args:
         variable_id (str):
@@ -1305,8 +1267,7 @@ def trace_notification(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a notification sent to a subscriber.
+    """Trace a notification sent to a subscriber.
 
     Args:
         variable_id (str):
@@ -1344,8 +1305,7 @@ def trace_control_flow_step(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a control flow step execution.
+    """Trace a control flow step execution.
 
     Args:
         node_id (str):
@@ -1384,8 +1344,7 @@ def trace_control_flow_start(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a control flow execution start.
+    """Trace a control flow execution start.
 
     Args:
         control_flow_id (str):
@@ -1399,7 +1358,9 @@ def trace_control_flow_start(
 
     """
     collector = get_global_collector()
-    if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_START):
+    if not collector.should_record_event_type(
+        TraceEventType.CONTROL_FLOW_START
+    ):
         return
 
     collector.record_event(
@@ -1420,8 +1381,7 @@ def trace_control_flow_end(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a control flow execution end.
+    """Trace a control flow execution end.
 
     Args:
         control_flow_id (str):

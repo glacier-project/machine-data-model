@@ -1,28 +1,25 @@
-"""
-Frost protocol manager implementation.
+"""Frost protocol manager implementation.
 
 This module provides the FrostProtocolMng class which handles the processing of
 Frost protocol messages, managing communication with the machine data model
 including variable operations, method invocations, and protocol management.
 """
 
-import copy
-import uuid
 from typing import Any
 
-from machine_data_model.nodes.data_model_node import DataModelNode
 from typing_extensions import override
 
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
+from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import VariableNode
+from machine_data_model.protocols.frost_v1 import FROST_PROTOCOL_VERSION
 from machine_data_model.protocols.frost_v1.frost_header import (
-    FrostHeader,
     MethodMsgName,
     MsgNamespace,
     MsgType,
@@ -30,26 +27,25 @@ from machine_data_model.protocols.frost_v1.frost_header import (
     VariableMsgName,
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
 from machine_data_model.protocols.frost_v1.frost_payload import (
     ErrorCode,
     ErrorMessages,
     ErrorPayload,
     MethodPayload,
-    ProtocolPayload,
     VariablePayload,
 )
-from machine_data_model.protocols.protocol_mng import ProtocolMng, Message
-from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
-from machine_data_model.tracing import trace_message_receive, trace_message_send
-from machine_data_model.protocols.frost_v1 import FROST_PROTOCOL_VERSION
-from machine_data_model.protocols.frost_v1.frost_message_builder import (
-    FrostMessageBuilder,
+from machine_data_model.protocols.protocol_mng import Message, ProtocolMng
+from machine_data_model.tracing import (
+    trace_message_receive,
+    trace_message_send,
 )
 
 
 class FrostProtocolMng(ProtocolMng):
-    """
-    Manage messages encoded with the Frost protocol and updates the machine
+    """Manage messages encoded with the Frost protocol and updates the machine
     data model accordingly.
 
     This class handles the reception, processing, and encoding of messages
@@ -66,35 +62,43 @@ class FrostProtocolMng(ProtocolMng):
         _update_messages (list[FrostMessage]):
             A list of update messages generated during processing.
         _running_methods (dict[str, tuple[CompositeMethodNode, FrostMessage]]):
-            A dictionary tracking currently running methods and their associated messages.
+            A dictionary tracking currently running methods and their associated
+            messages.
         _data_model (DataModel):
-            The machine data model that is updated based on the processed messages.
+            The machine data model that is updated based on the processed
+            messages.
 
     """
 
     def __init__(
-        self, data_model: Any, protocol_version: tuple[int, int, int] | None = None
+        self,
+        data_model: Any,
+        protocol_version: tuple[int, int, int] | None = None,
     ):
-        """
-        Initialize the FrostProtocolMng with the provided data model.
+        """Initialize the FrostProtocolMng with the provided data model.
 
         Args:
             data_model (Any):
                 The machine data model to be updated based on received messages.
             protocol_version (tuple[int, int, int] | None):
                 The Frost protocol version as (major, minor, patch).
-                If None, defaults to the latest version defined in FROST_PROTOCOL_VERSION.
-
+                If None, defaults to the latest version defined in
+                FROST_PROTOCOL_VERSION.
         """
         super().__init__(data_model)
         self._update_messages: list[FrostMessage] = []
-        self._running_methods: dict[str, tuple[CompositeMethodNode, FrostMessage]] = {}
+        self._running_methods: dict[
+            str, tuple[CompositeMethodNode, FrostMessage]
+        ] = {}
         self._protocol_version = (
-            protocol_version if protocol_version is not None else FROST_PROTOCOL_VERSION
+            protocol_version
+            if protocol_version is not None
+            else FROST_PROTOCOL_VERSION
         )
 
         self._message_builder: FrostMessageBuilder = FrostMessageBuilder(
-            sender=self._data_model.name, protocol_version=self._protocol_version
+            sender=self._data_model.name,
+            protocol_version=self._protocol_version,
         )
         assert isinstance(self._message_builder, FrostMessageBuilder)
         self._data_model.traverse(
@@ -102,8 +106,9 @@ class FrostProtocolMng(ProtocolMng):
         )
 
     def _add_frost_message_builder(self, node: DataModelNode) -> None:
-        """
-        Add the FrostMessageBuilder to CompositeMethodNodes in the data model.
+        """Add the FrostMessageBuilder to CompositeMethodNodes in the data
+        model.
+
         Args:
             node (DataModelNode):
                 The current node being traversed in the data model.
@@ -115,18 +120,17 @@ class FrostProtocolMng(ProtocolMng):
         node.set_message_builder(self._message_builder)
 
     def get_message_builder(self) -> FrostMessageBuilder:
-        """
-        Return the FrostMessageBuilder associated with this protocol manager.
+        """Return the FrostMessageBuilder associated with this protocol manager.
 
         Returns:
-            - FrostMessageBuilder: The message builder used for constructing Frost messages.
+            - FrostMessageBuilder: The message builder used for constructing
+            Frost messages.
         """
         return self._message_builder
 
     def _validate_message(self, msg: Message) -> bool:
-        """
-        Validate the provided message to ensure it is a FrostMessage and checks
-        if the protocol version is supported.
+        """Validate the provided message to ensure it is a FrostMessage and
+        checks if the protocol version is supported.
 
         Args:
             msg (Message):
@@ -144,19 +148,18 @@ class FrostProtocolMng(ProtocolMng):
         return self._is_version_supported(msg.header.version)
 
     def get_protocol_version(self) -> tuple[int, int, int]:
-        """
-        Return the version of the Frost protocol in use.
+        """Return the version of the Frost protocol in use.
 
         Returns:
-            - tuple[int, int, int]: A tuple representing the major, minor, and patch version.
+            - tuple[int, int, int]: A tuple representing the major, minor, and
+            patch version.
         """
-
         return self._protocol_version
 
     @override
     def handle_request(self, msg: Message) -> Message:
-        """
-        Handle a Frost request message and updates the data model accordingly.
+        """Handle a Frost request message and updates the data model
+        accordingly.
 
         Args:
             msg (Message):
@@ -183,7 +186,9 @@ class FrostProtocolMng(ProtocolMng):
         )
 
         if msg.header.type != MsgType.REQUEST:
-            return self._create_error_message(msg, ErrorMessages.INVALID_REQUEST)
+            return self._create_error_message(
+                msg, ErrorMessages.INVALID_REQUEST
+            )
 
         # Handle PROTOCOL messages separately.
         if msg.header.namespace == MsgNamespace.PROTOCOL:
@@ -196,14 +201,18 @@ class FrostProtocolMng(ProtocolMng):
         # Handle VARIABLE messages.
         if msg.header.namespace == MsgNamespace.VARIABLE:
             if not isinstance(node, VariableNode):
-                return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._create_error_message(
+                    msg, ErrorMessages.NOT_SUPPORTED
+                )
 
             return self._handle_variable_message(msg, node)
 
         # Handle METHOD messages.
         if msg.header.namespace == MsgNamespace.METHOD:
             if not isinstance(node, MethodNode):
-                return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
+                return self._create_error_message(
+                    msg, ErrorMessages.NOT_SUPPORTED
+                )
 
             return self._handle_method_message(msg, node)
 
@@ -211,10 +220,9 @@ class FrostProtocolMng(ProtocolMng):
         return self._create_error_message(msg, ErrorMessages.INVALID_NAMESPACE)
 
     def handle_response(self, msg: FrostMessage) -> Message | None:
-        """
-        Handle a Frost response message received in response to a request sent
-        by the data model. This includes resuming composite methods waiting for
-        a response.
+        """Handle a Frost response message received in response to a request
+        sent by the data model. This includes resuming composite methods waiting
+        for a response.
 
         Args:
             msg (FrostMessage):
@@ -229,7 +237,9 @@ class FrostProtocolMng(ProtocolMng):
         header = msg.header
 
         if header.type != MsgType.RESPONSE:
-            return self._create_error_message(msg, ErrorMessages.INVALID_RESPONSE)
+            return self._create_error_message(
+                msg, ErrorMessages.INVALID_RESPONSE
+            )
 
         # Resume methods waiting for a response
         if msg.correlation_id in self._running_methods:
@@ -239,13 +249,13 @@ class FrostProtocolMng(ProtocolMng):
         return None
 
     def handle_message(self, msg: Message) -> Message | None:
-        """
-        Handle a Frost message received by the data model. This includes
+        """Handle a Frost message received by the data model. This includes
         resuming composite methods waiting for a message.
 
         Args:
             msg (FrostMessage):
                 The message to be handled.
+
         Returns:
             Message | None:
                 A response message if a composite method is completed, otherwise
@@ -255,7 +265,9 @@ class FrostProtocolMng(ProtocolMng):
             raise ValueError("msg must be an instance of FrostMessage")
 
         if not self._is_version_supported(msg.header.version):
-            return self._create_error_message(msg, ErrorMessages.VERSION_NOT_SUPPORTED)
+            return self._create_error_message(
+                msg, ErrorMessages.VERSION_NOT_SUPPORTED
+            )
 
         if msg.header.type == MsgType.REQUEST:
             return self.handle_request(msg)
@@ -266,14 +278,11 @@ class FrostProtocolMng(ProtocolMng):
         return None
 
     def clear_update_messages(self) -> None:
-        """
-        Clear the list of update messages.
-        """
+        """Clear the list of update messages."""
         self._update_messages.clear()
 
     def get_update_messages(self) -> list[FrostMessage]:
-        """
-        Return the list of update messages.
+        """Return the list of update messages.
 
         Returns:
             - List[FrostMessage]: The list of update messages.
@@ -283,8 +292,7 @@ class FrostProtocolMng(ProtocolMng):
     def resume_composite_method(
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
-        """
-        Resume the execution of a composite method waiting for the specified
+        """Resume the execution of a composite method waiting for the specified
         subscriber.
 
         Args:
@@ -303,8 +311,7 @@ class FrostProtocolMng(ProtocolMng):
     def _handle_method_message(
         self, msg: FrostMessage, method_node: MethodNode
     ) -> FrostMessage:
-        """
-        Handle a message within the METHOD namespace.
+        """Handle a message within the METHOD namespace.
 
         Args:
             msg (FrostMessage):
@@ -332,9 +339,10 @@ class FrostProtocolMng(ProtocolMng):
             msg.payload.kwargs,
         )
 
-    def _is_version_supported(self, version: tuple[int, int, int] | None) -> bool:
-        """
-        Check if the provided version is supported by the protocol.
+    def _is_version_supported(
+        self, version: tuple[int, int, int] | None
+    ) -> bool:
+        """Check if the provided version is supported by the protocol.
 
         Args:
             version (tuple[int, int, int]):
@@ -360,8 +368,7 @@ class FrostProtocolMng(ProtocolMng):
         args: list[Any],
         kwargs: dict[str, Any],
     ) -> FrostMessage:
-        """
-        Invoke the provided method node with the specified arguments.
+        """Invoke the provided method node with the specified arguments.
 
         Args:
             msg (FrostMessage):
@@ -418,8 +425,7 @@ class FrostProtocolMng(ProtocolMng):
         msg: FrostMessage,
         variable_node: VariableNode,
     ) -> FrostMessage:
-        """
-        Handle a message within the VARIABLE namespace.
+        """Handle a message within the VARIABLE namespace.
 
         Args:
             msg (FrostMessage):
@@ -464,13 +470,14 @@ class FrostProtocolMng(ProtocolMng):
     def _handle_read_request(
         self, msg: FrostMessage, variable_node: VariableNode
     ) -> FrostMessage:
-        """
-        Handle a read request for a variable node.
+        """Handle a read request for a variable node.
+
         Args:
             msg (FrostMessage):
                 The read request message.
             variable_node (VariableNode):
                 The variable node to read the value from.
+
         Returns:
             FrostMessage:
                 A response message containing the read value.
@@ -495,13 +502,14 @@ class FrostProtocolMng(ProtocolMng):
     def _handle_write_request(
         self, msg: FrostMessage, variable_node: VariableNode
     ) -> FrostMessage:
-        """
-        Handle a write request for a variable node.
+        """Handle a write request for a variable node.
+
         Args:
             msg (FrostMessage):
                 The write request message.
             variable_node (VariableNode):
                 The variable node to write the value to.
+
         Returns:
             FrostMessage:
                 A response message confirming the write operation.
@@ -524,13 +532,14 @@ class FrostProtocolMng(ProtocolMng):
     def _handle_subscribe_request(
         self, msg: FrostMessage, variable_node: VariableNode
     ) -> FrostMessage:
-        """
-        Handle a subscribe request for a variable node.
+        """Handle a subscribe request for a variable node.
+
         Args:
             msg (FrostMessage):
                 The subscribe request message.
             variable_node (VariableNode):
                 The variable node to subscribe to.
+
         Returns:
             FrostMessage:
                 A response message confirming the subscription.
@@ -542,11 +551,13 @@ class FrostProtocolMng(ProtocolMng):
             subscriber_id=msg.sender, correlation_id=msg.correlation_id
         )
         variable_node.subscribe(subscription)
-        response = self._message_builder.build_subscribe_variable_response_message(
-            target=msg.sender,
-            node=msg.payload.node,
-            value=msg.payload.value,
-            correlation_id=msg.correlation_id,
+        response = (
+            self._message_builder.build_subscribe_variable_response_message(
+                target=msg.sender,
+                node=msg.payload.node,
+                value=msg.payload.value,
+                correlation_id=msg.correlation_id,
+            )
         )
         return self._trace_and_return_response(
             response,
@@ -556,13 +567,14 @@ class FrostProtocolMng(ProtocolMng):
     def _handle_unsubscribe_request(
         self, msg: FrostMessage, variable_node: VariableNode
     ) -> FrostMessage:
-        """
-        Handle an unsubscribe request for a variable node.
+        """Handle an unsubscribe request for a variable node.
+
         Args:
             msg (FrostMessage):
                 The unsubscribe request message.
             variable_node (VariableNode):
                 The variable node to unsubscribe from.
+
         Returns:
             FrostMessage:
                 A response message confirming the unsubscription.
@@ -574,10 +586,12 @@ class FrostProtocolMng(ProtocolMng):
             subscriber_id=msg.sender, correlation_id=msg.correlation_id
         )
         variable_node.unsubscribe(subscription)
-        response = self._message_builder.build_unsubscribe_variable_response_message(
-            target=msg.sender,
-            node=msg.payload.node,
-            correlation_id=msg.correlation_id,
+        response = (
+            self._message_builder.build_unsubscribe_variable_response_message(
+                target=msg.sender,
+                node=msg.payload.node,
+                correlation_id=msg.correlation_id,
+            )
         )
         return self._trace_and_return_response(
             response,
@@ -585,8 +599,7 @@ class FrostProtocolMng(ProtocolMng):
         )
 
     def _handle_protocol_message(self, msg: FrostMessage) -> FrostMessage:
-        """
-        Handle protocol-related messages such as REGISTER and UNREGISTER.
+        """Handle protocol-related messages such as REGISTER and UNREGISTER.
 
         Args:
             msg (FrostMessage):
@@ -616,9 +629,7 @@ class FrostProtocolMng(ProtocolMng):
         return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
 
     def _resume_composite_method(self, context_id: str) -> FrostMessage | None:
-        """
-        Resume the execution of a composite method with the specified context
-        id.
+        """Try to resume a composite method with the specified context ID.
 
         Args:
             context_id (str):
@@ -661,13 +672,13 @@ class FrostProtocolMng(ProtocolMng):
         node: VariableNode,
         value: Any,
     ) -> None:
-        """
-        Handle the update and creates the corresponding FrostMessage.
+        """Handle the update and creates the corresponding FrostMessage.
 
         Args:
-            - subscription (VariableSubscription): The subscription that triggered the update.
-            - node (VariableNode): The node that was updated.
-            - value (Any): The new value of the node.
+            subscription (VariableSubscription): The subscription that
+            triggered the update.
+            node (VariableNode): The node that was updated.
+            value (Any): The new value of the node.
         """
         # Support matching running composite methods by either the
         # subscription.correlation_id (used for remote subscriptions) or
@@ -703,12 +714,12 @@ class FrostProtocolMng(ProtocolMng):
         msg: FrostMessage,
         error_message: ErrorMessages,
     ) -> FrostMessage:
-        """
-        Create a response message based on the provided message.
+        """Create a response message based on the provided message.
 
         Args:
             msg (FrostMessage):
-                The original FrostMessage that will be used to create the response.
+                The original FrostMessage that will be used to create the
+                response.
             error_message (ErrorMessages | None):
                 The error message to include in the response, if any.
 
@@ -731,12 +742,13 @@ class FrostProtocolMng(ProtocolMng):
         response: FrostMessage,
         msg: FrostMessage,
     ) -> FrostMessage:
-        """
-        Trace the response message and returns it.
+        """Trace the response message and returns it.
 
         Args:
-            - response (FrostMessage): The response message to be traced and returned.
-            - msg (FrostMessage): The original message that prompted the response.
+            response (FrostMessage): The response message to be traced and
+            returned.
+            msg (FrostMessage): The original message that prompted the
+            response.
 
         Returns:
             FrostMessage:
@@ -753,11 +765,11 @@ class FrostProtocolMng(ProtocolMng):
         return response
 
     def _get_tracing_payload(self, message: FrostMessage) -> dict[str, Any]:
-        """
-        Extract relevant payload information for tracing purposes.
+        """Extract relevant payload information for tracing purposes.
 
         Args:
-            - message (FrostMessage): The FrostMessage from which to extract payload information.
+            message (FrostMessage): The FrostMessage from which to extract
+            payload information.
 
         Returns:
             dict[str, Any]:

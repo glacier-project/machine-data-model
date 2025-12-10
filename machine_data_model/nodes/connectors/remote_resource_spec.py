@@ -1,5 +1,4 @@
-"""
-Remote Resource Spec.
+"""Remote Resource Spec.
 
 This module defines the RemoteResourceSpec abstract class.
 It used to define all the properties of a DataModelNode that
@@ -7,19 +6,19 @@ are connector/protocol specific.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from machine_data_model.nodes.data_model_node import DataModelNode
+if TYPE_CHECKING:
+    from machine_data_model.nodes.data_model_node import DataModelNode
 
 
 class RemoteResourceSpec(ABC):
-    """
-    Represents node properties that are specific for a certain protocol.
-    """
+    """Represents node properties that are specific for a certain protocol."""
 
-    def __init__(self, parent: "DataModelNode | None", remote_path: str | None = None):
-        """
-        Constructor.
+    def __init__(
+        self, parent: "DataModelNode | None", remote_path: str | None = None
+    ):
+        """Constructor.
 
         Args:
             parent (DataModelNode | None):
@@ -39,8 +38,7 @@ class RemoteResourceSpec(ABC):
         self._parent = value
 
     def remote_path(self) -> str | None:
-        """
-        Returns the 'remote_path'.
+        """Returns the 'remote_path'.
 
         Returns:
             str | None:
@@ -50,9 +48,8 @@ class RemoteResourceSpec(ABC):
 
     @abstractmethod
     def inheritable_spec(self) -> "RemoteResourceSpec":
-        """
-        Returns a copy of this object, where the only properties that get copied
-        are properties that will be inherited by child nodes.
+        """Returns a copy of this object, where the only properties that get
+        copied are properties that will be inherited by child nodes.
 
         Returns:
             RemoteResourceSpec:
@@ -62,10 +59,10 @@ class RemoteResourceSpec(ABC):
 
     @abstractmethod
     def merge_specs(self, spec1: Any, spec2: Any) -> Any:
-        """
-        Creates a third object which has the combined properties of spec1 and spec2.
-        > Note that spec1 has priority over spec2: spec1's properties override spec2's
-        > properties when the properties are defined for both objects.
+        """Creates a third object which has the combined properties of spec1 and
+        spec2.
+        > Note that spec1 has priority over spec2: spec1's properties override
+        spec2's properties when the properties are defined for both objects.
 
         Args:
             spec1 (Any):

@@ -1,20 +1,19 @@
-"""
-Abstract Async Connector.
+"""Abstract Async Connector.
 
 This module defines the AbstractAsyncConnector abstract class.
 It is used to define connectors which use libraries that
 follow the async/await programming paradigm.
 """
 
-from threading import Thread
 from abc import abstractmethod
-from typing import Any, TypeVar, Callable
-import logging
-
 import asyncio
 from asyncio import AbstractEventLoop
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from concurrent.futures import Future
+import logging
+from threading import Thread
+from typing import Any, TypeVar
+
 from typing_extensions import override
 
 from .abstract_connector import AbstractConnector, SubscriptionArguments
@@ -25,8 +24,7 @@ _logger = logging.getLogger(__name__)
 
 
 def create_event_loop_thread() -> AbstractEventLoop:
-    """
-    Creates a thread with an asyncio loop.
+    """Creates a thread with an asyncio loop.
     The loop can then be used to execute the async tasks inside the thread.
 
     Credits:
@@ -38,8 +36,7 @@ def create_event_loop_thread() -> AbstractEventLoop:
     """
 
     def start_background_loop(loop: AbstractEventLoop) -> None:
-        """
-        Runs the asyncio loop forever.
+        """Runs the asyncio loop forever.
 
         Args:
             loop (AbstractEventLoop):
@@ -50,7 +47,9 @@ def create_event_loop_thread() -> AbstractEventLoop:
 
     _logger.debug("Creating thread and its event loop")
     event_loop = asyncio.new_event_loop()
-    thread = Thread(target=start_background_loop, args=(event_loop,), daemon=True)
+    thread = Thread(
+        target=start_background_loop, args=(event_loop,), daemon=True
+    )
     thread.start()
     _logger.debug("Created thread and its event loop")
     return event_loop
@@ -59,8 +58,7 @@ def create_event_loop_thread() -> AbstractEventLoop:
 def run_coroutine_in_thread(
     loop: AbstractEventLoop, coro: Coroutine[None, None, TaskReturnType]
 ) -> Future[TaskReturnType]:
-    """
-    Runs a coroutine in a thread.
+    """Runs a coroutine in a thread.
     Use create_event_loop_thread() to get the loop.
 
     Credits:
@@ -80,8 +78,7 @@ def run_coroutine_in_thread(
 
 
 class AbstractAsyncConnector(AbstractConnector):
-    """
-    Represents a generic connector/client,
+    """Represents a generic connector/client,
     where the client's library has an asynchronous implementation.
     """
 
@@ -99,32 +96,33 @@ class AbstractAsyncConnector(AbstractConnector):
         password: str | None = None,
         password_env_var: str | None = None,
     ) -> None:
-        """
-        AbstractAsyncConnector constructor.
+        """AbstractAsyncConnector constructor.
 
         Args:
             id (str | None):
-                Connector's object id
+                Connector's object id.
             name (str | None):
                 Connector's name/identifier
             ip (str | None):
-                Server's IP address
+                Server's IP address.
             ip_env_var (str | None):
                 Environment variable which contains the server's IP address
             port (int | None):
-                Server's port
+                Server's port.
             port_env_var (str | None):
-                Environment variable which contains the server's port
+                Environment variable which contains the server's port.
             event_loop (AbstractEventLoop | None):
                 Event loop which will be used to execute the asynchronous tasks.
             username (str | None):
                 Username used to authenticate to the server
             username_env_var (str | None):
-                Environment variable which contains the username used to authenticate to the server
+                Environment variable which contains the username used to
+                authenticate to the server.
             password (str | None):
-                Password used to authenticate to the server
+                Password used to authenticate to the server.
             password_env_var (str | None):
-                Environment variable which contains the password used to authenticate to the server
+                Environment variable which contains the password used to
+                authenticate to the server.
         """
         super().__init__(
             id=id,
@@ -145,8 +143,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @override
     def connect(self) -> bool:
-        """
-        Connect to the server.
+        """Connect to the server.
         Wraps its asynchronous implementation.
 
         Returns:
@@ -157,8 +154,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @abstractmethod
     async def _async_connect(self) -> bool:
-        """
-        Asynchronous code which uses the client to connect to the server.
+        """Asynchronous code which uses the client to connect to the server.
 
         Returns:
             bool:
@@ -167,8 +163,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @override
     def disconnect(self) -> bool:
-        """
-        Disconnect from the server.
+        """Disconnect from the server.
         Wraps its asynchronous implementation.
 
         Returns:
@@ -181,8 +176,8 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @abstractmethod
     async def _async_disconnect(self) -> bool:
-        """
-        Asynchronous code which uses the client to disconnect from the server.
+        """Asynchronous code which uses the client to disconnect from the
+        server.
 
         Returns:
             bool:
@@ -191,8 +186,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @override
     def _get_remote_node(self, path: str) -> Any:
-        """
-        Try to retrieve the node from the server.
+        """Try to retrieve the node from the server.
         The node's type depends on the library used to interact with the server.
         Wraps its asynchronous implementation.
 
@@ -208,8 +202,8 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @abstractmethod
     async def _async_get_remote_node(self, path: str) -> Any:
-        """
-        Asynchronous code which uses the client to retrieve the node from the server.
+        """Asynchronous code which uses the client to retrieve the node from the
+        server.
 
         Args:
             path (str):
@@ -222,8 +216,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @override
     def read_node_value(self, path: str) -> Any:
-        """
-        Retrieve and return a node's value.
+        """Retrieve and return a node's value.
         Wraps its asynchronous implementation.
 
         Args:
@@ -238,8 +231,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @abstractmethod
     async def _async_read_node_value(self, path: str) -> Any:
-        """
-        Asynchronous code which reads a node's value.
+        """Asynchronous code which reads a node's value.
 
         Args:
             path (str):
@@ -252,8 +244,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @override
     def write_node_value(self, path: str, value: Any) -> bool:
-        """
-        Write a variable node.
+        """Write a variable node.
         Wraps its asynchronous implementation.
 
         Args:
@@ -270,8 +261,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @abstractmethod
     async def _async_write_node_value(self, path: str, value: Any) -> bool:
-        """
-        Asynchronous code which writes a variable node.
+        """Asynchronous code which writes a variable node.
 
         Args:
             path (str):
@@ -286,8 +276,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @override
     def call_node_as_method(self, path: str, kwargs: dict[str, Any]) -> Any:
-        """
-        Calls the method at path <path> with <kwargs> as its arguments.
+        """Calls the method at path <path> with <kwargs> as its arguments.
         Wraps its asynchronous implementation.
 
         Args:
@@ -306,8 +295,8 @@ class AbstractAsyncConnector(AbstractConnector):
     async def _async_call_node_as_method(
         self, path: str, kwargs: dict[str, Any]
     ) -> Any:
-        """
-        Asynchronous code which calls the method at path <path> with <kwargs> as its arguments.
+        """Asynchronous code which calls the method at path <path> with <kwargs>
+        as its arguments.
 
         Args:
             path (str):
@@ -324,46 +313,50 @@ class AbstractAsyncConnector(AbstractConnector):
     def subscribe_to_node_changes(
         self, path: str, callback: Callable[[Any, SubscriptionArguments], None]
     ) -> int:
-        """
-        Subscribes to remote node changes.
+        """Subscribes to remote node changes.
         Calls the callback function every time the remote value changes.
         Wraps its asynchronous implementation.
 
         The callback must accept two parameters:
         - the new remote value
-        - other data. It can be used to pass different data depending on the Connector's protocol/implementation
+        - other data. It can be used to pass different data depending on the
+        Connector's protocol/implementation
 
         Args:
             path (str):
                 Node path.
             callback (Callable[[Any, SubscriptionArguments], None]):
-                Subscription's callback. The first parameter is the new value, while the
-                second parameter is additional data that is protocol dependent.
+                Subscription's callback. The first parameter is the new value,
+                while the second parameter is additional data that is protocol
+                dependent.
 
         Returns:
             int:
                 Handler code which can be used to unsubscribe from new events.
         """
-        return self._handle_task(self._async_subscribe_to_node_changes(path, callback))
+        return self._handle_task(
+            self._async_subscribe_to_node_changes(path, callback)
+        )
 
     @abstractmethod
     async def _async_subscribe_to_node_changes(
         self, path: str, callback: Callable[[Any, SubscriptionArguments], None]
     ) -> int:
-        """
-        Asynchronous code which subscribes to remote node changes.
+        """Asynchronous code which subscribes to remote node changes.
         Calls the callback function every time the remote value changes.
 
         The callback must accept two parameters:
         - the new remote value
-        - other data. It can be used to pass different data depending on the Connector's protocol/implementation
+        - other data. It can be used to pass different data depending on the
+        Connector's protocol/implementation
 
         Args:
             path (str):
                 Node path.
             callback (Callable[[Any, SubscriptionArguments], None]):
-                Subscription's callback. The first parameter is the new value, while the
-                second parameter is additional data that is protocol dependent.
+                Subscription's callback. The first parameter is the new value,
+                while the second parameter is additional data that is protocol
+                dependent.
 
         Returns:
             int:
@@ -373,8 +366,7 @@ class AbstractAsyncConnector(AbstractConnector):
     def _handle_task(
         self, task: Coroutine[None, None, TaskReturnType]
     ) -> TaskReturnType:
-        """
-        Run a task in the thread, wait for the result and return it.
+        """Run a task in the thread, wait for the result and return it.
 
         Args:
             task (Coroutine[None, None, TaskReturnType]):
@@ -388,6 +380,7 @@ class AbstractAsyncConnector(AbstractConnector):
         res = run_coroutine_in_thread(self._event_loop, task)
         output = res.result()
         _logger.debug(
-            f"Ran task {task} using '{self.name}' connector. Its result is {output!r}"
+            f"Ran task {task} using '{self.name}' connector. "
+            f"Its result is {output!r}"
         )
         return output

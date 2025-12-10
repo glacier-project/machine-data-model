@@ -1,5 +1,4 @@
-"""
-Control flow node definitions and execution results.
+"""Control flow node definitions and execution results.
 
 This module defines the abstract base class for control flow nodes and the
 result structure for node executions in the machine data model.
@@ -16,8 +15,7 @@ if TYPE_CHECKING:
 
 
 class ExecutionNodeResult:
-    """
-    Represents the result of executing a control flow node.
+    """Represents the result of executing a control flow node.
 
     Attributes:
         success (bool):
@@ -30,9 +28,10 @@ class ExecutionNodeResult:
     success: bool
     messages: list[FrostMessage]
 
-    def __init__(self, success: bool, messages: list[FrostMessage] | None = None):
-        """
-        Initialize an ExecutionNodeResult instance.
+    def __init__(
+        self, success: bool, messages: list[FrostMessage] | None = None
+    ):
+        """Initialize an ExecutionNodeResult instance.
 
         Args:
             success (bool):
@@ -48,8 +47,7 @@ class ExecutionNodeResult:
 def execution_success(
     messages: list[FrostMessage] | None = None,
 ) -> ExecutionNodeResult:
-    """
-    Create a successful ExecutionNodeResult.
+    """Create a successful ExecutionNodeResult.
 
     Args:
         messages (list[FrostMessage] | None):
@@ -66,8 +64,7 @@ def execution_success(
 def execution_failure(
     messages: list[FrostMessage] | None = None,
 ) -> ExecutionNodeResult:
-    """
-    Create a failed ExecutionNodeResult.
+    """Create a failed ExecutionNodeResult.
 
     Args:
         messages (list[FrostMessage] | None):
@@ -82,8 +79,7 @@ def execution_failure(
 
 
 class ControlFlowNode(ABC):
-    """
-    Abstract base class representing a node in the control flow graph.
+    """Abstract base class representing a node in the control flow graph.
 
     A control flow node is a basic unit of the control flow graph that can be
     executed in the context of a control flow execution context.
@@ -109,8 +105,7 @@ class ControlFlowNode(ABC):
         successors: list["ControlFlowNode"] | None = None,
         parent_cfg: "ControlFlow | None" = None,
     ):
-        """
-        Initialize a new ControlFlowNode instance.
+        """Initialize a new ControlFlowNode instance.
 
         Args:
             node (str):
@@ -128,8 +123,7 @@ class ControlFlowNode(ABC):
 
     @property
     def parent_cfg(self) -> "ControlFlow | None":
-        """
-        Get the parent control flow graph that contains this node.
+        """Get the parent control flow graph that contains this node.
 
         Returns:
             "ControlFlow | None":
@@ -139,9 +133,8 @@ class ControlFlowNode(ABC):
         return self._parent_cfg
 
     def get_data_model_id(self) -> str:
-        """
-        Get the data model ID of the composite method that owns the control flow
-        graph.
+        """Get the data model ID of the composite method that owns the control
+        flow graph.
 
         Returns:
             str:
@@ -153,8 +146,7 @@ class ControlFlowNode(ABC):
         return ""
 
     def get_composite_method_id(self) -> str:
-        """
-        Get the ID of the composite method that owns the control flow graph.
+        """Get the ID of the composite method that owns the control flow graph.
 
         Returns:
             str:
@@ -168,9 +160,8 @@ class ControlFlowNode(ABC):
 
     @abstractmethod
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
-        """
-        Execute the control flow node in the context of the specified execution
-        context.
+        """Execute the control flow node in the context of the specified
+        execution context.
 
         Args:
             context (ExecutionContext):
@@ -184,8 +175,7 @@ class ControlFlowNode(ABC):
         """
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):

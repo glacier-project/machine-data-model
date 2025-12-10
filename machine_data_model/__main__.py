@@ -1,5 +1,4 @@
-"""
-Main entry point for the machine data model package.
+"""Main entry point for the machine data model package.
 
 This module provides a command-line interface for running the machine data model
 with example configurations.
@@ -12,8 +11,7 @@ from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
 
 
 def main() -> None:
-    """
-    Main entry point function.
+    """Main entry point function.
 
     Loads a data model from template and demonstrates protocol management.
     """

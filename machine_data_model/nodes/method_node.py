@@ -1,5 +1,4 @@
-"""
-Method node implementations for machine data models.
+"""Method node implementations for machine data models.
 
 This module provides method node classes that represent executable functions in
 the machine data model, including synchronous and asynchronous methods with
@@ -12,8 +11,15 @@ from typing import Any
 
 from typing_extensions import override
 
-from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
-from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
+from machine_data_model.nodes.connectors.abstract_connector import (
+    AbstractConnector,
+)
+from machine_data_model.nodes.connectors.remote_resource_spec import (
+    RemoteResourceSpec,
+)
+from machine_data_model.nodes.data_model_node import (
+    DataModelNode,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import trace_method_end, trace_method_start
@@ -21,8 +27,7 @@ from machine_data_model.tracing import trace_method_end, trace_method_start
 
 @dataclass
 class MethodExecutionResult:
-    """
-    Represents the result of executing or resuming a method node.
+    """Represents the result of executing or resuming a method node.
 
     Attributes:
         return_values:
@@ -39,8 +44,7 @@ class MethodExecutionResult:
 
 
 class MethodNode(DataModelNode):
-    """
-    A MethodNode class is a node that represents a synchronous method in the
+    """A MethodNode class is a node that represents a synchronous method in the
     machine data model. Methods of the machine data model are used to declare
     functions that can be executed on the machine data model.
 
@@ -75,8 +79,7 @@ class MethodNode(DataModelNode):
         connector_name: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
-        """
-        Initialize a new MethodNode instance.
+        """Initialize a new MethodNode instance.
 
         Args:
             id (str | None):
@@ -93,11 +96,10 @@ class MethodNode(DataModelNode):
                 The function to execute when the method is called.
             connector_name (str | None):
                 The connector's name/identifier if this node is a remote node.
-                Used to interact with the remote server to read/write the variable.
-                > Remote node -> there is a server which contains the value to read/write.
+                Used to interact with the remote server to read/write the
+                variable.
             remote_resource_spec (RemoteResourceSpec | None):
-                remote_resource_spec (RemoteResourceSpec | None):
-                Properties that are specific to the remote protocol (for example, namespace for OPC UA).
+                Protocol-specific properties for remote nodes.
         """
         super().__init__(
             id=id,
@@ -108,7 +110,9 @@ class MethodNode(DataModelNode):
         )
         self._parameters = parameters if parameters is not None else []
         self._returns = returns if returns is not None else []
-        self._callback = callback if callback is not None else lambda **kwargs: None
+        self._callback = (
+            callback if callback is not None else lambda **kwargs: None
+        )
         self._pre_call = lambda **kwargs: None
         self._post_call = lambda res: None
 
@@ -125,8 +129,7 @@ class MethodNode(DataModelNode):
 
     @property
     def parameters(self) -> list[VariableNode]:
-        """
-        Returns the list of parameters for the method.
+        """Returns the list of parameters for the method.
 
         Returns:
             list[VariableNode]:
@@ -137,21 +140,21 @@ class MethodNode(DataModelNode):
         return self._parameters
 
     def add_parameter(self, parameter: VariableNode) -> None:
-        """
-        Add a parameter to the method.
+        """Add a parameter to the method.
 
         Args:
             parameter (VariableNode):
                 The parameter to add to the method.
 
         """
-        assert isinstance(parameter, VariableNode), "Parameter must be a VariableNode"
+        assert isinstance(
+            parameter, VariableNode
+        ), "Parameter must be a VariableNode"
         self._parameters.append(parameter)
         parameter.parent = self
 
     def remove_parameter(self, parameter: VariableNode) -> None:
-        """
-        Remove a parameter from the method.
+        """Remove a parameter from the method.
 
         Args:
             parameter (VariableNode):
@@ -163,14 +166,15 @@ class MethodNode(DataModelNode):
 
         """
         if parameter not in self._parameters:
-            raise ValueError(f"Parameter '{parameter}' not found in method '{self.id}'")
+            raise ValueError(
+                f"Parameter '{parameter}' not found in method '{self.id}'"
+            )
         self._parameters.remove(parameter)
         parameter.parent = None
 
     @property
     def returns(self) -> list[VariableNode]:
-        """
-        Returns the list of return values for the method.
+        """Returns the list of return values for the method.
 
         Returns:
             list[VariableNode]:
@@ -181,8 +185,7 @@ class MethodNode(DataModelNode):
         return self._returns
 
     def add_return_value(self, return_value: VariableNode) -> None:
-        """
-        Add a return value to the method.
+        """Add a return value to the method.
 
         Args:
             return_value (VariableNode):
@@ -196,8 +199,7 @@ class MethodNode(DataModelNode):
         return_value.parent = self
 
     def remove_return_value(self, return_value: VariableNode) -> None:
-        """
-        Remove a return value from the method.
+        """Remove a return value from the method.
 
         Args:
             return_value (VariableNode):
@@ -217,8 +219,7 @@ class MethodNode(DataModelNode):
 
     @property
     def callback(self) -> Callable:
-        """
-        Gets the callback function for the method.
+        """Gets the callback function for the method.
 
         Returns:
             Callable:
@@ -229,8 +230,7 @@ class MethodNode(DataModelNode):
 
     @callback.setter
     def callback(self, call: Callable) -> None:
-        """
-        Sets the callback function for the method.
+        """Sets the callback function for the method.
 
         Args:
             call (Callable):
@@ -241,8 +241,7 @@ class MethodNode(DataModelNode):
 
     @property
     def pre_callback(self) -> Callable:
-        """
-        Gets the pre-call function for the method.
+        """Gets the pre-call function for the method.
 
         Returns:
             Callable:
@@ -253,8 +252,7 @@ class MethodNode(DataModelNode):
 
     @pre_callback.setter
     def pre_callback(self, pre_call: Callable) -> None:
-        """
-        Sets the pre-call function for the method.
+        """Sets the pre-call function for the method.
 
         Args:
             pre_call (Callable):
@@ -265,8 +263,7 @@ class MethodNode(DataModelNode):
 
     @property
     def post_callback(self) -> Callable:
-        """
-        Gets the post-call function for the method.
+        """Gets the post-call function for the method.
 
         Returns:
             Callable:
@@ -277,8 +274,7 @@ class MethodNode(DataModelNode):
 
     @post_callback.setter
     def post_callback(self, callback: Callable) -> None:
-        """
-        Sets the post-call function for the method.
+        """Sets the post-call function for the method.
 
         Args:
             callback (Callable):
@@ -288,8 +284,7 @@ class MethodNode(DataModelNode):
         self._post_call = callback
 
     def is_async(self) -> bool:
-        """
-        Returns always False for synchronous methods.
+        """Returns always False for synchronous methods.
 
         Returns:
             bool:
@@ -300,8 +295,7 @@ class MethodNode(DataModelNode):
 
     @override
     def __getitem__(self, node_name: str) -> VariableNode:
-        """
-        Get a parameter or return value of the method by name.
+        """Get a parameter or return value of the method by name.
 
         Args:
             node_name (str):
@@ -329,9 +323,8 @@ class MethodNode(DataModelNode):
 
     @override
     def __contains__(self, node_name: str) -> bool:
-        """
-        Check if the method has a parameter or return value with the specified
-        name.
+        """Check if the method has a parameter or return value with the
+        specified name.
 
         Args:
             node_name (str):
@@ -353,8 +346,7 @@ class MethodNode(DataModelNode):
 
     @override
     def __iter__(self) -> Iterator[VariableNode]:
-        """
-        Iterate over the parameters and return values of the method.
+        """Iterate over the parameters and return values of the method.
 
         Returns:
             Iterator[VariableNode]:
@@ -365,8 +357,7 @@ class MethodNode(DataModelNode):
         yield from self._returns
 
     def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
-        """
-        Call the method with the specified arguments.
+        """Call the method with the specified arguments.
 
         Args:
             *args (Any):
@@ -421,9 +412,8 @@ class MethodNode(DataModelNode):
     def _resolve_arguments(
         self, *args: list[Any], **kwargs: dict[str, Any]
     ) -> dict[str, Any]:
-        """
-        Resolves the arguments for the method. It fills in the missing arguments
-        with default values or reads them from the parameters.
+        """Resolves the arguments for the method. It fills in the missing
+        arguments with default values or reads them from the parameters.
 
         Args:
             *args (list[Any]):
@@ -452,8 +442,7 @@ class MethodNode(DataModelNode):
         return kwargs
 
     def _build_return_dict(self, ret: Any) -> dict[str, Any]:
-        """
-        Build a dictionary of return values from the method.
+        """Build a dictionary of return values from the method.
 
         Args:
             ret (Any):
@@ -473,8 +462,7 @@ class MethodNode(DataModelNode):
         return ret_dict
 
     def __str__(self) -> str:
-        """
-        Returns a string representation of the MethodNode.
+        """Returns a string representation of the MethodNode.
 
         Returns:
             str:
@@ -489,8 +477,7 @@ class MethodNode(DataModelNode):
         )
 
     def __repr__(self) -> str:
-        """
-        Returns a string representation of the MethodNode.
+        """Returns a string representation of the MethodNode.
 
         Returns:
             str:
@@ -509,16 +496,18 @@ class MethodNode(DataModelNode):
         if not self._eq_base(other):
             return False
 
-        return self._parameters == other._parameters and self._returns == other._returns
+        return (
+            self._parameters == other._parameters
+            and self._returns == other._returns
+        )
 
 
 class AsyncMethodNode(MethodNode):
-    """
-    An AsyncMethodNode class is a node that represents an asynchronous method in
-    the machine data model. Asynchronous methods of the machine data model are
-    used to declare functions whose return values are not immediately available.
-    Instead, the result is obtained asynchronously, typically through variable
-    monitoring or event-based mechanisms.
+    """An AsyncMethodNode class is a node that represents an asynchronous method
+    in the machine data model. Asynchronous methods of the machine data model
+    are used to declare functions whose return values are not immediately
+    available. Instead, the result is obtained asynchronously, typically through
+    variable monitoring or event-based mechanisms.
     """
 
     def __init__(
@@ -532,8 +521,7 @@ class AsyncMethodNode(MethodNode):
         connector_name: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
-        """
-        Initialize a new AsyncMethodNode instance.
+        """Initialize a new AsyncMethodNode instance.
 
         Args:
             id (str | None):
@@ -550,11 +538,11 @@ class AsyncMethodNode(MethodNode):
                 The function to execute when the method is called.
             connector_name (str | None):
                 The connector's name/identifier if this node is a remote node.
-                Used to interact with the remote server to read/write the variable.
-                > Remote node -> there is a server which contains the value to read/write.
+                Used to interact with the remote server to read/write the
+                variable.
             remote_resource_spec (RemoteResourceSpec | None):
                 remote_resource_spec (RemoteResourceSpec | None):
-                Properties that are specific to the remote protocol (for example, namespace for OPC UA).
+                Protocol-specific properties for remote nodes.
         """
         super().__init__(
             id=id,
@@ -568,8 +556,7 @@ class AsyncMethodNode(MethodNode):
         )
 
     def is_async(self) -> bool:
-        """
-        Returns always True for asynchronous methods.
+        """Returns always True for asynchronous methods.
 
         Returns:
             bool:
@@ -579,4 +566,8 @@ class AsyncMethodNode(MethodNode):
         return True
 
     def __str__(self) -> str:
-        return f"AsyncMethodNode(id={self.id}, name={self.name}, description={self.description})"
+        return (
+            f"AsyncMethodNode(id={self.id}, "
+            f"name={self.name}, "
+            f"description={self.description})"
+        )

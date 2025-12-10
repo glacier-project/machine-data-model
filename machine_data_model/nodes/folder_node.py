@@ -1,5 +1,4 @@
-"""
-Folder node implementation for machine data models.
+"""Folder node implementation for machine data models.
 
 This module provides the FolderNode class, which represents folders in the
 machine data model hierarchy used to organize nodes in a tree structure.
@@ -9,12 +8,14 @@ from collections.abc import Iterator
 
 from typing_extensions import override
 
-from machine_data_model.nodes.data_model_node import DataModelNode, RemoteResourceSpec
+from machine_data_model.nodes.connectors.remote_resource_spec import (
+    RemoteResourceSpec,
+)
+from machine_data_model.nodes.data_model_node import DataModelNode
 
 
 class FolderNode(DataModelNode):
-    """
-    A FolderNode class is a node that represents a folder in the machine data
+    """A FolderNode class is a node that represents a folder in the machine data
     model. Folders of the machine data model are used to organize the node of
     the machine data model in a hierarchical structure.
 
@@ -35,8 +36,7 @@ class FolderNode(DataModelNode):
         connector_name: str | None = None,
         remote_resource_spec: RemoteResourceSpec | None = None,
     ):
-        """
-        Initializes a new FolderNode instance.
+        """Initializes a new FolderNode instance.
 
         Args:
             id (str | None):
@@ -49,11 +49,10 @@ class FolderNode(DataModelNode):
                 A dictionary of child nodes of the folder.
             connector_name (str | None):
                 The connector's name/identifier if this node is a remote node.
-                Used to interact with the remote server to read/write the variable.
-                > Remote node -> there is a server which contains the value to read/write.
+                Used to interact with the remote server to read/write the
+                variable.
             remote_resource_spec (RemoteResourceSpec | None):
-                remote_resource_spec (RemoteResourceSpec | None):
-                Properties that are specific to the remote protocol (for example, namespace for OPC UA).
+                Protocol-specific properties for the remote resource.
         """
         super().__init__(
             id=id,
@@ -64,13 +63,14 @@ class FolderNode(DataModelNode):
         )
         self._children = {} if children is None else children
         for child in self._children.values():
-            assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
+            assert isinstance(
+                child, DataModelNode
+            ), "Child must be a DataModelNode"
         self.register_children(self._children)
 
     @property
     def children(self) -> dict[str, DataModelNode]:
-        """
-        Returns the child nodes of the folder.
+        """Returns the child nodes of the folder.
 
         Returns:
             dict[str, DataModelNode]:
@@ -81,8 +81,7 @@ class FolderNode(DataModelNode):
         return self._children
 
     def add_child(self, child: DataModelNode) -> None:
-        """
-        Add a child node to the folder.
+        """Add a child node to the folder.
 
         Args:
             child (DataModelNode):
@@ -94,8 +93,7 @@ class FolderNode(DataModelNode):
         child.parent = self
 
     def remove_child(self, child_name: str) -> None:
-        """
-        Remove a child node from the folder.
+        """Remove a child node from the folder.
 
         Args:
             child_name (str):
@@ -112,12 +110,12 @@ class FolderNode(DataModelNode):
             child.parent = None
         else:
             raise ValueError(
-                f"Child node with name '{child_name}' not found in folder '{self.name}'"
+                f"Child node with name '{child_name}' not found in folder "
+                f"'{self.name}'"
             )
 
     def has_child(self, child_name: str) -> bool:
-        """
-        Check if the folder has a child node with the specified name.
+        """Check if the folder has a child node with the specified name.
 
         Args:
             child_name (str):
@@ -133,8 +131,7 @@ class FolderNode(DataModelNode):
 
     @override
     def __getitem__(self, child_name: str) -> DataModelNode:
-        """
-        Get a child node from the folder by name.
+        """Get a child node from the folder by name.
 
         Args:
             child_name (str):
@@ -149,8 +146,7 @@ class FolderNode(DataModelNode):
 
     @override
     def __contains__(self, child_name: str) -> bool:
-        """
-        Check if the folder has a child node with the specified name.
+        """Check if the folder has a child node with the specified name.
 
         Args:
             child_name (str):
@@ -166,8 +162,7 @@ class FolderNode(DataModelNode):
 
     @override
     def __iter__(self) -> Iterator[DataModelNode]:
-        """
-        Iterate over the children of the folder.
+        """Iterate over the children of the folder.
 
         Returns:
             Iterator[DataModelNode]:
@@ -179,8 +174,7 @@ class FolderNode(DataModelNode):
             yield children[child]
 
     def __str__(self) -> str:
-        """
-        Returns a string representation of the FolderNode.
+        """Returns a string representation of the FolderNode.
 
         Returns:
             str:
@@ -188,13 +182,15 @@ class FolderNode(DataModelNode):
 
         """
         return (
-            f"FolderNode(id={self._id}, name={self._name}, "
-            f"description={self._description}, children={self._children}, connector_name={repr(self.connector_name)})"
+            f"FolderNode(id={self._id}, "
+            f"name={self._name}, "
+            f"description={self._description}, "
+            f"children={self._children}, "
+            f"connector_name={self.connector_name!r})"
         )
 
     def __repr__(self) -> str:
-        """
-        Returns a string representation of the FolderNode.
+        """Returns a string representation of the FolderNode.
 
         Returns:
             str:

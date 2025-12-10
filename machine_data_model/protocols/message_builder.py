@@ -1,31 +1,24 @@
-"""
-A module defining the MessageBuilder abstract base class for building and parsing messages.
-
-This module provides an abstract base class `MessageBuilder` that outlines the
-structure for building and parsing messages in a communication protocol. It includes
-methods for getting and setting the sender of the message, as well as abstract methods
-for parsing and serializing messages.
-"""
-
 from abc import ABC, abstractmethod
 from typing import Any
+
 from machine_data_model.protocols.message import Message
 
 
 class MessageBuilder(ABC):
-    """
-    Abstract base class for building and parsing messages in a communication protocol.
+    """Message builder base class.
+
+    Abstract base class for building and parsing messages in a communication
+    protocol.
+
     Attributes:
-        _sender (str):
-            The sender of the message.
+        _sender (str): The sender of the message.
     """
 
     def __init__(self, sender: str):
-        """
-        Initializes the MessageBuilder with a specific sender.
+        """Initializes the MessageBuilder with a specific sender.
+
         Args:
-            sender (str):
-                The sender of the message.
+            sender (str): The sender of the message.
         """
         self._sender = sender
 
@@ -33,8 +26,7 @@ class MessageBuilder(ABC):
         """Return the sender of the message.
 
         Returns:
-            str:
-                The sender of the message.
+            The sender of the message.
         """
         return self._sender
 
@@ -42,11 +34,7 @@ class MessageBuilder(ABC):
         """Set the sender of the message.
 
         Args:
-            sender (str):
-                The new sender of the message.
-
-        Returns:
-            None
+            sender (str): The sender of the message.
         """
         self._sender = sender
 
@@ -55,11 +43,11 @@ class MessageBuilder(ABC):
         """Build a read message for the specified variable.
 
         Args:
-            variable (str):
-                The variable to be read.
+            target (str): The target of the message.
+            node (str): The path of the variable to be read.
+
         Returns:
-            Message:
-                The constructed read message.
+            The constructed read message.
         """
         pass  # To be implemented in subclasses
 
@@ -70,13 +58,12 @@ class MessageBuilder(ABC):
         """Build a write message for the specified variable and value.
 
         Args:
-            variable (str):
-                The variable to be written.
-            value (Any):
-                The value to be written to the variable.
+            target (str): The target of the message.
+            node (str): The path of the variable to be written.
+            value (Any): The value to be written to the variable.
+
         Returns:
-            Message:
-                The constructed write message.
+            The constructed write message.
         """
         pass  # To be implemented in subclasses
 
@@ -92,18 +79,14 @@ class MessageBuilder(ABC):
         """Build an invoke method message with the specified parameters.
 
         Args:
-            target (str):
-                The target of the message.
-            node (str):
-                The method node to be invoked.
-            correlation_id (str | None):
-                Optional correlation ID.
-            args (list[Any] | None):
-                The positional arguments for the method.
-            kwargs (dict[str, Any] | None):
-                The keyword arguments for the method.
+            target (str): The target of the message.
+            node (str): The method node to be invoked.
+            correlation_id (str | None): Optional correlation ID.
+            args (list[Any] | None): The positional arguments for the method.
+            kwargs (dict[str, Any] | None): The keyword arguments for the
+            method.
+
         Returns:
-            Message:
-                The constructed invoke method message.
+            The constructed invoke method message.
         """
         pass  # To be implemented in subclasses

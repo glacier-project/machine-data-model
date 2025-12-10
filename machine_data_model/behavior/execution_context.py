@@ -1,21 +1,20 @@
-"""
-Execution context and template variable resolution.
+"""Execution context and template variable resolution.
 
 This module defines the ExecutionContext class for managing control flow
 execution state and provides utilities for resolving template variables in
 strings and values.
 """
 
-import re
 from enum import IntEnum
+import re
 from typing import Any
 
 template_re = re.compile(r"\$\{([^}]+)\}")
 
 
 def is_template_variable(string: str) -> bool:
-    """
-    Check if the string is a template variable of the form `${variable_name}`.
+    """Check if the string is a template variable of the form
+    `${variable_name}`.
 
     Args:
         string (str):
@@ -30,8 +29,7 @@ def is_template_variable(string: str) -> bool:
 
 
 def contains_template_variables(string: str) -> bool:
-    """
-    Check if the string contains any template variable of the form
+    """Check if the string contains any template variable of the form
     `${variable_name}`.
 
     Args:
@@ -48,8 +46,7 @@ def contains_template_variables(string: str) -> bool:
 
 
 def resolve_string_in_context(string: str, context: "ExecutionContext") -> Any:
-    """
-    Resolve all template variables in the string using the provided context.
+    """Resolve all template variables in the string using the provided context.
 
     A template variable is defined as `${variable_name}` and will be replaced by
     the value of `variable_name` in the context.
@@ -88,8 +85,7 @@ def resolve_string_in_context(string: str, context: "ExecutionContext") -> Any:
 
 
 def resolve_value(value: Any, context: "ExecutionContext") -> Any:
-    """
-    Resolve the value of a variable in the context.
+    """Resolve the value of a variable in the context.
 
     If the value is a string containing template variables, it is resolved using
     the context. Otherwise, the value is returned as is.
@@ -111,8 +107,7 @@ def resolve_value(value: Any, context: "ExecutionContext") -> Any:
 
 
 class ControlFlowStatus(IntEnum):
-    """
-    Enumeration representing the status of a control flow graph execution.
+    """Enumeration representing the status of a control flow graph execution.
 
     Attributes:
         READY (0):
@@ -144,8 +139,7 @@ class ControlFlowStatus(IntEnum):
 
 
 class ExecutionContext:
-    """
-    Execution context for a control flow graph.
+    """Execution context for a control flow graph.
 
     It contains the local variables and the program counter of the control flow
     graph execution.
@@ -171,8 +165,7 @@ class ExecutionContext:
     active_request: str | None
 
     def __init__(self, context_id: str, **kwargs: dict[str, Any]):
-        """
-        Initialize a new ExecutionContext instance.
+        """Initialize a new ExecutionContext instance.
 
         Args:
             context_id (str):
@@ -189,8 +182,7 @@ class ExecutionContext:
         self.set_all_values(**kwargs)
 
     def set_all_values(self, **kwargs: dict[str, Any]) -> None:
-        """
-        Set the values of the local variables in the context.
+        """Set the values of the local variables in the context.
 
         Args:
             **kwargs (dict[str, Any]):
@@ -205,8 +197,7 @@ class ExecutionContext:
             self._locals[key] = value
 
     def has_value(self, var_name: str) -> bool:
-        """
-        Check if a local variable exists in the context.
+        """Check if a local variable exists in the context.
 
         Args:
             var_name (str):
@@ -221,8 +212,7 @@ class ExecutionContext:
         return var_name in self._locals
 
     def get_value(self, var_name: str) -> Any:
-        """
-        Get the value of a local variable in the context.
+        """Get the value of a local variable in the context.
 
         Args:
             var_name (str):
@@ -245,8 +235,7 @@ class ExecutionContext:
         return self._locals[var_name]
 
     def set_value(self, var_name: str, value: Any) -> None:
-        """
-        Set the value of a local variable in the context.
+        """Set the value of a local variable in the context.
 
         Args:
             var_name (str):
@@ -258,8 +247,7 @@ class ExecutionContext:
         self.set_all_values(**{var_name: value})
 
     def delete_value(self, var_name: str) -> None:
-        """
-        Delete a local variable from the context.
+        """Delete a local variable from the context.
 
         Args:
             var_name (str):
@@ -271,8 +259,7 @@ class ExecutionContext:
             del self._locals[var_name]
 
     def get_pc(self) -> int:
-        """
-        Get the program counter of the context.
+        """Get the program counter of the context.
 
         Returns:
             int:
@@ -282,8 +269,7 @@ class ExecutionContext:
         return self._pc
 
     def set_pc(self, pc: int) -> None:
-        """
-        Set the program counter of the context.
+        """Set the program counter of the context.
 
         Args:
             pc (int):
@@ -293,14 +279,11 @@ class ExecutionContext:
         self._pc = pc
 
     def deactivate(self) -> None:
-        """
-        Deactivate the context.
-        """
+        """Deactivate the context."""
         self._status = ControlFlowStatus.COMPLETED
 
     def is_active(self) -> bool:
-        """
-        Check if the context is active.
+        """Check if the context is active.
 
         Returns:
             bool:
@@ -314,8 +297,7 @@ class ExecutionContext:
 
     @property
     def status(self) -> ControlFlowStatus:
-        """
-        Get the status of the control flow graph execution.
+        """Get the status of the control flow graph execution.
 
         Returns:
             ControlFlowStatus:
@@ -326,8 +308,7 @@ class ExecutionContext:
 
     @status.setter
     def status(self, status: ControlFlowStatus) -> None:
-        """
-        Set the status of the control flow graph execution.
+        """Set the status of the control flow graph execution.
 
         Args:
             status (ControlFlowStatus):
@@ -337,8 +318,7 @@ class ExecutionContext:
         self._status = status
 
     def locals(self) -> dict[str, Any]:
-        """
-        Get the local variables of the context.
+        """Get the local variables of the context.
 
         Returns:
             dict[str, Any]:
@@ -348,8 +328,7 @@ class ExecutionContext:
         return self._locals
 
     def id(self) -> str:
-        """
-        Get the unique identifier of the context.
+        """Get the unique identifier of the context.
 
         Returns:
             str:
@@ -359,12 +338,15 @@ class ExecutionContext:
         return self._context_id
 
     def __str__(self) -> str:
-        """
-        Return a string representation of the ExecutionContext.
+        """Return a string representation of the ExecutionContext.
 
         Returns:
             str:
                 A string representation of the ExecutionContext.
 
         """
-        return f"ExecutionContext(id={self._context_id}, pc={self._pc}, status={self._status})"
+        return (
+            f"ExecutionContext(id={self._context_id}, "
+            f"pc={self._pc}, "
+            f"status={self._status})"
+        )

@@ -1,30 +1,37 @@
-"""
-A module defining the DataModel class and its associated methods for managing a
-machine data model.
+"""A module defining the DataModel class and its associated methods for managing
+a machine data model.
 """
 
-from collections.abc import Callable
-from typing import Any, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
-from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
+from machine_data_model.behavior.remote_execution_node import (
+    RemoteExecutionNode,
+)
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.connectors.abstract_connector import (
+    AbstractConnector,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.method_node import MethodExecutionResult, MethodNode
+from machine_data_model.nodes.method_node import (
+    MethodExecutionResult,
+    MethodNode,
+)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import ObjectVariableNode, VariableNode
-from machine_data_model.nodes.connectors.abstract_connector import AbstractConnector
+from machine_data_model.nodes.variable_node import (
+    ObjectVariableNode,
+    VariableNode,
+)
 
 
 class DataModel:
-    """
-    A DataModel represents the structure and data of a machine data model.
-    """
+    """A DataModel represents the structure and data of a machine data model."""
 
     def __init__(
         self,
@@ -36,8 +43,7 @@ class DataModel:
         root: FolderNode | None = None,
         connectors: list[AbstractConnector] | None = None,
     ):
-        """
-        Initialize the data model.
+        """Initialize the data model.
 
         Args:
             name (str, optional):
@@ -63,11 +69,13 @@ class DataModel:
         self._root = (
             root
             if root is not None
-            else FolderNode(name="root", description="Root folder of the data model")
+            else FolderNode(
+                name="root", description="Root folder of the data model"
+            )
         )
 
-        self._connectors: dict[str, AbstractConnector] = self._initialize_connectors(
-            connectors
+        self._connectors: dict[str, AbstractConnector] = (
+            self._initialize_connectors(connectors)
         )
 
         # hashmap for fast access to nodes by id
@@ -81,7 +89,8 @@ class DataModel:
         for node in self._nodes.values():
             self._set_node_connector(node)
             # subscribe to all the variable changes
-            # > if it is an object, skip it: the subscription is done on the properties
+            # > if it is an object, skip it: the subscription is done on the
+            # properties
             if isinstance(node, VariableNode) and not isinstance(
                 node, ObjectVariableNode
             ):
@@ -90,13 +99,14 @@ class DataModel:
     def _initialize_connectors(
         self, connectors: list[AbstractConnector] | None
     ) -> dict[str, AbstractConnector]:
-        """
-        Given a list of connectors, returns a dictionary mapping connector names to their respective connectors.
+        """Given a list of connectors, returns a dictionary mapping connector
+        names to their respective connectors.
         The connectors are used to connect to the remote servers.
 
         If something goes wrong, stops all the connectors and their threads:
         - all connectors must have a unique, identifying name
-        - all connectors must be able to connect successfully to their remote server
+        - all connectors must be able to connect successfully to their remote
+        server
 
         Args:
             connectors (list[AbstractConnector]):
@@ -104,7 +114,8 @@ class DataModel:
 
         Returns:
             dict[str, AbstractConnector]:
-                A dictionary of the following key - value pairs: (connector's name, connector)
+                A dictionary of the following key - value pairs: (connector's
+                name, connector)
         """
         connectors_dict: dict[str, AbstractConnector] = {}
         if connectors is None:
@@ -114,31 +125,34 @@ class DataModel:
             if connector.name is None:
                 self._cleanup_connectors(connectors)
                 raise Exception(
-                    "At least one connector doesn't have the name attribute defined"
+                    "At least one connector doesn't have the name attribute "
+                    "defined"
                 )
 
             # check if the name/identifier is unique
             if connectors_dict.get(connector.name) is not None:
                 self._cleanup_connectors(connectors)
                 raise Exception(
-                    f"There are at least two connectors with the same name/identifier: {connector.name}."
+                    f"There are at least two connectors with the same "
+                    f"name/identifier: {connector.name}."
                 )
 
             connection_successful = connector.connect()  # connect to the server
 
-            # if we couldn't connect, disconnect and stop all the other connectors
+            # if we couldn't connect, disconnect and stop all the other
+            # connectors
             if not connection_successful:
                 self._cleanup_connectors(connectors)
                 raise Exception(
-                    f"Failed to connect to the remote server using the {connector.name} connector."
+                    f"Failed to connect to the remote server using the "
+                    f"{connector.name} connector."
                 )
 
             connectors_dict[connector.name] = connector
         return connectors_dict
 
     def _set_node_connector(self, node: DataModelNode) -> None:
-        """
-        Find the closest connector to the node by moving upwards in the tree.
+        """Find the closest connector to the node by moving upwards in the tree.
         When/if found, set it as the node's connector.
         """
         node_ptr: DataModelNode | None = node
@@ -150,7 +164,8 @@ class DataModel:
             connector = self._get_connector_by_name(node_ptr.connector_name)
             node.set_connector(connector)
 
-            # if the user overrides the remote path, don't set it as the qualified name
+            # if the user overrides the remote path, don't set it as the
+            # qualified name
             if not node.is_remote_path_set():
                 if node.remote_resource_spec:
                     remote_path = node.remote_resource_spec.remote_path()
@@ -159,8 +174,7 @@ class DataModel:
                     node.set_remote_path(node.qualified_name)
 
     def _setup_inheritable_specs(self, root: DataModelNode) -> None:
-        """
-        Calls the recursive method which sets up all the nodes remote specs.
+        """Calls the recursive method which sets up all the nodes remote specs.
 
         Args:
             root (DataModelNode):
@@ -171,8 +185,7 @@ class DataModel:
     def _setup_child_inherited_specs(
         self, node: DataModelNode, parent: DataModelNode | None
     ) -> None:
-        """
-        Recursively sets the remote resource specs for the current node
+        """Recursively sets the remote resource specs for the current node
         from its parent's specs.
 
         Args:
@@ -184,8 +197,10 @@ class DataModel:
         if parent and parent.remote_resource_spec:
             inheritable_spec = parent.remote_resource_spec.inheritable_spec()
             if node.remote_resource_spec:
-                node.remote_resource_spec = parent.remote_resource_spec.merge_specs(
-                    node.remote_resource_spec, inheritable_spec
+                node.remote_resource_spec = (
+                    parent.remote_resource_spec.merge_specs(
+                        node.remote_resource_spec, inheritable_spec
+                    )
                 )
             else:
                 node.remote_resource_spec = inheritable_spec
@@ -196,8 +211,7 @@ class DataModel:
 
     @property
     def name(self) -> str:
-        """
-        Get the name of the data model.
+        """Get the name of the data model.
 
         Returns:
             str:
@@ -208,8 +222,7 @@ class DataModel:
 
     @property
     def machine_category(self) -> str:
-        """
-        Get the machine category.
+        """Get the machine category.
 
         Returns:
             str:
@@ -220,8 +233,7 @@ class DataModel:
 
     @property
     def machine_type(self) -> str:
-        """
-        Get the machine type.
+        """Get the machine type.
 
         Returns:
             str:
@@ -232,8 +244,7 @@ class DataModel:
 
     @property
     def machine_model(self) -> str:
-        """
-        Get the machine model.
+        """Get the machine model.
 
         Returns:
             str:
@@ -244,8 +255,7 @@ class DataModel:
 
     @property
     def description(self) -> str:
-        """
-        Get the description of the data model.
+        """Get the description of the data model.
 
         Returns:
             str:
@@ -256,8 +266,7 @@ class DataModel:
 
     @property
     def root(self) -> FolderNode:
-        """
-        Get the root folder node.
+        """Get the root folder node.
 
         Returns:
             FolderNode:
@@ -271,13 +280,13 @@ class DataModel:
         return self._connectors
 
     def _get_connector_by_name(self, name: str) -> AbstractConnector:
-        """
-        Returns the connector associated with the given name.
+        """Returns the connector associated with the given name.
         Raises an exception if a connector with the given name is not found.
 
         Args:
             name (str):
                 Name of the connector.
+
         Returns:
             AbstractConnector:
                 AbstractConnector with the given name.
@@ -292,8 +301,7 @@ class DataModel:
         return connector
 
     def _register_node(self, node: DataModelNode) -> None:
-        """
-        Register a node in the data model for id-based access.
+        """Register a node in the data model for id-based access.
 
         Args:
             node (DataModelNode):
@@ -323,8 +331,7 @@ class DataModel:
                 raise ValueError(f"Unknown node type: {type(cf_node)}")
 
     def _register_nodes(self, node: FolderNode | ObjectVariableNode) -> None:
-        """
-        Register all nodes in the data model for id-based access.
+        """Register all nodes in the data model for id-based access.
 
         Args:
             node (FolderNode | ObjectVariableNode):
@@ -345,8 +352,7 @@ class DataModel:
         node: FolderNode | ObjectVariableNode,
         function: Callable[[DataModelNode], None],
     ) -> None:
-        """
-        Traverse the data model and apply a function to each node.
+        """Traverse the data model and apply a function to each node.
 
         Args:
             node (FolderNode | ObjectVariableNode):
@@ -366,8 +372,7 @@ class DataModel:
                 function(child)
 
     def _get_node_from_path(self, path: str) -> DataModelNode | None:
-        """
-        Get a node from the data model by path.
+        """Get a node from the data model by path.
 
         Args:
             path (str):
@@ -389,9 +394,9 @@ class DataModel:
         for part in path_parts:
             if part == "":
                 continue
-            if isinstance(current_node, FolderNode) and not current_node.has_child(
-                part
-            ):
+            if isinstance(
+                current_node, FolderNode
+            ) and not current_node.has_child(part):
                 return None
             if isinstance(
                 current_node, ObjectVariableNode
@@ -402,8 +407,7 @@ class DataModel:
         return current_node
 
     def _get_node_from_id(self, node_id: str) -> DataModelNode | None:
-        """
-        Get a node from the data model by id.
+        """Get a node from the data model by id.
 
         Args:
             node_id (str):
@@ -419,8 +423,7 @@ class DataModel:
         return self._nodes[node_id]
 
     def add_child(self, parent_id: str, child: DataModelNode) -> bool:
-        """
-        Add a child node to a parent node in the data model.
+        """Add a child node to a parent node in the data model.
 
         Args:
             parent_id (str):
@@ -440,8 +443,7 @@ class DataModel:
         return True
 
     def remove_child(self, parent_id: str, child_id: str) -> bool:
-        """
-        Remove a child node from a parent node in the data model.
+        """Remove a child node from a parent node in the data model.
 
         Args:
             parent_id (str):
@@ -461,8 +463,7 @@ class DataModel:
         return True
 
     def get_node(self, node_id: str) -> DataModelNode | None:
-        """
-        Get a node from the data model by its id or path.
+        """Get a node from the data model by its id or path.
 
         Args:
             node_id (str):
@@ -478,8 +479,7 @@ class DataModel:
         return self._get_node_from_path(node_id)
 
     def read_variable(self, variable_id: str) -> Any:
-        """
-        Read a variable from the data model by exploring the structure of the
+        """Read a variable from the data model by exploring the structure of the
         node that contains that variable.
 
         Args:
@@ -501,8 +501,7 @@ class DataModel:
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def write_variable(self, variable_id: str, value: Any) -> bool:
-        """
-        Write a variable to the data model by exploring the structure of the
+        """Write a variable to the data model by exploring the structure of the
         node that contains that variable.
 
         Args:
@@ -526,9 +525,8 @@ class DataModel:
         raise ValueError(f"Variable '{variable_id}' not found in data model")
 
     def call_method(self, method_id: str) -> MethodExecutionResult:
-        """
-        Executes a method from the data model by exploring the structure of the
-        node that contains that method.
+        """Executes a method from the data model by exploring the structure of
+        the node that contains that method.
 
         Args:
             method_id (str):
@@ -548,10 +546,11 @@ class DataModel:
             return node()
         raise ValueError(f"Method '{method_id}' not found in data model")
 
-    def subscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
-        """
-        Adds the provided subscription to the target variable node in the data
-        model.
+    def subscribe(
+        self, target_node: str, subscription: VariableSubscription
+    ) -> bool:
+        """Adds the provided subscription to the target variable node in the
+        data model.
 
         Args:
             target_node (str):
@@ -572,12 +571,15 @@ class DataModel:
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):
             return node.subscribe(subscription)
-        raise ValueError(f"Variable Node '{target_node}' not found in data model")
+        raise ValueError(
+            f"Variable Node '{target_node}' not found in data model"
+        )
 
-    def unsubscribe(self, target_node: str, subscription: VariableSubscription) -> bool:
-        """
-        Removes the provided subscription from the target variable node in the
-        data model.
+    def unsubscribe(
+        self, target_node: str, subscription: VariableSubscription
+    ) -> bool:
+        """Removes the provided subscription from the target variable node in
+        the data model.
 
         Args:
             target_node (str):
@@ -598,17 +600,18 @@ class DataModel:
         node = self.get_node(target_node)
         if isinstance(node, VariableNode):
             return node.unsubscribe(subscription)
-        raise ValueError(f"Variable Node '{target_node}' not found in data model")
+        raise ValueError(
+            f"Variable Node '{target_node}' not found in data model"
+        )
 
     def close_connectors(self) -> None:
-        """
-        Disconnect all connectors and stop their threads.
-        """
+        """Disconnect all connectors and stop their threads."""
         self._cleanup_connectors(self._connectors.values())
 
-    def _cleanup_connectors(self, connectors: Iterable[AbstractConnector]) -> None:
-        """
-        Iterate over all connectors to disconnect them from their servers.
+    def _cleanup_connectors(
+        self, connectors: Iterable[AbstractConnector]
+    ) -> None:
+        """Iterate over all connectors to disconnect them from their servers.
 
         Args:
             connectors:
@@ -632,8 +635,7 @@ class DataModel:
         return self.__str__()
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):

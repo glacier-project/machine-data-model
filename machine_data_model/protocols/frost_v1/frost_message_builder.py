@@ -1,35 +1,35 @@
+from typing import Any
 import uuid
-from machine_data_model.protocols.message_builder import MessageBuilder
+
+from typing_extensions import override
+
 from machine_data_model.protocols.frost_v1 import FROST_PROTOCOL_VERSION
-from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
-    MsgType,
-    MsgNamespace,
-    MsgName,
-    VariableMsgName,
     MethodMsgName,
+    MsgNamespace,
+    MsgType,
     ProtocolMsgName,
+    VariableMsgName,
 )
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_payload import (
-    VariablePayload,
-    SubscriptionPayload,
     DataChangeSubscriptionPayload,
-    InRangeSubscriptionPayload,
-    OutOfRangeSubscriptionPayload,
-    MethodPayload,
-    ProtocolPayload,
-    ErrorPayload,
     ErrorCode,
     ErrorMessages,
+    ErrorPayload,
+    InRangeSubscriptionPayload,
+    MethodPayload,
+    OutOfRangeSubscriptionPayload,
+    ProtocolPayload,
+    SubscriptionPayload,
+    VariablePayload,
 )
-from typing import Any
-from typing_extensions import override
+from machine_data_model.protocols.message_builder import MessageBuilder
 
 
 class FrostMessageBuilder(MessageBuilder):
-    """
-    Builder class for creating Frost protocol messages.
+    """Builder class for creating Frost protocol messages.
 
     This class extends the abstract MessageBuilder and provides concrete
     implementations for building Frost protocol-specific messages.
@@ -45,24 +45,25 @@ class FrostMessageBuilder(MessageBuilder):
         sender: str,
         protocol_version: tuple[int, int, int] | None = None,
     ):
-        """
-        Initialize the FrostMessageBuilder.
+        """Initialize the FrostMessageBuilder.
 
         Args:
             sender (str):
                 The sender identifier for messages created by this builder.
             protocol_version (tuple[int, int, int] | None):
                 The Frost protocol version as (major, minor, patch).
-                If None, defaults to the latest version defined in FROST_PROTOCOL_VERSION.
+                If None, defaults to the latest version defined in
+                FROST_PROTOCOL_VERSION.
         """
         super().__init__(sender)
         self._protocol_version = (
-            protocol_version if protocol_version is not None else FROST_PROTOCOL_VERSION
+            protocol_version
+            if protocol_version is not None
+            else FROST_PROTOCOL_VERSION
         )
 
     def get_protocol_version(self) -> tuple[int, int, int]:
-        """
-        Get the Frost protocol version.
+        """Get the Frost protocol version.
 
         Returns:
             tuple[int, int, int]:
@@ -70,9 +71,10 @@ class FrostMessageBuilder(MessageBuilder):
         """
         return self._protocol_version
 
-    def set_protocol_version(self, protocol_version: tuple[int, int, int]) -> None:
-        """
-        Set the Frost protocol version.
+    def set_protocol_version(
+        self, protocol_version: tuple[int, int, int]
+    ) -> None:
+        """Set the Frost protocol version.
 
         Args:
             protocol_version (tuple[int, int, int]):
@@ -93,8 +95,7 @@ class FrostMessageBuilder(MessageBuilder):
     def build_read_variable_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for reading a variable.
+        """Build a FrostMessage for reading a variable.
 
         Args:
             - target (str):
@@ -124,10 +125,13 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_read_variable_response_message(
-        self, target: str, node: str, value: Any, correlation_id: str | None = None
+        self,
+        target: str,
+        node: str,
+        value: Any,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage as an answer for reading a variable.
+        """Build a FrostMessage as an answer for reading a variable.
 
         Args:
             - target (str):
@@ -160,10 +164,13 @@ class FrostMessageBuilder(MessageBuilder):
 
     @override
     def build_write_variable_message(
-        self, target: str, node: str, value: Any, correlation_id: str | None = None
+        self,
+        target: str,
+        node: str,
+        value: Any,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for writing a variable.
+        """Build a FrostMessage for writing a variable.
 
         Args:
             - target (str):
@@ -195,10 +202,13 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_write_variable_response_message(
-        self, target: str, node: str, value: Any, correlation_id: str | None = None
+        self,
+        target: str,
+        node: str,
+        value: Any,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage as an answer for writing a variable.
+        """Build a FrostMessage as an answer for writing a variable.
 
         Args:
             - target (str):
@@ -232,8 +242,7 @@ class FrostMessageBuilder(MessageBuilder):
     def build_subscribe_variable_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for subscribing to a variable.
+        """Build a FrostMessage for subscribing to a variable.
 
         Args:
             - target (str):
@@ -263,10 +272,13 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_subscribe_variable_response_message(
-        self, target: str, node: str, value: Any, correlation_id: str | None = None
+        self,
+        target: str,
+        node: str,
+        value: Any,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage as a response for subscribing to a variable.
+        """Build a FrostMessage as a response for subscribing to a variable.
 
         Args:
             - target (str):
@@ -305,8 +317,7 @@ class FrostMessageBuilder(MessageBuilder):
         is_percent: bool,
         correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for a data change subscription.
+        """Build a FrostMessage for a data change subscription.
 
         Args:
             - target (str):
@@ -349,8 +360,7 @@ class FrostMessageBuilder(MessageBuilder):
         high: float,
         correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for an in-range subscription.
+        """Build a FrostMessage for an in-range subscription.
 
         Args:
             - target (str):
@@ -391,8 +401,7 @@ class FrostMessageBuilder(MessageBuilder):
         high: float,
         correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for an out-of-range subscription.
+        """Build a FrostMessage for an out-of-range subscription.
 
         Args:
             - target (str):
@@ -421,15 +430,16 @@ class FrostMessageBuilder(MessageBuilder):
                 namespace=MsgNamespace.VARIABLE,
                 msg_name=VariableMsgName.SUBSCRIBE,
             ),
-            payload=OutOfRangeSubscriptionPayload(node=node, low=low, high=high),
+            payload=OutOfRangeSubscriptionPayload(
+                node=node, low=low, high=high
+            ),
         )
         return message
 
     def build_unsubscribe_variable_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for unsubscribing from a variable.
+        """Build a FrostMessage for unsubscribing from a variable.
 
         Args:
             - target (str):
@@ -461,8 +471,7 @@ class FrostMessageBuilder(MessageBuilder):
     def build_unsubscribe_variable_response_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
-        """
-        Build a FrostMessage as a response for unsubscribing from a variable.
+        """Build a FrostMessage as a response for unsubscribing from a variable.
 
         Args:
             - target (str):
@@ -500,8 +509,7 @@ class FrostMessageBuilder(MessageBuilder):
         args: list[Any] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for invoking a method.
+        """Build a FrostMessage for invoking a method.
 
         Args:
             - target (str):
@@ -547,8 +555,7 @@ class FrostMessageBuilder(MessageBuilder):
         ret: dict[str, Any] | None = None,
         correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for a method response.
+        """Build a FrostMessage for a method response.
 
         Args:
             - target (str):
@@ -595,8 +602,7 @@ class FrostMessageBuilder(MessageBuilder):
         ret: dict[str, Any] | None = None,
         correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for a method started notification.
+        """Build a FrostMessage for a method started notification.
 
         Args:
             - target (str):
@@ -621,15 +627,20 @@ class FrostMessageBuilder(MessageBuilder):
                 namespace=MsgNamespace.METHOD,
                 msg_name=MethodMsgName.STARTED,
             ),
-            payload=MethodPayload(node=node, ret=ret if ret is not None else {}),
+            payload=MethodPayload(
+                node=node, ret=ret if ret is not None else {}
+            ),
         )
         return message
 
     def build_variable_update_message(
-        self, target: str, node: str, value: Any, correlation_id: str | None = None
+        self,
+        target: str,
+        node: str,
+        value: Any,
+        correlation_id: str | None = None,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for a variable update notification.
+        """Build a FrostMessage for a variable update notification.
 
         Args:
             - target (str):
@@ -661,8 +672,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_protocol_register_message(self, target: str) -> FrostMessage:
-        """
-        Build a FrostMessage for protocol registration.
+        """Build a FrostMessage for protocol registration.
 
         Args:
             - target (str):
@@ -688,8 +698,7 @@ class FrostMessageBuilder(MessageBuilder):
         return message
 
     def build_protocol_unregister_message(self, target: str) -> FrostMessage:
-        """
-        Build a FrostMessage for protocol unregistration.
+        """Build a FrostMessage for protocol unregistration.
 
         Args:
             - target (str):
@@ -717,8 +726,7 @@ class FrostMessageBuilder(MessageBuilder):
     def build_protocol_register_response_message(
         self, target: str, correlation_id: str | None = None
     ) -> FrostMessage:
-        """
-        Build a FrostMessage as a response for protocol registration.
+        """Build a FrostMessage as a response for protocol registration.
 
         Args:
             - target (str):
@@ -748,8 +756,7 @@ class FrostMessageBuilder(MessageBuilder):
     def build_protocol_unregister_response_message(
         self, target: str, correlation_id: str | None = None
     ) -> FrostMessage:
-        """
-        Build a FrostMessage as a response for protocol unregistration.
+        """Build a FrostMessage as a response for protocol unregistration.
 
         Args:
             - target (str):
@@ -782,8 +789,7 @@ class FrostMessageBuilder(MessageBuilder):
         error_code: ErrorCode,
         error_message: ErrorMessages,
     ) -> FrostMessage:
-        """
-        Build a FrostMessage for an error message.
+        """Build a FrostMessage for an error message.
 
         Args:
             - target (str):

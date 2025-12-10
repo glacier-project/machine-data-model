@@ -1,21 +1,26 @@
-"""
-Composite method node implementation for machine data models.
+"""Composite method node implementation for machine data models.
 
 This module provides the CompositeMethodNode class, which represents methods
 composed of multiple asynchronous sub-methods, wait conditions, and control
 flow elements within the machine data model framework.
 """
 
+from collections.abc import Callable
+from typing import Any
 import uuid
-from typing import Any, Callable
 
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
 )
-from machine_data_model.behavior.remote_execution_node import RemoteExecutionNode
+from machine_data_model.behavior.remote_execution_node import (
+    RemoteExecutionNode,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
-from machine_data_model.nodes.method_node import MethodExecutionResult, MethodNode
+from machine_data_model.nodes.method_node import (
+    MethodExecutionResult,
+    MethodNode,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_message_builder import (
@@ -24,11 +29,10 @@ from machine_data_model.protocols.frost_v1.frost_message_builder import (
 
 
 class CompositeMethodNode(MethodNode):
-    """
-    A CompositeMethodNode class is a node that represents a composite method in
-    the machine data model. Composite methods of the machine data model are used
-    to declare functions that are composed of multiple asynchronous sub-methods,
-    wait conditions, and other control flow elements.
+    """A CompositeMethodNode class is a node that represents a composite method
+    in the machine data model. Composite methods of the machine data model are
+    used to declare functions that are composed of multiple asynchronous
+    sub-methods, wait conditions, and other control flow elements.
 
     Attributes:
         _contexts (dict[str, ExecutionContext]):
@@ -54,15 +58,16 @@ class CompositeMethodNode(MethodNode):
         returns: list[VariableNode] | None = None,
         cfg: ControlFlow | None = None,
     ):
-        """
-        Initialize a new CompositeMethodNode instance.
+        """Initialize a new CompositeMethodNode instance.
 
         Args:
             id (str | None): The unique identifier of the method.
             name (str | None): The name of the method.
             description (str | None): The description of the method.
-            parameters (list[VariableNode] | None): A list of parameters for the method.
-            returns (list[VariableNode] | None): A list of return values for the method.
+            parameters (list[VariableNode] | None): A list of parameters for the
+            method.
+            returns (list[VariableNode] | None): A list of return values for the
+            method.
             cfg (ControlFlow | None): The control flow graph of the method.
 
         """
@@ -75,13 +80,14 @@ class CompositeMethodNode(MethodNode):
         )
         self._contexts = {}
         self._internal_nodes: dict[str, DataModelNode] = {}
-        self.cfg = cfg if cfg is not None else ControlFlow(composite_method_node=self)
+        self.cfg = (
+            cfg if cfg is not None else ControlFlow(composite_method_node=self)
+        )
         if cfg is not None and self.cfg._composite_method_node is None:
             self.cfg._composite_method_node = self
 
     def __call__(self, *args: Any, **kwargs: Any) -> MethodExecutionResult:
-        """
-        Call the method with the specified arguments.
+        """Call the method with the specified arguments.
 
         Args:
             *args (Any):
@@ -100,8 +106,7 @@ class CompositeMethodNode(MethodNode):
         return self._start_execution(**kwargs)
 
     def set_message_builder(self, message_builder: FrostMessageBuilder) -> None:
-        """
-        Set the message builder for the composite method node.
+        """Set the message builder for the composite method node.
 
         Args:
             message_builder (FrostMessageBuilder):
@@ -112,8 +117,7 @@ class CompositeMethodNode(MethodNode):
                 node.set_message_builder(message_builder)
 
     def _terminate_execution(self, context: ExecutionContext) -> dict[str, Any]:
-        """
-        Terminate the execution of the method with the specified context. It
+        """Terminate the execution of the method with the specified context. It
         returns the return values of the method if the method is completed,
         otherwise it returns the context id.
         """
@@ -126,8 +130,7 @@ class CompositeMethodNode(MethodNode):
         return ret
 
     def is_terminated(self, context_id: str) -> bool:
-        """
-        Check if the context with the specified id is terminated.
+        """Check if the context with the specified id is terminated.
 
         Args:
             context_id (str):
@@ -142,8 +145,7 @@ class CompositeMethodNode(MethodNode):
         return not context.is_active()
 
     def delete_context(self, context_id: str) -> None:
-        """
-        Delete the context with the specified id.
+        """Delete the context with the specified id.
 
         Args:
             context_id (str):
@@ -159,8 +161,7 @@ class CompositeMethodNode(MethodNode):
         del self._contexts[context_id]
 
     def add_internal_node(self, node: DataModelNode) -> None:
-        """
-        Add an internal node to the composite method.
+        """Add an internal node to the composite method.
 
         Internal nodes are not accessible from external clients and are only
         accessible within the control flow of this composite method.
@@ -174,8 +175,7 @@ class CompositeMethodNode(MethodNode):
         node.parent = self  # Set parent to this composite method
 
     def get_internal_node(self, node_id: str) -> DataModelNode | None:
-        """
-        Get an internal node by its id.
+        """Get an internal node by its id.
 
         Args:
             node_id (str):
@@ -189,8 +189,7 @@ class CompositeMethodNode(MethodNode):
         return self._internal_nodes.get(node_id)
 
     def get_node_resolver(self) -> Callable[[str], DataModelNode | None]:
-        """
-        Get a node resolver function that checks internal nodes first, then
+        """Get a node resolver function that checks internal nodes first, then
         falls back to the data model.
 
         Returns:
@@ -212,8 +211,7 @@ class CompositeMethodNode(MethodNode):
         return resolver
 
     def handle_message(self, context_id: str, message: FrostMessage) -> bool:
-        """
-        Handle the response message in response to the request generated from
+        """Handle the response message in response to the request generated from
         the execution of the current remote node.
 
         Args:
@@ -237,8 +235,7 @@ class CompositeMethodNode(MethodNode):
         return node.handle_response(context=context, response=message)
 
     def resume_execution(self, context_id: str) -> MethodExecutionResult:
-        """
-        Resume the execution of the method with the specified context id.
+        """Resume the execution of the method with the specified context id.
 
         Args:
             context_id (str):
@@ -258,12 +255,14 @@ class CompositeMethodNode(MethodNode):
             raise ValueError(f"context '{context_id}' not found")
         remote_messages = self.cfg.execute(context)
         return MethodExecutionResult(
-            messages=remote_messages, return_values=self._terminate_execution(context)
+            messages=remote_messages,
+            return_values=self._terminate_execution(context),
         )
 
-    def _start_execution(self, **kwargs: dict[str, Any]) -> MethodExecutionResult:
-        """
-        Start the execution of the composite method with the specified
+    def _start_execution(
+        self, **kwargs: dict[str, Any]
+    ) -> MethodExecutionResult:
+        """Start the execution of the composite method with the specified
         arguments. It creates a new context and executes the control flow graph
         of the method until a wait condition is reached or the method is
         completed. A context id is returned if the method is not completed.
@@ -280,12 +279,12 @@ class CompositeMethodNode(MethodNode):
         context = self._create_context(**kwargs)
         remote_messages = self.cfg.execute(context)
         return MethodExecutionResult(
-            messages=remote_messages, return_values=self._terminate_execution(context)
+            messages=remote_messages,
+            return_values=self._terminate_execution(context),
         )
 
     def _get_context(self, context_id: str) -> ExecutionContext:
-        """
-        Get the context with the specified id.
+        """Get the context with the specified id.
 
         Args:
             context_id (str):
@@ -299,8 +298,7 @@ class CompositeMethodNode(MethodNode):
         return self._contexts[context_id]
 
     def _create_context(self, **kwargs: dict[str, Any]) -> ExecutionContext:
-        """
-        Create a new context with the specified arguments.
+        """Create a new context with the specified arguments.
 
         Args:
             **kwargs (dict[str, Any]):
@@ -318,7 +316,13 @@ class CompositeMethodNode(MethodNode):
         return context
 
     def __str__(self) -> str:
-        return f"CompositeMethodNode(id={self.id}, name={self.name}, description={self.description}, parameters={self.parameters}, returns={self.returns})"
+        return (
+            f"CompositeMethodNode(id={self.id}, "
+            f"name={self.name}, "
+            f"description={self.description}, "
+            f"parameters={self.parameters}, "
+            f"returns={self.returns})"
+        )
 
     def __eq__(self, other: object) -> bool:
         if self is other:

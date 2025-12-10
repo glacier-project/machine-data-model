@@ -1,5 +1,4 @@
-"""
-Remote execution nodes for control flow graphs.
+"""Remote execution nodes for control flow graphs.
 
 This module defines various node types that execute operations on remote nodes
 by sending messages and waiting for responses.
@@ -22,9 +21,10 @@ from machine_data_model.behavior.execution_context import (
     resolve_string_in_context,
     resolve_value,
 )
-from machine_data_model.behavior.local_execution_node import WaitConditionOperator
+from machine_data_model.behavior.local_execution_node import (
+    WaitConditionOperator,
+)
 from machine_data_model.protocols.frost_v1.frost_header import (
-    FrostHeader,
     MethodMsgName,
     MsgNamespace,
     MsgType,
@@ -36,15 +36,13 @@ from machine_data_model.protocols.frost_v1.frost_message_builder import (
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
-    SubscriptionPayload,
     VariablePayload,
 )
 from machine_data_model.tracing.events import trace_control_flow_step
 
 
 class RemoteExecutionNode(ControlFlowNode):
-    """
-    Represents a remote execution node in the control flow graph.
+    """Represents a remote execution node in the control flow graph.
 
     When executed, it sends a request message to a remote node and waits for a
     response.
@@ -68,8 +66,7 @@ class RemoteExecutionNode(ControlFlowNode):
         remote_id: str,
         successors: list[ControlFlowNode] | None = None,
     ):
-        """
-        Initialize a new RemoteExecutionNode instance.
+        """Initialize a new RemoteExecutionNode instance.
 
         Args:
             node (str):
@@ -87,8 +84,7 @@ class RemoteExecutionNode(ControlFlowNode):
         self.remote_id: str = remote_id
 
     def set_message_builder(self, message_builder: FrostMessageBuilder) -> None:
-        """
-        Set the FrostMessageBuilder for the remote execution node.
+        """Set the FrostMessageBuilder for the remote execution node.
 
         Args:
             message_builder (FrostMessageBuilder):
@@ -100,8 +96,7 @@ class RemoteExecutionNode(ControlFlowNode):
 
     @abstractmethod
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
-        """
-        Create the request message to send to the remote node.
+        """Create the request message to send to the remote node.
 
         Args:
             context (ExecutionContext):
@@ -117,8 +112,7 @@ class RemoteExecutionNode(ControlFlowNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """
-        Validate the response message received from the remote node.
+        """Validate the response message received from the remote node.
 
         Args:
             context (ExecutionContext):
@@ -132,10 +126,11 @@ class RemoteExecutionNode(ControlFlowNode):
 
         """
 
-    def _create_cleanup_msg(self, context: ExecutionContext) -> FrostMessage | None:
-        """
-        Create a cleanup message to send to the remote target after the node has
-        been executed.
+    def _create_cleanup_msg(
+        self, context: ExecutionContext
+    ) -> FrostMessage | None:
+        """Create a cleanup message to send to the remote target after the node
+        has been executed.
 
         Args:
             context (ExecutionContext):
@@ -151,8 +146,7 @@ class RemoteExecutionNode(ControlFlowNode):
     def handle_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """
-        Handle the response message received from the remote node.
+        """Handle the response message received from the remote node.
 
         Args:
             context (ExecutionContext):
@@ -168,7 +162,8 @@ class RemoteExecutionNode(ControlFlowNode):
         """
         if (
             response.correlation_id != context.active_request
-            or response.sender != resolve_string_in_context(self.remote_id, context)
+            or response.sender
+            != resolve_string_in_context(self.remote_id, context)
             or self.sender_id != response.target
         ):
             return False
@@ -182,8 +177,7 @@ class RemoteExecutionNode(ControlFlowNode):
 
     @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
-        """
-        Execute the remote execution node.
+        """Execute the remote execution node.
 
         Args:
             context (ExecutionContext):
@@ -198,7 +192,8 @@ class RemoteExecutionNode(ControlFlowNode):
         trace_control_flow_step(
             node_id=self.node,
             node_type=type(self).__name__,
-            execution_result=context.status != ControlFlowStatus.WAITING_FOR_RESPONSE,
+            execution_result=context.status
+            != ControlFlowStatus.WAITING_FOR_RESPONSE,
             program_counter=context.get_pc(),
             source=context.id(),
             data_model_id=self.remote_id,
@@ -231,8 +226,7 @@ class RemoteExecutionNode(ControlFlowNode):
         return ExecutionNodeResult(False, [msg])
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):
@@ -257,8 +251,7 @@ class RemoteExecutionNode(ControlFlowNode):
 
 
 class CallRemoteMethodNode(RemoteExecutionNode):
-    """
-    Represents a remote method call node in the control flow graph.
+    """Represents a remote method call node in the control flow graph.
 
     When executed, it sends a request message to a remote node to invoke a
     method and waits for a response.
@@ -282,8 +275,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
         kwargs: dict[str, Any],
         successors: list[ControlFlowNode] | None = None,
     ):
-        """
-        Initialize a new CallRemoteMethodNode instance.
+        """Initialize a new CallRemoteMethodNode instance.
 
         Args:
             method_node (str):
@@ -308,8 +300,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """
-        Validate the response message for a remote method call.
+        """Validate the response message for a remote method call.
 
         Args:
             context (ExecutionContext):
@@ -331,7 +322,9 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
         if not isinstance(
             response.payload, MethodPayload
-        ) or response.payload.node != resolve_string_in_context(self.node, context):
+        ) or response.payload.node != resolve_string_in_context(
+            self.node, context
+        ):
             return False
 
         # add all return values to the context
@@ -341,8 +334,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
     @override
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
-        """
-        Create the request message for a remote method call.
+        """Create the request message for a remote method call.
 
         Args:
             context (ExecutionContext):
@@ -358,12 +350,13 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             target=resolve_string_in_context(self.remote_id, context),
             node=resolve_string_in_context(self.node, context),
             args=[resolve_value(arg, context) for arg in self.args],
-            kwargs={k: resolve_value(v, context) for k, v in self.kwargs.items()},
+            kwargs={
+                k: resolve_value(v, context) for k, v in self.kwargs.items()
+            },
         )
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):
@@ -388,8 +381,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
 
 
 class ReadRemoteVariableNode(RemoteExecutionNode):
-    """
-    Represents a remote variable read node in the control flow graph.
+    """Represents a remote variable read node in the control flow graph.
 
     When executed, it sends a request message to a remote node to read a
     variable and waits for a response to store the value in the context.
@@ -409,8 +401,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         store_as: str = "",
         successors: list[ControlFlowNode] | None = None,
     ):
-        """
-        Initialize a new ReadRemoteVariableNode instance.
+        """Initialize a new ReadRemoteVariableNode instance.
 
         Args:
             variable_node (str):
@@ -433,8 +424,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """
-        Validate the response message for a remote variable read.
+        """Validate the response message for a remote variable read.
 
         Args:
             context (ExecutionContext):
@@ -456,19 +446,22 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
         if not isinstance(
             response.payload, VariablePayload
-        ) or response.payload.node != resolve_string_in_context(self.node, context):
+        ) or response.payload.node != resolve_string_in_context(
+            self.node, context
+        ):
             return False
 
         context.set_value(
-            self.store_as if self.store_as else response.payload.node.split("/")[-1],
+            self.store_as
+            if self.store_as
+            else response.payload.node.split("/")[-1],
             response.payload.value,
         )
 
         return True
 
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
-        """
-        Create the request message for a remote variable read.
+        """Create the request message for a remote variable read.
 
         Args:
             context (ExecutionContext):
@@ -486,8 +479,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         )
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):
@@ -508,8 +500,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
 
 class WriteRemoteVariableNode(RemoteExecutionNode):
-    """
-    Represents a remote variable write node in the control flow graph.
+    """Represents a remote variable write node in the control flow graph.
 
     When executed, it sends a request message to a remote node to write a value
     to a variable and waits for a response.
@@ -530,8 +521,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         value: Any,
         successors: list[ControlFlowNode] | None = None,
     ):
-        """
-        Initialize a new WriteRemoteVariableNode instance.
+        """Initialize a new WriteRemoteVariableNode instance.
 
         Args:
             variable_node (str):
@@ -553,8 +543,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """
-        Validate the response message for a remote variable write.
+        """Validate the response message for a remote variable write.
 
         Args:
             context (ExecutionContext):
@@ -574,16 +563,14 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         ):
             return False
 
-        if not isinstance(
+        return isinstance(
             response.payload, VariablePayload
-        ) or response.payload.node != resolve_string_in_context(self.node, context):
-            return False
-
-        return True
+        ) and response.payload.node == resolve_string_in_context(
+            self.node, context
+        )
 
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
-        """
-        Create the request message for a remote variable write.
+        """Create the request message for a remote variable write.
 
         Args:
             context (ExecutionContext):
@@ -602,8 +589,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         )
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):
@@ -624,8 +610,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
 
 
 class WaitRemoteEventNode(RemoteExecutionNode):
-    """
-    Represents a remote event wait node in the control flow graph.
+    """Represents a remote event wait node in the control flow graph.
 
     When executed, it sends a request message to a remote node to subscribe to
     an event and waits for a response.
@@ -650,8 +635,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         op: WaitConditionOperator,
         successors: list[ControlFlowNode] | None = None,
     ):
-        """
-        Initialize a new WaitRemoteEventNode instance.
+        """Initialize a new WaitRemoteEventNode instance.
 
         Args:
             variable_node (str):
@@ -669,7 +653,9 @@ class WaitRemoteEventNode(RemoteExecutionNode):
                 node.
 
         """
-        super().__init__(node=variable_node, remote_id=remote_id, successors=successors)
+        super().__init__(
+            node=variable_node, remote_id=remote_id, successors=successors
+        )
         self.rhs = rhs
         self.op = op
 
@@ -677,8 +663,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
-        """
-        Validate the response message for a remote event wait.
+        """Validate the response message for a remote event wait.
 
         Args:
             context (ExecutionContext):
@@ -701,7 +686,9 @@ class WaitRemoteEventNode(RemoteExecutionNode):
 
         if not isinstance(
             response.payload, VariablePayload
-        ) or response.payload.node != resolve_string_in_context(self.node, context):
+        ) or response.payload.node != resolve_string_in_context(
+            self.node, context
+        ):
             return False
 
         lhs = response.payload.value
@@ -726,8 +713,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         return res
 
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
-        """
-        Create the request message for a remote event subscription.
+        """Create the request message for a remote event subscription.
 
         Args:
             context (ExecutionContext):
@@ -746,8 +732,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
 
     @override
     def _create_cleanup_msg(self, context: ExecutionContext) -> FrostMessage:
-        """
-        Create a cleanup message to unsubscribe from the remote event.
+        """Create a cleanup message to unsubscribe from the remote event.
 
         Args:
             context (ExecutionContext):
@@ -765,8 +750,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         )
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):
@@ -783,4 +767,8 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         if not isinstance(other, WaitRemoteEventNode):
             return False
 
-        return super().__eq__(other) and self.rhs == other.rhs and self.op == other.op
+        return (
+            super().__eq__(other)
+            and self.rhs == other.rhs
+            and self.op == other.op
+        )
