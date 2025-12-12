@@ -454,7 +454,7 @@ class MethodNode(DataModelNode):
 
         """
         ret_dict = {}
-        ret = ret if isinstance(ret, tuple) else (ret,)
+        ret = ret if isinstance(ret, Sequence) else (ret,)
         for index, return_value in enumerate(ret):
             ret_dict[self._returns[index].name] = return_value
         assert len(ret_dict) == len(self._returns)
