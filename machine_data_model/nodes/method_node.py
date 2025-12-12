@@ -5,7 +5,7 @@ the machine data model, including synchronous and asynchronous methods with
 parameter and return value handling.
 """
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -454,6 +454,10 @@ class MethodNode(DataModelNode):
 
         """
         ret_dict = {}
+        assert not isinstance(
+            ret, Mapping
+        ), f"Return value cannot be a mapping. Received {ret} of type "
+        f"{type(ret)}."
         ret = ret if isinstance(ret, Sequence) else (ret,)
         for index, return_value in enumerate(ret):
             ret_dict[self._returns[index].name] = return_value
