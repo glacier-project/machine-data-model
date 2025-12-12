@@ -454,11 +454,9 @@ class MethodNode(DataModelNode):
 
         """
         ret_dict = {}
-        assert not isinstance(
-            ret, Mapping
-        ), f"Return value cannot be a mapping. Received {ret} of type "
-        f"{type(ret)}."
-        ret = ret if isinstance(ret, Sequence) else (ret,)
+        assert not isinstance(ret, Mapping), "Return value cannot be a mapping."
+        f" Received {ret} of type {type(ret)}."
+        ret = ret if isinstance(ret, list | tuple) else (ret,)
         for index, return_value in enumerate(ret):
             ret_dict[self._returns[index].name] = return_value
         assert len(ret_dict) == len(self._returns)
