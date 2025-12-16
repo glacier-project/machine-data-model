@@ -1,21 +1,19 @@
-"""
-Tracing module for GLACIER machine data model.
+"""Tracing module for GLACIER machine data model.
 
 This module provides comprehensive tracing capabilities for CPS simulation
 verification, including variable changes, method executions, communication
 events, and control flow.
 """
 
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+import json
 from typing import Any
 
 
 class TraceLevel(Enum):
-    """
-    Enumeration of tracing detail levels.
+    """Enumeration of tracing detail levels.
 
     Defines the granularity of tracing information collected, from no tracing to
     full control flow tracking. Higher levels include all events from lower
@@ -30,8 +28,7 @@ class TraceLevel(Enum):
 
 
 class TraceEventType(Enum):
-    """
-    Enumeration of traceable event types.
+    """Enumeration of traceable event types.
 
     Defines all possible types of events that can be traced in the system,
     including variable operations, method calls, communication, and control
@@ -56,12 +53,12 @@ class TraceEventType(Enum):
 
 @dataclass
 class TraceEvent(ABC):
-    """
-    Base class for all trace events.
+    """Base class for all trace events.
 
     Attributes:
-        timestamp (float):
-            The time when the event occurred, as seconds since epoch.
+        timestamp_ns (int):
+            The time when the event occurred, as nanoseconds since the Unix
+            epoch (January 1, 1970 UTC).
         event_type (TraceEventType):
             The type of event that occurred.
         source (str):
@@ -73,7 +70,7 @@ class TraceEvent(ABC):
 
     """
 
-    timestamp: float
+    timestamp_ns: int
     event_type: TraceEventType
     source: str
     data_model_id: str
@@ -81,7 +78,7 @@ class TraceEvent(ABC):
     def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary for serialization."""
         return {
-            "timestamp": self.timestamp,
+            "timestamp_ns": self.timestamp_ns,
             "event_type": self.event_type.value,
             "source": self.source,
             "data_model_id": self.data_model_id,
@@ -99,8 +96,7 @@ class TraceEvent(ABC):
 
 
 class TraceCollector:
-    """
-    Central collector for trace events.
+    """Central collector for trace events.
 
     Provides configurable tracing levels and multiple export formats. Manages
     the collection, filtering, and export of trace events for CPS simulation
@@ -108,8 +104,7 @@ class TraceCollector:
     """
 
     def __init__(self, level: TraceLevel = TraceLevel.NONE):
-        """
-        Initialize the trace collector.
+        """Initialize the trace collector.
 
         Args:
             level (TraceLevel, optional):
@@ -120,8 +115,7 @@ class TraceCollector:
         self.events: list[TraceEvent] = []
 
     def set_level(self, level: TraceLevel) -> None:
-        """
-        Set the tracing level.
+        """Set the tracing level.
 
         Args:
             level (TraceLevel):
@@ -135,8 +129,7 @@ class TraceCollector:
         self.events.clear()
 
     def record_event(self, event: TraceEvent) -> None:
-        """
-        Record a trace event if tracing is enabled and level allows it.
+        """Record a trace event if tracing is enabled and level allows it.
 
         Args:
             event (TraceEvent):
@@ -148,8 +141,7 @@ class TraceCollector:
             self.events.append(event)
 
     def should_record_event_type(self, event_type: TraceEventType) -> bool:
-        """
-        Determine if an event type should be recorded based on current level.
+        """Determine if an event type should be recorded based on current level.
 
         Args:
             event_type (TraceEventType):
@@ -181,7 +173,9 @@ class TraceCollector:
 
         # Get minimum level required for this event type (default to FULL if
         # unknown).
-        min_level: TraceLevel = event_min_levels.get(event_type, TraceLevel.FULL)
+        min_level: TraceLevel = event_min_levels.get(
+            event_type, TraceLevel.FULL
+        )
 
         # Record if current level is >= required level
         return bool(self.level.value >= min_level.value)
@@ -190,8 +184,7 @@ class TraceCollector:
         self,
         event_type: TraceEventType | None = None,
     ) -> list[TraceEvent]:
-        """
-        Get events, optionally filtered by type.
+        """Get events, optionally filtered by type.
 
         Args:
             event_type (Optional[TraceEventType], optional):
@@ -206,8 +199,7 @@ class TraceCollector:
         return [e for e in self.events if e.event_type == event_type]
 
     def export_json(self, filepath: str) -> None:
-        """
-        Export events to JSON format.
+        """Export events to JSON format.
 
         Args:
             filepath (str):
@@ -223,8 +215,7 @@ _global_collector = TraceCollector()
 
 
 def get_global_collector() -> TraceCollector:
-    """
-    Get the global trace collector instance.
+    """Get the global trace collector instance.
 
     Returns:
         TraceCollector: The global trace collector instance.
@@ -234,8 +225,7 @@ def get_global_collector() -> TraceCollector:
 
 
 def set_global_trace_level(level: TraceLevel) -> None:
-    """
-    Set the global tracing level.
+    """Set the global tracing level.
 
     Args:
         level (TraceLevel):
@@ -251,8 +241,7 @@ def clear_traces() -> None:
 
 
 def export_traces_json(filepath: str) -> None:
-    """
-    Export global traces to JSON.
+    """Export global traces to JSON.
 
     Args:
         filepath (str):

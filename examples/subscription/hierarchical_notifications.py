@@ -1,5 +1,4 @@
-"""
-Example: Hierarchical notifications in ObjectVariableNode.
+"""Example: Hierarchical notifications in ObjectVariableNode.
 
 This demonstrates how notifications propagate from child properties to parent
 objects.
@@ -22,10 +21,24 @@ def notify_callback(
     node: VariableNode,
     value: Any,
 ) -> None:
-    print(f"Notification to {subscription.subscriber_id}: {node.name} = {value}")
+    """Callback to notify subscriber of variable change.
+
+    Args:
+        subscription (VariableSubscription):
+            The subscription information.
+        node (VariableNode):
+            The variable node that changed.
+        value (Any):
+            The new value of the variable.
+
+    """
+    print(
+        f"Notification to {subscription.subscriber_id}: {node.name} = {value}"
+    )
 
 
 def main() -> None:
+    """Run the hierarchical notifications example."""
     # Create an object variable node
     obj_node = ObjectVariableNode(name="sensor_data")
 

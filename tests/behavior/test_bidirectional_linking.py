@@ -1,5 +1,6 @@
 """
-Tests for bidirectional linking between composite method nodes and control flow graphs.
+Tests for bidirectional linking between composite method nodes and control flow
+graphs.
 """
 
 from machine_data_model.behavior.control_flow import ControlFlow
@@ -40,13 +41,16 @@ class TestBidirectionalLinking:
         assert node2.parent_cfg is cfg
 
     def test_node_to_cfg_to_composite_method_traversal(self) -> None:
-        """Test traversal from a node to its parent CFG to the composite method."""
+        """Test traversal from a node to its parent CFG to the composite
+        method."""
         method = CompositeMethodNode(id="test_method", name="Test Method")
 
         # Add a node to the CFG
         node = ReadVariableNode(variable_node="var1")
         method.cfg._nodes = [node]
-        node._parent_cfg = method.cfg  # Manually set since we're not using normal init
+        node._parent_cfg = (
+            method.cfg
+        )  # Manually set since we're not using normal init
 
         # Make sure the node references the CFG
         assert node.parent_cfg and node.parent_cfg is method.cfg
@@ -61,18 +65,22 @@ class TestBidirectionalLinking:
         assert composite_method is method
 
     def test_provided_cfg_gets_composite_method_reference(self) -> None:
-        """Test that when a CFG is provided to CompositeMethodNode, it gets the back reference."""
+        """Test that when a CFG is provided to CompositeMethodNode, it gets the
+        back reference."""
         # Create CFG first
         cfg = ControlFlow()
 
         # Create method with the CFG
-        method = CompositeMethodNode(id="test_method", name="Test Method", cfg=cfg)
+        method = CompositeMethodNode(
+            id="test_method", name="Test Method", cfg=cfg
+        )
 
         assert method.cfg is cfg
         assert cfg.composite_method_node is method
 
     def test_cfg_initialization_sets_parent_on_existing_nodes(self) -> None:
-        """Test that ControlFlow.__init__ sets parent references on nodes passed during construction."""
+        """Test that ControlFlow.__init__ sets parent references on nodes passed
+        during construction."""
         # Create nodes without parent CFG
         node1 = ReadVariableNode(variable_node="var1")
         node2 = WriteVariableNode(variable_node="var2", value="value")

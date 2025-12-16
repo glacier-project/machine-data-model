@@ -1,5 +1,5 @@
-import random
 from collections.abc import Callable
+import random
 from typing import Any
 
 import pytest
@@ -7,6 +7,9 @@ import pytest
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionNode,
+)
+from machine_data_model.behavior.remote_execution_node import (
+    WaitRemoteEventNode,
 )
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
@@ -16,12 +19,18 @@ from machine_data_model.nodes.method_node import AsyncMethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
-from machine_data_model.nodes.variable_node import NumericalVariableNode, VariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    VariableNode,
+)
 from machine_data_model.protocols.frost_v1.frost_header import (
     MethodMsgName,
     MsgNamespace,
     MsgType,
     VariableMsgName,
+)
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
     MethodPayload,
@@ -193,7 +202,9 @@ class TestCompositeMethod:
             subscription: VariableSubscription, node: VariableNode, value: Any
         ) -> None:
             assert isinstance(dynamic_wait, CompositeMethodNode)
-            res = dynamic_wait.resume_execution(ret.return_values["@context_id"])
+            res = dynamic_wait.resume_execution(
+                ret.return_values["@context_id"]
+            )
             assert not res.messages
             assert res.return_values == {}
 
@@ -219,9 +230,9 @@ class TestCompositeMethod:
         assert isinstance(dynamic_resolution, CompositeMethodNode)
 
         assert (
-            dynamic_resolution(*["empty_folder", "n_variable_empty"]).return_values.get(
-                "result"
-            )
+            dynamic_resolution(
+                *["empty_folder", "n_variable_empty"]
+            ).return_values.get("result")
             == 10
         ), "Failed on dynamic_resolution"
 
@@ -231,6 +242,11 @@ class TestCompositeMethod:
         method = data_model.get_node(method_path)
 
         assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
+        )
         result = method()
 
         # assert that the method does complete
@@ -240,6 +256,7 @@ class TestCompositeMethod:
         assert not method.is_terminated(context)
 
         message = result.messages[0]
+        assert message.target != "undefined" and message.sender != "undefined"
         assert message.header.matches(
             _type=MsgType.REQUEST,
             _namespace=MsgNamespace.METHOD,
@@ -251,14 +268,23 @@ class TestCompositeMethod:
         assert not message.payload.kwargs
 
         # create response
-        message.sender, message.target = message.target, message.sender
-        message.header.type = MsgType.RESPONSE
-        message.header.msg_name = MethodMsgName.COMPLETED
-        message.payload.ret["remote_return_1"] = 45
+        message_builder = FrostMessageBuilder(
+            sender=message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_method_completed_message(
+            target=message.sender,
+            node=method.cfg.nodes()[0].node,
+            args=message.payload.args,
+            kwargs=message.payload.kwargs,
+            ret={"remote_return_1": 45},
+            correlation_id=message.correlation_id,
+        )
 
-        assert method.handle_message(context, message)
+        assert method.handle_message(
+            context, response
+        ), "Failed to handle response"
         result = method.resume_execution(context)
-        assert not result.messages
+        assert not result.messages, "Method did not complete after resume"
         assert result.return_values["remote_return_1"] == 45
 
     def test_remote_read_node(self) -> None:
@@ -266,6 +292,11 @@ class TestCompositeMethod:
         data_model = get_template_data_model()
         method = data_model.get_node(method_path)
         assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
+        )
         remote_read_node = method.cfg.nodes()[0]
 
         result = method()
@@ -286,21 +317,35 @@ class TestCompositeMethod:
         assert message.payload.node == remote_read_node.node
 
         # create response
-        message.sender, message.target = message.target, message.sender
-        message.header.type = MsgType.RESPONSE
-        message.payload.value = method.returns[0].read()
+        message_builder = FrostMessageBuilder(
+            message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_read_variable_response_message(
+            target=message.sender,
+            node=remote_read_node.node,
+            value=method.returns[0].read(),
+            correlation_id=message.correlation_id,
+        )
 
-        assert method.handle_message(context, message)
+        assert method.handle_message(context, response)
         result = method.resume_execution(context)
         assert not result.messages
         assert method.is_terminated(context)
-        assert result.return_values[method.returns[0].name] == method.returns[0].read()
+        assert (
+            result.return_values[method.returns[0].name]
+            == method.returns[0].read()
+        )
 
     def test_remote_write_node(self) -> None:
         method_path = "folder1/remote_cfg/remote_write"
         data_model = get_template_data_model()
         method = data_model.get_node(method_path)
         assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
+        )
         remote_read_node = method.cfg.nodes()[0]
 
         result = method()
@@ -321,17 +366,75 @@ class TestCompositeMethod:
         assert message.payload.node == remote_read_node.node
 
         # create response
-        message.sender, message.target = message.target, message.sender
-        message.header.type = MsgType.RESPONSE
+        message_builder = FrostMessageBuilder(
+            message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_write_variable_response_message(
+            target=message.sender,
+            node=remote_read_node.node,
+            value=message.payload.value,
+            correlation_id=message.correlation_id,
+        )
 
-        assert method.handle_message(context, message)
+        assert method.handle_message(context, response)
         result = method.resume_execution(context)
         assert not result.messages
         assert method.is_terminated(context)
 
+    def test_remote_wait_node(self) -> None:
+        method_path = "folder1/remote_cfg/remote_wait_event"
+        data_model = get_template_data_model()
+        method = data_model.get_node(method_path)
+        assert isinstance(method, CompositeMethodNode)
+        method.set_message_builder(
+            FrostMessageBuilder(
+                sender="test_sender", protocol_version=(1, 0, 0)
+            )
+        )
+        remote_wait_node = method.cfg.nodes()[0]
+        assert isinstance(remote_wait_node, WaitRemoteEventNode)
+        result = method()
+
+        # assert that the method does complete
+        assert result.messages and len(result.messages) == 1
+        assert "@context_id" in result.return_values
+        context = result.return_values["@context_id"]
+        assert not method.is_terminated(context)
+
+        message = result.messages[0]
+        assert message.header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.SUBSCRIBE,
+        )
+        assert isinstance(message.payload, VariablePayload)
+        assert message.payload.node == remote_wait_node.node
+
+        # create response
+        message_builder = FrostMessageBuilder(
+            message.target, protocol_version=(1, 0, 0)
+        )
+        response = message_builder.build_variable_update_message(
+            target=message.sender,
+            node=remote_wait_node.node,
+            correlation_id=message.correlation_id,
+            value=35,
+        )
+
+        assert method.handle_message(context, response)
+        result = method.resume_execution(context)
+        assert result.messages
+        assert result.messages[0].header.matches(
+            _type=MsgType.REQUEST,
+            _namespace=MsgNamespace.VARIABLE,
+            _msg_name=VariableMsgName.UNSUBSCRIBE,
+        )
+        assert method.is_terminated(context)
+
 
 def test_internal_nodes() -> None:
-    """Test that internal nodes are accessible within composite methods but not externally."""
+    """Test that internal nodes are accessible within composite methods but not
+    externally."""
     from machine_data_model.nodes.folder_node import FolderNode
     from machine_data_model.nodes.variable_node import BooleanVariableNode
 
@@ -341,7 +444,10 @@ def test_internal_nodes() -> None:
 
     # Add a regular variable to the data model
     regular_var = BooleanVariableNode(
-        id="regular_var", name="regular_var", description="Regular variable", value=True
+        id="regular_var",
+        name="regular_var",
+        description="Regular variable",
+        value=True,
     )
     root.add_child(regular_var)
     data_model._register_node(regular_var)

@@ -1,5 +1,4 @@
-"""
-Variable subscription classes for machine data models.
+"""Variable subscription classes for machine data models.
 
 This module provides subscription classes that allow variables to notify
 subscribers of value changes, including data change subscriptions with deadband
@@ -14,8 +13,7 @@ from typing_extensions import override
 
 
 class EventType(IntFlag):
-    """
-    Enumeration of possible event types for variable subscriptions.
+    """Enumeration of possible event types for variable subscriptions.
 
     Attributes:
         DATA_CHANGE:
@@ -36,9 +34,11 @@ class EventType(IntFlag):
 
 
 class VariableSubscription:
-    """
-    Base class for variable subscriptions. It represents a subscription to any
-    change.
+    """Base class for variable subscriptions.
+
+    Instances of this class represent a subscription to variable changes,
+    allowing subscribers to receive notifications when the variable's value
+    changes.
 
     Attributes:
         subscriber_id (str):
@@ -52,8 +52,7 @@ class VariableSubscription:
     correlation_id: str
 
     def __init__(self, subscriber_id: str, correlation_id: str = str(uuid4())):
-        """
-        Initializes a new VariableSubscription instance.
+        """Initializes a new VariableSubscription instance.
 
         Args:
             subscriber_id (str):
@@ -66,8 +65,7 @@ class VariableSubscription:
         self.correlation_id = correlation_id
 
     def get_event_type(self) -> EventType:
-        """
-        Get the event types this subscription is interested in.
+        """Get the event types this subscription is interested in.
 
         Returns:
             EventType:
@@ -77,8 +75,7 @@ class VariableSubscription:
         return EventType.ANY
 
     def should_notify(self, new_value: Any) -> bool:
-        """
-        Determine if a notification should be sent based on the new value.
+        """Determine if a notification should be sent based on the new value.
 
         Args:
             new_value (Any):
@@ -112,9 +109,7 @@ class VariableSubscription:
 
 
 class DataChangeSubscription(VariableSubscription):
-    """
-    Subscription for data change events. It notifies when the variable's value
-    changes beyond a specified deadband.
+    """Subscription for data change events when value changes beyond a deadband.
 
     Attributes:
         _previous_value (None | float):
@@ -138,8 +133,7 @@ class DataChangeSubscription(VariableSubscription):
         deadband: float = 0.0,
         is_percent: bool = False,
     ):
-        """
-        Initializes a new DataChangeSubscription instance.
+        """Initializes a new DataChangeSubscription instance.
 
         Args:
             subscriber_id (str):
@@ -177,9 +171,7 @@ class DataChangeSubscription(VariableSubscription):
 
     @override
     def should_notify(self, new_value: float) -> bool:
-        """
-        Determine if a notification should be sent based on the new value and
-        deadband.
+        """Check if the change exceeds the deadband threshold.
 
         Args:
             new_value (float):
@@ -199,9 +191,7 @@ class DataChangeSubscription(VariableSubscription):
 
 
 class RangeSubscription(VariableSubscription):
-    """
-    Subscription for range-based events. It notifies when the variable's value
-    enters or exits a specified range.
+    """Subscription for range-based events when value enters or exits a range.
 
     Attributes:
         low_limit (float):
@@ -225,8 +215,7 @@ class RangeSubscription(VariableSubscription):
         high_limit: float,
         check_type: EventType,
     ):
-        """
-        Initializes a new RangeSubscription instance.
+        """Initializes a new RangeSubscription instance.
 
         Args:
             subscriber_id (str):
@@ -245,7 +234,9 @@ class RangeSubscription(VariableSubscription):
         self.low_limit = low_limit
         self.high_limit = high_limit
         if check_type not in (EventType.IN_RANGE, EventType.OUT_OF_RANGE):
-            raise ValueError("check_type must be either IN_RANGE or OUT_OF_RANGE")
+            raise ValueError(
+                "check_type must be either IN_RANGE or OUT_OF_RANGE"
+            )
         self._check_type = check_type
 
     @override
@@ -254,8 +245,7 @@ class RangeSubscription(VariableSubscription):
 
     @override
     def should_notify(self, new_value: float) -> bool:
-        """
-        Determine if a notification should be sent based on range conditions.
+        """Determine if a notification should be sent based on range conditions.
 
         Args:
             new_value (float):

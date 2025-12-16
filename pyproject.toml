@@ -38,18 +38,54 @@ furo = "^2024.8.6"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.black]
-line-length = 88
-target-version = ['py39', 'py310', 'py311']
-skip-string-normalization = false
-
-[tool.flake8]
-max-line-length = 88
 
 [tool.ruff]
-line-length = 88
-target-version = "py311"
+# Google style uses 80 chars
+line-length = 80
+target-version = "py311" # Minimum supported Python version
 
 [tool.ruff.lint]
-select = []
-ignore = []
+# Google Python Style Guide compliant rules
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort (import sorting)
+    "N",      # pep8-naming
+    "D",      # pydocstyle (docstring conventions)
+    "UP",     # pyupgrade (modern Python syntax)
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "RUF",    # Ruff-specific rules
+]
+ignore = [
+    "D100",   # missing docstring in public module
+    "D104",   # missing docstring in public package
+    "D105",   # missing docstring in magic method
+    "D107",   # missing docstring in __init__
+    "D203",   # one-blank-line-before-class (conflicts with D211)
+    "D213",   # multi-line-summary-second-line (conflicts with D212)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "D",      # docstrings not required in tests
+]
+
+[tool.ruff.lint.pydocstyle]
+# Google docstring convention
+convention = "google"
+
+[tool.ruff.lint.isort]
+# Google style: absolute imports, sorted
+known-first-party = ["machine_data_model"]
+force-single-line = false
+force-sort-within-sections = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

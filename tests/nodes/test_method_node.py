@@ -10,7 +10,11 @@ from tests import NUM_TESTS, gen_random_string, get_random_numerical_node
 @pytest.mark.parametrize(
     "method_name, method_description, async_method",
     [
-        (gen_random_string(10), gen_random_string(20), random.choice([True, False]))
+        (
+            gen_random_string(10),
+            gen_random_string(20),
+            random.choice([True, False]),
+        )
         for _ in range(3)
     ],
 )

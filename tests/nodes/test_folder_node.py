@@ -17,7 +17,10 @@ class TestFolderNode:
         ],
     )
     def test_folder_node_creation(
-        self, folder_name: str, folder_description: str, children: list[FolderNode]
+        self,
+        folder_name: str,
+        folder_description: str,
+        children: list[FolderNode],
     ) -> None:
         folder = FolderNode(name=folder_name, description=folder_description)
 
@@ -39,7 +42,10 @@ class TestFolderNode:
         ],
     )
     def test_folder_node_update(
-        self, folder_name: str, folder_description: str, children: list[FolderNode]
+        self,
+        folder_name: str,
+        folder_description: str,
+        children: list[FolderNode],
     ) -> None:
         folder = FolderNode(name=folder_name, description=folder_description)
 

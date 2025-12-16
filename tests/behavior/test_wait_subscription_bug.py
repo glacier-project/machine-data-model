@@ -1,31 +1,26 @@
 import os
-import uuid
 from typing import Any
+import uuid
 
 import pytest
-from machine_data_model.data_model import DataModel
+
 from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.nodes.data_model_node import DataModelNode
+from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.variable_node import (
-    NumericalVariableNode,
     VariableNode,
-    ObjectVariableNode,
-)
-from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
-    FrostProtocolMng,
 )
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
-    MsgType,
-    MsgNamespace,
-    VariableMsgName,
     MethodMsgName,
+    MsgNamespace,
+    MsgType,
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_payload import (
-    SubscriptionPayload,
-    VariablePayload,
     MethodPayload,
+)
+from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
+    FrostProtocolMng,
 )
 
 
@@ -73,7 +68,8 @@ def test_wait_condition_subscription_context_is_not_reused(
     sender2 = str(uuid.uuid4())
     target = str(uuid.uuid4())
 
-    # Invoke composite method that contains a wait condition subscribing to a variable
+    # Invoke composite method that contains a wait condition subscribing to a
+    # variable
     msg1 = create_frost_message(
         sender1,
         target,

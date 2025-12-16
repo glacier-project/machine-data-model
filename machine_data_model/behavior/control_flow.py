@@ -1,5 +1,4 @@
-"""
-Control flow graph implementation.
+"""Control flow graph implementation.
 
 This module defines the ControlFlow class which represents a control flow graph
 implementing the logic of a run-time method.
@@ -13,17 +12,19 @@ from machine_data_model.behavior.control_flow_node import (
 )
 from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
-from machine_data_model.tracing import trace_control_flow_end, trace_control_flow_start
+from machine_data_model.tracing import (
+    trace_control_flow_end,
+    trace_control_flow_start,
+)
 
 if TYPE_CHECKING:
-    from machine_data_model.nodes.composite_method.composite_method_node import (
+    from machine_data_model.nodes.composite_method.composite_method_node import (  # noqa: E501
         CompositeMethodNode,
     )
 
 
 class ControlFlow:
-    """
-    Represents a control flow graph implementing the logic of a run-time method.
+    """Control flow graph for specifying dynamic behavior inside the data model.
 
     It consists of a list of control flow nodes that are executed in sequence.
     Different execution flows are not supported in this version of the control
@@ -45,8 +46,7 @@ class ControlFlow:
         nodes: Sequence[ControlFlowNode] | None = None,
         composite_method_node: "CompositeMethodNode | None" = None,
     ):
-        """
-        Initialize a new ControlFlow instance.
+        """Initialize a new ControlFlow instance.
 
         Args:
             nodes (Sequence[ControlFlowNode] | None):
@@ -64,8 +64,7 @@ class ControlFlow:
                 node._parent_cfg = self
 
     def nodes(self) -> Sequence[ControlFlowNode]:
-        """
-        Get the list of control flow nodes in the control flow graph.
+        """Get the list of control flow nodes in the control flow graph.
 
         Returns:
             Sequence[ControlFlowNode]:
@@ -76,8 +75,7 @@ class ControlFlow:
 
     @property
     def composite_method_node(self) -> "CompositeMethodNode | None":
-        """
-        Get the composite method node that owns this control flow graph.
+        """Get the composite method node that owns this control flow graph.
 
         Returns:
             "CompositeMethodNode | None":
@@ -87,23 +85,22 @@ class ControlFlow:
         return self._composite_method_node
 
     def get_data_model_id(self) -> str:
-        """
-        Get the data model ID of the composite method node that owns this
-        control flow graph.
+        """Get the data model ID associated with this control flow graph.
 
         Returns:
             str:
                 The data model ID, or empty string if not available.
 
         """
-        if self._composite_method_node and self._composite_method_node.data_model:
+        if (
+            self._composite_method_node
+            and self._composite_method_node.data_model
+        ):
             return self._composite_method_node.data_model.name
         return ""
 
     def get_composite_method_id(self) -> str:
-        """
-        Get the ID of the composite method node that owns this control flow
-        graph.
+        """Get the ID of the composite method that owns the control flow graph.
 
         Returns:
             str:
@@ -114,10 +111,10 @@ class ControlFlow:
             return self._composite_method_node.id
         return ""
 
-    def get_current_node(self, context: ExecutionContext) -> ControlFlowNode | None:
-        """
-        Get the current control flow node based on the program counter in the
-        execution context.
+    def get_current_node(
+        self, context: ExecutionContext
+    ) -> ControlFlowNode | None:
+        """Get the control flow node pointed by the program counter.
 
         Args:
             context (ExecutionContext):
@@ -136,8 +133,7 @@ class ControlFlow:
         return self._nodes[context.get_pc()]
 
     def execute(self, context: ExecutionContext) -> list[FrostMessage]:
-        """
-        Execute the control flow graph with the specified execution context.
+        """Execute the control flow graph with the specified execution context.
 
         The context is deactivated when the control flow graph reaches the end
         of the graph.
@@ -205,8 +201,7 @@ class ControlFlow:
         return messages
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check equality with another object.
+        """Check equality with another object.
 
         Args:
             other (object):

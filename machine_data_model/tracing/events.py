@@ -1,5 +1,4 @@
-"""
-Specific trace event classes and convenience functions.
+"""Specific trace event classes and convenience functions.
 
 This module defines concrete event classes for different types of traceable
 operations in the GLACIER machine data model, including variable access, method
@@ -7,17 +6,21 @@ execution, wait conditions, and message passing. It also provides optimized
 convenience functions for easy tracing integration throughout the codebase.
 """
 
-import time
 from dataclasses import dataclass
 from typing import Any
 
-from .tracing_core import TraceEvent, TraceEventType, get_global_collector
+from machine_data_model.utils.timestamp import get_timestamp_ns
+
+from .tracing_core import (
+    TraceEvent,
+    TraceEventType,
+    get_global_collector,
+)
 
 
 @dataclass
 class VariableWriteEvent(TraceEvent):
-    """
-    Event for variable value changes.
+    """Event for variable value changes.
 
     Attributes:
         variable_id (str):
@@ -45,8 +48,7 @@ class VariableWriteEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a variable write event.
+        """Initialize a variable write event.
 
         Args:
             variable_id (str):
@@ -64,7 +66,7 @@ class VariableWriteEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.VARIABLE_WRITE,
             source=source,
             data_model_id=data_model_id,
@@ -86,8 +88,7 @@ class VariableWriteEvent(TraceEvent):
 
 @dataclass
 class VariableReadEvent(TraceEvent):
-    """
-    Event for variable reads.
+    """Event for variable reads.
 
     Attributes:
         variable_id (str):
@@ -107,8 +108,7 @@ class VariableReadEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a variable read event.
+        """Initialize a variable read event.
 
         Args:
             variable_id (str):
@@ -122,7 +122,7 @@ class VariableReadEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.VARIABLE_READ,
             source=source,
             data_model_id=data_model_id,
@@ -140,8 +140,7 @@ class VariableReadEvent(TraceEvent):
 
 @dataclass
 class MethodStartEvent(TraceEvent):
-    """
-    Event for method execution start.
+    """Event for method execution start.
 
     Attributes:
         method_id (str):
@@ -162,8 +161,7 @@ class MethodStartEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a method start event.
+        """Initialize a method start event.
 
         Args:
             method_id (str):
@@ -177,7 +175,7 @@ class MethodStartEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.METHOD_START,
             source=source,
             data_model_id=data_model_id,
@@ -195,8 +193,7 @@ class MethodStartEvent(TraceEvent):
 
 @dataclass
 class MethodEndEvent(TraceEvent):
-    """
-    Event for method execution completion.
+    """Event for method execution completion.
 
     Attributes:
         method_id (str):
@@ -221,8 +218,7 @@ class MethodEndEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a method end event.
+        """Initialize a method end event.
 
         Args:
             method_id (str):
@@ -238,7 +234,7 @@ class MethodEndEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.METHOD_END,
             source=source,
             data_model_id=data_model_id,
@@ -258,8 +254,7 @@ class MethodEndEvent(TraceEvent):
 
 @dataclass
 class WaitStartEvent(TraceEvent):
-    """
-    Event for wait condition start.
+    """Event for wait condition start.
 
     Attributes:
         variable_id (str):
@@ -285,8 +280,7 @@ class WaitStartEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a wait start event.
+        """Initialize a wait start event.
 
         Args:
             variable_id (str):
@@ -302,7 +296,7 @@ class WaitStartEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.WAIT_START,
             source=source,
             data_model_id=data_model_id,
@@ -322,8 +316,7 @@ class WaitStartEvent(TraceEvent):
 
 @dataclass
 class WaitEndEvent(TraceEvent):
-    """
-    Event for wait condition completion.
+    """Event for wait condition completion.
 
     Attributes:
         variable_id (str):
@@ -345,8 +338,7 @@ class WaitEndEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a wait end event.
+        """Initialize a wait end event.
 
         Args:
             variable_id (str):
@@ -360,7 +352,7 @@ class WaitEndEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.WAIT_END,
             source=source,
             data_model_id=data_model_id,
@@ -378,8 +370,7 @@ class WaitEndEvent(TraceEvent):
 
 @dataclass
 class MessageSendEvent(TraceEvent):
-    """
-    Event for message sending.
+    """Event for message sending.
 
     Attributes:
         message_type (str):
@@ -408,8 +399,7 @@ class MessageSendEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a message send event.
+        """Initialize a message send event.
 
         Args:
             message_type (str):
@@ -427,7 +417,7 @@ class MessageSendEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.MESSAGE_SEND,
             source=source,
             data_model_id=data_model_id,
@@ -449,8 +439,7 @@ class MessageSendEvent(TraceEvent):
 
 @dataclass
 class MessageReceiveEvent(TraceEvent):
-    """
-    Event for message receiving.
+    """Event for message receiving.
 
     Attributes:
         message_type (str):
@@ -485,8 +474,7 @@ class MessageReceiveEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a message receive event.
+        """Initialize a message receive event.
 
         Args:
             message_type (str):
@@ -506,7 +494,7 @@ class MessageReceiveEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.MESSAGE_RECEIVE,
             source=source,
             data_model_id=data_model_id,
@@ -530,8 +518,7 @@ class MessageReceiveEvent(TraceEvent):
 
 @dataclass
 class SubscribeEvent(TraceEvent):
-    """
-    Event for subscription to a variable.
+    """Event for subscription to a variable.
 
     Attributes:
         variable_id (str):
@@ -551,8 +538,7 @@ class SubscribeEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a subscribe event.
+        """Initialize a subscribe event.
 
         Args:
             variable_id (str):
@@ -566,7 +552,7 @@ class SubscribeEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.SUBSCRIBE,
             source=source,
             data_model_id=data_model_id,
@@ -584,8 +570,7 @@ class SubscribeEvent(TraceEvent):
 
 @dataclass
 class UnsubscribeEvent(TraceEvent):
-    """
-    Event for unsubscription from a variable.
+    """Event for unsubscription from a variable.
 
     Attributes:
         variable_id (str):
@@ -605,8 +590,7 @@ class UnsubscribeEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize an unsubscribe event.
+        """Initialize an unsubscribe event.
 
         Args:
             variable_id (str):
@@ -620,7 +604,7 @@ class UnsubscribeEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.UNSUBSCRIBE,
             source=source,
             data_model_id=data_model_id,
@@ -638,8 +622,7 @@ class UnsubscribeEvent(TraceEvent):
 
 @dataclass
 class NotificationEvent(TraceEvent):
-    """
-    Event for notification sent to subscribers.
+    """Event for notification sent to subscribers.
 
     Attributes:
         variable_id (str):
@@ -664,8 +647,7 @@ class NotificationEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a notification event.
+        """Initialize a notification event.
 
         Args:
             variable_id (str):
@@ -681,7 +663,7 @@ class NotificationEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.NOTIFICATION,
             source=source,
             data_model_id=data_model_id,
@@ -701,8 +683,7 @@ class NotificationEvent(TraceEvent):
 
 @dataclass
 class ControlFlowStepEvent(TraceEvent):
-    """
-    Event for control flow step execution.
+    """Event for control flow step execution.
 
     Attributes:
         node_id (str):
@@ -733,8 +714,7 @@ class ControlFlowStepEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a control flow step event.
+        """Initialize a control flow step event.
 
         Args:
             node_id (str):
@@ -753,7 +733,7 @@ class ControlFlowStepEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.CONTROL_FLOW_STEP,
             source=source,
             data_model_id=data_model_id,
@@ -775,8 +755,7 @@ class ControlFlowStepEvent(TraceEvent):
 
 @dataclass
 class ControlFlowStartEvent(TraceEvent):
-    """
-    Event for control flow execution start.
+    """Event for control flow execution start.
 
     Attributes:
         control_flow_id (str):
@@ -796,8 +775,7 @@ class ControlFlowStartEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a control flow start event.
+        """Initialize a control flow start event.
 
         Args:
             control_flow_id (str):
@@ -811,7 +789,7 @@ class ControlFlowStartEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.CONTROL_FLOW_START,
             source=source,
             data_model_id=data_model_id,
@@ -829,8 +807,7 @@ class ControlFlowStartEvent(TraceEvent):
 
 @dataclass
 class ControlFlowEndEvent(TraceEvent):
-    """
-    Event for control flow execution end.
+    """Event for control flow execution end.
 
     Attributes:
         control_flow_id (str):
@@ -858,8 +835,7 @@ class ControlFlowEndEvent(TraceEvent):
         source: str = "",
         data_model_id: str = "",
     ):
-        """
-        Initialize a control flow end event.
+        """Initialize a control flow end event.
 
         Args:
             control_flow_id (str):
@@ -877,7 +853,7 @@ class ControlFlowEndEvent(TraceEvent):
 
         """
         super().__init__(
-            timestamp=time.time(),
+            timestamp_ns=get_timestamp_ns(),
             event_type=TraceEventType.CONTROL_FLOW_END,
             source=source,
             data_model_id=data_model_id,
@@ -906,8 +882,7 @@ def trace_variable_write(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a variable write operation.
+    """Trace a variable write operation.
 
     Args:
         variable_id (str):
@@ -945,8 +920,7 @@ def trace_variable_read(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a variable read operation.
+    """Trace a variable read operation.
 
     Args:
         variable_id (str):
@@ -978,9 +952,8 @@ def trace_method_start(
     args: dict[str, Any],
     source: str = "",
     data_model_id: str = "",
-) -> float:
-    """
-    Trace method start and return start time for duration calculation.
+) -> int:
+    """Trace method start and return start time for duration calculation.
 
     Args:
         method_id (str):
@@ -993,12 +966,14 @@ def trace_method_start(
             The ID of the data model this event belongs to. Defaults to "".
 
     Returns:
-        float: The timestamp when the method started.
+        int:
+            The timestamp when the method started, in nanoseconds since the
+            Unix epoch.
 
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.METHOD_START):
-        return time.time()
+        return get_timestamp_ns()
 
     event = MethodStartEvent(
         method_id,
@@ -1007,26 +982,26 @@ def trace_method_start(
         data_model_id,
     )
     collector.record_event(event)
-    return event.timestamp
+    return event.timestamp_ns
 
 
 def trace_method_end(
     method_id: str,
     returns: dict[str, Any],
-    start_time: float,
+    start_time: int,
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace method end with execution time.
+    """Trace method end with execution time.
 
     Args:
         method_id (str):
             The ID of the method that completed.
         returns (dict[str, Any]):
             The return values from the method.
-        start_time (float):
-            The timestamp when the method started.
+        start_time (int):
+            The timestamp when the method started, in nanoseconds since the
+            Unix epoch.
         source (str, optional):
             The source of the event. Defaults to "".
         data_model_id (str, optional):
@@ -1037,7 +1012,7 @@ def trace_method_end(
     if not collector.should_record_event_type(TraceEventType.METHOD_END):
         return
 
-    execution_time = time.time() - start_time
+    execution_time = (get_timestamp_ns() - start_time) / 1_000_000_000.0
     collector.record_event(
         MethodEndEvent(
             method_id,
@@ -1055,9 +1030,8 @@ def trace_wait_start(
     expected_value: Any,
     source: str = "",
     data_model_id: str = "",
-) -> float:
-    """
-    Trace wait start and return start time.
+) -> int:
+    """Trace wait start and return start time.
 
     Args:
         variable_id (str):
@@ -1072,12 +1046,14 @@ def trace_wait_start(
             The ID of the data model this event belongs to. Defaults to "".
 
     Returns:
-        float: The timestamp when the wait started.
+        int:
+            The timestamp when the wait started, in nanoseconds since the
+            Unix epoch.
 
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.WAIT_START):
-        return time.time()
+        return get_timestamp_ns()
 
     event = WaitStartEvent(
         variable_id,
@@ -1087,23 +1063,23 @@ def trace_wait_start(
         data_model_id,
     )
     collector.record_event(event)
-    return event.timestamp
+    return event.timestamp_ns
 
 
 def trace_wait_end(
     variable_id: str,
-    start_time: float,
+    start_time: int,
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace wait end with duration.
+    """Trace wait end with duration.
 
     Args:
         variable_id (str):
             The ID of the variable that was being waited on.
-        start_time (float):
-            The timestamp when the wait started.
+        start_time (int):
+            The timestamp when the wait started, in nanoseconds since the
+            Unix epoch.
         source (str, optional):
             The source of the event. Defaults to "".
         data_model_id (str, optional):
@@ -1114,7 +1090,7 @@ def trace_wait_end(
     if not collector.should_record_event_type(TraceEventType.WAIT_END):
         return
 
-    wait_duration = time.time() - start_time
+    wait_duration = (get_timestamp_ns() - start_time) / 1_000_000_000.0
     collector.record_event(
         WaitEndEvent(
             variable_id,
@@ -1132,9 +1108,8 @@ def trace_message_send(
     payload: dict[str, Any],
     source: str = "",
     data_model_id: str = "",
-) -> float:
-    """
-    Trace message send and return send time.
+) -> int:
+    """Trace message send and return send time.
 
     Args:
         message_type (str):
@@ -1151,12 +1126,14 @@ def trace_message_send(
             The ID of the data model this event belongs to. Defaults to "".
 
     Returns:
-        float: The timestamp when the message was sent.
+        int:
+            The timestamp when the message was sent, in nanoseconds since the
+            Unix epoch.
 
     """
     collector = get_global_collector()
     if not collector.should_record_event_type(TraceEventType.MESSAGE_SEND):
-        return time.time()
+        return get_timestamp_ns()
 
     event = MessageSendEvent(
         message_type,
@@ -1167,7 +1144,7 @@ def trace_message_send(
         data_model_id,
     )
     collector.record_event(event)
-    return event.timestamp
+    return event.timestamp_ns
 
 
 def trace_message_receive(
@@ -1175,12 +1152,11 @@ def trace_message_receive(
     sender: str,
     correlation_id: str,
     payload: dict[str, Any],
-    send_time: float,
+    send_time: int,
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace message receive with latency.
+    """Trace message receive with latency.
 
     Args:
         message_type (str):
@@ -1191,8 +1167,9 @@ def trace_message_receive(
             The correlation ID for the message.
         payload (dict[str, Any]):
             The message payload.
-        send_time (float):
-            The timestamp when the message was sent.
+        send_time (int):
+            The timestamp when the message was sent, in nanoseconds since the
+            Unix epoch.
         source (str, optional):
             The source of the event. Defaults to "".
         data_model_id (str, optional):
@@ -1203,7 +1180,7 @@ def trace_message_receive(
     if not collector.should_record_event_type(TraceEventType.MESSAGE_RECEIVE):
         return
 
-    latency = time.time() - send_time
+    latency = (get_timestamp_ns() - send_time) / 1_000_000_000.0
     collector.record_event(
         MessageReceiveEvent(
             message_type,
@@ -1223,8 +1200,7 @@ def trace_subscribe(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a subscription operation.
+    """Trace a subscription operation.
 
     Args:
         variable_id (str):
@@ -1257,8 +1233,7 @@ def trace_unsubscribe(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace an unsubscription operation.
+    """Trace an unsubscription operation.
 
     Args:
         variable_id (str):
@@ -1292,8 +1267,7 @@ def trace_notification(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a notification sent to a subscriber.
+    """Trace a notification sent to a subscriber.
 
     Args:
         variable_id (str):
@@ -1331,8 +1305,7 @@ def trace_control_flow_step(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a control flow step execution.
+    """Trace a control flow step execution.
 
     Args:
         node_id (str):
@@ -1371,8 +1344,7 @@ def trace_control_flow_start(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a control flow execution start.
+    """Trace a control flow execution start.
 
     Args:
         control_flow_id (str):
@@ -1386,7 +1358,9 @@ def trace_control_flow_start(
 
     """
     collector = get_global_collector()
-    if not collector.should_record_event_type(TraceEventType.CONTROL_FLOW_START):
+    if not collector.should_record_event_type(
+        TraceEventType.CONTROL_FLOW_START
+    ):
         return
 
     collector.record_event(
@@ -1407,8 +1381,7 @@ def trace_control_flow_end(
     source: str = "",
     data_model_id: str = "",
 ) -> None:
-    """
-    Trace a control flow execution end.
+    """Trace a control flow execution end.
 
     Args:
         control_flow_id (str):

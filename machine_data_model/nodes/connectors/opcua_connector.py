@@ -1,5 +1,4 @@
-"""
-OPC UA connector classes.
+"""OPC UA connector classes.
 
 This module defines the OpcuaConnector class,
 which is an asynchronous connector for the OPC UA protocol.
@@ -14,29 +13,38 @@ of DataModelNodes that are specific to OPC UA.
 > The user sets their value in the data model yaml file
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-import socket
 from pathlib import Path
-from typing import Any, Callable
+import socket
+from typing import TYPE_CHECKING, Any
 
 import asyncua
 from asyncua import Client as AsyncuaClient
-from asyncua.common.subscription import DataChangeNotificationHandler, DataChangeNotif
+from asyncua.common.subscription import (
+    DataChangeNotif,
+    DataChangeNotificationHandler,
+)
 from asyncua.crypto.cert_gen import setup_self_signed_certificate
 from asyncua.crypto.security_policies import (
-    SecurityPolicyBasic256Sha256,
     SecurityPolicy,
+    SecurityPolicyBasic256Sha256,
 )
 from asyncua.crypto.truststore import TrustStore
-from asyncua.crypto.validator import CertificateValidator, CertificateValidatorOptions
+from asyncua.crypto.validator import (
+    CertificateValidator,
+    CertificateValidatorOptions,
+)
 from asyncua.ua import UaError, VariantType
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override
 
-from ..data_model_node import DataModelNode
-from .abstract_connector import SubscriptionArguments
+if TYPE_CHECKING:
+    from machine_data_model.nodes.data_model_node import DataModelNode
+
 from .abstract_async_connector import AbstractAsyncConnector
+from .abstract_connector import SubscriptionArguments
 from .remote_resource_spec import RemoteResourceSpec
 
 _logger = logging.getLogger(__name__)
@@ -44,9 +52,7 @@ _logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class OpcuaSubscriptionArguments(SubscriptionArguments):
-    """
-    Data returned to the OPC-UA subscription callback.
-    """
+    """Data returned to the OPC UA subscription callback."""
 
     node: asyncua.Node
     value: Any
@@ -56,8 +62,7 @@ class OpcuaSubscriptionArguments(SubscriptionArguments):
 def _security_policy_string_to_asyncua_policy(
     policy_string: str | None,
 ) -> type[SecurityPolicy] | None:
-    """
-    Converts a string containing the desired security policy into an asyncua SecurityPolicy type.
+    """Converts a security policy string to an asyncua SecurityPolicy type.
 
     Args:
         policy_string (str | None):
@@ -75,8 +80,9 @@ def _security_policy_string_to_asyncua_policy(
 
 
 async def get_input_arguments(node: asyncua.Node) -> asyncua.Node | None:
-    """
-    Given a method node, returns its input arguments.
+    """Returns the InputArguments node of a OPC UA method node.
+
+    Given a OPCU UA method node, returns its input arguments.
     If the method doesn't have input arguments, it returns None.
 
     Args:
@@ -98,9 +104,7 @@ async def get_input_arguments(node: asyncua.Node) -> asyncua.Node | None:
 
 
 class OpcuaConnector(AbstractAsyncConnector):
-    """
-    Represents an OPCUA client
-    """
+    """Represents an OPCUA client."""
 
     def __init__(
         self,
@@ -121,8 +125,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         password: str | None = None,
         password_env_var: str | None = None,
     ) -> None:
-        """
-        Initializes an OPCUA client.
+        """Initializes an OPCUA client.
 
         Args:
             id (str | None):
@@ -130,15 +133,15 @@ class OpcuaConnector(AbstractAsyncConnector):
             name (str | None):
                 Client name.
             ip (str | None):
-                OPC-UA server address.
+                OPC UA server address.
             ip_env_var (str | None):
-                Environment variable which contains the OPC-UA server address.
+                Environment variable which contains the OPC UA server address.
             port (int | None):
-                OPC-UA server port.
+                OPC UA server port.
             port_env_var (str | None):
-                Environment variable which contains the OPC-UA server port.
+                Environment variable which contains the OPC UA server port.
             security_policy (str | None):
-                OPC-UA security mode.
+                OPC UA security mode.
             host_name (str | None):
                 Host name.
             client_app_uri (str | None):
@@ -150,13 +153,15 @@ class OpcuaConnector(AbstractAsyncConnector):
             trust_store_certificates_paths (list[str] | None):
                 Paths which contains certificates for the trust store.
             username (str | None):
-                OPC-UA username. Keep it set to None if the username is not required.
+                OPC UA username. Keep it set to None if the username is not
+                required.
             username_env_var (str | None):
-                Environment variable which contains the OPC-UA username.
+                Environment variable which contains the OPC UA username.
             password (str | None):
-                OPC-UA password. Keep it set to None if the password is not required.
+                OPC UA password. Keep it set to None if the password is not
+                required.
             password_env_var (str | None):
-                Environment variable which contains the OPC-UA password.
+                Environment variable which contains the OPC UA password.
         """
         super().__init__(
             id=id,
@@ -183,12 +188,16 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         if private_key_file_path is None:
             _logger.warning(
-                f"Connector {self.name} doesn't have 'private_key_file_path' attribute specified: a private key will be generated and used automatically"
+                f"Connector {self.name} doesn't have 'private_key_file_path' "
+                f"attribute specified: a private key will be generated and "
+                f"used automatically"
             )
 
         if certificate_file_path is None:
             _logger.warning(
-                f"Connector {self.name} doesn't have 'certificate_file_path' attribute specified: a self-signed certificate will be generated and used automatically"
+                f"Connector {self.name} doesn't have 'certificate_file_path' "
+                f"attribute specified: a self-signed certificate will be "
+                f"generated and used automatically"
             )
 
         self._private_key_file_path: Path = (
@@ -202,63 +211,78 @@ class OpcuaConnector(AbstractAsyncConnector):
             else Path("cert.selfsigned.der")
         )
 
-        if not isinstance(trust_store_certificates_paths, (list, type(None))):
+        if not isinstance(trust_store_certificates_paths, list | None):
             raise TypeError(
-                f"Connector '{name}': trust_store_certificates_paths, when defined, must be a list of strings"
+                f"Connector '{name}': trust_store_certificates_paths, when "
+                f"defined, must be a list of strings"
             )
 
         self._trust_store_certificates_paths: list[Path] = []
         if trust_store_certificates_paths is not None:
             if len(trust_store_certificates_paths) == 0:
                 raise ValueError(
-                    f"Connector '{name}': trust_store_certificates_paths cannot be defined but also empty. Please, remove the 'trust_store_certificates_paths' attribute or add valid paths to the list"
+                    f"Connector '{name}': trust_store_certificates_paths cannot"
+                    f" be defined but also empty. Please, remove the "
+                    f"'trust_store_certificates_paths' attribute or add valid "
+                    f"paths to the list"
                 )
             for path_string in trust_store_certificates_paths:
                 if not isinstance(path_string, str):
                     raise TypeError(
-                        f"Connector '{name}': The '{path_string}' path inside trust_store_certificates_paths is not a string"
+                        f"Connector '{name}': The '{path_string}' path inside "
+                        f"trust_store_certificates_paths is not a string"
                     )
                 trust_store_cert_path = Path(path_string)
                 if not trust_store_cert_path.is_dir():
                     raise ValueError(
-                        f"Connector '{name}': The '{path_string}' path inside trust_store_certificates_paths is not a directory"
+                        f"Connector '{name}': The '{path_string}' path inside "
+                        f"trust_store_certificates_paths is not a directory"
                     )
-                self._trust_store_certificates_paths.append(trust_store_cert_path)
+                self._trust_store_certificates_paths.append(
+                    trust_store_cert_path
+                )
 
     @property
     def security_policy(self) -> str | None:
+        """Returns the security policy used by the connector."""
         return self._security_policy
 
     @property
     def host_name(self) -> str:
+        """Returns the host name used by the connector."""
         return self._host_name
 
     @property
     def client_app_uri(self) -> str:
+        """Returns the client application URI used by the connector."""
         return self._client_app_uri
 
     @property
     def private_key_file_path(self) -> Path | None:
+        """Returns the path to the private key file."""
         return self._private_key_file_path
 
     @property
     def certificate_file_path(self) -> Path | None:
+        """Returns the path to the certificate file."""
         return self._certificate_file_path
 
     @override
     async def _async_connect(self) -> bool:
-        """
-        Async function which uses the asyncua library to connect to the OPC-UA server.
+        """Asynchronously connects to the OPC UA server.
 
         Returns:
             bool:
                 True if the client is connected to the server.
         """
-        url = "opc.tcp://{}:{}".format(self.ip, self.port)
+        url = f"opc.tcp://{self.ip}:{self.port}"
         _logger.debug(
-            f"Connecting '{self.name}' connector to OPC-UA server. Url is: {url}"
+            f"Connecting '{self.name}' connector to OPC UA server. Url is: "
+            f"{url}"
         )
-        _logger.debug(f"Setting up the certificates for the '{self.name}' connector.")
+        _logger.debug(
+            f"Setting up the certificates for the '{self.name}' connector."
+        )
 
         try:
             await setup_self_signed_certificate(
@@ -293,7 +317,8 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         if security_policy is not None:
             _logger.debug(
-                f"Setting up the security policy for the '{self.name}' connector. Policy is: {security_policy}"
+                f"Setting up the security policy for the '{self.name}' "
+                f"connector. Policy is: {security_policy}"
             )
             try:
                 await client.set_security(
@@ -307,7 +332,8 @@ class OpcuaConnector(AbstractAsyncConnector):
                 return False
 
         _logger.debug(
-            f"Setting up the certificate validator for the '{self.name}' connector"
+            f"Setting up the certificate validator for the '{self.name}' "
+            f"connector"
         )
 
         if len(self._trust_store_certificates_paths) > 0:
@@ -330,25 +356,31 @@ class OpcuaConnector(AbstractAsyncConnector):
             await self._client.connect()
         except Exception as e:
             _logger.debug(
-                f"Couldn't connect the '{self.name}' connector to the OPC-UA server"
+                f"Couldn't connect the '{self.name}' connector to the OPC UA "
+                f"server"
             )
             _logger.error(e)
             return False
-        _logger.debug(f"Connected the '{self.name}' connector to the OPC-UA server")
+        _logger.debug(
+            f"Connected the '{self.name}' connector to the OPC UA server"
+        )
         return True
 
     @override
     async def _async_disconnect(self) -> bool:
-        """
-        Async function which uses the asyncua library to disconnect from the OPC-UA server.
+        """Asynchronously disconnects from the OPC UA server.
 
         Returns:
             bool:
                 True if the client is disconnected from the server.
         """
-        _logger.debug(f"Disconnecting '{self.name}' connector from OPC-UA server")
+        _logger.debug(
+            f"Disconnecting '{self.name}' connector from OPC UA server"
+        )
         if self._client is None:
-            _logger.debug(f"The '{self.name}' connector was already disconnected")
+            _logger.debug(
+                f"The '{self.name}' connector was already disconnected"
+            )
             return True
 
         try:
@@ -363,21 +395,22 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @override
     async def _async_get_remote_node(self, path: str) -> asyncua.Node | None:
-        """
-        Asynchronous function which returns the node from the OPC-UA server.
+        """Asynchronous function which returns the node from the OPC UA server.
 
         Args:
             path (str):
                 Node's path.
+
         Returns:
             asyncua.Node | None:
-                The node from the OPC-UA server if it exists, None otherwise.
+                The node from the OPC UA server if it exists, None otherwise.
         """
-        _logger.debug(f"Retrieving node '{path}' from OPC-UA server")
+        _logger.debug(f"Retrieving node '{path}' from OPC UA server")
 
         if self._client is None:
             raise Exception(
-                f"Couldn't retrieve remote node '{path}' using '{self._name}' connector: the client is not connected"
+                f"Couldn't retrieve remote node '{path}' using '{self._name}' "
+                f"connector: the client is not connected"
             )
 
         node = None
@@ -389,7 +422,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                 node = await self._client.get_root_node().get_child(path)
             assert isinstance(
                 node, asyncua.Node
-            ), "Node read by remote OPC-UA server must be an asyncua.Node"
+            ), "Node read by remote OPC UA server must be an asyncua.Node"
             _logger.debug(f"Retrieved node '{path}' successfully")
         except UaError as exp:
             _logger.error(exp)
@@ -398,8 +431,7 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @override
     async def _async_read_node_value(self, path: str) -> Any:
-        """
-        Asynchronously reads the node's value from the server.
+        """Asynchronously reads the node's value from the server.
 
         Args:
             path (str):
@@ -413,7 +445,8 @@ class OpcuaConnector(AbstractAsyncConnector):
         node = await self._async_get_remote_node(path)
         if node is None:
             raise ValueError(
-                f"Couldn't read value of '{path}' using the '{self.name}' connector: the node does not exist"
+                f"Couldn't read value of '{path}' using the '{self.name}' "
+                f"connector: the node does not exist"
             )
         value = await node.get_value()
         _logger.debug(f"Read node '{path}'. Its value is: {value!r}")
@@ -421,8 +454,7 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @override
     async def _async_write_node_value(self, path: str, value: Any) -> bool:
-        """
-        Function which asynchronously writes the value to the OPC-UA server.
+        """Function which asynchronously writes the value to the OPC UA server.
 
         Args:
             path (str):
@@ -439,7 +471,8 @@ class OpcuaConnector(AbstractAsyncConnector):
         node = await self._async_get_remote_node(path)
         if node is None:
             raise ValueError(
-                f"Couldn't read value of '{path}' using the '{self.name}' connector: the node does not exist"
+                f"Couldn't read value of '{path}' using the '{self.name}' "
+                f"connector: the node does not exist"
             )
 
         success = True
@@ -447,7 +480,9 @@ class OpcuaConnector(AbstractAsyncConnector):
             current_value = await node.read_data_value()
             current_value_type = current_value.Value.VariantType
             _logger.debug(
-                f"Overriding node '{path}', which previously had value {current_value!r} (type {current_value_type}), with value: {value!r}"
+                f"Overriding node '{path}', which previously had value "
+                f"{current_value!r} (type {current_value_type}), with value: "
+                f"{value!r}"
             )
             await node.write_value(value, current_value_type)
         except UaError as exp:
@@ -461,8 +496,7 @@ class OpcuaConnector(AbstractAsyncConnector):
     async def _async_call_node_as_method(
         self, path: str, kwargs: dict[str, Any]
     ) -> Any:
-        """
-        Asynchronously calls the method at path <path> with <kwargs> as its arguments.
+        """Asynchronously calls a method on the OPC UA server.
 
         Args:
             path (str):
@@ -475,17 +509,20 @@ class OpcuaConnector(AbstractAsyncConnector):
                 Method's returned value.
         """
         _logger.debug(
-            f"Calling remote method '{path}', with the following parameters: {kwargs}"
+            f"Calling remote method '{path}', with the following parameters: "
+            f"{kwargs}"
         )
         if self._client is None:
             raise Exception(
-                f"Couldn't call remote method '{path}' using '{self._name}' connector: the client is not connected"
+                f"Couldn't call remote method '{path}' using '{self._name}' "
+                f"connector: the client is not connected"
             )
 
         node = await self._async_get_remote_node(path)
         if node is None:
             raise ValueError(
-                f"Couldn't call remote method '{path}' using '{self._name}' connector: the node doesn't exist"
+                f"Couldn't call remote method '{path}' using '{self._name}' "
+                f"connector: the node doesn't exist"
             )
 
         # check if the node has inputs
@@ -497,22 +534,24 @@ class OpcuaConnector(AbstractAsyncConnector):
             )  # returns a list of Argument-Class
             assert isinstance(inputs, list), "inputs must be a list"
 
-        # Try to convert the parameters types from python types to the equivalent asyncua VariantTypes
         params = []
-        for ua_param, value in zip(inputs, kwargs.values()):
+        for ua_param, value in zip(inputs, kwargs.values(), strict=False):
             dt = ua_param.DataType
             identifier = dt.Identifier
             variant_type = VariantType(identifier)
             params.append(asyncua.ua.Variant(value, variant_type))
 
-        _logger.debug(f"Converted parameters of '{path}' into VariantTypes: {params}")
+        _logger.debug(
+            f"Converted parameters of '{path}' into VariantTypes: {params}"
+        )
 
         result = None
         try:
             parent = await node.get_parent()
             result = await parent.call_method(node.nodeid, *params)
             _logger.debug(
-                f"Called '{path}' using the parent node. Return value is: {result!r}"
+                f"Called '{path}' using the parent node. "
+                f"Return value is: {result!r}"
             )
         except UaError as exp:
             _logger.error(exp)
@@ -520,17 +559,19 @@ class OpcuaConnector(AbstractAsyncConnector):
 
     @override
     async def _async_subscribe_to_node_changes(
-        self, path: str, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
+        self,
+        path: str,
+        callback: Callable[[Any, OpcuaSubscriptionArguments], None],
     ) -> int:
-        """
-        Asynchronous function which subscribes to remote variable data changes.
+        """Asynchronously subscribes to changes of the node at path <path>.
 
         Args:
             path (str):
                 Node path.
             callback (Callable[[Any, SubscriptionArguments], None]):
-                Subscription's callback. The first parameter is the new value, while the
-                second parameter is additional data that is protocol dependent.
+                Subscription's callback. The first parameter is the new value,
+                while the second parameter is additional data that is protocol
+                dependent.
 
         Returns:
             int:
@@ -539,7 +580,8 @@ class OpcuaConnector(AbstractAsyncConnector):
         _logger.debug(f"Subscribing to remote node '{path}'")
         if self._client is None:
             raise Exception(
-                f"Couldn't subscribe to '{path}': Client is not running inside the '{self._name}' connector"
+                f"Couldn't subscribe to '{path}': Client is not running inside "
+                f"the '{self._name}' connector"
             )
 
         handler = OpcUaDataChangeHandler(callback)
@@ -548,28 +590,30 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         if node is None:
             raise Exception(
-                f"Couldn't subscribe to unexisting node '{path}' using the '{self._name}' connector"
+                f"Couldn't subscribe to unexisting node '{path}' using the "
+                f"'{self._name}' connector"
             )
 
         res = await subscription.subscribe_data_change(node)
         assert isinstance(res, int), "subscription handler must be a int"
         _logger.debug(
-            f"Subscribed to remote node '{path}'. Subscription handler code: {res}"
+            f"Subscribed to remote node '{path}'. "
+            f"Subscription handler code: {res}"
         )
         return res
 
     def __str__(self) -> str:
         return (
             "OpcuaConnector("
-            f"name={repr(self.name)}, "
-            f"id={repr(self.id)}, "
-            f"ip={repr(self.ip)}, "
-            f"port={repr(self.port)}, "
-            f"security_policy={repr(self.security_policy)}, "
-            f"host_name={repr(self.host_name)}, "
-            f"client_app_uri={repr(self.client_app_uri)}, "
-            f"private_key_file_path={repr(self.private_key_file_path)}, "
-            f"certificate_file_path={repr(self.certificate_file_path)}"
+            f"name={self.name!r}, "
+            f"id={self.id!r}, "
+            f"ip={self.ip!r}, "
+            f"port={self.port!r}, "
+            f"security_policy={self.security_policy!r}, "
+            f"host_name={self.host_name!r}, "
+            f"client_app_uri={self.client_app_uri!r}, "
+            f"private_key_file_path={self.private_key_file_path!r}, "
+            f"certificate_file_path={self.certificate_file_path!r}"
             ")"
         )
 
@@ -578,15 +622,12 @@ class OpcuaConnector(AbstractAsyncConnector):
 
 
 class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[misc]
-    """
-    Handles OPC-UA data changes by calling a callback function.
-    """
+    """Handles OPC UA data changes by calling a callback function."""
 
     def __init__(
         self, callback: Callable[[Any, OpcuaSubscriptionArguments], None]
     ) -> None:
-        """
-        Stores the callback to be called when a remote value changes.
+        """Stores the callback to be called when a remote value changes.
 
         Args:
             callback (Callable[[Any, OpcuaSubscriptionArguments], None]):
@@ -597,8 +638,7 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
     def datachange_notification(
         self, node: asyncua.Node, val: Any, data: DataChangeNotif
     ) -> None:
-        """
-        called for every datachange notification from server
+        """Called for every datachange notification from server.
 
         Args:
             node (asyncua.Node):
@@ -609,16 +649,17 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
                 Notification object about the data change.
         """
         _logger.debug(
-            f"Received new datachange notification for node {node}. Its new value is: {val!r}"
+            f"Received new datachange notification for node {node}. Its new "
+            f"value is: {val!r}"
         )
-        other = OpcuaSubscriptionArguments(node=node, value=val, notification=data)
+        other = OpcuaSubscriptionArguments(
+            node=node, value=val, notification=data
+        )
         self._callback(val, other)
 
 
 class OpcuaRemoteResourceSpec(RemoteResourceSpec):
-    """
-    Represents node properties that are specific for the OPC UA protocol.
-    """
+    """Represents node properties that are specific for the OPC UA protocol."""
 
     def __init__(
         self,
@@ -627,8 +668,7 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
         node_id: str | None = None,
         namespace: str | None = None,
     ) -> None:
-        """
-        Constructor.
+        """Constructor.
 
         Args:
             parent (DataModelNode, optional):
@@ -646,15 +686,11 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
 
     @override
     def remote_path(self) -> str | None:
-        """
-        Returns 'remote_path' when defined,
-        otherwise it returns the 'node_id'.
-        If both are undefined, it tries to build the node's path
-        using the parent's remote path and the node's name (with the namespace, if applicable)
+        """Returns the 'remote_path' used to interact with the remote node.
 
         Returns:
             str | None:
-                Path used to interact with the node on the server.
+                Path used to interact with the remote node.
         """
         if self._remote_path is not None:
             return self._remote_path
@@ -668,7 +704,13 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
                 parent_remote_path = self._parent.parent.remote_path
                 remote_path = parent_remote_path if parent_remote_path else ""
             if self._namespace:
-                return remote_path + "/" + self._namespace + ":" + self._parent.name
+                return (
+                    remote_path
+                    + "/"
+                    + self._namespace
+                    + ":"
+                    + self._parent.name
+                )
             else:
                 return remote_path + "/" + self._parent.name
 
@@ -676,9 +718,10 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
 
     @override
     def inheritable_spec(self) -> "OpcuaRemoteResourceSpec":
-        """
-        Returns a copy of this object, where the only properties that get copied
-        are properties that will be inherited by child nodes.
+        """Returns the inheritable part of this object.
+
+        Returns a copy of this object containing only the properties that can be
+        inherited by child nodes.
 
         Returns:
             OpcuaRemoteResourceSpec:
@@ -688,12 +731,16 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
 
     @override
     def merge_specs(
-        self, spec1: "OpcuaRemoteResourceSpec", spec2: "OpcuaRemoteResourceSpec"
+        self,
+        spec1: "OpcuaRemoteResourceSpec",
+        spec2: "OpcuaRemoteResourceSpec",
     ) -> "OpcuaRemoteResourceSpec":
-        """
-        Creates a third object which has the combined properties of spec1 and spec2.
-        > Note that spec1 has priority over spec2: spec1's properties override spec2's
-        > properties when the properties are defined for both objects.
+        """Merge two OpcuaRemoteResourceSpec objects.
+
+        Creates a new OpcuaRemoteResourceSpec which has the combined properties
+        of spec1 and spec2.
+        > Note that spec1 has priority over spec2: spec1's properties override
+        spec2's properties when the properties are defined for both objects.
 
         Args:
             spec1 (OpcuaRemoteResourceSpec):
@@ -717,15 +764,17 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
             spec1._remote_path if spec1._remote_path else spec2._remote_path
         )
         new_spec._node_id = spec1._node_id if spec1._node_id else spec2._node_id
-        new_spec._namespace = spec1._namespace if spec1._namespace else spec2._namespace
+        new_spec._namespace = (
+            spec1._namespace if spec1._namespace else spec2._namespace
+        )
         return new_spec
 
     def __str__(self) -> str:
         return (
             "OpcuaRemoteResourceSpec("
-            f"remote_path={repr(self.remote_path)}, "
-            f"node_id={repr(self._node_id)}, "
-            f"namespace={repr(self._namespace)}"
+            f"remote_path={self.remote_path!r}, "
+            f"node_id={self._node_id!r}, "
+            f"namespace={self._namespace!r}"
             ")"
         )
 

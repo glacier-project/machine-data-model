@@ -1,5 +1,5 @@
-import random
 from enum import Enum
+import random
 
 import pytest
 from unitsnet_py import LengthUnits
@@ -21,7 +21,9 @@ class TestMeasureBuilder:
         "domain, unit",
         [(Length, LengthUnits.Meter), (NoneMeasure, NoneMeasureUnits.NONE)],
     )
-    def test_creation_from_enum(self, value: float, domain: Enum, unit: str) -> None:
+    def test_creation_from_enum(
+        self, value: float, domain: Enum, unit: str
+    ) -> None:
         # Arrange
         measure_builder = MeasureBuilder()
 
@@ -39,7 +41,9 @@ class TestMeasureBuilder:
         "domain, unit",
         [(Length, "LengthUnits.Meter"), (NoneMeasure, "NoneMeasureUnits.NONE")],
     )
-    def test_creation_from_str(self, value: float, domain: Enum, unit: str) -> None:
+    def test_creation_from_str(
+        self, value: float, domain: Enum, unit: str
+    ) -> None:
         # Arrange
         measure_builder = MeasureBuilder()
 

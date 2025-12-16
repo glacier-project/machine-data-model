@@ -1,18 +1,17 @@
-"""
-Frost protocol header definitions.
+"""Frost protocol header definitions.
 
 This module defines the header structures for Frost protocol messages, including
 message types, namespaces, names, and the FrostHeader dataclass.
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
 from enum import Enum
+
+from machine_data_model.utils.timestamp import get_timestamp_ns
 
 
 class MsgType(str, Enum):
-    """
-    Enum for message types.
+    """Enum for message types.
 
     Attributes:
         REQUEST:
@@ -32,8 +31,7 @@ class MsgType(str, Enum):
 
 
 class MsgNamespace(str, Enum):
-    """
-    Enum for message namespaces.
+    """Enum for message namespaces.
 
     Attributes:
         NODE:
@@ -54,12 +52,11 @@ class MsgNamespace(str, Enum):
 
 
 class MsgName(str, Enum):
-    pass
+    """Base enum class for message names."""
 
 
 class NodeMsgName(MsgName):
-    """
-    Enum for node-related message names.
+    """Enum for node-related message names.
 
     Attributes:
         GET_INFO:
@@ -80,8 +77,7 @@ class NodeMsgName(MsgName):
 
 
 class VariableMsgName(MsgName):
-    """
-    Enum for variable node-related message names.
+    """Enum for variable node-related message names.
 
     Attributes:
         READ:
@@ -105,8 +101,7 @@ class VariableMsgName(MsgName):
 
 
 class MethodMsgName(MsgName):
-    """
-    Enum for method-related message names.
+    """Enum for method-related message names.
 
     Attributes:
         INVOKE:
@@ -124,8 +119,7 @@ class MethodMsgName(MsgName):
 
 
 class ProtocolMsgName(MsgName):
-    """
-    Enum for protocol-related message names.
+    """Enum for protocol-related message names.
 
     Attributes:
         REGISTER:
@@ -141,22 +135,21 @@ class ProtocolMsgName(MsgName):
 
 @dataclass(init=True, slots=True)
 class FrostHeader:
-    """
-    Represents the header of a message, and holds its metadata.
+    """Represents the header of a message, and holds its metadata.
 
     Attributes:
         type (MsgType):
             The type of the message (e.g., REQUEST, RESPONSE, ERROR).
-        version (tuple[int, int, int]):
+        version (tuple[int, int, int] | None):
             The version of the protocol, represented as a tuple of integers
-            (major, minor, patch).
+            (major, minor, patch). If None, defaults to FROST_PROTOCOL_VERSION.
         namespace (MsgNamespace):
             The namespace to which the message belongs (e.g., NODE, VARIABLE,
             METHOD).
         msg_name (MsgName):
             The specific name of the message that describes its purpose or
             action (e.g., GET_INFO, READ).
-        timestamp (datetime):
+        timestamp_ns (int):
             The timestamp when the message was created.
 
     """
@@ -164,10 +157,17 @@ class FrostHeader:
     type: MsgType
     namespace: MsgNamespace
     msg_name: MsgName
-    # The version is optional. When not provided by callers, the protocol
-    # manager will assume and supply its configured protocol version.
     version: tuple[int, int, int] | None = None
-    timestamp: datetime = datetime.now(timezone.utc)
+    timestamp_ns: int = field(default_factory=get_timestamp_ns)
+
+    def __post_init__(self) -> None:
+        """Initialize version with default if not provided."""
+        if self.version is None:
+            from machine_data_model.protocols.frost_v1 import (
+                FROST_PROTOCOL_VERSION,
+            )
+
+            object.__setattr__(self, "version", FROST_PROTOCOL_VERSION)
 
     def matches(
         self,
@@ -175,9 +175,7 @@ class FrostHeader:
         _namespace: MsgNamespace | None = None,
         _msg_name: MsgName | None = None,
     ) -> bool:
-        """
-        Checks if the header matches the given type, namespace, and message
-        name.
+        """Check if the header matches the given parameters.
 
         Args:
             _type (Optional[MsgType]):
@@ -203,38 +201,36 @@ class FrostHeader:
         )
 
     def __str__(self) -> str:
-        """
-        Returns a string representation of the FrostHeader.
+        """Returns a string representation of the FrostHeader.
 
         The format will be:
             Type: REQUEST, Version: 1.0.0, Namespace: VARIABLE, Message Name:
-            READ, Timestamp: 2023-02-28T14:20:00+00:00
+            READ, Timestamp: 1677594000000000000 ns
         """
         version_str = (
-            ".".join(map(str, self.version)) if self.version is not None else "unknown"
+            ".".join(map(str, self.version))
+            if self.version is not None
+            else "unknown"
         )
         return (
             f"Type: {self.type}, "
             f"Version: {version_str}, "
             f"Namespace: {self.namespace}, "
             f"Message Name: {self.msg_name}, "
-            f"Timestamp: {self.timestamp.isoformat()}"
+            f"Timestamp: {self.timestamp_ns} ns"
         )
 
     def __repr__(self) -> str:
-        """
-        Returns an official string representation of the FrostHeader.
+        """Returns an official string representation of the FrostHeader.
 
         The format will be:
             FrostHeader(type='REQUEST', version=(1, 0, 0), namespace='VARIABLE',
-                msg_name='READ', timestamp=datetime.datetime(2023, 2, 28, 14,
-                20, 0, 123456, tzinfo=datetime.timezone.utc)
-            )
+                msg_name='READ', timestamp_ns=1677594000000000000)
         """
         return (
             f"FrostHeader(type={self.type!r}, "
             f"version={self.version!r}, "
             f"namespace={self.namespace!r}, "
             f"msg_name={self.msg_name!r}, "
-            f"timestamp={self.timestamp!r})"
+            f"timestamp_ns={self.timestamp_ns!r})"
         )

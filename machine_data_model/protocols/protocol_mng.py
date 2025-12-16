@@ -1,5 +1,4 @@
-"""
-Protocol manager base classes.
+"""Protocol manager base classes.
 
 This module defines the base ProtocolMng class that provides the interface for
 handling protocol-specific messages and managing communication with the machine
@@ -7,7 +6,7 @@ data model.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -17,9 +16,13 @@ from machine_data_model.nodes.subscription.variable_subscription import (
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.message import Message
 
+if TYPE_CHECKING:
+    from machine_data_model.protocols.message_builder import MessageBuilder
+
 
 class ProtocolMng(ABC):
-    """
+    """Manager class for protocol-specific message handling.
+
     Abstract class responsible for handling messages encoded with a specific
     protocol and updating the machine data model accordingly.
 
@@ -31,8 +34,7 @@ class ProtocolMng(ABC):
     """
 
     def __init__(self, data_model: DataModel):
-        """
-        Initializes the ProtocolMng with a specific machine data model.
+        """Initializes the ProtocolMng with a specific machine data model.
 
         Args:
             data_model (DataModel):
@@ -42,19 +44,17 @@ class ProtocolMng(ABC):
         """
         self._data_model = data_model
         data_model.traverse(data_model.root, self._set_variable_callback)
+        self._message_builder: MessageBuilder
 
     def _set_variable_callback(self, node: DataModelNode) -> None:
-        """
-        Set the callback function for notifying the protocol manager of variable
-        updates.
+        """Set the variable update callback for VariableNode instances.
+
+        Set the callback function for notifying the protocol manager of
+        variable updates.
 
         Args:
             node (DataModelNode):
                 The node to set the callback for.
-
-        Returns:
-            None:
-                The node with the callback set.
 
         """
         if not isinstance(node, VariableNode):
@@ -64,9 +64,7 @@ class ProtocolMng(ABC):
 
     @abstractmethod
     def handle_request(self, msg: Message) -> Message | None:
-        """
-        Abstract method to handle a protocol-specific request and update the
-        machine data model.
+        """Handle a protocol-specific request and update the machine data model.
 
         Args:
             msg (Message):
@@ -74,14 +72,11 @@ class ProtocolMng(ABC):
                 of the appropriate protocol message.
 
         Returns:
-            Message | None:
-                A response message based on the handling of the input message.
-
+            A response message based on the handling of the input message.
         """
 
     def get_data_model(self) -> DataModel:
-        """
-        Returns the machine data model.
+        """Returns the machine data model.
 
         Returns:
             DataModel:
@@ -92,10 +87,12 @@ class ProtocolMng(ABC):
 
     @abstractmethod
     def _update_variable_callback(
-        self, subscription: VariableSubscription, node: VariableNode, value: Any
+        self,
+        subscription: VariableSubscription,
+        node: VariableNode,
+        value: Any,
     ) -> None:
-        """
-        Handle the update and create the corresponding Message.
+        """Handle the update and create the corresponding Message.
 
         This method is called when an update to a variable occurs. It constructs
         a `GlacierMessage` with the relevant details, including the sender,
@@ -106,8 +103,7 @@ class ProtocolMng(ABC):
     def resume_composite_method(
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
-        """
-        Abstract method to resume a composite method execution.
+        """Abstract method to resume a composite method execution.
 
         Args:
             subscriber (str):

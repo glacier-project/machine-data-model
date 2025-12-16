@@ -1,5 +1,4 @@
-"""
-Example demonstrating wait condition tracing in DataModel.
+"""Example demonstrating wait condition tracing in DataModel.
 
 This example shows how wait conditions are traced when they start waiting
 for a variable to meet a condition and when the wait completes.
@@ -27,7 +26,7 @@ from machine_data_model.tracing.tracing_core import set_global_trace_level
 
 
 def main() -> None:
-
+    """Example demonstrating wait condition tracing."""
     # Clear any previous traces
     clear_traces()
 
@@ -66,9 +65,8 @@ def main() -> None:
     result1 = wait_condition.execute(context)
     print(f"   Result: success={result1.success}")
     print(f"   Counter value: {counter_var.read()}")
-    print(
-        f"   Is context subscribed to counter? {context.id() in counter_var.get_subscriptions()}"
-    )
+    is_subscribed = context.id() in counter_var.get_subscriptions()
+    print(f"   Is context subscribed to counter? {is_subscribed}")
 
     # Increment counter a few times but not enough to meet condition
     print("\n2. Incrementing counter to 3 (still < 5)...")
@@ -79,7 +77,8 @@ def main() -> None:
     print("\n3. Executing wait condition again (counter = 3, still < 5)...")
     result2 = wait_condition.execute(context)
     print(f"   Result: success={result2.success}")
-    print(f"   Is still subscribed? {context.id() in counter_var.get_subscriptions()}")
+    is_subscribed = context.id() in counter_var.get_subscriptions()
+    print(f"   Is still subscribed? {is_subscribed}")
 
     # Now increment counter to meet the condition
     print("\n4. Incrementing counter to 7 (now >= 5)...")
@@ -90,7 +89,8 @@ def main() -> None:
     print("\n5. Executing wait condition (counter = 7, now >= 5)...")
     result3 = wait_condition.execute(context)
     print(f"   Result: success={result3.success}")
-    print(f"   Is still subscribed? {context.id() in counter_var.get_subscriptions()}")
+    is_subscribed = context.id() in counter_var.get_subscriptions()
+    print(f"   Is still subscribed? {is_subscribed}")
 
     # Display final trace events
     collector = get_global_collector()

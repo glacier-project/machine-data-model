@@ -1,5 +1,4 @@
-"""
-Data model dumper module for serializing machine data models to YAML format.
+"""Data model dumper module for serializing machine data models to YAML format.
 
 This module provides functionality to convert machine data model objects back
 into YAML representations, including custom representers for all node types and
@@ -40,8 +39,7 @@ from machine_data_model.nodes.variable_node import (
 def _data_model_representer(
     dumper: yaml.Dumper, data_model: DataModel
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a DataModel as a YAML mapping node.
+    """Represent a DataModel as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -70,8 +68,7 @@ def _data_model_representer(
 def _folder_node_representer(
     dumper: yaml.Dumper, node: FolderNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a FolderNode as a YAML mapping node.
+    """Represent a FolderNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -84,7 +81,7 @@ def _folder_node_representer(
             A YAML mapping node representing the FolderNode.
 
     """
-    children = [child for child in node.children.values()]
+    children = list(node.children.values())
     return dumper.represent_mapping(
         "tag:yaml.org,2002:FolderNode",
         {
@@ -99,8 +96,7 @@ def _folder_node_representer(
 def _numerical_variable_node_representer(
     dumper: yaml.Dumper, node: NumericalVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a NumericalVariableNode as a YAML mapping node.
+    """Represent a NumericalVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -128,8 +124,7 @@ def _numerical_variable_node_representer(
 def _boolean_variable_node_representer(
     dumper: yaml.Dumper, node: BooleanVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a BooleanVariableNode as a YAML mapping node.
+    """Represent a BooleanVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -156,8 +151,7 @@ def _boolean_variable_node_representer(
 def _string_variable_node_representer(
     dumper: yaml.Dumper, node: StringVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a StringVariableNode as a YAML mapping node.
+    """Represent a StringVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -184,8 +178,7 @@ def _string_variable_node_representer(
 def _object_node_representer(
     dumper: yaml.Dumper, node: ObjectVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a ObjectVariableNode as a YAML mapping node.
+    """Represent a ObjectVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -212,8 +205,7 @@ def _object_node_representer(
 def _method_node_representer(
     dumper: yaml.Dumper, node: MethodNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a MethodNode as a YAML mapping node.
+    """Represent a MethodNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -241,8 +233,7 @@ def _method_node_representer(
 def _async_method_node_representer(
     dumper: yaml.Dumper, node: AsyncMethodNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent an AsyncMethodNode as a YAML mapping node.
+    """Represent an AsyncMethodNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -270,8 +261,7 @@ def _async_method_node_representer(
 def _composite_method_node_representer(
     dumper: yaml.Dumper, node: CompositeMethodNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a CompositeMethodNode as a YAML mapping node.
+    """Represent a CompositeMethodNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -300,8 +290,7 @@ def _composite_method_node_representer(
 def _control_flow_graph_representer(
     dumper: yaml.Dumper, node: ControlFlow
 ) -> yaml.nodes.SequenceNode:
-    """
-    Represent a ControlFlow as a YAML mapping node.
+    """Represent a ControlFlow as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -323,8 +312,7 @@ def _control_flow_graph_representer(
 def _read_variable_node_representer(
     dumper: yaml.Dumper, node: ReadVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a ReadVariableNode as a YAML mapping node.
+    """Represent a ReadVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -346,8 +334,7 @@ def _read_variable_node_representer(
 def _write_variable_node_representer(
     dumper: yaml.Dumper, node: WriteVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a WriteVariableNode as a YAML mapping node.
+    """Represent a WriteVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -369,8 +356,7 @@ def _write_variable_node_representer(
 def _wait_condition_node_representer(
     dumper: yaml.Dumper, node: WaitConditionNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a WaitConditionNode as a YAML mapping node.
+    """Represent a WaitConditionNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -396,8 +382,7 @@ def _wait_condition_node_representer(
 def _call_method_node_representer(
     dumper: yaml.Dumper, node: CallMethodNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a CallMethodNode as a YAML mapping node.
+    """Represent a CallMethodNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -423,8 +408,7 @@ def _call_method_node_representer(
 def _call_remote_method_node_representer(
     dumper: yaml.Dumper, node: CallRemoteMethodNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a CallRemoteMethodNode as a YAML mapping node.
+    """Represent a CallRemoteMethodNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -451,8 +435,7 @@ def _call_remote_method_node_representer(
 def _read_remote_variable_node_representer(
     dumper: yaml.Dumper, node: ReadRemoteVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a ReadRemoteVariableNode as a YAML mapping node.
+    """Represent a ReadRemoteVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -478,8 +461,7 @@ def _read_remote_variable_node_representer(
 def _write_remote_variable_node_representer(
     dumper: yaml.Dumper, node: WriteRemoteVariableNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a WriteRemoteVariableNode as a YAML mapping node.
+    """Represent a WriteRemoteVariableNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -505,8 +487,7 @@ def _write_remote_variable_node_representer(
 def _wait_remote_event_node_representer(
     dumper: yaml.Dumper, node: WaitRemoteEventNode
 ) -> yaml.nodes.MappingNode:
-    """
-    Represent a WaitRemoteEventNode as a YAML mapping node.
+    """Represent a WaitRemoteEventNode as a YAML mapping node.
 
     Args:
         dumper (yaml.Dumper):
@@ -533,7 +514,9 @@ def _wait_remote_event_node_representer(
 # Register the representers for the custom classes
 yaml.add_representer(DataModel, _data_model_representer)
 yaml.add_representer(FolderNode, _folder_node_representer)
-yaml.add_representer(NumericalVariableNode, _numerical_variable_node_representer)
+yaml.add_representer(
+    NumericalVariableNode, _numerical_variable_node_representer
+)
 yaml.add_representer(BooleanVariableNode, _boolean_variable_node_representer)
 yaml.add_representer(StringVariableNode, _string_variable_node_representer)
 yaml.add_representer(ObjectVariableNode, _object_node_representer)
@@ -546,14 +529,17 @@ yaml.add_representer(WriteVariableNode, _write_variable_node_representer)
 yaml.add_representer(WaitConditionNode, _wait_condition_node_representer)
 yaml.add_representer(CallMethodNode, _call_method_node_representer)
 yaml.add_representer(CallRemoteMethodNode, _call_remote_method_node_representer)
-yaml.add_representer(ReadRemoteVariableNode, _read_remote_variable_node_representer)
-yaml.add_representer(WriteRemoteVariableNode, _write_remote_variable_node_representer)
+yaml.add_representer(
+    ReadRemoteVariableNode, _read_remote_variable_node_representer
+)
+yaml.add_representer(
+    WriteRemoteVariableNode, _write_remote_variable_node_representer
+)
 yaml.add_representer(WaitRemoteEventNode, _wait_remote_event_node_representer)
 
 
 class DataModelDumper:
-    """
-    A class to dump the machine data model to a YAML file.
+    """A class to dump the machine data model to a YAML file.
 
     Attributes:
         data_model (DataModel):
@@ -565,8 +551,7 @@ class DataModelDumper:
         self.data_model = data_model
 
     def dump(self) -> str:
-        """
-        Dump the machine data model to a YAML string.
+        """Dump the machine data model to a YAML string.
 
         Returns:
             str:
@@ -578,8 +563,7 @@ class DataModelDumper:
         return data_model_str
 
     def dumps(self, file_path: str) -> None:
-        """
-        Dumps the machine data model to a YAML file.
+        """Dumps the machine data model to a YAML file.
 
         Args:
             file_path (str):

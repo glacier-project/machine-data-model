@@ -1,11 +1,13 @@
-import random
 from enum import Enum
+import random
 from typing import Any
 
 import pytest
 from unitsnet_py.units.length import LengthUnits
 
-from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
+from machine_data_model.nodes.measurement_unit.measure_builder import (
+    NoneMeasureUnits,
+)
 from machine_data_model.nodes.subscription.variable_subscription import (
     DataChangeSubscription,
     VariableSubscription,
@@ -49,7 +51,9 @@ class TestVariableNode:
         self, var_name: str, var_description: str
     ) -> None:
         str_var = StringVariableNode(
-            name=var_name, description=var_description, value=gen_random_string()
+            name=var_name,
+            description=var_description,
+            value=gen_random_string(),
         )
 
         new_value = gen_random_string(10)
@@ -121,7 +125,10 @@ class TestVariableNode:
     ) -> None:
         var_value = random.uniform(0, 1000)
         numeric_var = NumericalVariableNode(
-            name=var_name, description=var_description, value=-1, measure_unit=unit
+            name=var_name,
+            description=var_description,
+            value=-1,
+            measure_unit=unit,
         )
 
         numeric_var.value = var_value
@@ -201,7 +208,9 @@ class TestVariableNode:
         updates = []
 
         def on_data_change(
-            subscription: VariableSubscription, variable: VariableNode, value: Any
+            subscription: VariableSubscription,
+            variable: VariableNode,
+            value: Any,
         ) -> None:
             updates.append((subscription.subscriber_id, value))
 
@@ -230,7 +239,9 @@ class TestVariableNode:
         num_subscriptions = 5
 
         subscriptions = [
-            num_var.subscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}"))
+            num_var.subscribe(
+                VariableSubscription(f"subscriber_{i}", f"corr_{i}")
+            )
             for i in range(num_subscriptions)
         ]
         duplicate_subscription = num_var.subscribe(
@@ -242,7 +253,9 @@ class TestVariableNode:
         assert not duplicate_subscription
 
         unsubscriptions = [
-            num_var.unsubscribe(VariableSubscription(f"subscriber_{i}", f"corr_{i}"))
+            num_var.unsubscribe(
+                VariableSubscription(f"subscriber_{i}", f"corr_{i}")
+            )
             for i in range(num_subscriptions)
         ]
 

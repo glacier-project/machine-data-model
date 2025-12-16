@@ -12,7 +12,10 @@ class TestControlFlow:
     @pytest.mark.parametrize(
         "method_nodes",
         [
-            [get_dummy_method_node(method_types=[AsyncMethodNode]) for _ in range(3)],
+            [
+                get_dummy_method_node(method_types=[AsyncMethodNode])
+                for _ in range(3)
+            ],
         ],
     )
     def test_non_blocking_control_flow(
@@ -32,10 +35,15 @@ class TestControlFlow:
     @pytest.mark.parametrize(
         "method_nodes",
         [
-            [get_dummy_method_node(method_types=[AsyncMethodNode]) for _ in range(3)],
+            [
+                get_dummy_method_node(method_types=[AsyncMethodNode])
+                for _ in range(3)
+            ],
         ],
     )
-    def test_blocking_control_flow(self, method_nodes: list[AsyncMethodNode]) -> None:
+    def test_blocking_control_flow(
+        self, method_nodes: list[AsyncMethodNode]
+    ) -> None:
         context = ExecutionContext(context_id="test_context")
         cf = get_blocking_cf(method_nodes)
 

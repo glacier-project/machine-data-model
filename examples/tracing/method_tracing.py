@@ -1,5 +1,4 @@
-"""
-Example demonstrating method execution tracing in DataModel.
+"""Example demonstrating method execution tracing in DataModel.
 
 This example shows how to enable tracing for method calls and their execution,
 including start/end times and return values.
@@ -27,7 +26,7 @@ def calculate_average(temp: float, press: float) -> float:
 
 
 def main() -> None:
-
+    """Example demonstrating method execution tracing."""
     # Clear any previous traces
     clear_traces()
 

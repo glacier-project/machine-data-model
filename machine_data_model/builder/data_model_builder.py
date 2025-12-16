@@ -1,19 +1,14 @@
-"""
-Data model builder for creating machine data models from YAML files.
+"""Data model builder for creating machine data models from YAML files.
 
 This module provides functionality to build data models, including nodes and
 control flows, from YAML configuration files using custom YAML constructors.
 """
 
-import os
 from collections.abc import Callable, Hashable
+import os
 from typing import Any
 
 import yaml
-from machine_data_model.nodes.connectors.opcua_connector import (
-    OpcuaConnector,
-    OpcuaRemoteResourceSpec,
-)
 
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
@@ -34,8 +29,14 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.connectors.opcua_connector import (
+    OpcuaConnector,
+    OpcuaRemoteResourceSpec,
+)
 from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.measurement_unit.measure_builder import NoneMeasureUnits
+from machine_data_model.nodes.measurement_unit.measure_builder import (
+    NoneMeasureUnits,
+)
 from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
@@ -48,8 +49,7 @@ from machine_data_model.nodes.variable_node import (
 def _build_kwargs(
     data: dict[Hashable, Any], default_kwargs: dict[str, Any]
 ) -> dict[str, Any]:
-    """
-    Build kwargs by merging data with default values and validating keys.
+    """Build kwargs by merging data with default values and validating keys.
 
     Args:
         data (dict[Hashable, Any]):
@@ -80,8 +80,7 @@ def _build_kwargs(
 
 
 def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
-    """
-    Construct a folder node from a yaml node.
+    """Construct a folder node from a yaml node.
 
     Args:
         loader:
@@ -112,8 +111,7 @@ def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
 def _get_numerical_variable(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> NumericalVariableNode:
-    """
-    Construct a numerical variable node from a yaml node.
+    """Construct a numerical variable node from a yaml node.
 
     Args:
         loader:
@@ -133,13 +131,16 @@ def _get_numerical_variable(
         "description": "",
         "measure_unit": NoneMeasureUnits.NONE,
         "initial_value": None,
-        "default_value": None,
+        "default_value": 0,
         "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
-        kwargs["initial_value"] if kwargs["initial_value"] is not None else 0
+        kwargs["initial_value"]
+        if kwargs["initial_value"] is not None
+        and isinstance(kwargs["initial_value"], int | float)
+        else kwargs["default_value"]
     )
     del kwargs["initial_value"]
     del kwargs["default_value"]
@@ -149,8 +150,7 @@ def _get_numerical_variable(
 def _get_string_variable(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> StringVariableNode:
-    """
-    Construct a string variable node from a yaml node.
+    """Construct a string variable node from a yaml node.
 
     Args:
         loader:
@@ -168,14 +168,17 @@ def _get_string_variable(
         "id": None,
         "name": "",
         "description": "",
-        "initial_value": "",
+        "initial_value": None,
         "default_value": "",
         "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
-        kwargs["initial_value"] if kwargs["initial_value"] is not None else ""
+        kwargs["initial_value"]
+        if kwargs["initial_value"] is not None
+        and isinstance(kwargs["initial_value"], str)
+        else kwargs["default_value"]
     )
     del kwargs["initial_value"]
     del kwargs["default_value"]
@@ -186,8 +189,7 @@ def _get_string_variable(
 def _get_boolean_variable(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> BooleanVariableNode:
-    """
-    Construct a boolean variable node from a yaml node.
+    """Construct a boolean variable node from a yaml node.
 
     Args:
         loader:
@@ -205,14 +207,17 @@ def _get_boolean_variable(
         "id": None,
         "name": "",
         "description": "",
-        "initial_value": False,
+        "initial_value": None,
         "default_value": False,
         "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["value"] = (
-        kwargs["initial_value"] if kwargs["initial_value"] is not None else False
+        kwargs["initial_value"]
+        if kwargs["initial_value"] is not None
+        and isinstance(kwargs["initial_value"], bool)
+        else kwargs["default_value"]
     )
     del kwargs["initial_value"]
     del kwargs["default_value"]
@@ -222,8 +227,7 @@ def _get_boolean_variable(
 def _get_object_variable(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ObjectVariableNode:
-    """
-    Construct an object variable node from a yaml node.
+    """Construct an object variable node from a yaml node.
 
     Args:
         loader:
@@ -255,8 +259,7 @@ def _get_method_node(
     node: yaml.MappingNode,
     ctor: Callable[..., MethodNode] = MethodNode,
 ) -> MethodNode:
-    """
-    Construct a method node from a yaml node.
+    """Construct a method node from a yaml node.
 
     Args:
         loader:
@@ -288,8 +291,7 @@ def _get_method_node(
 def _get_async_method_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> MethodNode:
-    """
-    Construct an async method node from a yaml node.
+    """Construct an async method node from a yaml node.
 
     Args:
         loader:
@@ -308,8 +310,7 @@ def _get_async_method_node(
 def _get_read_variable_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
-    """
-    Construct a read variable node from a yaml node.
+    """Construct a read variable node from a yaml node.
 
     Args:
         loader:
@@ -337,8 +338,7 @@ def _get_read_variable_node(
 def _get_write_variable_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
-    """
-    Construct a write variable node from a yaml node.
+    """Construct a write variable node from a yaml node.
 
     Args:
         loader:
@@ -363,9 +363,10 @@ def _get_write_variable_node(
     )
 
 
-def _get_wait_node(loader: yaml.SafeLoader, node: yaml.MappingNode) -> ControlFlowNode:
-    """
-    Construct a wait condition node from a yaml node.
+def _get_wait_node(
+    loader: yaml.SafeLoader, node: yaml.MappingNode
+) -> ControlFlowNode:
+    """Construct a wait condition node from a yaml node.
 
     Args:
         loader:
@@ -395,8 +396,7 @@ def _get_wait_node(loader: yaml.SafeLoader, node: yaml.MappingNode) -> ControlFl
 def _get_call_method_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
-    """
-    Construct a call method node from a yaml node.
+    """Construct a call method node from a yaml node.
 
     Args:
         loader:
@@ -426,8 +426,7 @@ def _get_call_method_node(
 def _get_call_remote_method_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> CallRemoteMethodNode:
-    """
-    Construct a call remote method node from a yaml node.
+    """Construct a call remote method node from a yaml node.
 
     Args:
         loader:
@@ -459,8 +458,7 @@ def _get_call_remote_method_node(
 def _get_read_remote_variable_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ReadRemoteVariableNode:
-    """
-    Construct a read remote variable node from a yaml node.
+    """Construct a read remote variable node from a yaml node.
 
     Args:
         loader:
@@ -490,8 +488,7 @@ def _get_read_remote_variable_node(
 def _get_write_remote_variable_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> WriteRemoteVariableNode:
-    """
-    Construct a write remote variable node from a yaml node.
+    """Construct a write remote variable node from a yaml node.
 
     Args:
         loader:
@@ -521,8 +518,7 @@ def _get_write_remote_variable_node(
 def _get_wait_remote_event_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> ControlFlowNode:
-    """
-    Construct a wait remote event node from a yaml node.
+    """Construct a wait remote event node from a yaml node.
 
     Args:
         loader:
@@ -554,8 +550,7 @@ def _get_wait_remote_event_node(
 def _get_composite_method_node(
     loader: yaml.SafeLoader, node: yaml.MappingNode
 ) -> MethodNode:
-    """
-    Construct a composite method node from a yaml node.
+    """Construct a composite method node from a yaml node.
 
     Args:
         loader:
@@ -585,8 +580,7 @@ def _get_composite_method_node(
 def _get_opcua_connector_node(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> OpcuaConnector:
-    """
-    Construct an OPC-UA Connector from a yaml node.
+    """Construct an OPC-UA Connector from a yaml node.
 
     Args:
         loader:
@@ -623,8 +617,7 @@ def _get_opcua_connector_node(
 def _get_opcua_remote_resource_spec(
     loader: yaml.FullLoader, node: yaml.MappingNode
 ) -> OpcuaRemoteResourceSpec:
-    """
-    Construct an object with node settings that are OPC UA specific.
+    """Construct an object with node settings that are OPC UA specific.
 
     Args:
         loader:
@@ -647,9 +640,7 @@ def _get_opcua_remote_resource_spec(
 
 
 def _register_yaml_constructors() -> None:
-    """
-    Register all YAML constructors for data model building.
-    """
+    """Register all YAML constructors for data model building."""
     constructors = {
         FolderNode: _get_folder,
         NumericalVariableNode: _get_numerical_variable,
@@ -684,8 +675,7 @@ _register_yaml_constructors()
 
 
 class DataModelBuilder:
-    """
-    A class to build a data model from a yaml file.
+    """A class to build a data model from a yaml file.
 
     Attributes:
         cache (dict[str, DataModel]):
@@ -696,14 +686,11 @@ class DataModelBuilder:
     cache: dict[str, DataModel]
 
     def __init__(self) -> None:
-        """
-        Initialize a new DataModelBuilder instance.
-        """
+        """Initialize a new DataModelBuilder instance."""
         self.cache = {}
 
     def from_string(self, data_model_string: str) -> DataModel:
-        """
-        Create a data model from a YAML string.
+        """Create a data model from a YAML string.
 
         Args:
             data_model_string:
@@ -723,8 +710,7 @@ class DataModelBuilder:
         return data_model
 
     def _load_data_model(self, data_model_path: str) -> DataModel:
-        """
-        Create a data model from a yaml file.
+        """Create a data model from a yaml file.
 
         Args:
             data_model_path:
@@ -742,8 +728,7 @@ class DataModelBuilder:
         return data_model
 
     def get_data_model(self, data_model_path: str) -> DataModel:
-        """
-        Get a data model from a yaml file.
+        """Get a data model from a yaml file.
 
         Args:
             data_model_path:
