@@ -126,6 +126,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_read_variable_response_message(
         self,
         target: str,
@@ -207,6 +208,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_write_variable_response_message(
         self,
         target: str,
@@ -247,6 +249,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_subscribe_variable_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
@@ -281,6 +284,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_subscribe_variable_response_message(
         self,
         target: str,
@@ -321,6 +325,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_data_change_subscription_message(
         self,
         target: str,
@@ -366,6 +371,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_in_range_subscription_message(
         self,
         target: str,
@@ -409,6 +415,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_out_of_range_subscription_message(
         self,
         target: str,
@@ -454,6 +461,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_unsubscribe_variable_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
@@ -488,6 +496,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_unsubscribe_variable_response_message(
         self, target: str, node: str, correlation_id: str | None = None
     ) -> FrostMessage:
@@ -570,6 +579,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_method_completed_message(
         self,
         target: str,
@@ -621,6 +631,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_method_started_message(
         self,
         target: str,
@@ -663,6 +674,7 @@ class FrostMessageBuilder(MessageBuilder):
         )
         return message
 
+    @override
     def build_variable_update_message(
         self,
         target: str,
