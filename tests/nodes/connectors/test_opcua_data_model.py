@@ -1,13 +1,14 @@
 import math
-import socket
 
+from asyncua.sync import Server
 from docker.models.containers import Container
 import pytest
 
-from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
+
+from .opcua_test_server import custom_opcua_server_yaml
+from .utilities import create_yaml_data_model, free_port
 
 yaml_template = """
 name: "boiler"
@@ -156,27 +157,6 @@ root:
                   name: "Scalar_Static_Boolean"
                   description: "Boolean node"
 """
-
-
-def create_yaml_data_model(file_content: str) -> DataModel:
-    """
-    Uses the DataModelBuilder to create the data model starting from a string.
-    """
-    builder = DataModelBuilder()
-    data_model = builder.from_string(file_content)
-    return data_model
-
-
-def free_port() -> int:
-    """
-    Creates a socket to get a free port number and then returns it.
-    """
-    sock = socket.socket()
-    sock.bind(("", 0))
-    port = sock.getsockname()[1]
-    assert isinstance(port, int), "port must be an integer"
-    sock.close()
-    return port
 
 
 class TestOpcuaDataModel:
@@ -431,3 +411,32 @@ class TestOpcuaDataModel:
         result = result.return_values["Result"]
         assert result == "Output", "the result should be the 'Output' string"
         dm.close_connectors()
+
+    def test_call_method_with_two_return_values(
+        self,
+        start_custom_opcua_server: tuple[Server, int],
+    ) -> None:
+        server, port = start_custom_opcua_server
+        dm = create_yaml_data_model(
+            custom_opcua_server_yaml.format(opcua_port=port)
+        )
+        assert dm is not None, "The data model should be defined"
+        node = dm.get_node("Objects/Methods/callFreePalletToWithReservation")
+        assert isinstance(node, MethodNode), "the node should be defined"
+        result = node(5, 1)
+        returned_values = result.return_values
+        assert isinstance(
+            returned_values, dict
+        ), "the result should be a dictionary"
+        assert isinstance(
+            returned_values["result"], bool
+        ), "the result inside the dictionary should be a boolean"
+        assert returned_values[
+            "result"
+        ], "the result inside the dictionary should be True"
+        assert isinstance(
+            returned_values["palletNumber"], int
+        ), "the palletNumber inside the dictionary should be an integer"
+        assert (
+            1 <= returned_values["palletNumber"] <= 10
+        ), "the palletNumber inside the dictionary should be between 1 and 10"

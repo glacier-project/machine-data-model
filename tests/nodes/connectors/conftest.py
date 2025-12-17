@@ -7,10 +7,13 @@ from typing import Any
 from asyncua.client.client import Client
 from asyncua.crypto.cert_gen import setup_self_signed_certificate
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
+from asyncua.sync import Server
 from cryptography.x509.oid import ExtendedKeyUsageOID
 import docker
 from docker.models.containers import Container
 import pytest
+
+from .opcua_test_server import create_server
 
 
 @pytest.fixture(scope="session")
@@ -97,4 +100,52 @@ def start_opcua_test_server() -> Generator[tuple[Container, int], Any, None]:
         # teardown
         container.stop()
 
+    return None
+
+
+@pytest.fixture(scope="session")
+def start_custom_opcua_server() -> Generator[tuple[Server, int], Any, None]:
+    server, port = create_server()
+
+    async def check_opcua_connection() -> None:
+        # Setup self-signed certificate for the client
+        cert_dir = Path("tests/certificates/opcua")
+        cert_dir.mkdir(parents=True, exist_ok=True)
+
+        private_key_path = cert_dir / "private.selfsigned.pem"
+        certificate_path = cert_dir / "cert.selfsigned.der"
+
+        # Always generate fresh certificates for tests
+        await setup_self_signed_certificate(
+            private_key_path,
+            certificate_path,
+            "urn:test-machine-data-model-client",
+            "test-machine-data-model-client",
+            [ExtendedKeyUsageOID.CLIENT_AUTH],
+            {
+                "countryName": "CN",
+                "stateOrProvinceName": "AState",
+                "localityName": "Foo",
+                "organizationName": "Bar Ltd",
+            },
+        )
+
+        client = Client(f"opc.tcp://localhost:{port}")
+
+        connected = False
+        while not connected:
+            try:
+                await client.connect()
+                connected = True
+            except Exception:
+                pass
+            await asyncio.sleep(0.1)
+        await client.disconnect()
+
+    asyncio.run(check_opcua_connection())
+
+    try:
+        yield server, port
+    finally:
+        server.stop()
     return None

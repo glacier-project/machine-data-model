@@ -1,5 +1,7 @@
+from collections.abc import Sequence
 import math
 
+from asyncua.sync import Server
 from docker.models.containers import Container
 import pytest
 
@@ -162,3 +164,34 @@ class TestOpcuaConnector:
         ), "the return value of the output method should be the 'Output' string"
 
         connector.disconnect()
+
+    def test_call_method_with_two_return_values(
+        self, start_custom_opcua_server: tuple[Server, int]
+    ) -> None:
+        server, port = start_custom_opcua_server
+        connector = OpcuaConnector(
+            name="myConnector", ip="127.0.0.1", port=port
+        )
+
+        is_connected = connector.connect()
+        assert is_connected, "connector should connect successfully"
+        call_free_pallet_to_with_reservation_path = (
+            "Objects/2:Methods/2:callFreePalletToWithReservation"
+        )
+        call_result = connector.call_node_as_method(
+            call_free_pallet_to_with_reservation_path,
+            {"destination": 5, "reservationId": 1},
+        )
+
+        assert isinstance(call_result, Sequence), "call_result should be a list"
+        assert len(call_result) == 2, "call_result should return two values"
+        assert isinstance(
+            call_result[0], bool
+        ), "call_result[0] should be a boolean"
+        assert call_result[0], "call_result[0] should be always True"
+        assert isinstance(
+            call_result[1], int
+        ), "call_result[1] should be an integer"
+        assert (
+            1 <= call_result[1] <= 10
+        ), "call_result[1] should be between 1 and 10"
