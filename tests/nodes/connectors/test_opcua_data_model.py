@@ -7,8 +7,7 @@ import pytest
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
 
-from .opcua_test_server import custom_opcua_server_yaml
-from .utilities import create_yaml_data_model, free_port
+from . import create_yaml_data_model, custom_opcua_server_yaml, free_port
 
 yaml_template = """
 name: "boiler"
