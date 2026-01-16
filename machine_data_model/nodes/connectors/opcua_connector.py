@@ -508,7 +508,7 @@ class OpcuaConnector(AbstractAsyncConnector):
             Any:
                 Method's returned value.
         """
-        _logger.debug(
+        _logger.error(
             f"Calling remote method '{path}', with the following parameters: "
             f"{kwargs}"
         )
@@ -534,6 +534,12 @@ class OpcuaConnector(AbstractAsyncConnector):
             )  # returns a list of Argument-Class
             assert isinstance(inputs, list), "inputs must be a list"
 
+        # intercept opcuaParentNode hack
+        if "opcuaParentNode" in kwargs:
+            parent = await self._async_get_remote_node(kwargs.pop("opcuaParentNode"))
+        else:
+            parent = await node.get_parent()
+
         params = []
         for ua_param, value in zip(inputs, kwargs.values(), strict=False):
             dt = ua_param.DataType
@@ -547,12 +553,12 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         result = None
         try:
-            parent = await node.get_parent()
-            result = await parent.call_method(node.nodeid, *params)
-            _logger.debug(
-                f"Called '{path}' using the parent node. "
+            _logger.error(
+                f"Calling '{path}' using the parent node. "
                 f"Return value is: {result!r}"
             )
+            #parent = await node.get_parent()
+            result = await parent.call_method(node.nodeid, *params)
         except UaError as exp:
             _logger.error(exp)
         return result

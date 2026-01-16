@@ -459,7 +459,7 @@ class MethodNode(DataModelNode):
         ret = ret if isinstance(ret, list | tuple) else (ret,)
         for index, return_value in enumerate(ret):
             ret_dict[self._returns[index].name] = return_value
-        assert len(ret_dict) == len(self._returns)
+        assert len(ret_dict) == len(self._returns), f"{ret_dict}"
         return ret_dict
 
     def __str__(self) -> str:
