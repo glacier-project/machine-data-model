@@ -74,12 +74,14 @@ class AbstractConnector(ABC):
         self._id: str = str(uuid.uuid4()) if id is None else id
         self._name: str | None = name
 
+        self._ip_env_var: str | None = ip_env_var
         ip_value = self._get_yaml_entry_or_env_var_value(
             "ip", str, ip, ip_env_var, env_var_overrides_yaml=True
         )
         assert isinstance(ip_value, str | None), "ip must be a str or None"
         self._ip: str | None = ip_value
 
+        self._port_env_var: str | None = port_env_var
         port_value = self._get_yaml_entry_or_env_var_value(
             "port", int, port, port_env_var, env_var_overrides_yaml=True
         )
@@ -113,9 +115,19 @@ class AbstractConnector(ABC):
         return self._name
 
     @property
+    def ip_env_var(self) -> str | None:
+        """Returns the environment variable name for the IP address."""
+        return self._ip_env_var
+
+    @property
     def ip(self) -> str | None:
         """Returns the IP address of the connector."""
         return self._ip
+
+    @property
+    def port_env_var(self) -> str | None:
+        """Returns the environment variable name for the port number."""
+        return self._port_env_var
 
     @property
     def port(self) -> int | None:

@@ -183,7 +183,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         self._client_app_uri: str = (
             client_app_uri
             if client_app_uri is not None
-            else f"urn:{self._host_name}:foobar:myselfsignedclient"
+            else self.get_default_client_app_uri()
         )
 
         if private_key_file_path is None:
@@ -203,12 +203,12 @@ class OpcuaConnector(AbstractAsyncConnector):
         self._private_key_file_path: Path = (
             Path(private_key_file_path)
             if private_key_file_path is not None
-            else Path("private.selfsigned.pem")
+            else self.get_default_private_key_file_path()
         )
         self._certificate_file_path: Path = (
             Path(certificate_file_path)
             if certificate_file_path is not None
-            else Path("cert.selfsigned.der")
+            else self.get_default_certificate_file_path()
         )
 
         if not isinstance(trust_store_certificates_paths, list | None):
@@ -242,6 +242,33 @@ class OpcuaConnector(AbstractAsyncConnector):
                     trust_store_cert_path
                 )
 
+    def get_default_client_app_uri(self) -> str:
+        """Returns a default client application URI.
+
+        Returns:
+            str:
+                Default client application URI.
+        """
+        return f"urn:{self._host_name}:foobar:myselfsignedclient"
+
+    def get_default_private_key_file_path(self) -> Path:
+        """Returns a default path to the private key file.
+
+        Returns:
+            Path:
+                Default path to the private key file.
+        """
+        return Path("private.selfsigned.pem")
+
+    def get_default_certificate_file_path(self) -> Path:
+        """Returns a default path to the certificate file.
+
+        Returns:
+            Path:
+                Default path to the certificate file.
+        """
+        return Path("cert.selfsigned.der")
+
     @property
     def security_policy(self) -> str | None:
         """Returns the security policy used by the connector."""
@@ -266,6 +293,11 @@ class OpcuaConnector(AbstractAsyncConnector):
     def certificate_file_path(self) -> Path | None:
         """Returns the path to the certificate file."""
         return self._certificate_file_path
+
+    @property
+    def trust_store_certificates_paths(self) -> list[Path]:
+        """Returns the paths to the trust store certificates."""
+        return self._trust_store_certificates_paths
 
     @override
     async def _async_connect(self) -> bool:
@@ -536,9 +568,13 @@ class OpcuaConnector(AbstractAsyncConnector):
 
         # intercept opcuaParentNode hack
         if "opcuaParentNode" in kwargs:
-            parent = await self._async_get_remote_node(kwargs.pop("opcuaParentNode"))
+            opcua_parent_node = kwargs.pop("opcuaParentNode")
+            parent = await self._async_get_remote_node(opcua_parent_node)
         else:
             parent = await node.get_parent()
+        assert isinstance(
+            parent, asyncua.Node
+        ), "opcuaParentNode must be an asyncua.Node"
 
         params = []
         for ua_param, value in zip(inputs, kwargs.values(), strict=False):
@@ -557,7 +593,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                 f"Calling '{path}' using the parent node. "
                 f"Return value is: {result!r}"
             )
-            #parent = await node.get_parent()
+            # parent = await node.get_parent()
             result = await parent.call_method(node.nodeid, *params)
         except UaError as exp:
             _logger.error(exp)
@@ -689,6 +725,26 @@ class OpcuaRemoteResourceSpec(RemoteResourceSpec):
         super().__init__(parent=parent, remote_path=remote_path)
         self._node_id: str | None = node_id
         self._namespace: str | None = namespace
+
+    @property
+    def node_id(self) -> str | None:
+        """Returns the 'node_id' used to interact with the remote node.
+
+        Returns:
+            str | None:
+                Node's id on the remote OPC UA server.
+        """
+        return self._node_id
+
+    @property
+    def namespace(self) -> str | None:
+        """Returns the 'namespace' used to interact with the remote node.
+
+        Returns:
+            str | None:
+                Node's namespace on the remote OPC UA server.
+        """
+        return self._namespace
 
     @override
     def remote_path(self) -> str | None:
