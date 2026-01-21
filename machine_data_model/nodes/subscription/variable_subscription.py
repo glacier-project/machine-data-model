@@ -145,7 +145,7 @@ class DataChangeSubscription(VariableSubscription):
     def __init__(
         self,
         subscriber_id: str,
-        correlation_id: str,
+        correlation_id: str = str(uuid4()),
         subscription_callback: Callable[
             ["VariableSubscription", "VariableNode", Any], None
         ]
@@ -216,10 +216,10 @@ class RangeSubscription(VariableSubscription):
     def __init__(
         self,
         subscriber_id: str,
-        correlation_id: str,
         low_limit: float,
         high_limit: float,
         check_type: EventType,
+        correlation_id: str = str(uuid4()),
         subscription_callback: Callable[
             ["VariableSubscription", "VariableNode", Any], None
         ]
