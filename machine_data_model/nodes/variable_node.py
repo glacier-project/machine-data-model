@@ -328,7 +328,11 @@ class VariableNode(DataModelNode):
     def notify_subscribers(self) -> None:
         """Notify all subscribed entities about an update or change.
 
-        Execute the subscription callback for each subscriber.
+        Iterates through all subscriptions and triggers notifications based on
+        the variable's current value. When subscription criteria are met, the
+        subscription callback is invoked (if set), otherwise the node
+        subscription callback is used. This process recursively propagates to
+        the parent if it is a `VariableNode`.
         """
         # Get the current value of the node.
         value = self._read_internal_value()
@@ -343,7 +347,11 @@ class VariableNode(DataModelNode):
                 source=self.qualified_name,
                 data_model_id=self.data_model.name if self.data_model else "",
             )
-            self._subscription_callback(subscription, self, value)
+
+            if subscription.subscription_callback is not None:
+                subscription.notify(self, value)
+            else:
+                self._subscription_callback(subscription, self, value)
 
         # If the parent is a VariableNode, notify its subscribers as well.
         if isinstance(self.parent, VariableNode):

@@ -206,29 +206,63 @@ class TestVariableNode:
         self, var_name: str, var_description: str
     ) -> None:
         updates = []
+        custom_updates = []
 
         def on_data_change(
             subscription: VariableSubscription,
             variable: VariableNode,
             value: Any,
         ) -> None:
-            updates.append((subscription.subscriber_id, value))
+            updates.append(
+                (
+                    subscription.subscriber_id,
+                    subscription.correlation_id,
+                    variable,
+                    value,
+                )
+            )
+
+        def on_custom_data_change(
+            subscription: VariableSubscription,
+            variable: VariableNode,
+            value: Any,
+        ) -> None:
+            custom_updates.append(
+                (
+                    subscription.subscriber_id,
+                    subscription.correlation_id,
+                    variable,
+                    value,
+                )
+            )
 
         obj_var = ObjectVariableNode(name=var_name, description=var_description)
         num_var = get_random_numerical_node()
         obj_var.add_property(num_var)
+
         subscription_1 = DataChangeSubscription("subscriber_1", "corr_1")
         subscription_2 = DataChangeSubscription("subscriber_2", "corr_2")
+        subscription_3 = DataChangeSubscription(
+            "custom_subscriber", "corr_3", on_custom_data_change
+        )
+
         obj_var.subscribe(subscription_1)
         obj_var.set_subscription_callback(on_data_change)
         num_var.subscribe(subscription_2)
         num_var.set_subscription_callback(on_data_change)
-
+        num_var.subscribe(subscription_3)
         num_var.write(10)
 
         assert len(updates) == 2
-        assert updates[0] == ("subscriber_2", num_var.read())
-        assert updates[1] == ("subscriber_1", obj_var.read())
+        assert updates[0] == ("subscriber_2", "corr_2", num_var, num_var.read())
+        assert updates[1] == ("subscriber_1", "corr_1", obj_var, obj_var.read())
+        assert len(custom_updates) == 1
+        assert custom_updates[0] == (
+            "custom_subscriber",
+            "corr_3",
+            num_var,
+            num_var.read(),
+        )
 
     def test_delete_variable_node_subscription(
         self, var_name: str, var_description: str
