@@ -6,7 +6,6 @@ are connector/protocol specific.
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
 from machine_data_model.nodes.data_model_node import DataModelNode
 
