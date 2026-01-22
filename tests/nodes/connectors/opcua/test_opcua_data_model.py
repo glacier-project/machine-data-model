@@ -4,10 +4,16 @@ from asyncua.sync import Server
 from docker.models.containers import Container
 import pytest
 
+from machine_data_model.nodes.connectors.opcua import (
+    OpcuaRemoteResourceSpec,
+)
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import VariableNode
-
-from . import create_yaml_data_model, custom_opcua_server_yaml, free_port
+from tests.nodes.connectors.opcua import (
+    create_yaml_data_model,
+    custom_opcua_server_yaml,
+    free_port,
+)
 
 yaml_template = """
 name: "boiler"
@@ -34,6 +40,7 @@ root:
       remote_resource_spec:
         !!OpcuaRemoteResourceSpec
         node_id: "ns=6;s=Methods_Output"
+        parent_node_id: "ns=6;s=Methods"
       returns:
         - !!StringVariableNode
           name: "Result"
@@ -66,7 +73,6 @@ root:
                 !!OpcuaRemoteResourceSpec
                 namespace: "2"
               description: "asset id"
-
             - !!ObjectVariableNode
               name: "ParameterSet"
               remote_resource_spec:
@@ -109,7 +115,6 @@ root:
                 !!OpcuaRemoteResourceSpec
                 namespace: "4"
               description: "heater on"
-
     - !!FolderNode
       name: "ReferenceTest"
       remote_resource_spec:
@@ -123,6 +128,10 @@ root:
           children:
             - !!MethodNode
               name: "Methods_Add"
+              remote_resource_spec:
+                !!OpcuaRemoteResourceSpec
+                node_id: "ns=6;s=Methods_Add"
+                parent_node_id: "ns=6;s=Methods"
               description: "Adds a float with an integer and returns the result"
               parameters:
                 - !!NumericalVariableNode
@@ -135,7 +144,6 @@ root:
                 - !!NumericalVariableNode
                   name: "AddResult"
                   description: "addition result"
-
             - !!MethodNode
               name: "Methods_Output"
               description: "Method with no input, returns the 'Output' string"
@@ -143,7 +151,6 @@ root:
                 - !!StringVariableNode
                   name: "Result"
                   description: "Method output"
-
         - !!FolderNode
           name: "Scalar"
           description: "Scalars"
@@ -155,6 +162,7 @@ root:
                 - !!BooleanVariableNode
                   name: "Scalar_Static_Boolean"
                   description: "Boolean node"
+                  default_value: True
 """
 
 
@@ -299,17 +307,21 @@ class TestOpcuaDataModel:
             "Objects/ReferenceTest/Scalar/Scalar_Static/Scalar_Static_Boolean"
         )
         assert isinstance(node, VariableNode), "the node should be defined"
+
         prev_value = node.read()
         assert isinstance(
             prev_value, bool
         ), "the prev value should be a boolean"
-        success = node.write(not prev_value)
+
+        new_val_to_write = not prev_value
+        success = node.write(new_val_to_write)
         assert success, "the value should be written successfully"
+
         value = node.read()
         assert isinstance(value, bool), "the new value should be a boolean"
         assert value == (
             not prev_value
-        ), "the new value should be the opposite of the previous value"
+        ), f"the new value should be {not prev_value}, but got {value}"
         dm.close_connectors()
 
     def test_write_numerical_node(
@@ -327,19 +339,26 @@ class TestOpcuaDataModel:
         assert dm is not None, "the data model should be defined"
         node = dm.get_node(opcua_node)
         assert isinstance(node, VariableNode), "the node should be defined"
+
         prev_value = node.read()
         assert isinstance(
             prev_value, float
         ), "the value should be a floating point number"
-        success = node.write(prev_value + 7)
-        assert success, "the new value should be written successfully"
+
+        new_val_to_write = prev_value + 7
+        success = node.write(new_val_to_write)
+        assert success, (
+            f"the new value should be written successfully, "
+            f"but got {success}"
+        )
+
         new_value = node.read()
         assert isinstance(
             new_value, float
         ), "the new value should be a floating point number"
         assert math.isclose(
             new_value, prev_value + 7
-        ), "the new value should be equal to the prev value +7"
+        ), f"the new value should be {prev_value + 7}, but got {new_value}"
         dm.close_connectors()
 
     def test_call_method_node(
@@ -404,11 +423,15 @@ class TestOpcuaDataModel:
             yaml_template.format(opcua_port=container_port)
         )
         assert dm is not None, "the data model should be defined"
-        node = dm.get_node("Objects/Methods_Output_With_Node_Id")
+        node = dm.get_node("Objects/ReferenceTest/Methods/Methods_Add")
         assert isinstance(node, MethodNode), "the node should be defined"
-        result = node()
-        result = result.return_values["Result"]
-        assert result == "Output", "the result should be the 'Output' string"
+        assert node.remote_resource_spec is not None and isinstance(
+            node.remote_resource_spec, OpcuaRemoteResourceSpec
+        )
+
+        result = node(2, 2)
+        result = result.return_values["AddResult"]
+        assert result == 4, "the result should be the 4"
         dm.close_connectors()
 
     def test_call_method_with_two_return_values(

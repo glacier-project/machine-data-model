@@ -27,7 +27,7 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.connectors.opcua_connector import (
+from machine_data_model.nodes.connectors.opcua.opcua_connector import (
     OpcuaConnector,
     OpcuaRemoteResourceSpec,
 )

@@ -13,7 +13,7 @@ import docker
 from docker.models.containers import Container
 import pytest
 
-from . import create_server
+from tests.nodes.connectors.opcua import create_server
 
 
 @pytest.fixture(scope="session")

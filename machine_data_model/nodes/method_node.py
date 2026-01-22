@@ -14,8 +14,8 @@ from typing_extensions import override
 from machine_data_model.nodes.connectors.abstract_connector import (
     AbstractConnector,
 )
-from machine_data_model.nodes.connectors.remote_resource_spec import (
-    RemoteResourceSpec,
+from machine_data_model.nodes.connectors.abstract_remote_resource_spec import (
+    AbstractRemoteResourceSpec,
 )
 from machine_data_model.nodes.data_model_node import (
     DataModelNode,
@@ -78,7 +78,7 @@ class MethodNode(DataModelNode):
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initialize a new MethodNode instance.
 
@@ -99,7 +99,7 @@ class MethodNode(DataModelNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the
                 variable.
-            remote_resource_spec (RemoteResourceSpec | None):
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
                 Protocol-specific properties for remote nodes.
         """
         super().__init__(
@@ -390,8 +390,14 @@ class MethodNode(DataModelNode):
             ), "connector must be an AbstractConnector"
             assert (
                 self.remote_path is not None
+                or self.remote_resource_spec is not None
             ), "remote_path must be set for a remote node"
-            ret_c = self.connector.call_node_as_method(self.remote_path, kwargs)
+            # Use empty string as fallback since remote_resource_spec can
+            # provide the path
+            path = self.remote_path if self.remote_path is not None else ""
+            ret_c = self.connector.call_node_as_method(
+                path, kwargs, self._remote_resource_spec
+            )
         else:
             ret_c = self._callback(**kwargs)
         ret = self._build_return_dict(ret_c)
@@ -521,7 +527,7 @@ class AsyncMethodNode(MethodNode):
         returns: list[VariableNode] | None = None,
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initialize a new AsyncMethodNode instance.
 
@@ -542,8 +548,7 @@ class AsyncMethodNode(MethodNode):
                 The connector's name/identifier if this node is a remote node.
                 Used to interact with the remote server to read/write the
                 variable.
-            remote_resource_spec (RemoteResourceSpec | None):
-                remote_resource_spec (RemoteResourceSpec | None):
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
                 Protocol-specific properties for remote nodes.
         """
         super().__init__(

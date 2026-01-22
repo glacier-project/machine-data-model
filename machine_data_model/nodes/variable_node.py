@@ -13,8 +13,8 @@ from typing import Any
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
 
-from machine_data_model.nodes.connectors.remote_resource_spec import (
-    RemoteResourceSpec,
+from machine_data_model.nodes.connectors.abstract_remote_resource_spec import (
+    AbstractRemoteResourceSpec,
 )
 from machine_data_model.tracing import (
     trace_notification,
@@ -75,7 +75,7 @@ class VariableNode(DataModelNode):
         name: str | None = None,
         description: str | None = None,
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initializes a new VariableNode instance.
 
@@ -371,7 +371,7 @@ class VariableNode(DataModelNode):
                 Variable's value.
         """
         # a connector could be set only after reading the full yaml file
-        if self.is_remote() and self.is_connector_set():
+        if self.is_remote() and self.has_connector():
             value = self._read_remote_value(force_remote_read=force_remote_read)
             self._update_internal_value(value)
             return value
@@ -405,15 +405,21 @@ class VariableNode(DataModelNode):
         ), "Remote nodes must have a valid connector"
         assert (
             self.remote_path is not None
+            or self._remote_resource_spec is not None
         ), "Remote nodes must have a valid remote path"
         if force_remote_read:
-            result = self._connector.read_node_value(self.remote_path)
+            # Use empty string as fallback since remote_resource_spec can
+            # provide the path
+            path = self.remote_path if self.remote_path is not None else ""
+            result = self._connector.read_node_value(
+                path, self._remote_resource_spec
+            )
             return result
         return self._read_internal_value()
 
     def _update_value(self, value: Any) -> Any:
         """Update the value of the variable."""
-        if self.is_remote() and self.is_connector_set():
+        if self.is_remote() and self.has_connector():
             self._update_internal_value(value)
             res = self._update_remote_value(value)
             return res
@@ -437,10 +443,12 @@ class VariableNode(DataModelNode):
         ), "Remote nodes must have a valid connector"
         assert (
             self.remote_path is not None
+            or self.remote_resource_spec is not None
         ), "Remote nodes must have a valid remote path"
         prev_value = self._read_internal_value()
+        path = self.remote_path if self.remote_path is not None else ""
         write_successful = self._connector.write_node_value(
-            self.remote_path, value
+            path, value, self.remote_resource_spec
         )
         if write_successful:
             return value
@@ -511,10 +519,17 @@ class VariableNode(DataModelNode):
         When the new value is retrieved, calls the _remote_subscription_callback
         which updates the internal cached value.
         """
-        if not self.connector or not self._remote_path:
+        if not self.connector or not (
+            self._remote_path or self._remote_resource_spec
+        ):
             return None
+        # Use empty string as fallback since remote_resource_spec can
+        # provide the path
+        path = self.remote_path if self.remote_path is not None else ""
         self.connector.subscribe_to_node_changes(
-            self._remote_path, self._remote_subscription_callback
+            path,
+            self._remote_subscription_callback,
+            self._remote_resource_spec,
         )
         value = self._read_remote_value(force_remote_read=True)
         self._update_internal_value(value)
@@ -610,7 +625,7 @@ class NumericalVariableNode(VariableNode):
         measure_unit: Enum | str = NoneMeasureUnits.NONE,
         value: float = 0,
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initializes a new NumericalVariableNode instance.
 
@@ -767,7 +782,7 @@ class StringVariableNode(VariableNode):
         description: str | None = None,
         value: str = "",
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initializes a new StringVariableNode instance.
 
@@ -933,7 +948,7 @@ class BooleanVariableNode(VariableNode):
         description: str | None = None,
         value: bool = False,
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initializes a new BooleanVariableNode instance.
 
@@ -1100,7 +1115,7 @@ class ObjectVariableNode(VariableNode):
         description: str | None = None,
         properties: dict[str, VariableNode] | None = None,
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initializes a new ObjectVariableNode instance.
 
