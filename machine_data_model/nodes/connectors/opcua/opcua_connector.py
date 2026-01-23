@@ -664,11 +664,28 @@ class OpcuaConnector(AbstractAsyncConnector):
             assert isinstance(inputs, list), "inputs must be a list"
 
         params = []
-        for ua_param, value in zip(inputs, kwargs.values(), strict=False):
+        kwargs_list = list(kwargs.items())
+
+        for i, ua_param in enumerate(inputs):
             dt = ua_param.DataType
             identifier = dt.Identifier
             variant_type = VariantType(identifier)
-            params.append(asyncua.ua.Variant(value, variant_type))
+
+            # Get the value from kwargs by position or default to None
+            if i < len(kwargs_list):
+                param_name, value = kwargs_list[i]
+                if value is not None:
+                    params.append(asyncua.ua.Variant(value, variant_type))
+                else:
+                    _logger.warning(
+                        f"Parameter '{param_name}' for method '{path}' is None",
+                        f"expected type: {variant_type}. Skipping parameter.",
+                    )
+            else:
+                _logger.warning(
+                    f"Missing parameter at position {i} for method '{path}' - "
+                    f"expected type: {variant_type}"
+                )
 
         _logger.debug(
             f"Converted parameters of '{path}' into VariantTypes: {params}"
