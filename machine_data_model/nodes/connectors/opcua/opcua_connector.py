@@ -388,7 +388,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         try:
             await self.client.disconnect()
         except Exception as e:
-            _logger.debug(f"Couldn't disconnect '{self.name}' connector")
+            _logger.error(f"Couldn't disconnect '{self.name}' connector")
             _logger.error(e)
             return False
 

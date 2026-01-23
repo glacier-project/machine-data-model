@@ -10,23 +10,17 @@ the arguments that are given to a subscription's callback.
 > This class also needs to be extended and is connector/protocol specific.
 """
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
 import os
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 import uuid
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from abstract_remote_resource_spec import (
-        AbstractRemoteResourceSpec,
-    )
-
+from .abstract_remote_resource_spec import (
+    AbstractRemoteResourceSpec,
+)
 
 TaskReturnType = TypeVar("TaskReturnType")
 YamlEntryType = int | str | float

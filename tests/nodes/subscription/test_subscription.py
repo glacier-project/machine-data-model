@@ -174,8 +174,8 @@ class TestSubscription:
         check_type: EventType,
     ) -> None:
         subscription = RangeSubscription(
-            "subscriber_1",
-            "corr_1",
+            subscriber_id=subscription_id,
+            correlation_id=correlation_id,
             low_limit=low_limit,
             high_limit=high_limit,
             check_type=check_type,

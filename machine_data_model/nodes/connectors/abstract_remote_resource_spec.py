@@ -6,15 +6,19 @@ are connector/protocol specific.
 """
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Union
 
-from machine_data_model.nodes.data_model_node import DataModelNode
+if TYPE_CHECKING:
+    from machine_data_model.nodes.data_model_node import DataModelNode
 
 
 class AbstractRemoteResourceSpec(ABC):
     """Represents node properties that are specific for a certain protocol."""
 
     def __init__(
-        self, parent: DataModelNode | None, remote_path: str | None = None
+        self,
+        parent: Union["DataModelNode", None],
+        remote_path: str | None = None,
     ):
         """Constructor.
 
@@ -34,7 +38,7 @@ class AbstractRemoteResourceSpec(ABC):
             bool:
                 True if a parent node is defined, False otherwise.
         """
-        return isinstance(self.parent, DataModelNode)
+        return self.parent is not None
 
     def has_path(self) -> bool:
         """Returns whether this spec has a remote path defined.

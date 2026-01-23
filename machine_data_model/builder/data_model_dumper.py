@@ -135,6 +135,8 @@ def _get_opcua_remote_resource_spec_representer(
     remote_resource_spec: dict[str, Any] = {}
     if spec.node_id:
         remote_resource_spec["node_id"] = spec.node_id
+    if spec.parent_node_id:
+        remote_resource_spec["parent_node_id"] = spec.parent_node_id
     elif spec.namespace:
         remote_resource_spec["namespace"] = spec.namespace
     else:
