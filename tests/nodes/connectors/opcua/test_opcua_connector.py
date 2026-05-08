@@ -5,7 +5,10 @@ from asyncua.sync import Server
 from docker.models.containers import Container
 import pytest
 
-from machine_data_model.nodes.connectors.opcua_connector import OpcuaConnector
+from machine_data_model.nodes.connectors.opcua import (
+    OpcuaConnector,
+    OpcuaRemoteResourceSpec,
+)
 from tests import gen_random_string
 
 
@@ -69,22 +72,29 @@ class TestOpcuaConnector:
         is_connected = connector.connect()
         assert is_connected, "connector should connect successfully"
 
-        with pytest.raises(ValueError, match="node does not exist"):
+        with pytest.raises(ValueError, match="node doesn't exist"):
             connector.read_node_value("non_existent_node")
 
         temp_threshold_path = (
-            "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/"
-            "4:OverheatedThresholdTemperature"
+            "Objects/6:ReferenceTest/"
+            "6:Scalar/6:Scalar_Static/6:Scalar_Static_Boolean"
         )
         temp_threshold_value = connector.read_node_value(temp_threshold_path)
         assert (
-            temp_threshold_value is not None
+            isinstance(temp_threshold_value, bool)
+            and temp_threshold_value is not None
         ), "temp_threshold_value should not be None"
 
-        asset_id_path = "Objects/4:Boilers/4:Boiler #2/2:AssetId"
-        asset_id_value = connector.read_node_value(asset_id_path)
-        assert asset_id_value is not None, "asset_id_value should not be None"
-
+        remote_spec_result = connector.read_node_value(
+            "",
+            remote_resource_spec=OpcuaRemoteResourceSpec(
+                node_id="ns=6;s=Scalar_Static_Boolean",
+            ),
+        )
+        assert remote_spec_result == temp_threshold_value, (
+            "the value read with remote_resource_spec",
+            "should be equal to asset_id_value",
+        )
         connector.disconnect()
 
     def test_write_node_value(
@@ -102,27 +112,46 @@ class TestOpcuaConnector:
         is_connected = connector.connect()
         assert is_connected, "connector should connect successfully"
 
-        with pytest.raises(ValueError, match="node does not exist"):
+        with pytest.raises(ValueError, match="node doesn't exist"):
             connector.write_node_value("non_existent_node", 123)
 
         temp_threshold_path = (
-            "Objects/4:Boilers/4:Boiler #2/2:ParameterSet/"
-            "4:OverheatedThresholdTemperature"
+            "Objects/6:ReferenceTest/6:Scalar/"
+            "6:Scalar_Static/6:Scalar_Static_Boolean"
         )
         prev_temp_threshold_value = connector.read_node_value(
             temp_threshold_path
         )
         was_written = connector.write_node_value(
-            temp_threshold_path, prev_temp_threshold_value + 7
+            temp_threshold_path, not prev_temp_threshold_value
         )
         assert was_written, "this node should have been written"
         current_temp_threshold_value = connector.read_node_value(
             temp_threshold_path
         )
 
+        assert current_temp_threshold_value == (
+            not prev_temp_threshold_value
+        ), "the new value should be the previous value negated"
+
+        remote_result_spec = OpcuaRemoteResourceSpec(
+            node_id="ns=6;s=Scalar_Static_Boolean"
+        )
+        was_written_remote_spec = connector.write_node_value(
+            "",
+            not current_temp_threshold_value,
+            remote_resource_spec=remote_result_spec,
+        )
         assert (
-            current_temp_threshold_value == prev_temp_threshold_value + 7
-        ), "the new value should be the previous value +7"
+            was_written_remote_spec
+        ), "this node should have been written using remote_resource_spec"
+        new_temp_threshold_value = connector.read_node_value(
+            temp_threshold_path
+        )
+        assert new_temp_threshold_value == (not current_temp_threshold_value), (
+            "the new value should be the current value",
+            " negated after writing with remote_resource_spec",
+        )
 
         connector.disconnect()
 
@@ -141,27 +170,29 @@ class TestOpcuaConnector:
         is_connected = connector.connect()
         assert is_connected, "connector should connect successfully"
 
-        with pytest.raises(Exception, match="node doesn't exist"):
+        with pytest.raises(ValueError, match="node doesn't exist"):
             connector.call_node_as_method("non_existent_node", {})
 
         add_method_path = "Objects/6:ReferenceTest/6:Methods/6:Methods_Add"
         add_method_result = connector.call_node_as_method(
             add_method_path, {"a": 2.0, "b": 3}
         )
-
         assert math.isclose(
             add_method_result, 5.0
         ), "the result should be 5.0 after adding 2.0 and 3"
 
-        output_method_path = (
-            "Objects/6:ReferenceTest/6:Methods/6:Methods_Output"
+        remote_spec_result = connector.call_node_as_method(
+            "",
+            {"a": 4.0, "b": 6},
+            remote_resource_spec=OpcuaRemoteResourceSpec(
+                parent_node_id="ns=6;s=Methods",
+                node_id="ns=6;s=Methods_Add",
+            ),
         )
-        output_method_result = connector.call_node_as_method(
-            output_method_path, {}
+        assert math.isclose(remote_spec_result, 10.0), (
+            "the result called with remote_resource_spec",
+            "should be 10.0 after adding 4.0 and 6",
         )
-        assert (
-            output_method_result == "Output"
-        ), "the return value of the output method should be the 'Output' string"
 
         connector.disconnect()
 
@@ -195,3 +226,5 @@ class TestOpcuaConnector:
         assert (
             1 <= call_result[1] <= 10
         ), "call_result[1] should be between 1 and 10"
+
+        connector.disconnect()

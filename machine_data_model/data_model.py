@@ -25,6 +25,10 @@ from machine_data_model.nodes.variable_node import (
     VariableNode,
 )
 
+from .nodes.connectors.opcua.opcua_remote_resource_spec import (
+    OpcuaRemoteResourceSpec,
+)
+
 
 class DataModel:
     """A DataModel represents the structure and data of a machine data model."""
@@ -168,9 +172,9 @@ class DataModel:
 
             # if the user overrides the remote path, don't set it as the
             # qualified name
-            if not node.is_remote_path_set():
+            if not node.has_remote_path():
                 if node.remote_resource_spec:
-                    remote_path = node.remote_resource_spec.remote_path()
+                    remote_path = node.remote_resource_spec.remote_path
                     node.set_remote_path(remote_path)
                 else:
                     node.set_remote_path(node.qualified_name)
@@ -198,14 +202,17 @@ class DataModel:
         if parent and parent.remote_resource_spec:
             inheritable_spec = parent.remote_resource_spec.inheritable_spec()
             if node.remote_resource_spec:
-                node.remote_resource_spec = (
-                    parent.remote_resource_spec.merge_specs(
-                        node.remote_resource_spec, inheritable_spec
-                    )
-                )
+                node.remote_resource_spec.inherit_spec(inheritable_spec)
             else:
-                node.remote_resource_spec = inheritable_spec
-                node.remote_resource_spec.parent = node
+                # Only create OpcuaRemoteResourceSpec if parent has one
+                if isinstance(inheritable_spec, OpcuaRemoteResourceSpec):
+                    node.remote_resource_spec = OpcuaRemoteResourceSpec(
+                        namespace=inheritable_spec.namespace,
+                        parent=node,
+                        remote_path=inheritable_spec.remote_path,
+                        parent_node_id=inheritable_spec.node_id,
+                    )
+                    node.remote_resource_spec.parent = node
 
         for child in node:
             self._setup_child_inherited_specs(child, node)

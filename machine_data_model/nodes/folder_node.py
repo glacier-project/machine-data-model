@@ -8,8 +8,8 @@ from collections.abc import Iterator
 
 from typing_extensions import override
 
-from machine_data_model.nodes.connectors.remote_resource_spec import (
-    RemoteResourceSpec,
+from machine_data_model.nodes.connectors.abstract_remote_resource_spec import (
+    AbstractRemoteResourceSpec,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
 
@@ -36,7 +36,7 @@ class FolderNode(DataModelNode):
         description: str | None = None,
         children: dict[str, DataModelNode] | None = None,
         connector_name: str | None = None,
-        remote_resource_spec: RemoteResourceSpec | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initializes a new FolderNode instance.
 

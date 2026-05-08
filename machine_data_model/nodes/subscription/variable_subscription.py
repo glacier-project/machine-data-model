@@ -5,11 +5,15 @@ subscribers of value changes, including data change subscriptions with deadband
 filtering and range-based subscriptions for monitoring value ranges.
 """
 
+from collections.abc import Callable
 from enum import IntFlag, auto
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from typing_extensions import override
+
+if TYPE_CHECKING:
+    from machine_data_model.nodes.variable_node import VariableNode
 
 
 class EventType(IntFlag):
@@ -45,24 +49,23 @@ class VariableSubscription:
             Identifier of the subscriber.
         correlation_id (str):
             Correlation identifier for the subscription.
-
+        subscription_callback (Callable[["VariableSubscription", "VariableNode",
+        Any], None] | None):
+            Callback function to be called to notify the subscriber of changes.
     """
 
-    subscriber_id: str
-    correlation_id: str
-
-    def __init__(self, subscriber_id: str, correlation_id: str = str(uuid4())):
-        """Initializes a new VariableSubscription instance.
-
-        Args:
-            subscriber_id (str):
-                Identifier of the subscriber.
-            correlation_id (str):
-                Correlation identifier for the subscription.
-
-        """
+    def __init__(
+        self,
+        subscriber_id: str,
+        correlation_id: str = str(uuid4()),
+        subscription_callback: Callable[
+            ["VariableSubscription", "VariableNode", Any], None
+        ]
+        | None = None,
+    ):
         self.subscriber_id = subscriber_id
         self.correlation_id = correlation_id
+        self.subscription_callback = subscription_callback
 
     def get_event_type(self) -> EventType:
         """Get the event types this subscription is interested in.
@@ -87,6 +90,19 @@ class VariableSubscription:
 
         """
         return True
+
+    def notify(self, variable_node: "VariableNode", new_value: Any) -> None:
+        """Invoke the subscription callback if set.
+
+        Args:
+            variable_node (VariableNode):
+                The variable node that triggered the notification.
+            new_value (Any):
+                The new value of the variable.
+
+        """
+        if self.subscription_callback is not None:
+            self.subscription_callback(self, variable_node, new_value)
 
     def __eq__(self, other: object) -> bool:
         if other is self:
@@ -129,25 +145,15 @@ class DataChangeSubscription(VariableSubscription):
     def __init__(
         self,
         subscriber_id: str,
-        correlation_id: str,
+        correlation_id: str = str(uuid4()),
+        subscription_callback: Callable[
+            ["VariableSubscription", "VariableNode", Any], None
+        ]
+        | None = None,
         deadband: float = 0.0,
         is_percent: bool = False,
     ):
-        """Initializes a new DataChangeSubscription instance.
-
-        Args:
-            subscriber_id (str):
-                Identifier of the subscriber.
-            correlation_id (str):
-                Correlation identifier for the subscription.
-            deadband (float):
-                Minimum change required to trigger a notification.
-            is_percent (bool):
-                If True, deadband is treated as a percentage of the previous
-                value; otherwise, it's an absolute value.
-
-        """
-        super().__init__(subscriber_id, correlation_id)
+        super().__init__(subscriber_id, correlation_id, subscription_callback)
         self._previous_value = None
         self.deadband = deadband
         self.is_percent = is_percent
@@ -210,27 +216,16 @@ class RangeSubscription(VariableSubscription):
     def __init__(
         self,
         subscriber_id: str,
-        correlation_id: str,
         low_limit: float,
         high_limit: float,
         check_type: EventType,
+        correlation_id: str = str(uuid4()),
+        subscription_callback: Callable[
+            ["VariableSubscription", "VariableNode", Any], None
+        ]
+        | None = None,
     ):
-        """Initializes a new RangeSubscription instance.
-
-        Args:
-            subscriber_id (str):
-                Identifier of the subscriber.
-            correlation_id (str):
-                Correlation identifier for the subscription.
-            low_limit (float):
-                Lower bound of the range.
-            high_limit (float):
-                Upper bound of the range.
-            check_type (EventType):
-                Type of range check (IN_RANGE or OUT_OF_RANGE).
-
-        """
-        super().__init__(subscriber_id, correlation_id)
+        super().__init__(subscriber_id, correlation_id, subscription_callback)
         self.low_limit = low_limit
         self.high_limit = high_limit
         if check_type not in (EventType.IN_RANGE, EventType.OUT_OF_RANGE):

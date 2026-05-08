@@ -29,7 +29,7 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.connectors.opcua_connector import (
+from machine_data_model.nodes.connectors.opcua.opcua_connector import (
     OpcuaConnector,
     OpcuaRemoteResourceSpec,
 )
@@ -634,6 +634,7 @@ def _get_opcua_remote_resource_spec(
         "remote_path": None,
         "node_id": None,
         "namespace": None,
+        "parent_node_id": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     return OpcuaRemoteResourceSpec(**kwargs)

@@ -16,6 +16,10 @@ from typing import Any, TypeVar
 
 from typing_extensions import override
 
+from machine_data_model.nodes.connectors.abstract_remote_resource_spec import (
+    AbstractRemoteResourceSpec,
+)
+
 from .abstract_connector import AbstractConnector, SubscriptionArguments
 
 TaskReturnType = TypeVar("TaskReturnType")
@@ -182,26 +186,40 @@ class AbstractAsyncConnector(AbstractConnector):
         """
 
     @override
-    def _get_remote_node(self, path: str) -> Any:
+    def _get_remote_node(
+        self,
+        path: str | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
+    ) -> Any:
         """Retrieves and returns a node from the remote resource.
 
         Args:
             path (str):
                 Node's path.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
                 Node with the given path.
         """
-        return self._handle_task(self._async_get_remote_node(path))
+        return self._handle_task(
+            self._async_get_remote_node(path, remote_resource_spec)
+        )
 
     @abstractmethod
-    async def _async_get_remote_node(self, path: str) -> Any:
+    async def _async_get_remote_node(
+        self,
+        path: str | None = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
+    ) -> Any:
         """Asynchronously retrieves and returns a node from the remote resource.
 
         Args:
             path (str):
                 Node's path.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
@@ -209,26 +227,38 @@ class AbstractAsyncConnector(AbstractConnector):
         """
 
     @override
-    def read_node_value(self, path: str) -> Any:
+    def read_node_value(
+        self,
+        path: str,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
+    ) -> Any:
         """Reatrieves and returns a node's value.
 
         Args:
             path (str):
                 Node's path.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
                 Node's value.
         """
-        return self._handle_task(self._async_read_node_value(path))
+        return self._handle_task(
+            self._async_read_node_value(path, remote_resource_spec)
+        )
 
     @abstractmethod
-    async def _async_read_node_value(self, path: str) -> Any:
+    async def _async_read_node_value(
+        self, path: str, remote_resource_spec: AbstractRemoteResourceSpec | None
+    ) -> Any:
         """Asynchronous code which reads a node's value.
 
         Args:
             path (str):
                 Node's path.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
@@ -236,7 +266,12 @@ class AbstractAsyncConnector(AbstractConnector):
         """
 
     @override
-    def write_node_value(self, path: str, value: Any) -> bool:
+    def write_node_value(
+        self,
+        path: str,
+        value: Any,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
+    ) -> bool:
         """Writes a variable node.
 
         Args:
@@ -244,15 +279,24 @@ class AbstractAsyncConnector(AbstractConnector):
                 Node's path.
             value (Any):
                 New value to write.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             bool:
                 True if the operation was successful, False otherwise.
         """
-        return self._handle_task(self._async_write_node_value(path, value))
+        return self._handle_task(
+            self._async_write_node_value(path, value, remote_resource_spec)
+        )
 
     @abstractmethod
-    async def _async_write_node_value(self, path: str, value: Any) -> bool:
+    async def _async_write_node_value(
+        self,
+        path: str,
+        value: Any,
+        remote_resource_spec: AbstractRemoteResourceSpec | None,
+    ) -> bool:
         """Asynchronous code which writes a variable node.
 
         Args:
@@ -260,6 +304,8 @@ class AbstractAsyncConnector(AbstractConnector):
                 Node's path.
             value (Any):
                 New value to write.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             bool:
@@ -267,7 +313,12 @@ class AbstractAsyncConnector(AbstractConnector):
         """
 
     @override
-    def call_node_as_method(self, path: str, kwargs: dict[str, Any]) -> Any:
+    def call_node_as_method(
+        self,
+        path: str,
+        kwargs: dict[str, Any],
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
+    ) -> Any:
         """Invokes the method with path <path> using <kwargs>.
 
         Args:
@@ -275,16 +326,23 @@ class AbstractAsyncConnector(AbstractConnector):
                 Node/method path.
             kwargs (dict[str, Any]):
                 Method arguments expressed as key/name - value pairs
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
                 Method's returned value.
         """
-        return self._handle_task(self._async_call_node_as_method(path, kwargs))
+        return self._handle_task(
+            self._async_call_node_as_method(path, kwargs, remote_resource_spec)
+        )
 
     @abstractmethod
     async def _async_call_node_as_method(
-        self, path: str, kwargs: dict[str, Any]
+        self,
+        path: str,
+        kwargs: dict[str, Any],
+        remote_resource_spec: AbstractRemoteResourceSpec | None,
     ) -> Any:
         """Asynchronously invokes the method with path <path> using <kwargs>.
 
@@ -293,6 +351,8 @@ class AbstractAsyncConnector(AbstractConnector):
                 Node/method path.
             kwargs (dict[str, Any]):
                 Method arguments expressed as key/name - value pairs.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
@@ -301,13 +361,18 @@ class AbstractAsyncConnector(AbstractConnector):
 
     @override
     def subscribe_to_node_changes(
-        self, path: str, callback: Callable[[Any, SubscriptionArguments], None]
+        self,
+        path: str,
+        callback: Callable[[Any, SubscriptionArguments], None],
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ) -> int:
         """Subscribes to remote node changes.
 
         Args:
             path (str):
                 Node path.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
             callback (Callable[[Any, SubscriptionArguments], None]):
                 Subscription's callback. The first parameter is the new value,
                 while the second parameter is additional data that is protocol
@@ -318,18 +383,27 @@ class AbstractAsyncConnector(AbstractConnector):
                 Handler code which can be used to unsubscribe from new events.
         """
         return self._handle_task(
-            self._async_subscribe_to_node_changes(path, callback)
+            self._async_subscribe_to_node_changes(
+                path,
+                remote_resource_spec,
+                callback,  # Correct order
+            )
         )
 
     @abstractmethod
     async def _async_subscribe_to_node_changes(
-        self, path: str, callback: Callable[[Any, SubscriptionArguments], None]
+        self,
+        path: str,
+        remote_resource_spec: AbstractRemoteResourceSpec | None,
+        callback: Callable[[Any, SubscriptionArguments], None],
     ) -> int:
         """Asynchronously subscribes to remote node changes.
 
         Args:
             path (str):
                 Node path.
+            remote_resource_spec (AbstractRemoteResourceSpec | None):
+                Protocol-specific properties for remote nodes.
             callback (Callable[[Any, SubscriptionArguments], None]):
                 Subscription's callback. The first parameter is the new value,
                 while the second parameter is additional data that is protocol

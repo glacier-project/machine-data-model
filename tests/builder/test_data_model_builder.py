@@ -23,7 +23,7 @@ from machine_data_model.builder.data_model_builder import (
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.connectors.opcua_connector import (
+from machine_data_model.nodes.connectors.opcua.opcua_connector import (
     OpcuaConnector,
     OpcuaRemoteResourceSpec,
 )
@@ -582,15 +582,15 @@ class TestDataModelBuilder:
         node = yaml.safe_load(yaml_content)
 
         assert isinstance(node, OpcuaRemoteResourceSpec)
-        assert node.remote_path() == "ns=2;s=MyNode"
-        assert node._node_id is None
-        assert node._namespace is None
+        assert node.remote_path == "ns=2;s=MyNode"
+        assert node.node_id is None
+        assert node.namespace is None
 
     def test_build_opcua_remote_resource_spec_with_node_id(self) -> None:
         """
         Test OpcuaRemoteResourceSpec build from YAML with node_id.
 
-        Verify that node_id is correctly parsed and used for remote_path.
+        Verify that node_id is correctly parsed.
         """
         yaml_content = """
             !!OpcuaRemoteResourceSpec
@@ -600,8 +600,8 @@ class TestDataModelBuilder:
         node = yaml.safe_load(yaml_content)
 
         assert isinstance(node, OpcuaRemoteResourceSpec)
-        assert node._node_id == "i=12345"
-        assert node.remote_path() == "i=12345"
+        assert node.node_id == "i=12345"
+        assert node.remote_path is None
 
     def test_build_opcua_remote_resource_spec_with_namespace(self) -> None:
         """
@@ -617,7 +617,36 @@ class TestDataModelBuilder:
         node = yaml.safe_load(yaml_content)
 
         assert isinstance(node, OpcuaRemoteResourceSpec)
-        assert node._namespace == "2"
+        assert node.namespace == "2"
+
+    def test_build_opcua_remote_resource_spec_with_parent_resource_spec(
+        self,
+    ) -> None:
+        """
+        Test OpcuaRemoteResourceSpec build from YAML with parent_resource_spec.
+
+        Verify that parent_resource_spec is correctly parsed.
+        """
+        yaml_content = """
+            !!OpcuaRemoteResourceSpec
+            node_id: "ns=6;s=Scalar_Static_Boolean"
+            parent_node_id: "ns=6;s=Methods"
+        """
+
+        node = yaml.safe_load(yaml_content)
+
+        assert isinstance(node, OpcuaRemoteResourceSpec)
+        assert node.parent_node_id == "ns=6;s=Methods", (
+            "Got:",
+            " {node.parent_node_id} expected: ns=6;s=Methods",
+        )
+        assert isinstance(node, OpcuaRemoteResourceSpec)
+        assert node.remote_path is None, f"Got: {node.remote_path} expected: ''"
+        assert (
+            node.node_id == "ns=6;s=Scalar_Static_Boolean"
+        ), f"Got: {node.node_id} expected: ns=6;s=Scalar_Static_Boolean"
+        assert node.namespace is None, f"Got: {node.namespace} expected: None"
+        assert node.parent_node_id == "ns=6;s=Methods"
 
     def test_build_opcua_remote_resource_spec_full(self) -> None:
         """
@@ -630,12 +659,14 @@ class TestDataModelBuilder:
             remote_path: "ns=2;s=MyNode"
             node_id: "i=12345"
             namespace: "2"
+            parent_node_id: "ns=6;s=Methods"
         """
 
         node = yaml.safe_load(yaml_content)
 
         assert isinstance(node, OpcuaRemoteResourceSpec)
         # remote_path takes precedence when defined
-        assert node.remote_path() == "ns=2;s=MyNode"
-        assert node._node_id == "i=12345"
-        assert node._namespace == "2"
+        assert node.remote_path == "ns=2;s=MyNode"
+        assert node.node_id == "i=12345"
+        assert node.namespace == "2"
+        assert node.parent_node_id == "ns=6;s=Methods"

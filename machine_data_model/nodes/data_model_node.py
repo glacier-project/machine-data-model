@@ -10,13 +10,16 @@ from typing import TYPE_CHECKING
 import uuid
 import weakref
 
+from .connectors.abstract_remote_resource_spec import (
+    AbstractRemoteResourceSpec,
+)
+
 if TYPE_CHECKING:
-    from machine_data_model.data_model import DataModel
-    from machine_data_model.nodes.connectors.abstract_connector import (
+    from nodes.connectors.abstract_connector import (
         AbstractConnector,
     )
 
-    from .connectors.remote_resource_spec import RemoteResourceSpec
+    from machine_data_model.data_model import DataModel
 
 
 class DataModelNode(ABC):
@@ -54,7 +57,7 @@ class DataModelNode(ABC):
         name: str | None = None,
         description: str | None = None,
         connector_name: str | None = None,
-        remote_resource_spec: "RemoteResourceSpec | None" = None,
+        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ):
         """Initializes a new `DataModelNode` instance.
 
@@ -94,7 +97,7 @@ class DataModelNode(ABC):
         self._connector_name: str | None = connector_name
         self._connector: AbstractConnector | None = None
         self._remote_path: str | None = None
-        self._remote_resource_spec: RemoteResourceSpec | None = (
+        self._remote_resource_spec: AbstractRemoteResourceSpec | None = (
             remote_resource_spec
         )
         if self._remote_resource_spec is not None:
@@ -163,6 +166,28 @@ class DataModelNode(ABC):
         """
         return self._connector_name
 
+    @property
+    def remote_resource_spec(self) -> AbstractRemoteResourceSpec | None:
+        """Gets the remote resource spec.
+
+        Returns:
+            AbstractRemoteResourceSpec | None:
+                The remote resource spec, or None if not set.
+        """
+        return self._remote_resource_spec
+
+    @remote_resource_spec.setter
+    def remote_resource_spec(
+        self, value: AbstractRemoteResourceSpec | None
+    ) -> None:
+        """Sets the remote resource spec.
+
+        Args:
+            value (AbstractRemoteResourceSpec | None):
+                The remote resource spec to set.
+        """
+        self._remote_resource_spec = value
+
     def set_connector_name(self, value: str | None) -> None:
         """Sets the connector name."""
         self._connector_name = value
@@ -179,7 +204,7 @@ class DataModelNode(ABC):
         """
         return self.connector_name is not None
 
-    def is_connector_set(self) -> bool:
+    def has_connector(self) -> bool:
         """Returns True if the connector was set.
 
         A remote node (is_remote() == True) must have, at some point, its
@@ -205,7 +230,7 @@ class DataModelNode(ABC):
         """Connector getter."""
         return self._connector
 
-    def is_remote_path_set(self) -> bool:
+    def has_remote_path(self) -> bool:
         """Returns True if the remote path is set.
 
         The remote path is the path used by the connector to interact with the
@@ -232,19 +257,9 @@ class DataModelNode(ABC):
             return self._remote_path
 
         if self._remote_resource_spec is not None:
-            return self._remote_resource_spec.remote_path()
+            return self._remote_resource_spec.get_remote_path()
 
         return None
-
-    @property
-    def remote_resource_spec(self) -> "RemoteResourceSpec | None":
-        """Remote resource spec getter."""
-        return self._remote_resource_spec
-
-    @remote_resource_spec.setter
-    def remote_resource_spec(self, value: "RemoteResourceSpec | None") -> None:
-        """Remote resource spec setter."""
-        self._remote_resource_spec = value
 
     @property
     def data_model(self) -> "DataModel | None":

@@ -173,7 +173,6 @@ root:
               variable: "${variable_path}"
               operator: "!="
               rhs: "${value}"
-
     - !!FolderNode
       name: "folder2"
       description: "folder_description2"

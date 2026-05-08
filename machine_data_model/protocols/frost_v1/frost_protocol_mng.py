@@ -574,10 +574,9 @@ class FrostProtocolMng(ProtocolMng):
         assert isinstance(variable_node, VariableNode)
         assert isinstance(msg.payload, VariablePayload)
 
-        subscription = VariableSubscription(
-            subscriber_id=msg.sender, correlation_id=msg.correlation_id
+        variable_node.unsubscribe(
+            subscription_or_id=msg.sender, correlation_id=msg.correlation_id
         )
-        variable_node.unsubscribe(subscription)
         response = (
             self._message_builder.build_unsubscribe_variable_response_message(
                 target=msg.sender,
