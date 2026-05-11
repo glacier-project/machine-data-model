@@ -49,6 +49,8 @@ class CompositeMethodNode(MethodNode):
     """
 
     _contexts: dict[str, ExecutionContext]
+    _completed_results: dict[str, dict[str, Any]]
+    _notified_parent_contexts: set[str]
     cfg: ControlFlow
 
     def __init__(
@@ -81,6 +83,8 @@ class CompositeMethodNode(MethodNode):
             returns=returns,
         )
         self._contexts = {}
+        self._completed_results = {}
+        self._notified_parent_contexts = set()
         self._internal_nodes: dict[str, DataModelNode] = {}
         self.cfg = (
             cfg if cfg is not None else ControlFlow(composite_method_node=self)
@@ -137,8 +141,25 @@ class CompositeMethodNode(MethodNode):
 
         ret_t = tuple(context.get_value(node.name) for node in self.returns)
         ret = self._build_return_dict(ret_t)
+        self._completed_results[context.id()] = ret
         self._post_call(ret)
         return ret
+
+    def get_completed_return_values(
+        self, context_id: str
+    ) -> dict[str, Any] | None:
+        """Get cached return values for a completed execution context.
+
+        Args:
+            context_id (str):
+                The id of the completed execution context.
+
+        Returns:
+            dict[str, Any] | None:
+                The cached return values if execution finished, otherwise None.
+
+        """
+        return self._completed_results.get(context_id)
 
     def is_terminated(self, context_id: str) -> bool:
         """Check if the context with the specified id is terminated.
@@ -170,6 +191,42 @@ class CompositeMethodNode(MethodNode):
         if context_id not in self._contexts:
             raise ValueError(f"context '{context_id}' not found")
         del self._contexts[context_id]
+        self._completed_results.pop(context_id, None)
+        self._notified_parent_contexts.discard(context_id)
+
+    def _notify_nested_parent(self, context: ExecutionContext) -> list[Any]:
+        """Notify the parent composite method when this child finishes.
+
+        Args:
+            context (ExecutionContext):
+                The completed execution context.
+
+        Returns:
+            list[Any]:
+                Messages produced by resuming the parent composite, if any.
+
+        """
+        if context.id() in self._notified_parent_contexts:
+            return []
+
+        try:
+            parent_method = context.get_value("__nested_parent_method__")
+            parent_context_id = context.get_value(
+                "__nested_parent_context_id__"
+            )
+        except KeyError:
+            return []
+
+        if not isinstance(parent_method, CompositeMethodNode):
+            return []
+
+        self._notified_parent_contexts.add(context.id())
+        try:
+            parent_result = parent_method.resume_execution(parent_context_id)
+        except ValueError:
+            return []
+
+        return list(parent_result.messages or [])
 
     def add_internal_node(self, node: DataModelNode) -> None:
         """Add an internal node to the composite method.
@@ -263,9 +320,12 @@ class CompositeMethodNode(MethodNode):
         if context is None:
             raise ValueError(f"context '{context_id}' not found")
         remote_messages = self.cfg.execute(context)
+        return_values = self._terminate_execution(context)
+        if not context.is_active():
+            remote_messages.extend(self._notify_nested_parent(context))
         return MethodExecutionResult(
             messages=remote_messages,
-            return_values=self._terminate_execution(context),
+            return_values=return_values,
         )
 
     def _start_execution(
@@ -288,9 +348,12 @@ class CompositeMethodNode(MethodNode):
         """
         context = self._create_context(**kwargs)
         remote_messages = self.cfg.execute(context)
+        return_values = self._terminate_execution(context)
+        if not context.is_active():
+            remote_messages.extend(self._notify_nested_parent(context))
         return MethodExecutionResult(
             messages=remote_messages,
-            return_values=self._terminate_execution(context),
+            return_values=return_values,
         )
 
     def _get_context(self, context_id: str) -> ExecutionContext:

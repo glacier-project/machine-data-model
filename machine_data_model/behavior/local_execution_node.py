@@ -22,7 +22,7 @@ from machine_data_model.behavior.execution_context import (
     resolve_value,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
-from machine_data_model.nodes.method_node import AsyncMethodNode
+from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
@@ -50,7 +50,9 @@ class LocalExecutionNode(ControlFlowNode):
     get_data_model_node: Callable[[str], DataModelNode | None] | None
 
     def __init__(
-        self, node: str, successors: list["ControlFlowNode"] | None = None
+        self,
+        node: str,
+        successors: list["ControlFlowNode"] | None = None,
     ):
         """Initialize a new LocalExecutionNode instance.
 
@@ -91,9 +93,9 @@ class LocalExecutionNode(ControlFlowNode):
                 True if the node is static, otherwise False.
 
         """
-        return self.node is not None and not contains_template_variables(
-            self.node
-        )
+        if len(self.node) == 0:
+            return False
+        return not contains_template_variables(self.node)
 
     def set_ref_node(self, ref_node: DataModelNode) -> None:
         """Set the reference to the node in the machine data model.
@@ -429,8 +431,52 @@ class CallMethodNode(LocalExecutionNode):
                 An ExecutionNodeResult indicating success.
 
         """
+        from machine_data_model.nodes.composite_method import (
+            composite_method_node,
+        )
+
         ref_method = self._get_ref_node(context)
-        assert isinstance(ref_method, AsyncMethodNode)
+        assert isinstance(ref_method, MethodNode)
+
+        data_model_id = ""
+        if ref_method.data_model is not None:
+            data_model_id = ref_method.data_model.name
+
+        pending_key = f"call_method_pending_{context.get_pc()}"
+
+        if isinstance(ref_method, composite_method_node.CompositeMethodNode):
+            try:
+                pending_context_id = context.get_value(pending_key)
+            except KeyError:
+                pending_context_id = None
+
+            if pending_context_id is not None:
+                if not ref_method.is_terminated(pending_context_id):
+                    trace_control_flow_step(
+                        node_id=self.node,
+                        node_type=type(self).__name__,
+                        execution_result=False,
+                        program_counter=context.get_pc(),
+                        source=context.id(),
+                        data_model_id=data_model_id,
+                    )
+                    return execution_failure()
+
+                ret = ref_method.get_completed_return_values(pending_context_id)
+                assert ret is not None
+                context.set_all_values(**ret)
+                ref_method.delete_context(pending_context_id)
+                context.delete_value(pending_key)
+
+                trace_control_flow_step(
+                    node_id=self.node,
+                    node_type=type(self).__name__,
+                    execution_result=True,
+                    program_counter=context.get_pc(),
+                    source=context.id(),
+                    data_model_id=data_model_id,
+                )
+                return execution_success()
 
         # Trace the control flow step.
         trace_control_flow_step(
@@ -439,17 +485,37 @@ class CallMethodNode(LocalExecutionNode):
             execution_result=True,
             program_counter=context.get_pc(),
             source=context.id(),
-            data_model_id=(
-                ref_method.data_model.name if ref_method.data_model else ""
-            ),
+            data_model_id=data_model_id,
         )
 
         # resolve variables in the context
         args = [resolve_value(arg, context) for arg in self._args]
         kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
         res = ref_method(*args, **kwargs)
+
+        if isinstance(ref_method, composite_method_node.CompositeMethodNode):
+            pending_context_id = res.return_values.get("@context_id")
+            if pending_context_id is not None:
+                context.set_value(pending_key, pending_context_id)
+
+                parent_method = None
+                if self.parent_cfg is not None:
+                    parent_method = self.parent_cfg.composite_method_node
+
+                if parent_method is not None:
+                    child_context = ref_method._get_context(pending_context_id)
+                    child_context.set_value(
+                        "__nested_parent_method__",
+                        parent_method,
+                    )
+                    child_context.set_value(
+                        "__nested_parent_context_id__", context.id()
+                    )
+
+                return execution_failure(list(res.messages or []))
+
         context.set_all_values(**res.return_values)
-        return execution_success()
+        return execution_success(list(res.messages or []))
 
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
@@ -602,9 +668,9 @@ class WaitConditionNode(LocalExecutionNode):
         assert isinstance(ref_variable, VariableNode)
 
         # Get the data model id for tracing.
-        data_model_id = (
-            ref_variable.data_model.name if ref_variable.data_model else ""
-        )
+        data_model_id = ""
+        if ref_variable.data_model is not None:
+            data_model_id = ref_variable.data_model.name
 
         rhs = resolve_value(self._rhs, context)
         lhs = ref_variable.read()
@@ -722,8 +788,7 @@ class WaitConditionNode(LocalExecutionNode):
         if not isinstance(other, WaitConditionNode):
             return False
 
-        return (
-            super().__eq__(other)
-            and self.op == other.op
-            and self.rhs == other.rhs
-        )
+        if self.op != other.op or self.rhs != other.rhs:
+            return False
+
+        return super().__eq__(other)
