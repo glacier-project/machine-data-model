@@ -9,6 +9,14 @@ This folder contains examples demonstrating the subscription mechanism in `Varia
 
 ## Examples
 
+### 0. Scoped Subscription (`scoped_subscription.py`)
+
+Demonstrates a small hierarchical data model and then attaches multiple
+callbacks directly to subscription objects at runtime, without configuring a
+node-level callback.
+
+Run: `python examples/subscription/scoped_subscription.py`
+
 ### 1. Basic Subscription (`basic_subscription.py`)
 
 Demonstrates subscribing to a `NumericalVariableNode`, setting a callback, and receiving notifications on value updates.

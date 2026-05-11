@@ -384,6 +384,9 @@ class FrostProtocolMng(ProtocolMng):
             context_id = ret_values["@context_id"]
             assert isinstance(context_id, str)
             assert isinstance(method_node, CompositeMethodNode)
+            method_node.set_context_subscription_callback(
+                context_id, self._update_variable_callback
+            )
             self._running_methods[context_id] = (method_node, msg)
             # here we should return the accepted message
 
@@ -540,7 +543,9 @@ class FrostProtocolMng(ProtocolMng):
         assert isinstance(msg.payload, VariablePayload)
 
         subscription = VariableSubscription(
-            subscriber_id=msg.sender, correlation_id=msg.correlation_id
+            subscriber_id=msg.sender,
+            correlation_id=msg.correlation_id,
+            subscription_callback=self._update_variable_callback,
         )
         variable_node.subscribe(subscription)
         response = (

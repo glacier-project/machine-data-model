@@ -21,6 +21,9 @@ from machine_data_model.nodes.method_node import (
     MethodExecutionResult,
     MethodNode,
 )
+from machine_data_model.nodes.subscription.variable_subscription import (
+    SubscriptionCallback,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_message_builder import (
@@ -193,6 +196,24 @@ class CompositeMethodNode(MethodNode):
         del self._contexts[context_id]
         self._completed_results.pop(context_id, None)
         self._notified_parent_contexts.discard(context_id)
+
+    def set_context_subscription_callback(
+        self,
+        context_id: str,
+        callback: SubscriptionCallback | None,
+    ) -> None:
+        """Set a scoped subscription callback for an active execution.
+
+        Args:
+            context_id (str):
+                The identifier of the execution context.
+            callback (SubscriptionCallback | None):
+                The callback to attach to subscriptions created in that
+                execution scope. Set to None to clear the scoped callback.
+
+        """
+        context = self._get_context(context_id)
+        context.set_subscription_callback(callback)
 
     def _notify_nested_parent(self, context: ExecutionContext) -> list[Any]:
         """Notify the parent composite method when this child finishes.

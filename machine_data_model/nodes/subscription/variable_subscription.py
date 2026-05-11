@@ -16,6 +16,11 @@ if TYPE_CHECKING:
     from machine_data_model.nodes.variable_node import VariableNode
 
 
+SubscriptionCallback = Callable[
+    ["VariableSubscription", "VariableNode", Any], None
+]
+
+
 class EventType(IntFlag):
     """Enumeration of possible event types for variable subscriptions.
 
@@ -58,10 +63,7 @@ class VariableSubscription:
         self,
         subscriber_id: str,
         correlation_id: str = str(uuid4()),
-        subscription_callback: Callable[
-            ["VariableSubscription", "VariableNode", Any], None
-        ]
-        | None = None,
+        subscription_callback: SubscriptionCallback | None = None,
     ):
         self.subscriber_id = subscriber_id
         self.correlation_id = correlation_id
