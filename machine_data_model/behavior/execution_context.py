@@ -9,6 +9,10 @@ from enum import IntEnum
 import re
 from typing import Any
 
+from machine_data_model.nodes.subscription.variable_subscription import (
+    SubscriptionCallback,
+)
+
 template_re = re.compile(r"\$\{([^}]+)\}")
 
 
@@ -165,6 +169,7 @@ class ExecutionContext:
     _pc: int
     _status: ControlFlowStatus
     active_request: str | None
+    _subscription_callback: SubscriptionCallback | None
 
     def __init__(self, context_id: str, **kwargs: dict[str, Any]):
         """Initialize a new ExecutionContext instance.
@@ -181,6 +186,7 @@ class ExecutionContext:
         self._pc = 0  # program counter
         self._status = ControlFlowStatus.READY
         self.active_request: str | None = None
+        self._subscription_callback = None
         self.set_all_values(**kwargs)
 
     def set_all_values(self, **kwargs: dict[str, Any]) -> None:
@@ -259,6 +265,33 @@ class ExecutionContext:
         var_name = resolve_string_in_context(var_name, self)
         if var_name in self._locals:
             del self._locals[var_name]
+
+    def set_subscription_callback(
+        self,
+        callback: SubscriptionCallback | None,
+    ) -> None:
+        """Set the callback used by scoped subscriptions in this context.
+
+        Args:
+            callback (SubscriptionCallback | None):
+                The callback to attach to subscriptions created during this
+                execution context. Set to None to clear the scoped callback.
+
+        """
+        self._subscription_callback = callback
+
+    def get_subscription_callback(
+        self,
+    ) -> SubscriptionCallback | None:
+        """Get the callback used by scoped subscriptions in this context.
+
+        Returns:
+            SubscriptionCallback | None:
+                The callback attached to subscriptions created during this
+                execution context, if any.
+
+        """
+        return self._subscription_callback
 
     def get_pc(self) -> int:
         """Get the program counter of the context.

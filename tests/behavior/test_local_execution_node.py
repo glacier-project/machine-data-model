@@ -22,6 +22,9 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
 )
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.method_node import AsyncMethodNode, MethodNode
+from machine_data_model.nodes.subscription.variable_subscription import (
+    VariableSubscription,
+)
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
     StringVariableNode,
@@ -135,6 +138,42 @@ class TestLocalExecutionNode:
         assert w_variable_node.node == variable_node.qualified_name
         assert ret.success == comparison_result
         assert len(ret.messages) == 0
+
+    def test_wait_condition_uses_context_subscription_callback(
+        self,
+    ) -> None:
+        context = ExecutionContext(str(uuid.uuid4()))
+        callbacks: list[tuple[str, Any]] = []
+
+        def subscription_callback(
+            subscription: VariableSubscription,
+            node: VariableNode,
+            value: Any,
+        ) -> None:
+            callbacks.append((subscription.subscriber_id, value))
+
+        context.set_subscription_callback(subscription_callback)
+
+        variable_node = get_random_numerical_node()
+        wait_node = WaitConditionNode(
+            variable_node=variable_node.qualified_name,
+            rhs=variable_node.read() + 1,
+            op=WaitConditionOperator.GE,
+        )
+        wait_node.set_ref_node(variable_node)
+
+        result = wait_node.execute(context)
+
+        assert not result.success
+        assert variable_node.has_subscribers()
+
+        subscription = variable_node.get_subscriptions()[0]
+        assert subscription.subscription_callback is subscription_callback
+
+        variable_node.write(variable_node.read() + 1)
+
+        assert callbacks
+        assert callbacks[0][0] == context.id()
 
     def test_nested_composite_method_call(self) -> None:
         root = FolderNode(name="root", description="Root folder")

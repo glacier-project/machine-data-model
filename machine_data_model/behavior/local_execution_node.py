@@ -720,13 +720,23 @@ class WaitConditionNode(LocalExecutionNode):
         except KeyError:
             subscription = None
 
+        subscription_callback = context.get_subscription_callback()
+
         if subscription is None:
             # Create a new subscription for this context. Leave correlation_id
             # unspecified so the VariableSubscription constructor generates a
             # unique id for the subscription (previous behavior).
-            subscription = VariableSubscription(subscriber_id=context.id())
+            subscription = VariableSubscription(
+                subscriber_id=context.id(),
+                subscription_callback=subscription_callback,
+            )
             # store the subscription in the context for later retrieval
             context.set_value(sub_key, subscription)
+        elif (
+            subscription_callback is not None
+            and subscription.subscription_callback is None
+        ):
+            subscription.subscription_callback = subscription_callback
 
         # Condition not met - start waiting
         if not result:
