@@ -18,9 +18,11 @@ from machine_data_model.tracing import (
 )
 
 if TYPE_CHECKING:
-    from machine_data_model.nodes.composite_method.composite_method_node import (  # noqa: E501
-        CompositeMethodNode,
+    from machine_data_model.nodes.composite_method import (
+        composite_method_node,
     )
+
+    CompositeMethodNode = composite_method_node.CompositeMethodNode
 
 
 class ControlFlow:

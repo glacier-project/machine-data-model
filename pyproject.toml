@@ -9,7 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 pyyaml = "^6.0.2"
-unitsnet-py = "^0.1.135"
+unitsnet-py = "^0.1.154"
 asyncua = "1.1.6"
 
 
