@@ -172,6 +172,7 @@ class ControlFlowNode(ABC):
 
         """
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

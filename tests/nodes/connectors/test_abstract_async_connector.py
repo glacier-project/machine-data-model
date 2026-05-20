@@ -16,26 +16,31 @@ class DummyAsyncConnector(AbstractAsyncConnector):
         self.connect_calls = 0
         self.disconnect_calls = 0
 
+    # pyrefly: ignore[missing-override-decorator]
     async def _async_connect(self) -> bool:
         self.connect_calls += 1
         return True
 
+    # pyrefly: ignore[missing-override-decorator]
     async def _async_disconnect(self) -> bool:
         self.disconnect_calls += 1
         return True
 
+    # pyrefly: ignore[missing-override-decorator]
     async def _async_get_remote_resource(
         self,
         resource: RemoteResource,
     ) -> Any:
         return resource.path
 
+    # pyrefly: ignore[missing-override-decorator]
     async def _async_read_node_value(
         self,
         resource: RemoteResource,
     ) -> Any:
         return None
 
+    # pyrefly: ignore[missing-override-decorator]
     async def _async_write_node_value(
         self,
         resource: RemoteResource,
@@ -43,13 +48,15 @@ class DummyAsyncConnector(AbstractAsyncConnector):
     ) -> bool:
         return True
 
+    # pyrefly: ignore[missing-override-decorator]
     async def _async_call_node_as_method(
         self,
         resource: RemoteResource,
         kwargs: dict[str, Any],
     ) -> Any:
-        return {}
+        return {}  # pyrefly: ignore[implicit-any-empty-container]
 
+    # pyrefly: ignore[missing-override-decorator]
     async def _async_subscribe_to_node_changes(
         self,
         resource: RemoteResource,

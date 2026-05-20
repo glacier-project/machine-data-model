@@ -421,8 +421,8 @@ class TestFrostMessageBuilder:
         message_builder: FrostMessageBuilder,
         target: str,
         node: str,
-        args: list,
-        kwargs: dict,
+        args: list,  # pyrefly: ignore[implicit-any-type-argument]
+        kwargs: dict,  # pyrefly: ignore[implicit-any-type-argument]
     ) -> None:
         message = message_builder.build_invoke_method_message(
             target=target, node=node, args=args, kwargs=kwargs
@@ -457,9 +457,9 @@ class TestFrostMessageBuilder:
         message_builder: FrostMessageBuilder,
         target: str,
         node: str,
-        args: list,
-        kwargs: dict,
-        ret: dict,
+        args: list,  # pyrefly: ignore[implicit-any-type-argument]
+        kwargs: dict,  # pyrefly: ignore[implicit-any-type-argument]
+        ret: dict,  # pyrefly: ignore[implicit-any-type-argument]
     ) -> None:
         msg_id = str(uuid.uuid4())
         message = message_builder.build_method_completed_message(

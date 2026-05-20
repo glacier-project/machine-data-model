@@ -129,13 +129,14 @@ def _get_numerical_variable(
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
-        "id": None,
+        "id": None,  # pyrefly: ignore[implicit-any-empty-container]
         "name": "",
         "description": "",
         "measure_unit": NoneMeasureUnits.NONE,
-        "initial_value": None,
+        "initial_value": None,  # pyrefly: ignore[implicit-any-empty-container]
         "default_value": 0,
-        "connector_name": None,
+        "connector_name": None,  # pyrefly: ignore[implicit-any-empty-container]
+        # pyrefly: ignore[implicit-any-empty-container]
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -168,12 +169,13 @@ def _get_string_variable(
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
-        "id": None,
+        "id": None,  # pyrefly: ignore[implicit-any-empty-container]
         "name": "",
         "description": "",
-        "initial_value": None,
+        "initial_value": None,  # pyrefly: ignore[implicit-any-empty-container]
         "default_value": "",
-        "connector_name": None,
+        "connector_name": None,  # pyrefly: ignore[implicit-any-empty-container]
+        # pyrefly: ignore[implicit-any-empty-container]
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -207,12 +209,13 @@ def _get_boolean_variable(
     """
     data = loader.construct_mapping(node)
     default_kwargs = {
-        "id": None,
+        "id": None,  # pyrefly: ignore[implicit-any-empty-container]
         "name": "",
         "description": "",
-        "initial_value": None,
+        "initial_value": None,  # pyrefly: ignore[implicit-any-empty-container]
         "default_value": False,
-        "connector_name": None,
+        "connector_name": None,  # pyrefly: ignore[implicit-any-empty-container]
+        # pyrefly: ignore[implicit-any-empty-container]
         "remote_resource_spec": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
@@ -415,8 +418,8 @@ def _get_call_method_node(
     data = loader.construct_mapping(node, deep=True)
     default_kwargs = {
         "method": "",
-        "args": [],
-        "kwargs": {},
+        "args": [],  # pyrefly: ignore[implicit-any-empty-container]
+        "kwargs": {},  # pyrefly: ignore[implicit-any-empty-container]
     }
     kwargs = _build_kwargs(data, default_kwargs)
     return CallMethodNode(
@@ -446,8 +449,8 @@ def _get_call_remote_method_node(
     default_kwargs = {
         "method": "",
         "remote_id": "",
-        "args": [],
-        "kwargs": {},
+        "args": [],  # pyrefly: ignore[implicit-any-empty-container]
+        "kwargs": {},  # pyrefly: ignore[implicit-any-empty-container]
     }
     kwargs = _build_kwargs(data, default_kwargs)
     return CallRemoteMethodNode(

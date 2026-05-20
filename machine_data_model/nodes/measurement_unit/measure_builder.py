@@ -224,6 +224,7 @@ class MeasureBuilder:
         """
         unit = self.get_measure_unit(unit)
         measure = self._measure_ctor[unit.__class__]
+        # pyrefly: ignore[unexpected-keyword]
         return measure(value=value, from_unit=unit)
 
 

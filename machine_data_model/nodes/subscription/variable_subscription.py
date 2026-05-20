@@ -106,6 +106,7 @@ class VariableSubscription:
         if self.subscription_callback is not None:
             self.subscription_callback(self, variable_node, new_value)
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         if other is self:
             return True
@@ -116,13 +117,13 @@ class VariableSubscription:
             and self.correlation_id == other.correlation_id
         )
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             f"{self.__class__.__name__}(subscriber_id={self.subscriber_id}, "
             f"correlation_id={self.correlation_id})"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return str(self)
 
 

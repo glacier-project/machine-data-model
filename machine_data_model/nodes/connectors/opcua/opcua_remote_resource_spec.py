@@ -163,7 +163,7 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
             "remote_node": self.remote_node,
         }
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             "OpcuaRemoteResourceSpec("
             f"remote_path={self.remote_path!r}, "
@@ -173,5 +173,5 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
             ")"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return self.__str__()

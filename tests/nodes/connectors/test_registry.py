@@ -25,7 +25,9 @@ def _make_plugin(name: str = "fake") -> ConnectorPlugin:
         spec_cls=_FakeSpec,
         construct_connector=lambda loader, node: None,
         construct_spec=lambda loader, node: None,
+        # pyrefly: ignore[bad-argument-type]
         represent_connector=lambda dumper, obj: None,
+        # pyrefly: ignore[bad-argument-type]
         represent_spec=lambda dumper, obj: None,
     )
 

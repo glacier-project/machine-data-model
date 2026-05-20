@@ -62,7 +62,7 @@ class RemoteResource:
         resource._node_ref = weakref.ref(node)
         return resource
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             "RemoteResource(" f"path={self.path!r}, " f"spec={self.spec!r}" ")"
         )

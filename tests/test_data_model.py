@@ -131,7 +131,7 @@ class TestDataModel:
 
     def test_subscribe(self, root: FolderNode) -> None:
         # Tracks the list of changes.
-        changes = []
+        changes = []  # pyrefly: ignore[implicit-any-empty-container]
 
         # Setup callback to handle subscriber notifications.
         def update_message_callback(

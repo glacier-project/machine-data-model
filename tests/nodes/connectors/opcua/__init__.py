@@ -106,30 +106,34 @@ def add_method_call_free_pallet_to_with_reservation(
     idx: int, parent: SyncNode
 ) -> None:
     destination = ua.Argument()
-    destination.Name = "destination"
+    destination.Name = "destination"  # pyrefly: ignore[bad-assignment]
+    # pyrefly: ignore[bad-argument-type]
     destination.DataType = ua.NodeId(ua.ObjectIds.Int64)
-    destination.ValueRank = -1
+    destination.ValueRank = -1  # pyrefly: ignore[bad-assignment]
     destination.ArrayDimensions = []
     destination.Description = ua.LocalizedText("destination")
 
     reservation_id = ua.Argument()
-    reservation_id.Name = "reservationId"
+    reservation_id.Name = "reservationId"  # pyrefly: ignore[bad-assignment]
+    # pyrefly: ignore[bad-argument-type]
     reservation_id.DataType = ua.NodeId(ua.ObjectIds.Int64)
-    reservation_id.ValueRank = -1
+    reservation_id.ValueRank = -1  # pyrefly: ignore[bad-assignment]
     reservation_id.ArrayDimensions = []
     reservation_id.Description = ua.LocalizedText("reservationId")
 
     result = ua.Argument()
-    result.Name = "result"
+    result.Name = "result"  # pyrefly: ignore[bad-assignment]
+    # pyrefly: ignore[bad-argument-type]
     result.DataType = ua.NodeId(ua.ObjectIds.Boolean)
-    result.ValueRank = -1
+    result.ValueRank = -1  # pyrefly: ignore[bad-assignment]
     result.ArrayDimensions = []
     result.Description = ua.LocalizedText("result")
 
     pallet_number = ua.Argument()
-    pallet_number.Name = "palletNumber"
+    pallet_number.Name = "palletNumber"  # pyrefly: ignore[bad-assignment]
+    # pyrefly: ignore[bad-argument-type]
     pallet_number.DataType = ua.NodeId(ua.ObjectIds.Int64)
-    pallet_number.ValueRank = -1
+    pallet_number.ValueRank = -1  # pyrefly: ignore[bad-assignment]
     pallet_number.ArrayDimensions = []
     pallet_number.Description = ua.LocalizedText("palletNumber")
 
