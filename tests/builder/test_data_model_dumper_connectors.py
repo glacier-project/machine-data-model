@@ -10,6 +10,9 @@ pytest.importorskip("aiomqtt")
 
 import yaml  # noqa: E402
 
+from machine_data_model.builder.data_model_dumper import (  # noqa: E402, F401
+    DataModelDumper,
+)
 from machine_data_model.data_model import DataModel  # noqa: E402
 from machine_data_model.nodes.connectors.mqtt import (  # noqa: E402
     MqttConnector,
