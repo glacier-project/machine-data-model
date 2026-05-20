@@ -9,6 +9,9 @@ import docker
 from docker.models.containers import Container
 import pytest
 
+MQTT_MAX_ATTEMPTS = 30
+MQTT_CONNECTION_RETRY_DELAY = 0.1
+
 
 @pytest.fixture(scope="session")
 def start_mqtt_test_broker(
@@ -56,9 +59,8 @@ def _write_mosquitto_config(config_dir: Path) -> Path:
 
 
 def _wait_for_broker(container: Container, port: int) -> None:
-    max_attempts = 30
     attempts = 0
-    while attempts < max_attempts:
+    while attempts < MQTT_MAX_ATTEMPTS:
         attempts += 1
         container.reload()
         if container.status == "exited":
@@ -67,7 +69,7 @@ def _wait_for_broker(container: Container, port: int) -> None:
             asyncio.run(_check_broker_connection(port))
             return
         except Exception:
-            time.sleep(0.1)
+            time.sleep(MQTT_CONNECTION_RETRY_DELAY)
     raise TimeoutError("MQTT test broker did not become ready")
 
 
