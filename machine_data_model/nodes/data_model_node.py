@@ -100,8 +100,6 @@ class DataModelNode(ABC):
         self._remote_resource_spec: AbstractRemoteResourceSpec | None = (
             remote_resource_spec
         )
-        if self._remote_resource_spec is not None:
-            self._remote_resource_spec.owner_node = self
         self._remote_resource: RemoteResource | None = None
 
     @property
@@ -188,8 +186,6 @@ class DataModelNode(ABC):
                 The remote resource spec to set.
         """
         self._remote_resource_spec = value
-        if self._remote_resource_spec is not None:
-            self._remote_resource_spec.owner_node = self
         self._remote_resource = None
 
     def set_connector_name(self, value: str | None) -> None:
@@ -262,7 +258,7 @@ class DataModelNode(ABC):
             return self._remote_path
 
         if self._remote_resource_spec is not None:
-            return self._remote_resource_spec.get_remote_path()
+            return self._remote_resource_spec.get_remote_path(self)
 
         return None
 

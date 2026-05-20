@@ -460,7 +460,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                     )
             if not path:
                 if remote_resource_spec is not None:
-                    computed_path = remote_resource_spec.get_remote_path()
+                    computed_path = remote_resource_spec.get_remote_path(
+                        resource.node
+                    )
                     if computed_path:
                         path = computed_path
 

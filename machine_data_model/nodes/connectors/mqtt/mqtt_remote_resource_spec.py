@@ -40,7 +40,6 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
 
     def __init__(
         self,
-        owner_node: "DataModelNode | None" = None,
         remote_path: str | None = None,
         topic: str | None = None,
         topic_prefix: str | None = None,
@@ -52,8 +51,6 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
         """Constructor.
 
         Args:
-            owner_node (DataModelNode | None):
-                Node which owns these properties.
             remote_path (str | None):
                 Compatibility alias for an explicit MQTT topic.
             topic (str | None):
@@ -69,7 +66,7 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
             retain (bool | None):
                 Per-node retain override.
         """
-        super().__init__(owner_node=owner_node, remote_path=remote_path)
+        super().__init__(remote_path=remote_path)
         if qos is not None and qos not in (0, 1, 2):
             raise ValueError("MQTT QoS must be 0, 1, or 2")
         if retain is not None and not isinstance(retain, bool):
@@ -82,12 +79,15 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
         self.retain = retain
 
     @override
-    def get_remote_path(self) -> str | None:
+    def get_remote_path(
+        self,
+        node: "DataModelNode | None" = None,
+    ) -> str | None:
         """Return the explicit or locally derivable MQTT subscription topic."""
         if self.has_explicit_subscribe_topic():
             return self.resolve_subscribe_topic()
-        if self.topic_prefix and self.owner_node:
-            return self.resolve_subscribe_topic()
+        if self.topic_prefix and node is not None:
+            return self.resolve_subscribe_topic(path=node.qualified_name)
         return None
 
     def has_explicit_subscribe_topic(self) -> bool:
@@ -129,10 +129,7 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
         default_topic_prefix: str | None,
     ) -> str:
         """Derive a topic from the node qualified name or provided path."""
-        if self.owner_node:
-            derived_path = self.owner_node.qualified_name
-        else:
-            derived_path = path
+        derived_path = path
         topic = _join_topic(
             self.topic_prefix
             if self.topic_prefix is not None
@@ -155,12 +152,9 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
         return MqttRemoteResourceSpec(topic_prefix=self.topic_prefix)
 
     @override
-    def clone_for_child(
-        self, child: "DataModelNode"
-    ) -> "MqttRemoteResourceSpec":
+    def clone_for_child(self) -> "MqttRemoteResourceSpec":
         """Create an MQTT spec for a child node."""
         return MqttRemoteResourceSpec(
-            owner_node=child,
             topic_prefix=self.topic_prefix,
         )
 

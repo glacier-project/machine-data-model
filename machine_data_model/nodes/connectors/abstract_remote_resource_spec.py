@@ -17,28 +17,15 @@ class AbstractRemoteResourceSpec(ABC):
 
     def __init__(
         self,
-        owner_node: "DataModelNode | None",
         remote_path: str | None = None,
     ):
         """Constructor.
 
         Args:
-            owner_node (DataModelNode | None):
-                Node which owns these properties.
             remote_path (str | None, optional):
                 Node's remote path.
         """
-        self.owner_node = owner_node
         self.remote_path = remote_path
-
-    def has_parent(self) -> bool:
-        """Returns whether this spec has a parent node defined.
-
-        Returns:
-            bool:
-                True if a parent node is defined, False otherwise.
-        """
-        return self.owner_node is not None
 
     def has_path(self) -> bool:
         """Returns whether this spec has a remote path defined.
@@ -62,26 +49,17 @@ class AbstractRemoteResourceSpec(ABC):
         """
         pass
 
-    def clone_for_child(
-        self, child: "DataModelNode"
-    ) -> "AbstractRemoteResourceSpec":
+    def clone_for_child(self) -> "AbstractRemoteResourceSpec":
         """Create a compatible spec for a child node.
 
         The default implementation uses the inheritable part of the current
-        spec and assigns it to the child. Protocols with parent-specific
-        references can override this method.
-
-        Args:
-            child (DataModelNode):
-                Child node which will own the cloned spec.
+        spec.
 
         Returns:
             AbstractRemoteResourceSpec:
                 New spec compatible with the current spec.
         """
-        spec = self.inheritable_spec()
-        spec.owner_node = child
-        return spec
+        return self.inheritable_spec()
 
     @abstractmethod
     def inherit_spec(self, parent: "AbstractRemoteResourceSpec") -> None:
@@ -94,8 +72,16 @@ class AbstractRemoteResourceSpec(ABC):
         pass
 
     @abstractmethod
-    def get_remote_path(self) -> str | None:
+    def get_remote_path(
+        self,
+        node: "DataModelNode | None" = None,
+    ) -> str | None:
         """Returns the remote path of this resource spec.
+
+        Args:
+            node:
+                Optional data model node context used by specs that derive a
+                path from the model hierarchy.
 
         Returns:
             str | None:

@@ -217,7 +217,7 @@ class DataModel:
                     parent_spec.inheritable_spec()
                 )
             else:
-                node.remote_resource_spec = parent_spec.clone_for_child(node)
+                node.remote_resource_spec = parent_spec.clone_for_child()
 
         for child in node:
             self._setup_child_inherited_specs(child, node)

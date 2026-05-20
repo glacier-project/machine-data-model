@@ -23,10 +23,8 @@ class TestMqttRemoteResourceSpec:
         node = root["Temperature"]
 
         assert isinstance(node.remote_resource_spec, MqttRemoteResourceSpec)
-        assert (
-            node.remote_resource_spec.resolve_subscribe_topic()
-            == "machines/boiler-1/Objects/Temperature"
-        )
+        assert node.remote_path == "machines/boiler-1/Objects/Temperature"
+        assert not hasattr(node.remote_resource_spec, "owner_node")
 
     def test_explicit_topic_overrides_derived_topic(self) -> None:
         spec = MqttRemoteResourceSpec(
