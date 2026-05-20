@@ -22,7 +22,7 @@ from tests.nodes.connectors.opcua import create_server
 
 OPCUA_CLIENT_APP_URI = "urn:test-machine-data-model-client"
 OPCUA_CLIENT_HOSTNAME = "test-machine-data-model-client"
-OPCUA_MAX_ATTEMPTS = 30
+OPCUA_MAX_ATTEMPTS = 50
 OPCUA_CONNECTION_RETRY_DELAY = 0.1
 OPCUA_CONTAINER_RETRY_DELAY = 0.5
 

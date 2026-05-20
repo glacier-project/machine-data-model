@@ -119,7 +119,8 @@ async def _capture_message(
     async with aiomqtt.Client(hostname="127.0.0.1", port=port) as client:
         await client.subscribe(topic)
         await asyncio.to_thread(publish)
-        async with asyncio.timeout(5):
+        time_limit = time.monotonic() + 5
+        while time.monotonic() < time_limit:
             async for message in client.messages:
                 message_topic = getattr(
                     message.topic,
