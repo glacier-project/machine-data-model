@@ -13,19 +13,13 @@ the arguments that are given to a subscription's callback.
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
-import logging
 import os
 from typing import Any, TypeVar
 import uuid
 
-from .abstract_remote_resource_spec import (
-    AbstractRemoteResourceSpec,
-)
+from .remote_resource import RemoteResource
 
-TaskReturnType = TypeVar("TaskReturnType")
-YamlEntryType = int | str | float
-
-_logger = logging.getLogger(__name__)
+ConnectorConfigValue = TypeVar("ConnectorConfigValue", int, str, float)
 
 
 @dataclass(frozen=True)
@@ -83,40 +77,34 @@ class AbstractConnector(ABC):
         ip_value = self._get_yaml_entry_or_env_var_value(
             "ip", str, ip, ip_env_var, env_var_overrides_yaml=True
         )
-        assert isinstance(ip_value, str | None), "ip must be a str or None"
-        self.ip: str | None = ip_value
+        self.ip = ip_value
 
         self.port_env_var: str | None = port_env_var
         port_value = self._get_yaml_entry_or_env_var_value(
             "port", int, port, port_env_var, env_var_overrides_yaml=True
         )
-        assert isinstance(port_value, int | None), "port must be a int or None"
         self.port = port_value
 
+        self.username_env_var: str | None = username_env_var
         username_value = self._get_yaml_entry_or_env_var_value(
             "username", str, username, username_env_var
         )
-        assert isinstance(
-            username_value, str | None
-        ), "username must be a str or None"
         self.username = username_value
 
+        self.password_env_var: str | None = password_env_var
         password_value = self._get_yaml_entry_or_env_var_value(
             "password", str, password, password_env_var
         )
-        assert isinstance(
-            password_value, str | None
-        ), "password must be a str or None"
         self.password = password_value
 
     def _get_yaml_entry_or_env_var_value(
         self,
         yaml_entry_name: str,
-        yaml_entry_type: type[YamlEntryType],
-        yaml_entry: YamlEntryType | None,
+        yaml_entry_type: type[ConnectorConfigValue],
+        yaml_entry: ConnectorConfigValue | None,
         env_var: str | None,
         env_var_overrides_yaml: bool = False,
-    ) -> YamlEntryType | None:
+    ) -> ConnectorConfigValue | None:
         """Returns the value of a yaml entry or an environment variable.
 
         Returns the content of the env_var environment variable when set,
@@ -192,39 +180,28 @@ class AbstractConnector(ABC):
         """
 
     @abstractmethod
-    def _get_remote_node(
-        self,
-        path: str | None = None,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
-    ) -> Any:
-        """Try to retrieve the node from the server.
+    def _get_remote_resource(self, resource: RemoteResource) -> Any:
+        """Resolve the protocol-specific object behind a remote resource.
 
-        The node's type depends on the library used to interact with the server.
+        The returned type depends on the connector implementation. It can be a
+        remote node, a topic, an address, or any other protocol handle.
 
         Args:
-            path (str | None):
-                Node's path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
+            resource:
+                Resolved remote resource reference.
 
         Returns:
             Any:
-                The node retrieved from the server.
+                The protocol-specific resource handle.
         """
 
     @abstractmethod
-    def read_node_value(
-        self,
-        path: str,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
-    ) -> Any:
+    def read_node_value(self, resource: RemoteResource) -> Any:
         """Retrieve and return a node's value.
 
         Args:
-            path:
-                Node's path.
-            remote_resource_spec:
-                Protocol-specific properties for remote nodes.
+            resource:
+                Resolved remote resource reference.
 
         Returns:
             Any:
@@ -234,19 +211,16 @@ class AbstractConnector(ABC):
     @abstractmethod
     def write_node_value(
         self,
-        path: str,
+        resource: RemoteResource,
         value: Any,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ) -> bool:
         """Write a variable node.
 
         Args:
-            path (str):
-                Node's path.
-            value (Any):
+            resource:
+                Resolved remote resource reference.
+            value:
                 New value to write.
-            remote_resource_spec:
-                Protocol-specific properties for remote nodes.
 
         Returns:
             bool:
@@ -256,31 +230,27 @@ class AbstractConnector(ABC):
     @abstractmethod
     def call_node_as_method(
         self,
-        path: str,
+        resource: RemoteResource,
         kwargs: dict[str, Any],
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
-    ) -> dict[str, Any]:
-        """Calls the method at path <path> with <kwargs> as its arguments.
+    ) -> Any:
+        """Call a remote method with ``kwargs`` as its arguments.
 
         Args:
-            path (str):
-                Node/method path.
-            kwargs (dict[str, Any]):
+            resource:
+                Resolved remote resource reference.
+            kwargs:
                 Method arguments expressed as key/name - value pairs.
-            remote_resource_spec:
-                Protocol-specific properties for remote nodes.
 
         Returns:
-            dict[str, Any]:
-                Dict of results in the form of name - value pairs.
+            Any:
+                Method's returned value.
         """
 
     @abstractmethod
     def subscribe_to_node_changes(
         self,
-        path: str,
+        resource: RemoteResource,
         callback: Callable[[Any, SubscriptionArguments], None],
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ) -> int:
         """Subscribes to remote node changes.
 
@@ -292,14 +262,12 @@ class AbstractConnector(ABC):
         Connector's protocol/implementation
 
         Args:
-            path (str):
-                Node's path.
-            callback (Callable[[Any, SubscriptionArguments], None]):
+            resource:
+                Resolved remote resource reference.
+            callback:
                 Subscription's callback. The first parameter is the new value,
                 while the second parameter is additional data that is protocol
                 dependent.
-            remote_resource_spec:
-                Protocol-specific properties for remote nodes.
 
         Returns:
             int:

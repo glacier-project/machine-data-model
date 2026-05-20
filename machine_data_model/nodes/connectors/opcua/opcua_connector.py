@@ -42,12 +42,19 @@ from typing_extensions import override
 
 from ..abstract_async_connector import AbstractAsyncConnector
 from ..abstract_connector import SubscriptionArguments
-from ..abstract_remote_resource_spec import (
-    AbstractRemoteResourceSpec,
-)
+from ..remote_resource import RemoteResource
 from .opcua_remote_resource_spec import OpcuaRemoteResourceSpec
 
 _logger = logging.getLogger(__name__)
+
+
+def _require_asyncua_node(value: Any) -> asyncua.Node:
+    """Return an asyncua node or fail with a clear connector error."""
+    if not isinstance(value, asyncua.Node):
+        raise TypeError(
+            f"Expected an asyncua.Node, but got {type(value).__name__}"
+        )
+    return value
 
 
 @dataclass(frozen=True)
@@ -391,36 +398,36 @@ class OpcuaConnector(AbstractAsyncConnector):
             _logger.error(f"Couldn't disconnect '{self.name}' connector")
             _logger.error(e)
             return False
+        finally:
+            self.client = None
 
         _logger.debug(f"Disconnected '{self.name}' connector")
         return True
 
+    def _opcua_spec(
+        self, resource: RemoteResource
+    ) -> OpcuaRemoteResourceSpec | None:
+        """Return the OPC UA spec or raise when another protocol is supplied."""
+        if resource.spec is not None and not isinstance(
+            resource.spec, OpcuaRemoteResourceSpec
+        ):
+            raise TypeError(
+                "resource.spec must be an OpcuaRemoteResourceSpec or None"
+            )
+        return resource.spec
+
     @override
-    async def _async_get_remote_node(
-        self,
-        path: str | None = None,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
-    ) -> asyncua.Node | None:
-        """Asynchronous function which returns the node from the OPC UA server.
-
-        Args:
-            path (str):
-                Node's path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
-
-        Returns:
-            asyncua.Node | None:
-                The node from the OPC UA server if it exists, None otherwise.
-        """
-        assert isinstance(
-            remote_resource_spec, OpcuaRemoteResourceSpec | None
-        ), "remote_resource_spec must be an OpcuaRemoteResourceSpec or None"
+    async def _async_get_remote_resource(
+        self, resource: RemoteResource
+    ) -> asyncua.Node:
+        """Resolve the OPC UA node for a remote resource."""
+        remote_resource_spec = self._opcua_spec(resource)
+        path = resource.path
 
         _logger.debug(f"Retrieving node '{path}' from OPC UA server")
 
         if self.client is None:
-            raise Exception(
+            raise RuntimeError(
                 f"Couldn't retrieve remote node '{path}' using '{self.name}' "
                 f"connector: the client is not connected"
             )
@@ -439,8 +446,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                         f"Retrieving node by node id "
                         f"'{remote_resource_spec.node_id}'"
                     )
-                    node = self.client.get_node(remote_resource_spec.node_id)
-                    assert isinstance(node, asyncua.Node), "node must be a Node"
+                    node = _require_asyncua_node(
+                        self.client.get_node(remote_resource_spec.node_id)
+                    )
                     remote_resource_spec.remote_node = node
                     return node
 
@@ -450,22 +458,21 @@ class OpcuaConnector(AbstractAsyncConnector):
                         if remote_resource_spec.remote_path is not None
                         else ""
                     )
-            if not path or path == "":
+            if not path:
                 if remote_resource_spec is not None:
                     computed_path = remote_resource_spec.get_remote_path()
                     if computed_path:
                         path = computed_path
 
-                if not path or path == "":
+                if not path:
                     raise ValueError(
                         f"Couldn't retrieve node '{path}': empty path"
                     )
-            _logger.debug(
-                f"Retrieving node '{path}' by remote path " f"'{path}'"
-            )
+            _logger.debug(f"Retrieving node '{path}' by remote path '{path}'")
             split_path = [p for p in path.split("/") if p]
-            node = await self.client.get_root_node().get_child(split_path)
-            assert isinstance(node, asyncua.Node), "node must be a Node"
+            node = _require_asyncua_node(
+                await self.client.get_root_node().get_child(split_path)
+            )
             if remote_resource_spec is not None:
                 remote_resource_spec.remote_node = node
                 if not remote_resource_spec.has_node_id():
@@ -479,45 +486,22 @@ class OpcuaConnector(AbstractAsyncConnector):
             f" using the '{self.name}' " f"connector: the node doesn't exist",
         )
 
+    async def _remote_node(self, resource: RemoteResource) -> asyncua.Node:
+        """Resolve a resource and fail clearly when the node does not exist."""
+        return await self._async_get_remote_resource(resource)
+
     @override
-    async def _async_read_node_value(
-        self, path: str, remote_resource_spec: AbstractRemoteResourceSpec | None
-    ) -> Any:
-        """Asynchronously reads the node's value from the server.
-
-        Args:
-            path (str):
-                Node's path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
-
-        Returns:
-            Any:
-                Value read from the server.
-        """
-        assert isinstance(
-            remote_resource_spec, OpcuaRemoteResourceSpec | None
-        ), "remote_resource_spec must be an OpcuaRemoteResourceSpec or None"
-
+    async def _async_read_node_value(self, resource: RemoteResource) -> Any:
+        """Asynchronously read the node's value from the server."""
+        path = resource.path
         if self.client is None:
-            raise Exception(
-                f"Couldn't call remote method '{path}' using '{self.name}' "
+            raise RuntimeError(
+                f"Couldn't read remote node '{path}' using '{self.name}' "
                 f"connector: the client is not connected"
             )
 
-        node = None
         _logger.debug(f"Reading node '{path}'")
-        if remote_resource_spec is not None and (
-            remote_resource_spec.has_remote_node()
-        ):
-            node = remote_resource_spec.remote_node
-        else:
-            node = await self._async_get_remote_node(path, remote_resource_spec)
-        if node is None:
-            raise ValueError(
-                f"Couldn't read value of '{path}' using the '{self.name}' "
-                f"connector: the node does not exist"
-            )
+        node = await self._remote_node(resource)
         try:
             value = await node.get_value()
         except UaError as exp:
@@ -531,49 +515,19 @@ class OpcuaConnector(AbstractAsyncConnector):
     @override
     async def _async_write_node_value(
         self,
-        path: str,
+        resource: RemoteResource,
         value: Any,
-        remote_resource_spec: AbstractRemoteResourceSpec | None,
     ) -> bool:
-        """Function which asynchronously writes the value to the OPC UA server.
-
-        Args:
-            path (str):
-                Node's path.
-            value (Any):
-                Value to write to the server.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
-
-        Returns:
-            bool:
-                True if the value was written successfully.
-        """
-        assert isinstance(
-            remote_resource_spec, OpcuaRemoteResourceSpec | None
-        ), "remote_resource_spec must be an OpcuaRemoteResourceSpec or None"
-
+        """Asynchronously write the value to the OPC UA server."""
+        path = resource.path
         if self.client is None:
-            raise Exception(
-                f"Couldn't call remote method '{path}' using '{self.name}' "
+            raise RuntimeError(
+                f"Couldn't write remote node '{path}' using '{self.name}' "
                 f"connector: the client is not connected"
             )
 
         _logger.debug(f"Writing node '{path}' with value: {value}")
-
-        node = None
-        if (
-            remote_resource_spec is not None
-            and remote_resource_spec.has_remote_node()
-        ):
-            node = remote_resource_spec.remote_node
-        else:
-            node = await self._async_get_remote_node(path, remote_resource_spec)
-        if node is None:
-            raise ValueError(
-                f"Couldn't read value of '{path}' using the '{self.name}' "
-                f"connector: the node does not exist"
-            )
+        node = await self._remote_node(resource)
 
         success = True
         try:
@@ -586,7 +540,6 @@ class OpcuaConnector(AbstractAsyncConnector):
             )
             await node.write_value(value, current_value_type)
 
-            # Verify the write by reading back the value
             written_value = await node.get_value()
             if written_value != value:
                 _logger.error(
@@ -608,60 +561,32 @@ class OpcuaConnector(AbstractAsyncConnector):
     @override
     async def _async_call_node_as_method(
         self,
-        path: str,
+        resource: RemoteResource,
         kwargs: dict[str, Any],
-        remote_resource_spec: AbstractRemoteResourceSpec | None,
     ) -> Any:
-        """Asynchronously calls a method on the OPC UA server.
-
-        Args:
-            path (str):
-                Node/method path.
-            kwargs (dict[str, Any]):
-                Method arguments expressed as key/name - value pairs.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
-
-        Returns:
-            Any:
-                Method's returned value.
-        """
-        assert isinstance(
-            remote_resource_spec, OpcuaRemoteResourceSpec | None
-        ), "remote_resource_spec must be an OpcuaRemoteResourceSpec or None"
-
+        """Asynchronously call a method on the OPC UA server."""
+        remote_resource_spec = self._opcua_spec(resource)
+        path = resource.path
         _logger.debug(
             f"Calling remote method '{path}', with the following parameters: "
             f"{kwargs}"
         )
         if self.client is None:
-            raise Exception(
+            raise RuntimeError(
                 f"Couldn't call remote method '{path}' using '{self.name}' "
                 f"connector: the client is not connected"
             )
 
-        node = None
-        if (
-            remote_resource_spec is not None
-            and remote_resource_spec.has_remote_node()
-        ):
-            node = remote_resource_spec.remote_node
-        else:
-            node = await self._async_get_remote_node(path, remote_resource_spec)
-        if node is None:
-            raise ValueError(
-                f"Couldn't call remote method '{path}' using '{self.name}' "
-                f"connector: the node doesn't exist"
-            )
+        node = await self._remote_node(resource)
 
-        # check if the node has inputs
         method_inputs = await get_input_arguments(node)
         inputs = []
         if method_inputs is not None:
-            inputs = (
-                await method_inputs.read_value()
-            )  # returns a list of Argument-Class
-            assert isinstance(inputs, list), "inputs must be a list"
+            inputs = await method_inputs.read_value()
+            if not isinstance(inputs, list):
+                raise TypeError(
+                    f"Input arguments for method '{path}' must be a list"
+                )
 
         params = []
         kwargs_list = list(kwargs.items())
@@ -671,7 +596,6 @@ class OpcuaConnector(AbstractAsyncConnector):
             identifier = dt.Identifier
             variant_type = VariantType(identifier)
 
-            # Get the value from kwargs by position or default to None
             if i < len(kwargs_list):
                 param_name, value = kwargs_list[i]
                 if value is not None:
@@ -696,24 +620,19 @@ class OpcuaConnector(AbstractAsyncConnector):
         try:
             _logger.debug(f"Calling '{path}' using the parent node. ")
             if (
-                isinstance(remote_resource_spec, OpcuaRemoteResourceSpec)
+                remote_resource_spec is not None
                 and remote_resource_spec.has_parent_node_id()
             ):
                 _logger.debug(
                     f"Using parent node id"
                     f"{remote_resource_spec.parent_node_id}"
                 )
-                temp = OpcuaRemoteResourceSpec(
-                    node_id=remote_resource_spec.parent_node_id,
-                )
-                parent = await self._async_get_remote_node("", temp)
-                assert isinstance(parent, asyncua.Node), (
-                    "parent must be a Node,",
-                    " {await node.get_parent().nodeid}",
+                parent = self.client.get_node(
+                    remote_resource_spec.parent_node_id
                 )
             else:
                 parent = await node.get_parent()
-            assert isinstance(parent, asyncua.Node), "parent must be a Node"
+            parent = _require_asyncua_node(parent)
             result = await parent.call_method(node.nodeid, *params)
         except UaError as exp:
             _logger.error(
@@ -729,57 +648,27 @@ class OpcuaConnector(AbstractAsyncConnector):
     @override
     async def _async_subscribe_to_node_changes(
         self,
-        path: str,
-        remote_resource_spec: AbstractRemoteResourceSpec | None,
+        resource: RemoteResource,
         callback: Callable[[Any, OpcuaSubscriptionArguments], None],
     ) -> int:
-        """Asynchronously subscribes to changes of the node at path <path>.
-
-        Args:
-            path (str):
-                Node path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
-            callback (Callable[[Any, SubscriptionArguments], None]):
-                Subscription's callback. The first parameter is the new value,
-                while the second parameter is additional data that is protocol
-                dependent.
-
-        Returns:
-            int:
-                Handler code which can be used to unsubscribe from new events.
-        """
-        assert isinstance(
-            remote_resource_spec, OpcuaRemoteResourceSpec | None
-        ), "remote_resource_spec must be an OpcuaRemoteResourceSpec or None"
+        """Asynchronously subscribe to changes of the remote node."""
+        path = resource.path
+        self._opcua_spec(resource)
 
         _logger.debug(f"Subscribing to remote node '{path}'")
         if self.client is None:
-            raise Exception(
+            raise RuntimeError(
                 f"Couldn't subscribe to '{path}': Client is not running inside "
                 f"the '{self.name}' connector"
             )
 
         handler = OpcUaDataChangeHandler(callback)
         subscription = await self.client.create_subscription(1, handler)
-
-        node = None
-        if (
-            remote_resource_spec is not None
-            and remote_resource_spec.has_remote_node()
-        ):
-            node = remote_resource_spec.remote_node
-        else:
-            node = await self._async_get_remote_node(path, remote_resource_spec)
-
-        if node is None:
-            raise Exception(
-                f"Couldn't subscribe to unexisting node '{path}' using the "
-                f"'{self.name}' connector"
-            )
+        node = await self._remote_node(resource)
 
         res = await subscription.subscribe_data_change(node)
-        assert isinstance(res, int), "subscription handler must be a int"
+        if not isinstance(res, int):
+            raise TypeError("subscription handler must be an int")
         _logger.debug(
             f"Subscribed to remote node '{path}'. "
             f"Subscription handler code: {res}"

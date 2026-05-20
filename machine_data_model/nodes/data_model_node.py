@@ -13,13 +13,13 @@ import weakref
 from .connectors.abstract_remote_resource_spec import (
     AbstractRemoteResourceSpec,
 )
+from .connectors.remote_resource import RemoteResource
 
 if TYPE_CHECKING:
-    from nodes.connectors.abstract_connector import (
+    from machine_data_model.data_model import DataModel
+    from machine_data_model.nodes.connectors.abstract_connector import (
         AbstractConnector,
     )
-
-    from machine_data_model.data_model import DataModel
 
 
 class DataModelNode(ABC):
@@ -101,7 +101,8 @@ class DataModelNode(ABC):
             remote_resource_spec
         )
         if self._remote_resource_spec is not None:
-            self._remote_resource_spec.parent = self
+            self._remote_resource_spec.owner_node = self
+        self._remote_resource: RemoteResource | None = None
 
     @property
     def id(self) -> str:
@@ -187,6 +188,9 @@ class DataModelNode(ABC):
                 The remote resource spec to set.
         """
         self._remote_resource_spec = value
+        if self._remote_resource_spec is not None:
+            self._remote_resource_spec.owner_node = self
+        self._remote_resource = None
 
     def set_connector_name(self, value: str | None) -> None:
         """Sets the connector name."""
@@ -245,6 +249,7 @@ class DataModelNode(ABC):
     def set_remote_path(self, remote_path: str | None) -> None:
         """Sets the remote path used by the connector."""
         self._remote_path = remote_path
+        self._remote_resource = None
 
     @property
     def remote_path(self) -> str | None:
@@ -260,6 +265,23 @@ class DataModelNode(ABC):
             return self._remote_resource_spec.get_remote_path()
 
         return None
+
+    @property
+    def remote_resource(self) -> RemoteResource:
+        """Return the resolved remote resource for this node.
+
+        DataModel setup configures this once after inherited specs, remote path,
+        and connector inheritance have been resolved. The lazy fallback keeps
+        manually wired nodes usable in tests and direct integrations.
+        """
+        if self._remote_resource is None:
+            return self.configure_remote_resource()
+        return self._remote_resource
+
+    def configure_remote_resource(self) -> RemoteResource:
+        """Resolve and store the connector-facing remote resource."""
+        self._remote_resource = RemoteResource.from_node(self)
+        return self._remote_resource
 
     @property
     def data_model(self) -> "DataModel | None":

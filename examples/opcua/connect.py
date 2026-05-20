@@ -18,6 +18,7 @@ from machine_data_model.nodes.connectors.abstract_connector import (
     AbstractConnector,
     SubscriptionArguments,
 )
+from machine_data_model.nodes.connectors.remote_resource import RemoteResource
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
     DataChangeSubscription,
@@ -70,12 +71,13 @@ def read_and_write_variable_node_using_connector(
     connector: AbstractConnector, node_path: str
 ):
     """Uses the connector to read and write the variable."""
+    resource = RemoteResource(node_path)
     print(f"Reading node '{node_path}'...")
-    current_value = connector.read_node_value(node_path)
+    current_value = connector.read_node_value(resource)
     print("current value:", current_value)
-    connector.write_node_value(node_path, current_value + 10)
+    connector.write_node_value(resource, current_value + 10)
     print("wrote the previous value + 10")
-    new_value = connector.read_node_value(node_path)
+    new_value = connector.read_node_value(resource)
     print(f"Read node '{node_path}' again, its current value is:", new_value)
 
 
@@ -147,7 +149,9 @@ def subscribe_to_variable_node_using_connector(
     connector: AbstractConnector, node_path: str
 ):
     """Subscribe to node changes using the connector."""
-    connector.subscribe_to_node_changes(node_path, my_remote_callback)
+    connector.subscribe_to_node_changes(
+        RemoteResource(node_path), my_remote_callback
+    )
 
 
 def main() -> None:

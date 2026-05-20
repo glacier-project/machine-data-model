@@ -385,19 +385,10 @@ class MethodNode(DataModelNode):
 
         self._pre_call(**kwargs)
         if self.is_remote():
-            assert isinstance(
-                self.connector, AbstractConnector
-            ), "connector must be an AbstractConnector"
-            assert (
-                self.remote_path is not None
-                or self.remote_resource_spec is not None
-            ), "remote_path must be set for a remote node"
-            # Use empty string as fallback since remote_resource_spec can
-            # provide the path
-            path = self.remote_path if self.remote_path is not None else ""
-            ret_c = self.connector.call_node_as_method(
-                path, kwargs, self._remote_resource_spec
-            )
+            connector = self.connector
+            if not isinstance(connector, AbstractConnector):
+                raise RuntimeError("Remote methods must have a valid connector")
+            ret_c = connector.call_node_as_method(self.remote_resource, kwargs)
         else:
             ret_c = self._callback(**kwargs)
         ret = self._build_return_dict(ret_c)
