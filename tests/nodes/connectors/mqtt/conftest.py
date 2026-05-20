@@ -9,7 +9,7 @@ import docker
 from docker.models.containers import Container
 import pytest
 
-MQTT_MAX_ATTEMPTS = 30
+MQTT_MAX_ATTEMPTS = 50
 MQTT_CONNECTION_RETRY_DELAY = 0.1
 
 
