@@ -23,6 +23,10 @@ from machine_data_model.builder.data_model_builder import (
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.connectors.mqtt import (
+    MqttConnector,
+    MqttRemoteResourceSpec,
+)
 from machine_data_model.nodes.connectors.opcua.opcua_connector import (
     OpcuaConnector,
     OpcuaRemoteResourceSpec,
@@ -670,3 +674,72 @@ class TestDataModelBuilder:
         assert node.node_id == "i=12345"
         assert node.namespace == "2"
         assert node.parent_node_id == "ns=6;s=Methods"
+
+    def test_build_mqtt_connector_minimal(self) -> None:
+        yaml_content = """
+            !!MqttConnector
+            name: "mqtt_broker"
+        """
+
+        node = yaml.safe_load(yaml_content)
+
+        assert isinstance(node, MqttConnector)
+        assert node.name == "mqtt_broker"
+        assert node.ip == "127.0.0.1"
+        assert node.port == 1883
+        assert node.qos == 0
+        assert not node.retain
+
+    def test_build_mqtt_connector_full(self) -> None:
+        yaml_content = """
+            !!MqttConnector
+            name: "mqtt_broker"
+            ip: "192.168.1.10"
+            port: 1884
+            username: "user"
+            password: "pass"
+            client_id: "machine-data-model"
+            topic_prefix: "machines/boiler-1"
+            keepalive: 30
+            qos: 1
+            retain: true
+            payload_codec: "json"
+        """
+
+        node = yaml.safe_load(yaml_content)
+
+        assert isinstance(node, MqttConnector)
+        assert node.name == "mqtt_broker"
+        assert node.ip == "192.168.1.10"
+        assert node.port == 1884
+        assert node.username == "user"
+        assert node.password == "pass"
+        assert node.client_id == "machine-data-model"
+        assert node.topic_prefix == "machines/boiler-1"
+        assert node.keepalive == 30
+        assert node.qos == 1
+        assert node.retain
+        assert node.payload_codec == "json"
+
+    def test_build_mqtt_remote_resource_spec_full(self) -> None:
+        yaml_content = """
+            !!MqttRemoteResourceSpec
+            remote_path: "legacy/topic"
+            topic: "plant/line-1/temp"
+            topic_prefix: "machines/boiler-1"
+            subscribe_topic: "plant/line-1/temp/state"
+            publish_topic: "plant/line-1/temp/set"
+            qos: 2
+            retain: true
+        """
+
+        node = yaml.safe_load(yaml_content)
+
+        assert isinstance(node, MqttRemoteResourceSpec)
+        assert node.remote_path == "legacy/topic"
+        assert node.topic == "plant/line-1/temp"
+        assert node.topic_prefix == "machines/boiler-1"
+        assert node.subscribe_topic == "plant/line-1/temp/state"
+        assert node.publish_topic == "plant/line-1/temp/set"
+        assert node.qos == 2
+        assert node.retain
