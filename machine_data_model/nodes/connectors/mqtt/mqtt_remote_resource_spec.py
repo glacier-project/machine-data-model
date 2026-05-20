@@ -178,7 +178,7 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
             "retain": self.retain,
         }
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             "MqttRemoteResourceSpec("
             f"remote_path={self.remote_path!r}, "
@@ -191,5 +191,5 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
             ")"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return self.__str__()

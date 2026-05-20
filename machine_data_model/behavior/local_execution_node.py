@@ -143,6 +143,7 @@ class LocalExecutionNode(ControlFlowNode):
         assert x is not None, f"Invalid node path: {node_path}"
         return x
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -201,6 +202,7 @@ class ReadVariableNode(LocalExecutionNode):
         super().__init__(node=variable_node, successors=successors)
         self.store_as = store_as
 
+    # pyrefly: ignore[missing-override-decorator]
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the read operation of the variable in the machine data model.
 
@@ -235,6 +237,7 @@ class ReadVariableNode(LocalExecutionNode):
         context.set_value(name, value)
         return execution_success()
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -303,6 +306,7 @@ class WriteVariableNode(LocalExecutionNode):
         """
         return self._value
 
+    # pyrefly: ignore[missing-override-decorator]
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Write the value to the variable in the machine data model.
 
@@ -334,6 +338,7 @@ class WriteVariableNode(LocalExecutionNode):
         ref_variable.write(value)
         return execution_success()
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -419,6 +424,7 @@ class CallMethodNode(LocalExecutionNode):
         """
         return self._kwargs
 
+    # pyrefly: ignore[missing-override-decorator]
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the call operation of the method in the machine data model.
 
@@ -517,6 +523,7 @@ class CallMethodNode(LocalExecutionNode):
         context.set_all_values(**res.return_values)
         return execution_success(list(res.messages or []))
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -649,6 +656,7 @@ class WaitConditionNode(LocalExecutionNode):
         """
         return self._op
 
+    # pyrefly: ignore[missing-override-decorator]
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the wait condition in the control flow graph.
 
@@ -780,6 +788,7 @@ class WaitConditionNode(LocalExecutionNode):
         # Return the outcome.
         return outcome
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

@@ -200,7 +200,7 @@ class FrostHeader:
             and (_msg_name is None or self.msg_name == _msg_name)
         )
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         """Returns a string representation of the FrostHeader.
 
         The format will be:
@@ -220,7 +220,7 @@ class FrostHeader:
             f"Timestamp: {self.timestamp_ns} ns"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         """Returns an official string representation of the FrostHeader.
 
         The format will be:

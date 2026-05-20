@@ -219,6 +219,7 @@ class MethodNode(DataModelNode):
         return_value.parent = None
 
     @property
+    # pyrefly: ignore[implicit-any-type-argument]
     def callback(self) -> Callable:
         """Gets the callback function for the method.
 
@@ -230,6 +231,7 @@ class MethodNode(DataModelNode):
         return self._callback
 
     @callback.setter
+    # pyrefly: ignore[implicit-any-type-argument]
     def callback(self, call: Callable) -> None:
         """Sets the callback function for the method.
 
@@ -241,6 +243,7 @@ class MethodNode(DataModelNode):
         self._callback = call
 
     @property
+    # pyrefly: ignore[implicit-any-type-argument]
     def pre_callback(self) -> Callable:
         """Gets the pre-call function for the method.
 
@@ -252,6 +255,7 @@ class MethodNode(DataModelNode):
         return self._pre_call
 
     @pre_callback.setter
+    # pyrefly: ignore[implicit-any-type-argument]
     def pre_callback(self, pre_call: Callable) -> None:
         """Sets the pre-call function for the method.
 
@@ -263,6 +267,7 @@ class MethodNode(DataModelNode):
         self._pre_call = pre_call
 
     @property
+    # pyrefly: ignore[implicit-any-type-argument]
     def post_callback(self) -> Callable:
         """Gets the post-call function for the method.
 
@@ -274,6 +279,7 @@ class MethodNode(DataModelNode):
         return self._post_call
 
     @post_callback.setter
+    # pyrefly: ignore[implicit-any-type-argument]
     def post_callback(self, callback: Callable) -> None:
         """Sets the post-call function for the method.
 
@@ -295,6 +301,7 @@ class MethodNode(DataModelNode):
         return False
 
     @override
+    # pyrefly: ignore[bad-override-param-name]
     def __getitem__(self, node_name: str) -> VariableNode:
         """Get a parameter or return value of the method by name.
 
@@ -323,6 +330,7 @@ class MethodNode(DataModelNode):
         )
 
     @override
+    # pyrefly: ignore[bad-override-param-name]
     def __contains__(self, node_name: str) -> bool:
         """Check if the method has the specified parameter or return value.
 
@@ -450,16 +458,17 @@ class MethodNode(DataModelNode):
                 the return values.
 
         """
-        ret_dict = {}
+        ret_dict = {}  # pyrefly: ignore[implicit-any-empty-container]
         assert not isinstance(ret, Mapping), "Return value cannot be a mapping."
         f" Received {ret} of type {type(ret)}."
+        # pyrefly: ignore[implicit-any-type-argument]
         ret = ret if isinstance(ret, list | tuple) else (ret,)
         for index, return_value in enumerate(ret):
             ret_dict[self._returns[index].name] = return_value
         assert len(ret_dict) == len(self._returns), f"{ret_dict}"
         return ret_dict
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         """Returns a string representation of the MethodNode.
 
         Returns:
@@ -474,7 +483,7 @@ class MethodNode(DataModelNode):
             f"description={self.description})"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         """Returns a string representation of the MethodNode.
 
         Returns:
@@ -484,6 +493,7 @@ class MethodNode(DataModelNode):
         """
         return self.__str__()
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True
@@ -553,7 +563,7 @@ class AsyncMethodNode(MethodNode):
             remote_resource_spec=remote_resource_spec,
         )
 
-    def is_async(self) -> bool:
+    def is_async(self) -> bool:  # pyrefly: ignore[missing-override-decorator]
         """Returns always True for asynchronous methods.
 
         Returns:
@@ -563,7 +573,7 @@ class AsyncMethodNode(MethodNode):
         """
         return True
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             f"AsyncMethodNode(id={self.id}, "
             f"name={self.name}, "

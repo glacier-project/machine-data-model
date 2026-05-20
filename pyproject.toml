@@ -21,7 +21,7 @@ dev = [
     "radon>=6.0.1,<7",
     "lizard>=1.17.13,<2",
     "pre-commit>=4.0.1,<5",
-    "mypy>=1.13.0,<2",
+    "pyrefly>=1.0.0,<2",
     "ruff>=0.8.3,<0.9",
     "tox>=4.23.2,<5",
     "tox-uv>=1.13,<2",
@@ -93,3 +93,35 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.pyrefly]
+project-includes = ["machine_data_model", "tests"]
+python-version   = "3.11"
+preset           = "strict"
+
+# Match mypy's check_untyped_defs = true + warn_return_any = true behavior
+check-unannotated-defs = true
+infer-return-types     = "never"   # mypy treats untyped returns as Any
+
+[tool.pyrefly.errors]
+# Direct mypy → pyrefly parallels
+redundant-cast        = "error"  # mypy: warn_redundant_casts
+unused-ignore         = "error"  # mypy: warn_unused_ignores
+implicit-any          = true     # mypy: warn_return_any + disallow_untyped_defs (returns/locals)
+unannotated-parameter = "error"  # mypy: disallow_incomplete_defs + disallow_untyped_defs (params)
+bad-override          = "error"  # part of strict preset; called out explicitly
+
+# Translations of mypy's disable_error_code = annotation-unchecked,import-not-found,import-untyped
+missing-import = false   # mypy: import-not-found
+untyped-import = false   # mypy: import-untyped
+# annotation-unchecked has no pyrefly counterpart — see "Known gaps" below.
+
+# Known gaps from mypy.ini that have no direct pyrefly equivalent (2026-05-20):
+#   local_partial_types          — pyrefly handles partial types differently
+#   warn_incomplete_stub         — no per-stub completeness check
+#   warn_unused_configs          — no config-level usage tracking
+#   enable_error_code: ignore-without-code, redundant-self, truthy-iterable
+#   disallow_subclassing_any     — no equivalent
+#   disallow_untyped_decorators  — no equivalent
+#   warn_unreachable             — no dedicated unreachable check
+# Re-evaluate as pyrefly evolves; mirror gaps in the audit handoff doc.

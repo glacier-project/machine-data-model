@@ -25,21 +25,23 @@ class NullRemoteConnector(AbstractConnector):
         self.write_resources: list[RemoteResource] = []
         self.subscription_resources: list[RemoteResource] = []
 
-    def connect(self) -> bool:
+    def connect(self) -> bool:  # pyrefly: ignore[missing-override-decorator]
         return True
 
-    def disconnect(self) -> bool:
+    def disconnect(self) -> bool:  # pyrefly: ignore[missing-override-decorator]
         self.disconnect_calls += 1
         return True
 
+    # pyrefly: ignore[missing-override-decorator]
     def _get_remote_resource(self, resource: RemoteResource) -> Any:
         return resource.path
 
+    # pyrefly: ignore[missing-override-decorator]
     def read_node_value(self, resource: RemoteResource) -> Any:
         self.read_resources.append(resource)
         return None
 
-    def write_node_value(
+    def write_node_value(  # pyrefly: ignore[missing-override-decorator]
         self,
         resource: RemoteResource,
         value: Any,
@@ -47,13 +49,14 @@ class NullRemoteConnector(AbstractConnector):
         self.write_resources.append(resource)
         return True
 
-    def call_node_as_method(
+    def call_node_as_method(  # pyrefly: ignore[missing-override-decorator]
         self,
         resource: RemoteResource,
         kwargs: dict[str, Any],
     ) -> Any:
-        return {}
+        return {}  # pyrefly: ignore[implicit-any-empty-container]
 
+    # pyrefly: ignore[missing-override-decorator]
     def subscribe_to_node_changes(
         self,
         resource: RemoteResource,
@@ -67,6 +70,7 @@ class NullRemoteConnector(AbstractConnector):
 
 
 class FailingSubscriptionConnector(NullRemoteConnector):
+    # pyrefly: ignore[missing-override-decorator]
     def subscribe_to_node_changes(
         self,
         resource: RemoteResource,

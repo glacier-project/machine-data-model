@@ -372,7 +372,7 @@ class ExecutionContext:
         """
         return self._context_id
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         """Return a string representation of the ExecutionContext.
 
         Returns:

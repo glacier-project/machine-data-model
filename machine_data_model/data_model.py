@@ -76,6 +76,7 @@ class DataModel:
             )
         )
         self._closed = False
+        # pyrefly: ignore[implicit-any-type-argument]
         self._connector_finalizer: weakref.finalize | None = None
 
         self._connectors: dict[str, AbstractConnector] = (
@@ -677,7 +678,7 @@ class DataModel:
                 )
                 _logger.error(exp)
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             f"DataModel(name={self._name}, "
             f"machine_category={self._machine_category}, "
@@ -688,9 +689,10 @@ class DataModel:
             f"connectors={self._connectors})"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return self.__str__()
 
+    # pyrefly: ignore[missing-override-decorator]
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

@@ -95,6 +95,7 @@ class FrostProtocolMng(ProtocolMng):
             else FROST_PROTOCOL_VERSION
         )
 
+        # pyrefly: ignore[bad-override-mutable-attribute]
         self._message_builder: FrostMessageBuilder = FrostMessageBuilder(
             sender=self._data_model.name,
             protocol_version=self._protocol_version,
@@ -282,7 +283,7 @@ class FrostProtocolMng(ProtocolMng):
         """
         return self._update_messages
 
-    def resume_composite_method(
+    def resume_composite_method(  # pyrefly: ignore[missing-override-decorator]
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
         """Resume the execution of a composite method.
@@ -662,6 +663,7 @@ class FrostProtocolMng(ProtocolMng):
             msg,
         )
 
+    # pyrefly: ignore[missing-override-decorator]
     def _update_variable_callback(
         self,
         subscription: VariableSubscription,

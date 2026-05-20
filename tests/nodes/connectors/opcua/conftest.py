@@ -44,6 +44,7 @@ def start_opcua_test_server() -> Generator[tuple[Container, int], Any, None]:
 
     # retrieve randomly generated port
     container.reload()
+    # pyrefly: ignore[unsupported-operation]
     container_host_port = container.ports.get(container_guest_port)[0][
         "HostPort"
     ]

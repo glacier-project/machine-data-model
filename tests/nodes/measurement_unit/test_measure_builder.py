@@ -31,6 +31,7 @@ class TestMeasureBuilder:
         measure_value = measure_builder.create_measure(value, unit)
 
         # Assert
+        # pyrefly: ignore[missing-attribute]
         assert measure_value.base_value == value
         assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))  # type: ignore[attr-defined]
 
@@ -51,5 +52,6 @@ class TestMeasureBuilder:
         measure_value = measure_builder.create_measure(value, unit)
 
         # Assert
+        # pyrefly: ignore[missing-attribute]
         assert measure_value.base_value == value
         assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))  # type: ignore[attr-defined]

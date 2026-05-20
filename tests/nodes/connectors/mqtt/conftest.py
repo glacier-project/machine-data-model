@@ -37,6 +37,7 @@ def start_mqtt_test_broker(
     )
 
     container.reload()
+    # pyrefly: ignore[unsupported-operation]
     container_host_port = container.ports.get(container_guest_port)[0][
         "HostPort"
     ]

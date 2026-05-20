@@ -345,8 +345,9 @@ class TestFrostProtocolMng:
         method_node = MethodNode(
             name=method_name, description="A test method", callback=callback
         )
+        # pyrefly: ignore[bad-instantiation]
         input_param = type(node)(name="in_var", description="A test parameter")
-        output_param = type(node)(
+        output_param = type(node)(  # pyrefly: ignore[bad-instantiation]
             name="out_var", description="A test return value"
         )
 

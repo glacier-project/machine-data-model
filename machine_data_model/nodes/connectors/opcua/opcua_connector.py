@@ -218,6 +218,7 @@ class OpcuaConnector(AbstractAsyncConnector):
             else self.get_default_certificate_file_path()
         )
 
+        # pyrefly: ignore[implicit-any-type-argument]
         if not isinstance(trust_store_certificates_paths, list | None):
             raise TypeError(
                 f"Connector '{name}': trust_store_certificates_paths, when "
@@ -439,6 +440,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                     _logger.debug(
                         f"Using already retrieved remote node for '{path}'"
                     )
+                    # pyrefly: ignore[bad-return]
                     return remote_resource_spec.remote_node
 
                 if remote_resource_spec.has_node_id():
@@ -447,6 +449,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                         f"'{remote_resource_spec.node_id}'"
                     )
                     node = _require_asyncua_node(
+                        # pyrefly: ignore[bad-argument-type]
                         self.client.get_node(remote_resource_spec.node_id)
                     )
                     remote_resource_spec.remote_node = node
@@ -534,6 +537,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         success = True
         try:
             current_value = await node.read_data_value()
+            # pyrefly: ignore[missing-attribute]
             current_value_type = current_value.Value.VariantType
             _logger.debug(
                 f"Overriding node '{path}', which previously had value "
@@ -582,7 +586,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         node = await self._remote_node(resource)
 
         method_inputs = await get_input_arguments(node)
-        inputs = []
+        inputs = []  # pyrefly: ignore[implicit-any-empty-container]
         if method_inputs is not None:
             inputs = await method_inputs.read_value()
             if not isinstance(inputs, list):
@@ -630,6 +634,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                     f"{remote_resource_spec.parent_node_id}"
                 )
                 parent = self.client.get_node(
+                    # pyrefly: ignore[bad-argument-type]
                     remote_resource_spec.parent_node_id
                 )
             else:
@@ -693,7 +698,7 @@ class OpcuaConnector(AbstractAsyncConnector):
             "certificate_file_path": str(self.certificate_file_path),
         }
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             "OpcuaConnector("
             f"name={self.name!r}, "
@@ -708,7 +713,7 @@ class OpcuaConnector(AbstractAsyncConnector):
             ")"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return self.__str__()
 
 
@@ -726,7 +731,7 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
         """
         self._callback = callback
 
-    def datachange_notification(
+    def datachange_notification(  # pyrefly: ignore[missing-override-decorator]
         self, node: asyncua.Node, val: Any, data: DataChangeNotif
     ) -> None:
         """Called for every datachange notification from server.

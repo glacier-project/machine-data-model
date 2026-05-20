@@ -358,7 +358,7 @@ class MqttConnector(AbstractAsyncConnector):
             messages = messages()
 
         try:
-            async for message in messages:
+            async for message in messages:  # pyrefly: ignore[not-iterable]
                 self._handle_message(message)
         except asyncio.CancelledError:
             raise
@@ -616,7 +616,7 @@ class MqttConnector(AbstractAsyncConnector):
         )
         return data
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return (
             "MqttConnector("
             f"name={self.name!r}, "
@@ -632,5 +632,5 @@ class MqttConnector(AbstractAsyncConnector):
             ")"
         )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
         return self.__str__()
