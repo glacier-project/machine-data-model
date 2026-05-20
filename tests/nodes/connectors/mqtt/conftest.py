@@ -56,8 +56,10 @@ def _write_mosquitto_config(config_dir: Path) -> Path:
 
 
 def _wait_for_broker(container: Container, port: int) -> None:
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
+    max_attempts = 30
+    attempts = 0
+    while attempts < max_attempts:
+        attempts += 1
         container.reload()
         if container.status == "exited":
             raise RuntimeError("MQTT test broker container exited unexpectedly")
