@@ -53,7 +53,7 @@ jobs:
         with:
           enable-cache: true
       - name: Install dependencies
-        run: uv sync --all-groups
+        run: uv sync --all-extras --all-groups
       - name: Setup test suite
         run: uv run tox run -vv --notest
         env:
@@ -67,3 +67,50 @@ jobs:
         run: uv run tox run --skip-pkg-install -e type
         env:
           TOX_GH_MAJOR_MINOR: ${{ matrix.python-version }}
+  test-no-extras:
+    needs: qa
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Install with no extras
+        run: uv sync --no-default-groups --group test
+      - name: Smoke import test
+        run: |
+          uv run python -c "
+          import machine_data_model
+          from machine_data_model.data_model import DataModel
+          from machine_data_model.builder.data_model_builder import DataModelBuilder
+          from machine_data_model.builder.data_model_dumper import DataModelDumper
+          from machine_data_model.nodes.folder_node import FolderNode
+          from machine_data_model.nodes.variable_node import (
+              BooleanVariableNode, StringVariableNode, NumericalVariableNode, ObjectVariableNode
+          )
+          print('OK')
+          "
+      - name: Friendly-error test
+        run: |
+          uv run python -c "
+          import yaml
+          from machine_data_model.builder.data_model_builder import DataModelBuilder
+          try:
+              yaml.load('!!OpcuaConnector { name: x }', Loader=yaml.SafeLoader)
+          except ImportError as e:
+              assert 'machine-data-model[opcua]' in str(e), e
+              print('OK')
+          else:
+              raise SystemExit('expected ImportError')
+          "
+      - name: Run non-connector test suite
+        run: |
+          uv run pytest \
+            --ignore=tests/nodes/connectors \
+            --ignore=tests/builder/test_data_model_builder_connectors.py \
+            --ignore=tests/builder/test_data_model_dumper_connectors.py \
+            tests/

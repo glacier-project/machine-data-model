@@ -27,13 +27,9 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.connectors.mqtt import (
-    MqttConnector,
-    MqttRemoteResourceSpec,
-)
-from machine_data_model.nodes.connectors.opcua.opcua_connector import (
-    OpcuaConnector,
-    OpcuaRemoteResourceSpec,
+from machine_data_model.nodes.connectors.registry import (
+    discover_connectors,
+    iter_available,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
@@ -44,6 +40,8 @@ from machine_data_model.nodes.variable_node import (
     ObjectVariableNode,
     StringVariableNode,
 )
+
+discover_connectors()
 
 
 def _data_model_representer(
@@ -73,115 +71,6 @@ def _data_model_representer(
             "connectors": list(data_model.connectors.values()),
             "root": data_model.root,
         },
-    )
-
-
-def _opcua_connector_representer(
-    dumper: yaml.Dumper, connector: OpcuaConnector
-) -> yaml.nodes.MappingNode:
-    """Represent an OpcuaConnector as a YAML mapping node.
-
-    Args:
-        dumper (yaml.Dumper):
-            The YAML dumper instance.
-        connector (OpcuaConnector):
-            The OpcuaConnector instance to represent.
-
-    Returns:
-        yaml.nodes.MappingNode:
-            A YAML mapping node representing the OpcuaConnector.
-    """
-    connector_dict: dict[str, Any] = {"name": connector.name}
-
-    connector_dict.update(connector.address_to_dict())
-    if connector.security_policy:
-        connector_dict["security_policy"] = connector.security_policy
-    if connector.client_app_uri != connector.get_default_client_app_uri():
-        connector_dict["client_app_uri"] = connector.client_app_uri
-    pkfp = connector.private_key_file_path
-    default_pkfp = connector.get_default_private_key_file_path()
-    if pkfp != default_pkfp:
-        connector_dict["private_key_file_path"] = pkfp
-    cfp = connector.certificate_file_path
-    default_cfp = connector.get_default_certificate_file_path()
-    if cfp != default_cfp:
-        connector_dict["certificate_file_path"] = cfp
-    tcp = connector.trust_store_certificates_paths
-    if tcp:
-        connector_dict["trusted_certificates_path"] = tcp
-    return dumper.represent_mapping(
-        "tag:yaml.org,2002:OpcuaConnector", connector_dict
-    )
-
-
-def _get_opcua_remote_resource_spec_representer(
-    dumper: yaml.Dumper, spec: OpcuaRemoteResourceSpec
-) -> yaml.nodes.MappingNode:
-    """Represent an OpcuaRemoteResourceSpec as a YAML mapping node.
-
-    Args:
-        dumper (yaml.Dumper):
-            The YAML dumper instance.
-        spec (OpcuaRemoteResourceSpec):
-            The OpcuaRemoteResourceSpec instance to represent.
-
-    Returns:
-        yaml.nodes.MappingNode:
-            A YAML mapping node representing the OpcuaRemoteResourceSpec.
-    """
-    remote_resource_spec: dict[str, Any] = {}
-    if spec.node_id:
-        remote_resource_spec["node_id"] = spec.node_id
-    if spec.parent_node_id:
-        remote_resource_spec["parent_node_id"] = spec.parent_node_id
-    elif spec.namespace:
-        remote_resource_spec["namespace"] = spec.namespace
-    else:
-        remote_resource_spec["remote_path"] = spec.remote_path
-
-    return dumper.represent_mapping(
-        "tag:yaml.org,2002:OpcuaRemoteResourceSpec", remote_resource_spec
-    )
-
-
-def _mqtt_connector_representer(
-    dumper: yaml.Dumper, connector: MqttConnector
-) -> yaml.nodes.MappingNode:
-    """Represent an MqttConnector as a YAML mapping node."""
-    connector_dict: dict[str, Any] = {"name": connector.name}
-
-    connector_dict.update(connector.address_to_dict())
-    connector_dict.update(connector.auth_to_dict())
-    if connector.client_id:
-        connector_dict["client_id"] = connector.client_id
-    if connector.topic_prefix:
-        connector_dict["topic_prefix"] = connector.topic_prefix
-    if connector.keepalive != 60:
-        connector_dict["keepalive"] = connector.keepalive
-    if connector.qos != 0:
-        connector_dict["qos"] = connector.qos
-    if connector.retain:
-        connector_dict["retain"] = connector.retain
-    if connector.payload_codec != "string":
-        connector_dict["payload_codec"] = connector.payload_codec
-
-    return dumper.represent_mapping(
-        "tag:yaml.org,2002:MqttConnector", connector_dict
-    )
-
-
-def _get_mqtt_remote_resource_spec_representer(
-    dumper: yaml.Dumper, spec: MqttRemoteResourceSpec
-) -> yaml.nodes.MappingNode:
-    """Represent an MqttRemoteResourceSpec as a YAML mapping node."""
-    remote_resource_spec: dict[str, Any] = {}
-    for key, value in spec.to_dict().items():
-        if value is not None:
-            remote_resource_spec[key] = value
-
-    return dumper.represent_mapping(
-        "tag:yaml.org,2002:MqttRemoteResourceSpec",
-        remote_resource_spec,
     )
 
 
@@ -657,12 +546,8 @@ def _wait_remote_event_node_representer(
 
 def _register_representers() -> None:
     """Register all custom representers for YAML serialization."""
-    representers = {
+    representers: dict[type, Any] = {
         DataModel: _data_model_representer,
-        OpcuaConnector: _opcua_connector_representer,
-        OpcuaRemoteResourceSpec: _get_opcua_remote_resource_spec_representer,
-        MqttConnector: _mqtt_connector_representer,
-        MqttRemoteResourceSpec: _get_mqtt_remote_resource_spec_representer,
         FolderNode: _folder_node_representer,
         NumericalVariableNode: _numerical_variable_node_representer,
         BooleanVariableNode: _boolean_variable_node_representer,
@@ -683,6 +568,11 @@ def _register_representers() -> None:
     }
     for cls, representer in representers.items():
         yaml.add_representer(cls, representer)
+
+    # Available connectors (via plugin registry)
+    for plugin in iter_available():
+        yaml.add_representer(plugin.connector_cls, plugin.represent_connector)
+        yaml.add_representer(plugin.spec_cls, plugin.represent_spec)
 
 
 _register_representers()

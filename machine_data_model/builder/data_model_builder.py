@@ -29,13 +29,10 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.connectors.mqtt import (
-    MqttConnector,
-    MqttRemoteResourceSpec,
-)
-from machine_data_model.nodes.connectors.opcua.opcua_connector import (
-    OpcuaConnector,
-    OpcuaRemoteResourceSpec,
+from machine_data_model.nodes.connectors.registry import (
+    discover_connectors,
+    iter_available,
+    iter_unavailable,
 )
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import (
@@ -48,6 +45,8 @@ from machine_data_model.nodes.variable_node import (
     ObjectVariableNode,
     StringVariableNode,
 )
+
+discover_connectors()
 
 
 def _build_kwargs(
@@ -581,116 +580,23 @@ def _get_composite_method_node(
     return CompositeMethodNode(**kwargs)
 
 
-def _get_opcua_connector_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> OpcuaConnector:
-    """Construct an OPC-UA Connector from a yaml node.
+def _make_missing_extra_constructor(
+    name: str, hint: str
+) -> Callable[[yaml.SafeLoader, yaml.Node], None]:
+    """Return a YAML constructor that raises ImportError with install hint."""
 
-    Args:
-        loader:
-            The yaml loader.
-        node:
-            The yaml node.
+    def _raise(loader: yaml.SafeLoader, node: yaml.Node) -> None:
+        raise ImportError(
+            f"Loading {name} connectors requires its optional dependencies. "
+            f"Install with: {hint}"
+        )
 
-    Returns:
-        OpcuaConnector:
-            The constructed OPC-UA Connector.
-    """
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "name": None,
-        "ip": "127.0.0.1",
-        "ip_env_var": None,
-        "port": 4840,
-        "port_env_var": None,
-        "security_policy": None,
-        "host_name": None,
-        "client_app_uri": None,
-        "certificate_file_path": None,
-        "private_key_file_path": None,
-        "trust_store_certificates_paths": None,
-        "username": None,
-        "username_env_var": None,
-        "password": None,
-        "password_env_var": None,
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return OpcuaConnector(**kwargs)
-
-
-def _get_opcua_remote_resource_spec(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> OpcuaRemoteResourceSpec:
-    """Construct an object with node settings that are OPC UA specific.
-
-    Args:
-        loader:
-            The yaml loader.
-        node:
-            The yaml node.
-
-    Returns:
-        OpcuaRemoteResourceSpec:
-            The object with the OPC UA node's settings.
-    """
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "remote_path": None,
-        "node_id": None,
-        "namespace": None,
-        "parent_node_id": None,
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return OpcuaRemoteResourceSpec(**kwargs)
-
-
-def _get_mqtt_connector_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> MqttConnector:
-    """Construct an MQTT Connector from a yaml node."""
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "name": None,
-        "ip": "127.0.0.1",
-        "ip_env_var": None,
-        "port": 1883,
-        "port_env_var": None,
-        "username": None,
-        "username_env_var": None,
-        "password": None,
-        "password_env_var": None,
-        "client_id": None,
-        "topic_prefix": None,
-        "keepalive": 60,
-        "qos": 0,
-        "retain": False,
-        "payload_codec": "string",
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return MqttConnector(**kwargs)
-
-
-def _get_mqtt_remote_resource_spec(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> MqttRemoteResourceSpec:
-    """Construct an MQTT remote resource spec from a yaml node."""
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "remote_path": None,
-        "topic": None,
-        "topic_prefix": None,
-        "publish_topic": None,
-        "subscribe_topic": None,
-        "qos": None,
-        "retain": None,
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return MqttRemoteResourceSpec(**kwargs)
+    return _raise
 
 
 def _register_yaml_constructors() -> None:
     """Register all YAML constructors for data model building."""
-    constructors = {
+    constructors: dict[type, Callable[..., Any]] = {
         FolderNode: _get_folder,
         NumericalVariableNode: _get_numerical_variable,
         StringVariableNode: _get_string_variable,
@@ -707,10 +613,6 @@ def _register_yaml_constructors() -> None:
         ReadRemoteVariableNode: _get_read_remote_variable_node,
         WriteRemoteVariableNode: _get_write_remote_variable_node,
         WaitRemoteEventNode: _get_wait_remote_event_node,
-        OpcuaConnector: _get_opcua_connector_node,
-        OpcuaRemoteResourceSpec: _get_opcua_remote_resource_spec,
-        MqttConnector: _get_mqtt_connector_node,
-        MqttRemoteResourceSpec: _get_mqtt_remote_resource_spec,
     }
 
     for node, constructor in constructors.items():
@@ -720,6 +622,27 @@ def _register_yaml_constructors() -> None:
         yaml.SafeLoader.add_constructor(
             f"tag:yaml.org,2002:python/object:{module}.{tag}", constructor
         )
+
+    # Available connectors (via plugin registry)
+    for plugin in iter_available():
+        for cls, fn in (
+            (plugin.connector_cls, plugin.construct_connector),
+            (plugin.spec_cls, plugin.construct_spec),
+        ):
+            tag = cls.__name__
+            module = cls.__module__
+            yaml.SafeLoader.add_constructor(f"tag:yaml.org,2002:{tag}", fn)
+            yaml.SafeLoader.add_constructor(
+                f"tag:yaml.org,2002:python/object:{module}.{tag}", fn
+            )
+
+    # Known-but-unavailable connectors: friendly ImportError fallback
+    for info in iter_unavailable():
+        fallback = _make_missing_extra_constructor(info.name, info.install_hint)
+        for tag_class in info.yaml_tag_classes:
+            yaml.SafeLoader.add_constructor(
+                f"tag:yaml.org,2002:{tag_class}", fallback
+            )
 
 
 _register_yaml_constructors()
