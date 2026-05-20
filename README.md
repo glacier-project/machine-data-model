@@ -248,6 +248,79 @@ post-callbacks.
 These callbacks enable operations to be executed **before** or **after** the method invocation,
 allowing for user-defined interactions with the data model.
 
+## Connectors
+
+Connectors keep the public node API protocol-agnostic. A variable can still be
+read with `read()`, written with `write()`, and subscribed to regardless of the
+remote backend.
+
+### OPC UA
+
+OPC UA variables map to OPC UA nodes. Reads and writes are performed on the
+OPC UA nodes, and method calls are performed on the OPC UA method nodes.
+
+```yaml
+connectors:
+  - !!OpcUaConnector
+    name: "opc_ua_server"
+    ip: "127.0.0.1"
+    port: 4840
+
+root:
+  !!FolderNode
+  name: "Objects"
+  connector_name: "opc_ua_server"
+  children:
+    - !!NumericalVariableNode
+      name: "Temperature"
+      default_value: 20.0
+    - !!BooleanVariableNode
+      name: "StartCommand"
+      default_value: false
+      remote_resource_spec:
+        !!OpcUaRemoteResourceSpec
+        node_id: "ns=2;s=StartCommand"
+```
+
+### MQTT
+
+MQTT variables map to MQTT topics. Reads return the last received payload for
+the subscription topic, writes publish the value to the publish topic,
+and method calls are not supported by the MQTT connector yet.
+
+```yaml
+connectors:
+  - !!MqttConnector
+    name: "mqtt_broker"
+    ip: "127.0.0.1"
+    port: 1883
+    topic_prefix: "machines/boiler-1"
+    payload_codec: "string"
+
+root:
+  !!FolderNode
+  name: "Objects"
+  connector_name: "mqtt_broker"
+  children:
+    - !!NumericalVariableNode
+      name: "Temperature"
+      default_value: 20.0
+    - !!BooleanVariableNode
+      name: "StartCommand"
+      default_value: false
+      remote_resource_spec:
+        !!MqttRemoteResourceSpec
+        subscribe_topic: "plant/line-1/start/state"
+        publish_topic: "plant/line-1/start/set"
+```
+
+Supported MQTT payload codecs are `string`, `json`, and `msgpack`. The default
+`string` codec encodes strings, integers, floats, and booleans as UTF-8 scalar
+payloads and uses the data model node type when deserializing subscribed values.
+Python code can also pass `payload_serializer` and `payload_deserializer` to
+`MqttConnector` for custom payload formats. Topic wildcards are not supported
+in remote resource specs.
+
 ## Protocol Manager
 
 The protocol manager is a component that acts as an interface between the data model
