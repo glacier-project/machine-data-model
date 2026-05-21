@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import logging
 from pathlib import Path
 import socket
-from typing import Any
+from typing import Any, cast
 
 import asyncua
 from asyncua import Client as AsyncuaClient
@@ -440,8 +440,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                     _logger.debug(
                         f"Using already retrieved remote node for '{path}'"
                     )
-                    # pyrefly: ignore[bad-return]
-                    return remote_resource_spec.remote_node
+                    return _require_asyncua_node(
+                        remote_resource_spec.remote_node
+                    )
 
                 if remote_resource_spec.has_node_id():
                     _logger.debug(
@@ -449,8 +450,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                         f"'{remote_resource_spec.node_id}'"
                     )
                     node = _require_asyncua_node(
-                        # pyrefly: ignore[bad-argument-type]
-                        self.client.get_node(remote_resource_spec.node_id)
+                        self.client.get_node(
+                            cast(Any, remote_resource_spec.node_id)
+                        )
                     )
                     remote_resource_spec.remote_node = node
                     return node
@@ -636,8 +638,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                     f"{remote_resource_spec.parent_node_id}"
                 )
                 parent = self.client.get_node(
-                    # pyrefly: ignore[bad-argument-type]
-                    remote_resource_spec.parent_node_id
+                    cast(Any, remote_resource_spec.parent_node_id)
                 )
             else:
                 parent = await node.get_parent()
