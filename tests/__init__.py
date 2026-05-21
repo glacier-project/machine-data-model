@@ -282,8 +282,8 @@ def get_random_simple_node() -> VariableNode:
 
 
 def get_random_nodes(
-    # pyrefly: ignore[implicit-any-type-argument]
     number: int,
+    # pyrefly: ignore[implicit-any-type-argument]
     node_types: list | None = None,
 ) -> Sequence[DataModelNode]:
     nodes = []  # pyrefly: ignore[implicit-any-empty-container]
