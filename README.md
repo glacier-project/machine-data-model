@@ -364,6 +364,10 @@ Coming soon!
 Contributions are welcome! If you have suggestions for improvements or
 features, please open an issue or submit a pull request.
 
+Adding a new connector? See
+[`docs/contributing/new-connector.md`](docs/contributing/new-connector.md)
+for the registration pattern, optional extras, and test layout.
+
 ## Development Setup
 
 The development environment is managed with [uv](https://docs.astral.sh/uv/).
