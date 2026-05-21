@@ -599,7 +599,8 @@ class DataModelDumper:
 
         """
         data_model_str = yaml.dump(self.data_model)
-        assert isinstance(data_model_str, str)
+        if not isinstance(data_model_str, str):
+            raise TypeError("Expected data_model_str to be an instance of str")
         return data_model_str
 
     def dumps(self, file_path: str) -> None:

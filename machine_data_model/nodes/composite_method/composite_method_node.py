@@ -407,7 +407,8 @@ class CompositeMethodNode(MethodNode):
         """
         context_id = str(uuid.uuid4())
         context = ExecutionContext(context_id, **kwargs)
-        assert context_id not in self._contexts
+        if not (context_id not in self._contexts):
+            raise RuntimeError("Invariant violated")
         self._contexts[context_id] = context
         return context
 

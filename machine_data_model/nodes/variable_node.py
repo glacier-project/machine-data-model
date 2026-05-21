@@ -183,7 +183,8 @@ class VariableNode(DataModelNode):
             self.notify_subscribers()
         else:
             value = self._update_value(prev_value)
-            assert value == prev_value
+            if not (value == prev_value):
+                raise RuntimeError("Invariant violated")
         return success
 
     @property
@@ -700,7 +701,8 @@ class NumericalVariableNode(VariableNode):
         result = super()._read_remote_value(force_remote_read)
         if result is None:
             return self._read_internal_value()
-        assert isinstance(result, int | float)
+        if not isinstance(result, int | float):
+            raise TypeError("Expected result to be an instance of int | float")
         return result
 
     @override
@@ -744,7 +746,8 @@ class NumericalVariableNode(VariableNode):
                 successful. Otherwise, it returns the previous value.
         """
         result = super()._update_remote_value(value)
-        assert isinstance(result, int | float)
+        if not isinstance(result, int | float):
+            raise TypeError("Expected result to be an instance of int | float")
         return result
 
     @override
@@ -849,7 +852,8 @@ class StringVariableNode(VariableNode):
         result = super()._read_remote_value(force_remote_read)
         if result is None:
             return self._read_internal_value()
-        assert isinstance(result, str)
+        if not isinstance(result, str):
+            raise TypeError("Expected result to be an instance of str")
         return result
 
     @override
@@ -865,7 +869,8 @@ class StringVariableNode(VariableNode):
                 The updated value of the string variable.
 
         """
-        assert isinstance(value, str)
+        if not isinstance(value, str):
+            raise TypeError("Expected value to be an instance of str")
         self._value = value
         return self._value
 
@@ -883,7 +888,8 @@ class StringVariableNode(VariableNode):
                 successful. Otherwise, it returns the previous value.
         """
         result = super()._update_remote_value(value)
-        assert isinstance(result, str)
+        if not isinstance(result, str):
+            raise TypeError("Expected result to be an instance of str")
         return result
 
     @override
@@ -1024,7 +1030,8 @@ class BooleanVariableNode(VariableNode):
         result = super()._read_remote_value(force_remote_read)
         if result is None:
             return self._read_internal_value()
-        assert isinstance(result, bool)
+        if not isinstance(result, bool):
+            raise TypeError("Expected result to be an instance of bool")
         return result
 
     @override
@@ -1040,7 +1047,8 @@ class BooleanVariableNode(VariableNode):
                 The updated value of the boolean variable.
 
         """
-        assert isinstance(value, bool)
+        if not isinstance(value, bool):
+            raise TypeError("Expected value to be an instance of bool")
         self._value = value
         return self._value
 
@@ -1058,7 +1066,8 @@ class BooleanVariableNode(VariableNode):
                 successful. Otherwise, returns the previous value.
         """
         result = super()._update_remote_value(value)
-        assert isinstance(result, bool)
+        if not isinstance(result, bool):
+            raise TypeError("Expected result to be an instance of bool")
         return result
 
     @override
@@ -1170,9 +1179,8 @@ class ObjectVariableNode(VariableNode):
             properties if properties is not None else {}
         )
         for property_node in self._properties.values():
-            assert isinstance(
-                property_node, VariableNode
-            ), "Property must be a VariableNode"
+            if not isinstance(property_node, VariableNode):
+                raise TypeError("Property must be a VariableNode")
         # pyrefly: ignore[missing-override-decorator]
         self.value: dict[str, Any] = self._read_internal_value()
         self.register_children(self._properties)
@@ -1185,9 +1193,8 @@ class ObjectVariableNode(VariableNode):
                 The property node to add.
 
         """
-        assert isinstance(
-            property_node, VariableNode
-        ), "Property must be a VariableNode"
+        if not isinstance(property_node, VariableNode):
+            raise TypeError("Property must be a VariableNode")
         self._properties[property_node.name] = property_node
         property_node.parent = self
 
@@ -1317,9 +1324,13 @@ class ObjectVariableNode(VariableNode):
                 The updated value of the object variable.
 
         """
-        assert len(value) == len(self._properties) and all(
-            prop in self._properties for prop in value
-        ), "The value must contain all properties of the object variable"
+        if not (
+            len(value) == len(self._properties)
+            and all(prop in self._properties for prop in value)
+        ):
+            raise RuntimeError(
+                "The value must contain all properties of the object variable"
+            )
         for property_name, property_value in value.items():
             self._properties[property_name]._update_internal_value(
                 property_value

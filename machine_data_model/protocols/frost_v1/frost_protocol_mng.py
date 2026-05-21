@@ -265,8 +265,12 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
             return self.handle_request(msg)
         elif msg.header.type == MsgType.RESPONSE:
             return self.handle_response(msg)
-        elif msg.header.type == MsgType.ERROR:
-            assert isinstance(msg.payload, ErrorPayload)
+        elif msg.header.type == MsgType.ERROR and not isinstance(
+            msg.payload, ErrorPayload
+        ):
+            raise TypeError(
+                "Expected msg.payload to be an instance of ErrorPayload"
+            )
         return None
 
     def clear_update_messages(self) -> None:
@@ -316,7 +320,8 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
                 A response message based on the result of the method invocation.
 
         """
-        assert msg.header.namespace == MsgNamespace.METHOD
+        if not (msg.header.namespace == MsgNamespace.METHOD):
+            raise RuntimeError("Invariant violated")
 
         if not isinstance(msg.payload, MethodPayload):
             return self._create_error_message(msg, ErrorMessages.BAD_REQUEST)
@@ -377,13 +382,20 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
                 The return value of the method invocation.
 
         """
-        assert isinstance(msg.payload, MethodPayload)
+        if not isinstance(msg.payload, MethodPayload):
+            raise TypeError(
+                "Expected msg.payload to be an instance of MethodPayload"
+            )
         ret = method_node(*args, **kwargs)
         ret_values = ret.return_values
         if "@context_id" in ret_values:
             context_id = ret_values["@context_id"]
-            assert isinstance(context_id, str)
-            assert isinstance(method_node, CompositeMethodNode)
+            if not isinstance(context_id, str):
+                raise TypeError("Expected context_id to be an instance of str")
+            if not isinstance(method_node, CompositeMethodNode):
+                raise TypeError(
+                    "Expected method_node to be a CompositeMethodNode"
+                )
             method_node.set_context_subscription_callback(
                 context_id, self._update_variable_callback
             )
@@ -434,7 +446,8 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
                 variable node.
 
         """
-        assert msg.header.namespace == MsgNamespace.VARIABLE
+        if not (msg.header.namespace == MsgNamespace.VARIABLE):
+            raise RuntimeError("Invariant violated")
 
         error: ErrorMessages
 
@@ -477,8 +490,14 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
             FrostMessage:
                 A response message containing the read value.
         """
-        assert isinstance(variable_node, VariableNode)
-        assert isinstance(msg.payload, VariablePayload)
+        if not isinstance(variable_node, VariableNode):
+            raise TypeError(
+                "Expected variable_node to be an instance of VariableNode"
+            )
+        if not isinstance(msg.payload, VariablePayload):
+            raise TypeError(
+                "Expected msg.payload to be an instance of VariablePayload"
+            )
 
         value = variable_node.read()
 
@@ -509,8 +528,14 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
             FrostMessage:
                 A response message confirming the write operation.
         """
-        assert isinstance(variable_node, VariableNode)
-        assert isinstance(msg.payload, VariablePayload)
+        if not isinstance(variable_node, VariableNode):
+            raise TypeError(
+                "Expected variable_node to be an instance of VariableNode"
+            )
+        if not isinstance(msg.payload, VariablePayload):
+            raise TypeError(
+                "Expected msg.payload to be an instance of VariablePayload"
+            )
 
         response = self._message_builder.build_write_variable_response_message(
             target=msg.sender,
@@ -539,8 +564,14 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
             FrostMessage:
                 A response message confirming the subscription.
         """
-        assert isinstance(variable_node, VariableNode)
-        assert isinstance(msg.payload, VariablePayload)
+        if not isinstance(variable_node, VariableNode):
+            raise TypeError(
+                "Expected variable_node to be an instance of VariableNode"
+            )
+        if not isinstance(msg.payload, VariablePayload):
+            raise TypeError(
+                "Expected msg.payload to be an instance of VariablePayload"
+            )
 
         subscription = VariableSubscription(
             subscriber_id=msg.sender,
@@ -576,8 +607,14 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
             FrostMessage:
                 A response message confirming the unsubscription.
         """
-        assert isinstance(variable_node, VariableNode)
-        assert isinstance(msg.payload, VariablePayload)
+        if not isinstance(variable_node, VariableNode):
+            raise TypeError(
+                "Expected variable_node to be an instance of VariableNode"
+            )
+        if not isinstance(msg.payload, VariablePayload):
+            raise TypeError(
+                "Expected msg.payload to be an instance of VariablePayload"
+            )
 
         variable_node.unsubscribe(
             subscription_or_id=msg.sender, correlation_id=msg.correlation_id
@@ -649,7 +686,10 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
         cm.delete_context(context_id)
         del self._running_methods[context_id]
         # append response message
-        assert isinstance(msg.payload, MethodPayload)
+        if not isinstance(msg.payload, MethodPayload):
+            raise TypeError(
+                "Expected msg.payload to be an instance of MethodPayload"
+            )
         return self._trace_and_return_response(
             self._message_builder.build_method_completed_message(
                 target=msg.sender,
@@ -724,7 +764,8 @@ class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
             FrostMessage:
                 A new FrostMessage that is a response to the original message.
         """
-        assert error_message is not None
+        if error_message is None:
+            raise RuntimeError("error_message must not be None")
         return self._trace_and_return_response(
             self._message_builder.build_error_message(
                 message=msg,

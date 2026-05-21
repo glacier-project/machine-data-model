@@ -120,13 +120,11 @@ class MethodNode(DataModelNode):
         self.register_children(self._parameters)
         self.register_children(self._returns)
         for parameter in self._parameters:
-            assert isinstance(
-                parameter, VariableNode
-            ), "Parameter must be a VariableNode"
+            if not isinstance(parameter, VariableNode):
+                raise TypeError("Parameter must be a VariableNode")
         for return_value in self._returns:
-            assert isinstance(
-                return_value, VariableNode
-            ), "Return value must be a VariableNode"
+            if not isinstance(return_value, VariableNode):
+                raise TypeError("Return value must be a VariableNode")
 
     @property
     def parameters(self) -> list[VariableNode]:
@@ -148,9 +146,8 @@ class MethodNode(DataModelNode):
                 The parameter to add to the method.
 
         """
-        assert isinstance(
-            parameter, VariableNode
-        ), "Parameter must be a VariableNode"
+        if not isinstance(parameter, VariableNode):
+            raise TypeError("Parameter must be a VariableNode")
         self._parameters.append(parameter)
         parameter.parent = self
 
@@ -193,9 +190,8 @@ class MethodNode(DataModelNode):
                 The return value to add to the method.
 
         """
-        assert isinstance(
-            return_value, VariableNode
-        ), "Return value must be a VariableNode"
+        if not isinstance(return_value, VariableNode):
+            raise TypeError("Return value must be a VariableNode")
         self._returns.append(return_value)
         return_value.parent = self
 
@@ -459,13 +455,15 @@ class MethodNode(DataModelNode):
 
         """
         ret_dict = {}  # pyrefly: ignore[implicit-any-empty-container]
-        assert not isinstance(ret, Mapping), "Return value cannot be a mapping."
+        if isinstance(ret, Mapping):
+            raise RuntimeError("Return value cannot be a mapping.")
         f" Received {ret} of type {type(ret)}."
         # pyrefly: ignore[implicit-any-type-argument]
         ret = ret if isinstance(ret, list | tuple) else (ret,)
         for index, return_value in enumerate(ret):
             ret_dict[self._returns[index].name] = return_value
-        assert len(ret_dict) == len(self._returns), f"{ret_dict}"
+        if not (len(ret_dict) == len(self._returns)):
+            raise RuntimeError(f"{ret_dict}")
         return ret_dict
 
     @override

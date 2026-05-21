@@ -65,9 +65,8 @@ class FolderNode(DataModelNode):
         )
         self._children = {} if children is None else children
         for child in self._children.values():
-            assert isinstance(
-                child, DataModelNode
-            ), "Child must be a DataModelNode"
+            if not isinstance(child, DataModelNode):
+                raise TypeError("Child must be a DataModelNode")
         self.register_children(self._children)
 
     @property
@@ -90,7 +89,8 @@ class FolderNode(DataModelNode):
                 The child node to add to the folder.
 
         """
-        assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
+        if not isinstance(child, DataModelNode):
+            raise TypeError("Child must be a DataModelNode")
         self._children[child.name] = child
         child.parent = self
 
