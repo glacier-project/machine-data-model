@@ -26,8 +26,8 @@ from .mqtt_payload_codec import (
 )
 from .mqtt_remote_resource_spec import (
     MqttRemoteResourceSpec,
-    _join_topic,
-    _validate_topic,
+    join_topic,
+    validate_topic,
 )
 
 _logger = logging.getLogger(__name__)
@@ -457,7 +457,7 @@ class MqttConnector(AbstractAsyncConnector):
         topic = getattr(message_topic, "value", None)
         if topic is None:
             topic = str(message_topic)
-        return _validate_topic(topic)
+        return validate_topic(topic)
 
     @staticmethod
     def _message_payload(message: Any) -> bytes:
@@ -539,7 +539,7 @@ class MqttConnector(AbstractAsyncConnector):
         path = resource.path
         remote_resource_spec = self._mqtt_spec(resource)
         if remote_resource_spec is None:
-            return _validate_topic(_join_topic(self.topic_prefix, path))
+            return validate_topic(join_topic(self.topic_prefix, path))
         return remote_resource_spec.resolve_subscribe_topic(
             path=path,
             default_topic_prefix=self.topic_prefix,
@@ -553,7 +553,7 @@ class MqttConnector(AbstractAsyncConnector):
         path = resource.path
         remote_resource_spec = self._mqtt_spec(resource)
         if remote_resource_spec is None:
-            return _validate_topic(_join_topic(self.topic_prefix, path))
+            return validate_topic(join_topic(self.topic_prefix, path))
         return remote_resource_spec.resolve_publish_topic(
             path=path,
             default_topic_prefix=self.topic_prefix,

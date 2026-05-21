@@ -15,7 +15,7 @@ def _normalize_topic(topic: str) -> str:
     return topic.strip("/")
 
 
-def _join_topic(prefix: str | None, topic: str | None) -> str:
+def join_topic(prefix: str | None, topic: str | None) -> str:
     """Join a topic prefix and a relative topic."""
     parts = []
     if prefix is not None and prefix.strip("/"):
@@ -25,7 +25,7 @@ def _join_topic(prefix: str | None, topic: str | None) -> str:
     return "/".join(parts)
 
 
-def _validate_topic(topic: str) -> str:
+def validate_topic(topic: str) -> str:
     """Validate first-pass MQTT topic support."""
     topic = _normalize_topic(topic)
     if not topic:
@@ -110,7 +110,7 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
             self.remote_path,
         )
         if explicit_topic is not None:
-            return _validate_topic(explicit_topic)
+            return validate_topic(explicit_topic)
         return self._derive_topic(path, default_topic_prefix)
 
     def resolve_publish_topic(
@@ -120,7 +120,7 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
     ) -> str:
         """Resolve the MQTT topic used for writes."""
         if self.publish_topic is not None:
-            return _validate_topic(self.publish_topic)
+            return validate_topic(self.publish_topic)
         return self.resolve_subscribe_topic(path, default_topic_prefix)
 
     def _derive_topic(
@@ -130,13 +130,13 @@ class MqttRemoteResourceSpec(AbstractRemoteResourceSpec):
     ) -> str:
         """Derive a topic from the node qualified name or provided path."""
         derived_path = path
-        topic = _join_topic(
+        topic = join_topic(
             self.topic_prefix
             if self.topic_prefix is not None
             else default_topic_prefix,
             derived_path,
         )
-        return _validate_topic(topic)
+        return validate_topic(topic)
 
     @staticmethod
     def _first_configured_topic(*topics: str | None) -> str | None:

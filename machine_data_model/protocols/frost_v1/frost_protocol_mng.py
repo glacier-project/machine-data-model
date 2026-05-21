@@ -96,6 +96,9 @@ class FrostProtocolMng(ProtocolMng):
         )
 
         # pyrefly: ignore[bad-override-mutable-attribute]
+        # Narrows MessageBuilder → FrostMessageBuilder on a mutable attribute;
+        # safe in practice (never reassigned) but a Liskov smell — flagged for
+        # the Phase 4 audit, consider using a TypeVar/property.
         self._message_builder: FrostMessageBuilder = FrostMessageBuilder(
             sender=self._data_model.name,
             protocol_version=self._protocol_version,
