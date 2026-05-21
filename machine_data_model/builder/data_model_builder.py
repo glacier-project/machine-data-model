@@ -4,7 +4,7 @@ This module provides functionality to build data models, including nodes and
 control flows, from YAML configuration files using custom YAML constructors.
 """
 
-from collections.abc import Callable, Hashable
+from collections.abc import Callable
 import os
 from typing import Any
 
@@ -29,6 +29,7 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.connectors._yaml_helpers import build_kwargs
 from machine_data_model.nodes.connectors.registry import (
     discover_connectors,
     iter_available,
@@ -47,39 +48,6 @@ from machine_data_model.nodes.variable_node import (
 )
 
 discover_connectors()
-
-
-def _build_kwargs(
-    data: dict[Hashable, Any], default_kwargs: dict[str, Any]
-) -> dict[str, Any]:
-    """Build kwargs by merging data with default values and validating keys.
-
-    Args:
-        data (dict[Hashable, Any]):
-            Input data from YAML
-        default_kwargs (dict[str, Any]):
-            Default values for all allowed keys
-
-    Returns:
-        dict[str, Any]:
-            Merged kwargs dictionary
-
-    Raises:
-        ValueError:
-            If unexpected keys are found in data
-
-    """
-    unexpected_keys = set(data.keys()) - set(default_kwargs.keys())
-    if unexpected_keys:
-        raise ValueError(
-            f"Unexpected keys: {', '.join(map(str, unexpected_keys))}. "
-            f"Allowed keys: {', '.join(default_kwargs.keys())}"
-        )
-
-    kwargs = default_kwargs.copy()
-    for key, value in data.items():
-        kwargs[str(key)] = value
-    return kwargs
 
 
 def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
@@ -105,7 +73,7 @@ def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["children"] = {child.name: child for child in kwargs["children"]}
 
     return FolderNode(**kwargs)
@@ -139,7 +107,7 @@ def _get_numerical_variable(
         # pyrefly: ignore[implicit-any-empty-container]
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["value"] = (
         kwargs["initial_value"]
         if kwargs["initial_value"] is not None
@@ -178,7 +146,7 @@ def _get_string_variable(
         # pyrefly: ignore[implicit-any-empty-container]
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["value"] = (
         kwargs["initial_value"]
         if kwargs["initial_value"] is not None
@@ -218,7 +186,7 @@ def _get_boolean_variable(
         # pyrefly: ignore[implicit-any-empty-container]
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["value"] = (
         kwargs["initial_value"]
         if kwargs["initial_value"] is not None
@@ -255,7 +223,7 @@ def _get_object_variable(
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["properties"] = {prop.name: prop for prop in kwargs["properties"]}
     return ObjectVariableNode(**kwargs)
 
@@ -290,7 +258,7 @@ def _get_method_node(
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return ctor(**kwargs)
 
 
@@ -334,7 +302,7 @@ def _get_read_variable_node(
         "variable": "",
         "store_as": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return ReadVariableNode(
         variable_node=kwargs["variable"],
         store_as=kwargs["store_as"],
@@ -362,7 +330,7 @@ def _get_write_variable_node(
         "variable": "",
         "value": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WriteVariableNode(
         variable_node=kwargs["variable"],
         value=kwargs["value"],
@@ -391,7 +359,7 @@ def _get_wait_node(
         "operator": "",
         "rhs": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WaitConditionNode(
         variable_node=kwargs["variable"],
         op=get_condition_operator(kwargs["operator"]),
@@ -421,7 +389,7 @@ def _get_call_method_node(
         "args": [],  # pyrefly: ignore[implicit-any-empty-container]
         "kwargs": {},  # pyrefly: ignore[implicit-any-empty-container]
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return CallMethodNode(
         method_node=kwargs["method"],
         args=kwargs["args"],
@@ -452,7 +420,7 @@ def _get_call_remote_method_node(
         "args": [],  # pyrefly: ignore[implicit-any-empty-container]
         "kwargs": {},  # pyrefly: ignore[implicit-any-empty-container]
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return CallRemoteMethodNode(
         method_node=kwargs["method"],
         remote_id=kwargs["remote_id"],
@@ -483,7 +451,7 @@ def _get_read_remote_variable_node(
         "remote_id": "",
         "store_as": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return ReadRemoteVariableNode(
         variable_node=kwargs["variable"],
         remote_id=kwargs["remote_id"],
@@ -513,7 +481,7 @@ def _get_write_remote_variable_node(
         "remote_id": "",
         "value": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WriteRemoteVariableNode(
         variable_node=kwargs["variable"],
         remote_id=kwargs["remote_id"],
@@ -544,7 +512,7 @@ def _get_wait_remote_event_node(
         "rhs": "",
         "remote_id": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WaitRemoteEventNode(
         variable_node=kwargs["variable"],
         op=get_condition_operator(kwargs["operator"]),
@@ -578,7 +546,7 @@ def _get_composite_method_node(
         "returns": [],
         "cfg": [],
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["cfg"] = ControlFlow(kwargs["cfg"])
     return CompositeMethodNode(**kwargs)
 
