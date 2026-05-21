@@ -115,7 +115,8 @@ class LocalExecutionNode(ControlFlowNode):
                 The reference to the node in the machine data model.
 
         """
-        assert ref_node.name == self.node.split("/")[-1]
+        if not (ref_node.name == self.node.split("/")[-1]):
+            raise RuntimeError("Invariant violated")
         self._ref_node = ref_node
 
     def get_ref_node(self) -> DataModelNode | None:
@@ -148,9 +149,11 @@ class LocalExecutionNode(ControlFlowNode):
             return self._ref_node
         node_path = resolve_string_in_context(self.node, context)
 
-        assert self.get_data_model_node is not None
+        if self.get_data_model_node is None:
+            raise RuntimeError("self.get_data_model_node must not be None")
         x = self.get_data_model_node(node_path)
-        assert x is not None, f"Invalid node path: {node_path}"
+        if x is None:
+            raise RuntimeError(f"Invalid node path: {node_path}")
         return x
 
     @override
@@ -226,9 +229,8 @@ class ReadVariableNode(LocalExecutionNode):
 
         """
         ref_variable = self._get_ref_node(context)
-        assert isinstance(
-            ref_variable, VariableNode
-        ), f"Node {ref_variable} is not a VariableNode"
+        if not isinstance(ref_variable, VariableNode):
+            raise TypeError(f"Node {ref_variable} is not a VariableNode")
 
         # Trace the control flow step.
         trace_control_flow_step(
@@ -330,7 +332,10 @@ class WriteVariableNode(LocalExecutionNode):
 
         """
         ref_variable = self._get_ref_node(context)
-        assert isinstance(ref_variable, VariableNode)
+        if not isinstance(ref_variable, VariableNode):
+            raise TypeError(
+                "Expected ref_variable to be an instance of VariableNode"
+            )
 
         # Trace the control flow step.
         trace_control_flow_step(
@@ -452,7 +457,10 @@ class CallMethodNode(LocalExecutionNode):
         )
 
         ref_method = self._get_ref_node(context)
-        assert isinstance(ref_method, MethodNode)
+        if not isinstance(ref_method, MethodNode):
+            raise TypeError(
+                "Expected ref_method to be an instance of MethodNode"
+            )
 
         data_model_id = (
             ref_method.data_model.name
@@ -531,7 +539,8 @@ class CallMethodNode(LocalExecutionNode):
             return execution_failure()
 
         ret = ref_method.get_completed_return_values(pending_context_id)
-        assert ret is not None
+        if ret is None:
+            raise RuntimeError("ret must not be None")
         context.set_all_values(**ret)
         ref_method.delete_context(pending_context_id)
         context.delete_value(pending_key)
@@ -733,7 +742,10 @@ class WaitConditionNode(LocalExecutionNode):
 
         """
         ref_variable = self._get_ref_node(context)
-        assert isinstance(ref_variable, VariableNode)
+        if not isinstance(ref_variable, VariableNode):
+            raise TypeError(
+                "Expected ref_variable to be an instance of VariableNode"
+            )
 
         data_model_id = (
             ref_variable.data_model.name

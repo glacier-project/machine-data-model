@@ -355,7 +355,10 @@ class DataModel:
             elif isinstance(cf_node, LocalExecutionNode):
                 if cf_node.is_node_static():
                     ref_node = resolver(cf_node.node)
-                    assert isinstance(ref_node, DataModelNode)
+                    if not isinstance(ref_node, DataModelNode):
+                        raise TypeError(
+                            "Expected ref_node to be a DataModelNode"
+                        )
                     cf_node.set_ref_node(ref_node)
                 else:
                     cf_node.get_data_model_node = resolver

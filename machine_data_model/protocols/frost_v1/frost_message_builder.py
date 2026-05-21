@@ -90,12 +90,14 @@ class FrostMessageBuilder(MessageBuilder):
         Returns:
             None
         """
-        assert (
-            len(protocol_version) == 3
-        ), "Protocol version must be a tuple of (major, minor, patch)."
-        assert all(
-            isinstance(v, int) and v >= 0 for v in protocol_version
-        ), "Protocol version values must be non-negative integers."
+        if not (len(protocol_version) == 3):
+            raise RuntimeError(
+                "Protocol version must be a tuple of (major, minor, patch)."
+            )
+        if not (all(isinstance(v, int) and v >= 0 for v in protocol_version)):
+            raise RuntimeError(
+                "Protocol version values must be non-negative integers."
+            )
         self._protocol_version = protocol_version
 
     @override
