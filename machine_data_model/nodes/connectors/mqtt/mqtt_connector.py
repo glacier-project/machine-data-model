@@ -161,12 +161,11 @@ class MqttConnector(AbstractAsyncConnector):
                     topic,
                     qos=self._topic_qos.get(topic, self.qos),
                 )
-        except Exception as exp:
-            _logger.error(
+        except Exception:
+            _logger.exception(
                 f"Couldn't connect the '{self.name}' connector to the MQTT "
                 f"broker"
             )
-            _logger.error(exp)
             if client_context_entered:
                 await self._close_client_context()
             self.client = None
@@ -187,9 +186,8 @@ class MqttConnector(AbstractAsyncConnector):
 
         try:
             await self._client_context.__aexit__(None, None, None)
-        except Exception as exp:
-            _logger.error(f"Couldn't disconnect '{self.name}' connector")
-            _logger.error(exp)
+        except Exception:
+            _logger.exception(f"Couldn't disconnect '{self.name}' connector")
             return False
         finally:
             self.client = None
@@ -204,9 +202,10 @@ class MqttConnector(AbstractAsyncConnector):
             return
         try:
             await self._client_context.__aexit__(None, None, None)
-        except Exception as exp:
-            _logger.error(f"Couldn't close '{self.name}' MQTT client context")
-            _logger.error(exp)
+        except Exception:
+            _logger.exception(
+                f"Couldn't close '{self.name}' MQTT client context"
+            )
 
     async def _cancel_listener_task(self) -> None:
         """Cancel the background MQTT listener task."""
@@ -217,11 +216,10 @@ class MqttConnector(AbstractAsyncConnector):
             await self._listener_task
         except asyncio.CancelledError:
             pass
-        except Exception as exp:
-            _logger.error(
+        except Exception:
+            _logger.exception(
                 f"MQTT listener for '{self.name}' stopped with an error"
             )
-            _logger.error(exp)
         finally:
             self._listener_task = None
 
@@ -262,12 +260,11 @@ class MqttConnector(AbstractAsyncConnector):
                 qos=qos,
                 retain=retain,
             )
-        except Exception as exp:
-            _logger.error(
+        except Exception:
+            _logger.exception(
                 f"Failed to publish node '{resource.path}' to MQTT topic "
                 f"'{topic}'"
             )
-            _logger.error(exp)
             return False
         return True
 
@@ -362,9 +359,8 @@ class MqttConnector(AbstractAsyncConnector):
                 self._handle_message(message)
         except asyncio.CancelledError:
             raise
-        except Exception as exp:
-            _logger.error(f"MQTT listener for '{self.name}' failed")
-            _logger.error(exp)
+        except Exception:
+            _logger.exception(f"MQTT listener for '{self.name}' failed")
 
     def _handle_message(self, message: Any) -> None:
         """Decode one MQTT message and notify registered callbacks."""
@@ -417,21 +413,19 @@ class MqttConnector(AbstractAsyncConnector):
             for sub in subscriptions:
                 try:
                     value = self.deserialize_value(payload, sub.resource)
-                except Exception as exp:
-                    _logger.error(
+                except Exception:
+                    _logger.exception(
                         "Failed to deserialize MQTT payload for topic "
                         f"'{sub.topic}'"
                     )
-                    _logger.error(exp)
                     continue
                 try:
                     sub.callback(value, other)
-                except Exception as exp:
-                    _logger.error(
+                except Exception:
+                    _logger.exception(
                         "MQTT subscription callback for topic "
                         f"'{sub.topic}' failed"
                     )
-                    _logger.error(exp)
         finally:
             if reentrant:
                 self._set_reentrant_dispatch(False)
