@@ -6,7 +6,7 @@ data model.
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -20,11 +20,16 @@ if TYPE_CHECKING:
     from machine_data_model.protocols.message_builder import MessageBuilder
 
 
-class ProtocolMng(ABC):
+_TMessageBuilder = TypeVar("_TMessageBuilder", bound="MessageBuilder")
+
+
+class ProtocolMng(ABC, Generic[_TMessageBuilder]):
     """Manager class for protocol-specific message handling.
 
     Abstract class responsible for handling messages encoded with a specific
-    protocol and updating the machine data model accordingly.
+    protocol and updating the machine data model accordingly. Subclasses bind
+    ``_TMessageBuilder`` to the concrete ``MessageBuilder`` they use, so the
+    ``_message_builder`` attribute keeps its narrowed type for callers.
 
     Attributes:
         _data_model (DataModel):
@@ -32,6 +37,8 @@ class ProtocolMng(ABC):
             messages.
 
     """
+
+    _message_builder: _TMessageBuilder
 
     def __init__(self, data_model: DataModel):
         """Initializes the ProtocolMng with a specific machine data model.
@@ -44,7 +51,6 @@ class ProtocolMng(ABC):
         """
         self._data_model = data_model
         data_model.traverse(data_model.root, self._set_variable_callback)
-        self._message_builder: MessageBuilder
 
     def _set_variable_callback(self, node: DataModelNode) -> None:
         """Set the variable update callback for VariableNode instances.

@@ -44,7 +44,7 @@ from machine_data_model.tracing import (
 )
 
 
-class FrostProtocolMng(ProtocolMng):
+class FrostProtocolMng(ProtocolMng[FrostMessageBuilder]):
     """Manage Frost protocol messages and update the machine data model.
 
     This class handles the reception, processing, and encoding of messages
@@ -95,15 +95,10 @@ class FrostProtocolMng(ProtocolMng):
             else FROST_PROTOCOL_VERSION
         )
 
-        # pyrefly: ignore[bad-override-mutable-attribute]
-        # Narrows MessageBuilder → FrostMessageBuilder on a mutable attribute;
-        # safe in practice (never reassigned) but a Liskov smell — flagged for
-        # the Phase 4 audit, consider using a TypeVar/property.
-        self._message_builder: FrostMessageBuilder = FrostMessageBuilder(
+        self._message_builder = FrostMessageBuilder(
             sender=self._data_model.name,
             protocol_version=self._protocol_version,
         )
-        assert isinstance(self._message_builder, FrostMessageBuilder)
         self._data_model.traverse(
             self._data_model.root, self._add_frost_message_builder
         )
