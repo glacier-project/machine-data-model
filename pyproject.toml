@@ -43,6 +43,12 @@ build-backend = "hatchling.build"
 packages = ["machine_data_model"]
 
 
+[tool.pytest.ini_options]
+markers = [
+    "connector: tests that need a connector optional extra installed",
+]
+
+
 [tool.ruff]
 # Google style uses 80 chars
 line-length = 80

@@ -110,9 +110,4 @@ jobs:
               raise SystemExit('expected ImportError')
           "
       - name: Run non-connector test suite
-        run: |
-          uv run pytest \
-            --ignore=tests/nodes/connectors \
-            --ignore=tests/builder/test_data_model_builder_connectors.py \
-            --ignore=tests/builder/test_data_model_dumper_connectors.py \
-            tests/
+        run: uv run pytest -m "not connector" tests/
