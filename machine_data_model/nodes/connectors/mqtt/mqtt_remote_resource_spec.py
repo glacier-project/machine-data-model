@@ -1,3 +1,9 @@
+"""MQTT-specific :class:`RemoteResource` specification.
+
+Holds the topic configuration (publish / subscribe topic, prefix, QoS,
+retain) used to resolve concrete MQTT topics for a remote node.
+"""
+
 from typing import TYPE_CHECKING, Any
 
 from typing_extensions import override

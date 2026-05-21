@@ -1,3 +1,10 @@
+"""MQTT connector backed by ``aiomqtt``.
+
+Implements :class:`AbstractAsyncConnector` for MQTT brokers, including
+publish/subscribe routing, payload codec selection, and topic resolution
+against :class:`MqttRemoteResourceSpec`.
+"""
+
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass

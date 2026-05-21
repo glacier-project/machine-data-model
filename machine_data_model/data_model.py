@@ -1,3 +1,11 @@
+"""Root container type for a machine data model.
+
+The ``DataModel`` defined here owns the folder/variable/method node tree and
+exposes lookup, traversal, and subscription primitives. Connectors, behaviour
+nodes, and protocol managers all operate against this type rather than the
+raw node graph.
+"""
+
 from collections.abc import Callable, Iterable
 import logging
 from typing import Any
