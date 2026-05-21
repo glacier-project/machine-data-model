@@ -1,11 +1,15 @@
 import pytest
 
-from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (
+pytest.importorskip("aiomqtt")
+
+from machine_data_model.data_model import DataModel  # noqa: E402
+from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (  # noqa: E402
     MqttRemoteResourceSpec,
 )
-from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.folder_node import FolderNode  # noqa: E402
+from machine_data_model.nodes.variable_node import (  # noqa: E402
+    NumericalVariableNode,
+)
 
 
 class TestMqttRemoteResourceSpec:

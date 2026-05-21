@@ -1,24 +1,30 @@
-import json
-from types import SimpleNamespace
-from typing import Any
-
-import msgpack
 import pytest
 
-from machine_data_model.nodes.connectors.mqtt import (
+pytest.importorskip("aiomqtt")
+pytest.importorskip("msgpack")
+
+import json  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+from typing import Any  # noqa: E402
+
+import msgpack  # noqa: E402
+
+from machine_data_model.nodes.connectors.mqtt import (  # noqa: E402
     deserialize_mqtt_value,
     deserialize_string_payload,
     serialize_mqtt_value,
     serialize_string_payload,
 )
-from machine_data_model.nodes.connectors.mqtt.mqtt_connector import (
+from machine_data_model.nodes.connectors.mqtt.mqtt_connector import (  # noqa: E402
     MqttConnector,
 )
-from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (
+from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (  # noqa: E402
     MqttRemoteResourceSpec,
 )
-from machine_data_model.nodes.connectors.remote_resource import RemoteResource
-from machine_data_model.nodes.variable_node import (
+from machine_data_model.nodes.connectors.remote_resource import (  # noqa: E402
+    RemoteResource,
+)
+from machine_data_model.nodes.variable_node import (  # noqa: E402
     BooleanVariableNode,
     StringVariableNode,
 )
