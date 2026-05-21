@@ -32,7 +32,7 @@ docs = [
     "sphinx>=8.2.3,<9",
     "sphinx-rtd-theme>=3.0.2,<4",
     "sphinx-autoapi>=3.4.0,<4",
-    "furo>=2024.8.6",
+    "furo>=2024.8.6,<2026",
 ]
 
 [build-system]
