@@ -19,10 +19,14 @@ from machine_data_model.nodes.connectors.mqtt import (  # noqa: E402
     MqttConnector,
     MqttRemoteResourceSpec,
 )
+from machine_data_model.nodes.connectors.opcua import (  # noqa: E402
+    opcua_remote_resource_spec as _opcua_spec,
+)
 from machine_data_model.nodes.connectors.opcua.opcua_connector import (  # noqa: E402
     OpcuaConnector,
-    OpcuaRemoteResourceSpec,
 )
+
+OpcuaRemoteResourceSpec = _opcua_spec.OpcuaRemoteResourceSpec
 
 
 class TestDataModelBuilderConnectors:
