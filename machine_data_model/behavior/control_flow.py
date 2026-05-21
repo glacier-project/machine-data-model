@@ -168,9 +168,6 @@ class ControlFlow:
 
         while pc < len(self._nodes):
             node = self._nodes[pc]
-            # TODO: fix me here if contains_template_variables(node.node):
-            # node.node = context.get_value(node.node)
-
             result = node.execute(context)
             executed_steps += 1
 
