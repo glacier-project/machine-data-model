@@ -1,3 +1,10 @@
+"""Abstract base for protocol-specific message builders.
+
+Each :class:`ProtocolMng` subclass owns a concrete :class:`MessageBuilder`
+that knows how to construct protocol messages (variable reads/writes,
+method calls, subscription events) for outbound communication.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Any
 

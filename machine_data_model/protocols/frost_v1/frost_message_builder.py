@@ -1,3 +1,10 @@
+"""Builder for Frost v1 protocol messages.
+
+Concrete :class:`MessageBuilder` implementation that emits
+:class:`FrostMessage` instances with the sender, protocol version, and
+correlation identifiers wired up.
+"""
+
 from typing import Any
 import uuid
 

@@ -1,3 +1,9 @@
+"""Lightweight handle binding a data-model node to a remote resource.
+
+A :class:`RemoteResource` pairs a local :class:`DataModelNode` with the
+connector that knows how to read or write it on a remote system.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

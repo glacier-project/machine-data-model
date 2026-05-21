@@ -1,3 +1,10 @@
+"""Pluggable payload codecs for the MQTT connector.
+
+Encodes and decodes the byte payloads exchanged with an MQTT broker. The
+codec is selected per-connector (or per-resource) by name and resolves to a
+serializer / deserializer pair.
+"""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 import json
