@@ -652,7 +652,7 @@ dev = [
     { name = "tox-uv", specifier = ">=1.13,<2" },
 ]
 docs = [
-    { name = "furo", specifier = ">=2024.8.6" },
+    { name = "furo", specifier = ">=2024.8.6,<2026" },
     { name = "sphinx", specifier = ">=8.2.3,<9" },
     { name = "sphinx-autoapi", specifier = ">=3.4.0,<4" },
     { name = "sphinx-rtd-theme", specifier = ">=3.0.2,<4" },
