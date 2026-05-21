@@ -1,16 +1,25 @@
-import asyncio
-from collections.abc import Callable
-import time
-from typing import Any
-import uuid
+import pytest
 
-import aiomqtt
-from docker.models.containers import Container
+pytest.importorskip("aiomqtt")
+pytest.importorskip("docker")
 
-from machine_data_model.builder.data_model_builder import DataModelBuilder
-from machine_data_model.nodes.connectors.mqtt import MqttConnector
-from machine_data_model.nodes.connectors.remote_resource import RemoteResource
-from machine_data_model.nodes.variable_node import VariableNode
+import asyncio  # noqa: E402
+from collections.abc import Callable  # noqa: E402
+import time  # noqa: E402
+from typing import Any  # noqa: E402
+import uuid  # noqa: E402
+
+import aiomqtt  # noqa: E402
+from docker.models.containers import Container  # noqa: E402
+
+from machine_data_model.builder.data_model_builder import (  # noqa: E402
+    DataModelBuilder,
+)
+from machine_data_model.nodes.connectors.mqtt import MqttConnector  # noqa: E402
+from machine_data_model.nodes.connectors.remote_resource import (  # noqa: E402
+    RemoteResource,
+)
+from machine_data_model.nodes.variable_node import VariableNode  # noqa: E402
 
 
 class TestMqttIntegration:

@@ -1,20 +1,26 @@
-from collections.abc import Callable
-from pathlib import Path
-from typing import Any
-
 import pytest
 
-from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.connectors.abstract_connector import (
+pytest.importorskip("aiomqtt")
+
+from collections.abc import Callable  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
+
+from machine_data_model.data_model import DataModel  # noqa: E402
+from machine_data_model.nodes.connectors.abstract_connector import (  # noqa: E402
     AbstractConnector,
     SubscriptionArguments,
 )
-from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (
+from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (  # noqa: E402
     MqttRemoteResourceSpec,
 )
-from machine_data_model.nodes.connectors.remote_resource import RemoteResource
-from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.connectors.remote_resource import (  # noqa: E402
+    RemoteResource,
+)
+from machine_data_model.nodes.folder_node import FolderNode  # noqa: E402
+from machine_data_model.nodes.variable_node import (  # noqa: E402
+    NumericalVariableNode,
+)
 
 
 class NullRemoteConnector(AbstractConnector):
