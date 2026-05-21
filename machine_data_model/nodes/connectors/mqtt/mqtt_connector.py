@@ -117,14 +117,7 @@ class MqttConnector(AbstractAsyncConnector):
     @override
     async def _async_connect(self) -> bool:
         """Asynchronously connects to the MQTT broker."""
-        client = aiomqtt.Client(
-            hostname=self.ip or "127.0.0.1",
-            port=self.port or 1883,
-            username=self.username,
-            password=self.password,
-            identifier=self.client_id,
-            keepalive=self.keepalive,
-        )
+        client = self._make_client()
         client_context_entered = False
         try:
             self.client = await client.__aenter__()
@@ -133,11 +126,7 @@ class MqttConnector(AbstractAsyncConnector):
             self._listener_task = asyncio.create_task(
                 self._listen_for_messages()
             )
-            for topic in self._topic_callbacks:
-                await self.client.subscribe(
-                    topic,
-                    qos=self._topic_qos.get(topic, self.qos),
-                )
+            await self._resubscribe_existing_topics()
         except Exception:
             _logger.exception(
                 f"Couldn't connect the '{self.name}' connector to the MQTT "
@@ -150,6 +139,27 @@ class MqttConnector(AbstractAsyncConnector):
             return False
         _logger.debug(f"Connected the '{self.name}' connector to MQTT broker")
         return True
+
+    def _make_client(self) -> aiomqtt.Client:
+        """Build an aiomqtt client from the connector configuration."""
+        return aiomqtt.Client(
+            hostname=self.ip or "127.0.0.1",
+            port=self.port or 1883,
+            username=self.username,
+            password=self.password,
+            identifier=self.client_id,
+            keepalive=self.keepalive,
+        )
+
+    async def _resubscribe_existing_topics(self) -> None:
+        """Re-subscribe to every topic that already has registered callbacks."""
+        if self.client is None:
+            return
+        for topic in self._topic_callbacks:
+            await self.client.subscribe(
+                topic,
+                qos=self._topic_qos.get(topic, self.qos),
+            )
 
     @override
     async def _async_disconnect(self) -> bool:
