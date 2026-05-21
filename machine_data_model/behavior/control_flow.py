@@ -7,6 +7,8 @@ implementing the logic of a run-time method.
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
 )
@@ -202,7 +204,7 @@ class ControlFlow:
 
         return messages
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

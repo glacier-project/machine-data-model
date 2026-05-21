@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from typing_extensions import override
+
 from machine_data_model.nodes.subscription.variable_subscription import (
     EventType,
 )
@@ -89,7 +91,7 @@ class DataChangeSubscriptionPayload(SubscriptionPayload):
     is_percent: bool = False
 
     @property
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def subscription_type(self) -> EventType:
         """Return the subscription type for data change events."""
         return EventType.DATA_CHANGE
@@ -116,7 +118,7 @@ class InRangeSubscriptionPayload(SubscriptionPayload):
     high: float = 0.0
 
     @property
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def subscription_type(self) -> EventType:
         """Return the subscription type for in-range events."""
         return EventType.IN_RANGE
@@ -140,7 +142,7 @@ class OutOfRangeSubscriptionPayload(InRangeSubscriptionPayload):
     """
 
     @property
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def subscription_type(self) -> EventType:
         """Return the subscription type for out-of-range events."""
         return EventType.OUT_OF_RANGE

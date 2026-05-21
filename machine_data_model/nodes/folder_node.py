@@ -175,7 +175,8 @@ class FolderNode(DataModelNode):
         for child in children:
             yield children[child]
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         """Returns a string representation of the FolderNode.
 
         Returns:
@@ -191,7 +192,8 @@ class FolderNode(DataModelNode):
             f"connector_name={self.connector_name!r})"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         """Returns a string representation of the FolderNode.
 
         Returns:
@@ -201,7 +203,7 @@ class FolderNode(DataModelNode):
         """
         return self.__str__()
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True

@@ -286,7 +286,8 @@ class FrostProtocolMng(ProtocolMng):
         """
         return self._update_messages
 
-    def resume_composite_method(  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def resume_composite_method(
         self, subscriber: str, node: VariableNode, value: Any
     ) -> None:
         """Resume the execution of a composite method.
@@ -666,7 +667,7 @@ class FrostProtocolMng(ProtocolMng):
             msg,
         )
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _update_variable_callback(
         self,
         subscription: VariableSubscription,

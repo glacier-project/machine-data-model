@@ -9,6 +9,8 @@ from collections.abc import Callable
 from typing import Any
 import uuid
 
+from typing_extensions import override
+
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
@@ -409,7 +411,8 @@ class CompositeMethodNode(MethodNode):
         self._contexts[context_id] = context
         return context
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         return (
             f"CompositeMethodNode(id={self.id}, "
             f"name={self.name}, "
@@ -418,7 +421,7 @@ class CompositeMethodNode(MethodNode):
             f"returns={self.returns})"
         )
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True

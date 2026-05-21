@@ -9,6 +9,8 @@ from enum import IntEnum
 import re
 from typing import Any
 
+from typing_extensions import override
+
 from machine_data_model.nodes.subscription.variable_subscription import (
     SubscriptionCallback,
 )
@@ -372,7 +374,8 @@ class ExecutionContext:
         """
         return self._context_id
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         """Return a string representation of the ExecutionContext.
 
         Returns:

@@ -517,7 +517,8 @@ class MqttConnector(AbstractAsyncConnector):
             "payload_codec": self.payload_codec,
         }
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         return (
             "MqttConnector("
             f"name={self.name!r}, "
@@ -533,5 +534,6 @@ class MqttConnector(AbstractAsyncConnector):
             ")"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         return self.__str__()

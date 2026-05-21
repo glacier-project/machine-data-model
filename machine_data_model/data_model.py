@@ -3,6 +3,8 @@ import logging
 from typing import Any
 import weakref
 
+from typing_extensions import override
+
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.behavior.remote_execution_node import (
     RemoteExecutionNode,
@@ -678,7 +680,8 @@ class DataModel:
                 )
                 _logger.error(exp)
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         return (
             f"DataModel(name={self._name}, "
             f"machine_category={self._machine_category}, "
@@ -689,10 +692,11 @@ class DataModel:
             f"connectors={self._connectors})"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         return self.__str__()
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

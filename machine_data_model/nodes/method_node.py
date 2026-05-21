@@ -468,7 +468,8 @@ class MethodNode(DataModelNode):
         assert len(ret_dict) == len(self._returns), f"{ret_dict}"
         return ret_dict
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         """Returns a string representation of the MethodNode.
 
         Returns:
@@ -483,7 +484,8 @@ class MethodNode(DataModelNode):
             f"description={self.description})"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         """Returns a string representation of the MethodNode.
 
         Returns:
@@ -493,7 +495,7 @@ class MethodNode(DataModelNode):
         """
         return self.__str__()
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True
@@ -563,7 +565,8 @@ class AsyncMethodNode(MethodNode):
             remote_resource_spec=remote_resource_spec,
         )
 
-    def is_async(self) -> bool:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def is_async(self) -> bool:
         """Returns always True for asynchronous methods.
 
         Returns:
@@ -573,7 +576,8 @@ class AsyncMethodNode(MethodNode):
         """
         return True
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         return (
             f"AsyncMethodNode(id={self.id}, "
             f"name={self.name}, "

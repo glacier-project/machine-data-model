@@ -549,8 +549,10 @@ class VariableNode(DataModelNode):
         self._update_internal_value(value)
         self.notify_subscribers()
 
-    # pyrefly: ignore[bad-override-param-name, missing-override-decorator]
-    def __getitem__(self, node_name: str) -> "VariableNode":
+    @override
+    def __getitem__(  # pyrefly: ignore[bad-override-param-name]
+        self, node_name: str
+    ) -> "VariableNode":
         """Raises an exception because child nodes are not supported.
 
         Args:
@@ -566,8 +568,10 @@ class VariableNode(DataModelNode):
             f"{self.__class__.__name__} does not support child nodes"
         )
 
-    # pyrefly: ignore[bad-override-param-name, missing-override-decorator]
-    def __contains__(self, node_name: str) -> bool:
+    @override
+    def __contains__(  # pyrefly: ignore[bad-override-param-name]
+        self, node_name: str
+    ) -> bool:
         """Always returns False, as this node does not have child nodes.
 
         Args:
@@ -581,7 +585,7 @@ class VariableNode(DataModelNode):
         """
         return False
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __iter__(self) -> Generator["VariableNode", None, None]:
         """Returns an empty iterator, as this node does not have child nodes.
 
@@ -592,7 +596,7 @@ class VariableNode(DataModelNode):
         """
         yield from []
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True
@@ -743,7 +747,8 @@ class NumericalVariableNode(VariableNode):
         assert isinstance(result, int | float)
         return result
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         """Returns a string representation of the NumericalVariableNode.
 
         Returns:
@@ -759,7 +764,8 @@ class NumericalVariableNode(VariableNode):
             f"value={self._read_internal_value()!r})"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         """Return the string representation of the NumericalVariableNode.
 
         Returns:
@@ -880,7 +886,7 @@ class StringVariableNode(VariableNode):
         assert isinstance(result, str)
         return result
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """Raise NotImplementedError.
 
@@ -899,7 +905,7 @@ class StringVariableNode(VariableNode):
             "StringVariableNode does not support child nodes"
         )
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __contains__(self, node_name: str) -> bool:
         """Return False as StringVariableNode does not support child nodes.
 
@@ -914,7 +920,8 @@ class StringVariableNode(VariableNode):
         """
         return False
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         """Returns a string representation of the StringVariableNode.
 
         Returns:
@@ -929,7 +936,8 @@ class StringVariableNode(VariableNode):
             f"value={self._read_internal_value()!r})"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         """Return the string representation of the StringVariableNode.
 
         Returns:
@@ -1053,7 +1061,7 @@ class BooleanVariableNode(VariableNode):
         assert isinstance(result, bool)
         return result
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __getitem__(self, node_name: str) -> VariableNode:
         """Raise NotImplementedError.
 
@@ -1072,7 +1080,7 @@ class BooleanVariableNode(VariableNode):
             "BooleanVariableNode does not support child nodes"
         )
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __contains__(self, node_name: str) -> bool:
         """Return False as BooleanVariableNode does not support child nodes.
 
@@ -1087,7 +1095,8 @@ class BooleanVariableNode(VariableNode):
         """
         return False
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         """Returns a string representation of the BooleanVariableNode.
 
         Returns:
@@ -1102,7 +1111,8 @@ class BooleanVariableNode(VariableNode):
             f"value={self._read_internal_value()!r})"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         """Return the string representation of the BooleanVariableNode.
 
         Returns:
@@ -1348,8 +1358,10 @@ class ObjectVariableNode(VariableNode):
             return prev_value
         return value
 
-    # pyrefly: ignore[bad-override-param-name, missing-override-decorator]
-    def __getitem__(self, property_name: str) -> VariableNode:
+    @override
+    def __getitem__(  # pyrefly: ignore[bad-override-param-name]
+        self, property_name: str
+    ) -> VariableNode:
         """Get a property of the object variable.
 
         Args:
@@ -1363,8 +1375,10 @@ class ObjectVariableNode(VariableNode):
         """
         return self.get_property(property_name)
 
-    # pyrefly: ignore[bad-override-param-name, missing-override-decorator]
-    def __contains__(self, property_name: str) -> bool:
+    @override
+    def __contains__(  # pyrefly: ignore[bad-override-param-name]
+        self, property_name: str
+    ) -> bool:
         """Check if the object variable has a property.
 
         Args:
@@ -1378,7 +1392,7 @@ class ObjectVariableNode(VariableNode):
         """
         return self.has_property(property_name)
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def __iter__(self) -> Generator[VariableNode, None, None]:
         """Iterate over the properties of the object variable.
 
@@ -1389,7 +1403,8 @@ class ObjectVariableNode(VariableNode):
         """
         yield from self._properties.values()
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         """Returns a string representation of the ObjectVariableNode.
 
         Returns:
@@ -1404,7 +1419,8 @@ class ObjectVariableNode(VariableNode):
             f"value={self._read_internal_value()})"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         """Return the string representation of the ObjectVariableNode.
 
         Returns:
