@@ -473,7 +473,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                     raise ValueError(
                         f"Couldn't retrieve node '{path}': empty path"
                     )
-            _logger.debug(f"Retrieving node '{path}' by remote path '{path}'")
+            _logger.debug(
+                f"Retrieving node '{resource.path}' by remote path '{path}'"
+            )
             split_path = [p for p in path.split("/") if p]
             node = _require_asyncua_node(
                 await self.client.get_root_node().get_child(split_path)
