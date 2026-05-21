@@ -632,7 +632,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "aiomqtt", marker = "extra == 'mqtt'", specifier = ">=2.5.1,<3" },
-    { name = "asyncua", marker = "extra == 'opcua'", specifier = "==1.1.6" },
+    { name = "asyncua", marker = "extra == 'opcua'", specifier = ">=1.1.6,<2" },
     { name = "machine-data-model", extras = ["opcua", "mqtt"], marker = "extra == 'all'" },
     { name = "msgpack", marker = "extra == 'mqtt'", specifier = ">=1.1.2,<2" },
     { name = "pyyaml", specifier = ">=6.0.2,<7" },
