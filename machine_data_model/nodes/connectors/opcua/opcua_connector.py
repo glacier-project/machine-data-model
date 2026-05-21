@@ -698,7 +698,8 @@ class OpcuaConnector(AbstractAsyncConnector):
             "certificate_file_path": str(self.certificate_file_path),
         }
 
-    def __str__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __str__(self) -> str:
         return (
             "OpcuaConnector("
             f"name={self.name!r}, "
@@ -713,7 +714,8 @@ class OpcuaConnector(AbstractAsyncConnector):
             ")"
         )
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -731,7 +733,8 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
         """
         self._callback = callback
 
-    def datachange_notification(  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def datachange_notification(
         self, node: asyncua.Node, val: Any, data: DataChangeNotif
     ) -> None:
         """Called for every datachange notification from server.

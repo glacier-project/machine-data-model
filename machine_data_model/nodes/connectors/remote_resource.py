@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import weakref
 
+from typing_extensions import override
+
 if TYPE_CHECKING:
     from machine_data_model.nodes.data_model_node import DataModelNode
 
@@ -77,7 +79,8 @@ class RemoteResource:
         resource._node_type = type(node)
         return resource
 
-    def __repr__(self) -> str:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def __repr__(self) -> str:
         return (
             "RemoteResource(" f"path={self.path!r}, " f"spec={self.spec!r}" ")"
         )

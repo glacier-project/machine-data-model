@@ -9,6 +9,8 @@ convenience functions for easy tracing integration throughout the codebase.
 from dataclasses import dataclass
 from typing import Any
 
+from typing_extensions import override
+
 from machine_data_model.utils.timestamp import get_timestamp_ns
 
 from .tracing_core import (
@@ -76,7 +78,7 @@ class VariableWriteEvent(TraceEvent):
         self.new_value = new_value
         self.success = success
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get variable write event details."""
         return {
@@ -131,7 +133,7 @@ class VariableReadEvent(TraceEvent):
         self.variable_id = variable_id
         self.value = value
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get variable read event details."""
         return {
@@ -185,7 +187,7 @@ class MethodStartEvent(TraceEvent):
         self.method_id = method_id
         self.args = args
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get method start event details."""
         return {
@@ -246,7 +248,7 @@ class MethodEndEvent(TraceEvent):
         self.returns = returns
         self.execution_time = execution_time
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get method end event details."""
         return {
@@ -309,7 +311,7 @@ class WaitStartEvent(TraceEvent):
         self.condition = condition
         self.expected_value = expected_value
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get wait start event details."""
         return {
@@ -365,7 +367,7 @@ class WaitEndEvent(TraceEvent):
         self.variable_id = variable_id
         self.wait_duration = wait_duration
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get wait end event details."""
         return {
@@ -433,7 +435,7 @@ class MessageSendEvent(TraceEvent):
         self.correlation_id = correlation_id
         self.payload = payload
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get message send event details."""
         return {
@@ -512,7 +514,7 @@ class MessageReceiveEvent(TraceEvent):
         self.payload = payload
         self.latency = latency
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get message receive event details."""
         return {
@@ -568,7 +570,7 @@ class SubscribeEvent(TraceEvent):
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get subscribe event details."""
         return {
@@ -621,7 +623,7 @@ class UnsubscribeEvent(TraceEvent):
         self.variable_id = variable_id
         self.subscriber_id = subscriber_id
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get unsubscribe event details."""
         return {
@@ -682,7 +684,7 @@ class NotificationEvent(TraceEvent):
         self.subscriber_id = subscriber_id
         self.value = value
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get notification event details."""
         return {
@@ -754,7 +756,7 @@ class ControlFlowStepEvent(TraceEvent):
         self.execution_result = execution_result
         self.program_counter = program_counter
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get control flow step event details."""
         return {
@@ -809,7 +811,7 @@ class ControlFlowStartEvent(TraceEvent):
         self.control_flow_id = control_flow_id
         self.total_steps = total_steps
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get control flow start event details."""
         return {
@@ -876,7 +878,7 @@ class ControlFlowEndEvent(TraceEvent):
         self.executed_steps = executed_steps
         self.final_pc = final_pc
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_details(self) -> dict[str, Any]:
         """Get control flow end event details."""
         return {
