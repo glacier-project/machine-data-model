@@ -218,8 +218,9 @@ class OpcuaConnector(AbstractAsyncConnector):
             else self.get_default_certificate_file_path()
         )
 
-        # pyrefly: ignore[implicit-any-type-argument]
-        if not isinstance(trust_store_certificates_paths, list | None):
+        if trust_store_certificates_paths is not None and not isinstance(
+            trust_store_certificates_paths, list
+        ):
             raise TypeError(
                 f"Connector '{name}': trust_store_certificates_paths, when "
                 f"defined, must be a list of strings"
@@ -541,8 +542,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         success = True
         try:
             current_value = await node.read_data_value()
-            # pyrefly: ignore[missing-attribute]
-            current_value_type = current_value.Value.VariantType
+            current_value_type = cast(Any, current_value).Value.VariantType
             _logger.debug(
                 f"Overriding node '{path}', which previously had value "
                 f"{current_value!r} (type {current_value_type}), with value: "

@@ -6,12 +6,12 @@ against :class:`MqttRemoteResourceSpec`.
 """
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import logging
 import threading
-from typing import Any
+from typing import Any, cast
 
 import aiomqtt
 from typing_extensions import override
@@ -381,9 +381,10 @@ class MqttConnector(AbstractAsyncConnector):
         messages = self.client.messages
         if callable(messages):
             messages = messages()
+        messages = cast(AsyncIterator[Any], messages)
 
         try:
-            async for message in messages:  # pyrefly: ignore[not-iterable]
+            async for message in messages:
                 self._handle_message(message)
         except asyncio.CancelledError:
             raise
