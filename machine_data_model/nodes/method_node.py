@@ -454,7 +454,7 @@ class MethodNode(DataModelNode):
                 the return values.
 
         """
-        ret_dict = {}  # pyrefly: ignore[implicit-any-empty-container]
+        ret_dict: dict[str, Any] = {}
         if isinstance(ret, Mapping):
             raise RuntimeError("Return value cannot be a mapping.")
         f" Received {ret} of type {type(ret)}."

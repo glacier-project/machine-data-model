@@ -590,7 +590,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         node = await self._remote_node(resource)
 
         method_inputs = await get_input_arguments(node)
-        inputs = []  # pyrefly: ignore[implicit-any-empty-container]
+        inputs: list[Any] = []
         if method_inputs is not None:
             inputs = await method_inputs.read_value()
             if not isinstance(inputs, list):
