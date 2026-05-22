@@ -1,5 +1,6 @@
 from enum import Enum
 import random
+from typing import Any, cast
 
 import pytest
 from unitsnet_py import LengthUnits
@@ -31,9 +32,10 @@ class TestMeasureBuilder:
         measure_value = measure_builder.create_measure(value, unit)
 
         # Assert
-        # pyrefly: ignore[missing-attribute]
-        assert measure_value.base_value == value
-        assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))  # type: ignore[attr-defined]
+        assert cast(Any, measure_value).base_value == value
+        assert str(measure_value).endswith(
+            cast(Any, domain).get_unit_abbreviation(unit)
+        )
 
     @pytest.mark.parametrize(
         "value", [random.uniform(0, 1000) for i in range(NUM_TESTS)]
@@ -52,6 +54,7 @@ class TestMeasureBuilder:
         measure_value = measure_builder.create_measure(value, unit)
 
         # Assert
-        # pyrefly: ignore[missing-attribute]
-        assert measure_value.base_value == value
-        assert str(measure_value).endswith(domain.get_unit_abbreviation(unit))  # type: ignore[attr-defined]
+        assert cast(Any, measure_value).base_value == value
+        assert str(measure_value).endswith(
+            cast(Any, domain).get_unit_abbreviation(unit)
+        )

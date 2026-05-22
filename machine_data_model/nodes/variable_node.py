@@ -678,7 +678,7 @@ class NumericalVariableNode(VariableNode):
                 The value of the numerical variable.
 
         """
-        return self._value.base_value  # type: ignore[no-any-return]
+        return cast(float, cast(Any, self._value).base_value)
 
     @override
     def _read_remote_value(self, force_remote_read: bool = False) -> float:
@@ -716,7 +716,7 @@ class NumericalVariableNode(VariableNode):
         """
         measure_cls = cast(Any, type(self._value))
         self._value = measure_cls(value, self._measure_unit)
-        return self._value.base_value  # type: ignore[no-any-return]
+        return cast(float, cast(Any, self._value).base_value)
 
     def get_measure_unit(self) -> Enum:
         """Get the measure unit of the numerical variable.
