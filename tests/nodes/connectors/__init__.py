@@ -1,11 +1,30 @@
 import random
 import socket
+from typing import Any, cast
 
 from asyncua import ua, uamethod
 from asyncua.sync import Server, SyncNode
 
 from machine_data_model.builder.data_model_builder import DataModelBuilder
 from machine_data_model.data_model import DataModel
+
+
+def _make_argument(name: str, data_type_id: int, description: str) -> Any:
+    """Build an asyncua ua.Argument with the common fields set.
+
+    asyncua's typed stubs reject the plain Python types we assign here
+    (e.g. str / int / list); cast at the boundary so the assignments
+    are no longer flagged.
+    """
+    arg = cast(Any, ua.Argument())
+    arg.Name = name
+    arg.DataType = cast(Any, ua).NodeId(data_type_id)
+    arg.ValueRank = -1
+    empty: list[int] = []
+    arg.ArrayDimensions = empty
+    arg.Description = ua.LocalizedText(description)
+    return arg
+
 
 custom_opcua_server_yaml = """
 name: "customServer"
@@ -75,7 +94,7 @@ def free_port() -> int:
     return port
 
 
-@uamethod  # type: ignore[untyped-decorator]
+@uamethod
 def call_free_pallet_to_with_reservation(
     parent: SyncNode, destination: int, reservation_id: int
 ) -> tuple[bool, int]:
@@ -105,37 +124,16 @@ def call_free_pallet_to_with_reservation(
 def add_method_call_free_pallet_to_with_reservation(
     idx: int, parent: SyncNode
 ) -> None:
-    destination = ua.Argument()
-    destination.Name = "destination"  # pyrefly: ignore[bad-assignment]
-    # pyrefly: ignore[bad-argument-type]
-    destination.DataType = ua.NodeId(ua.ObjectIds.Int64)
-    destination.ValueRank = -1  # pyrefly: ignore[bad-assignment]
-    destination.ArrayDimensions = []
-    destination.Description = ua.LocalizedText("destination")
-
-    reservation_id = ua.Argument()
-    reservation_id.Name = "reservationId"  # pyrefly: ignore[bad-assignment]
-    # pyrefly: ignore[bad-argument-type]
-    reservation_id.DataType = ua.NodeId(ua.ObjectIds.Int64)
-    reservation_id.ValueRank = -1  # pyrefly: ignore[bad-assignment]
-    reservation_id.ArrayDimensions = []
-    reservation_id.Description = ua.LocalizedText("reservationId")
-
-    result = ua.Argument()
-    result.Name = "result"  # pyrefly: ignore[bad-assignment]
-    # pyrefly: ignore[bad-argument-type]
-    result.DataType = ua.NodeId(ua.ObjectIds.Boolean)
-    result.ValueRank = -1  # pyrefly: ignore[bad-assignment]
-    result.ArrayDimensions = []
-    result.Description = ua.LocalizedText("result")
-
-    pallet_number = ua.Argument()
-    pallet_number.Name = "palletNumber"  # pyrefly: ignore[bad-assignment]
-    # pyrefly: ignore[bad-argument-type]
-    pallet_number.DataType = ua.NodeId(ua.ObjectIds.Int64)
-    pallet_number.ValueRank = -1  # pyrefly: ignore[bad-assignment]
-    pallet_number.ArrayDimensions = []
-    pallet_number.Description = ua.LocalizedText("palletNumber")
+    destination = _make_argument(
+        "destination", ua.ObjectIds.Int64, "destination"
+    )
+    reservation_id = _make_argument(
+        "reservationId", ua.ObjectIds.Int64, "reservationId"
+    )
+    result = _make_argument("result", ua.ObjectIds.Boolean, "result")
+    pallet_number = _make_argument(
+        "palletNumber", ua.ObjectIds.Int64, "palletNumber"
+    )
 
     parent.add_method(
         idx,

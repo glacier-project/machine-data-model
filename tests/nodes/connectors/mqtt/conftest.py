@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import Generator
 from pathlib import Path
 import time
-from typing import Any
+from typing import Any, cast
 
 import aiomqtt
 import docker
@@ -41,10 +41,8 @@ def start_mqtt_test_broker(
     )
 
     container.reload()
-    # pyrefly: ignore[unsupported-operation]
-    container_host_port = container.ports.get(container_guest_port)[0][
-        "HostPort"
-    ]
+    ports = cast(dict[str, Any], container.ports)
+    container_host_port = ports[container_guest_port][0]["HostPort"]
     assert str.isnumeric(container_host_port)
     container_host_port = int(container_host_port)
 

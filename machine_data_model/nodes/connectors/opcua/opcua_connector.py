@@ -722,7 +722,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         return self.__str__()
 
 
-class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[misc]
+class OpcUaDataChangeHandler(DataChangeNotificationHandler):
     """Handles OPC UA data changes by calling a callback function."""
 
     def __init__(

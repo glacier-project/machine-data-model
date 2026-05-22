@@ -25,7 +25,7 @@ class NoneMeasureUnits(Enum):
     NONE = 0
 
 
-class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
+class NoneMeasure(AbstractMeasure):
     """Represents a value with no unit.
 
     This class is used to represent a value that does not have any unit

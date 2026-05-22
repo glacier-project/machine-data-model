@@ -93,7 +93,7 @@ class TestBidirectionalLinking:
 
         # Now nodes should have parent reference
         assert node1.parent_cfg is cfg
-        assert node2.parent_cfg is cfg  # type: ignore[unreachable]
+        assert node2.parent_cfg is cfg
 
     def test_cfg_property_access(self) -> None:
         """Test that the composite_method_node property works correctly."""

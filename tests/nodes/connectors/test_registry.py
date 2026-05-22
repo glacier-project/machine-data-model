@@ -1,6 +1,9 @@
 """Tests for the connector plugin registry."""
 
+from typing import Any
 from unittest.mock import patch
+
+import yaml
 
 from machine_data_model.nodes.connectors.registry import (
     ConnectorPlugin,
@@ -19,16 +22,19 @@ def _make_plugin(name: str = "fake") -> ConnectorPlugin:
 
     class _FakeSpec: ...
 
+    def _fake_represent(
+        dumper: yaml.Dumper, obj: Any
+    ) -> yaml.nodes.MappingNode:
+        return dumper.represent_mapping(f"!{name}", {})
+
     return ConnectorPlugin(
         name=name,
         connector_cls=_FakeConnector,
         spec_cls=_FakeSpec,
         construct_connector=lambda loader, node: None,
         construct_spec=lambda loader, node: None,
-        # pyrefly: ignore[bad-argument-type]
-        represent_connector=lambda dumper, obj: None,
-        # pyrefly: ignore[bad-argument-type]
-        represent_spec=lambda dumper, obj: None,
+        represent_connector=_fake_represent,
+        represent_spec=_fake_represent,
     )
 
 
