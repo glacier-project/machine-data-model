@@ -96,15 +96,14 @@ def _get_numerical_variable(
 
     """
     data = loader.construct_mapping(node)
-    default_kwargs = {
-        "id": None,  # pyrefly: ignore[implicit-any-empty-container]
+    default_kwargs: dict[str, Any] = {
+        "id": None,
         "name": "",
         "description": "",
         "measure_unit": NoneMeasureUnits.NONE,
-        "initial_value": None,  # pyrefly: ignore[implicit-any-empty-container]
+        "initial_value": None,
         "default_value": 0,
-        "connector_name": None,  # pyrefly: ignore[implicit-any-empty-container]
-        # pyrefly: ignore[implicit-any-empty-container]
+        "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = build_kwargs(data, default_kwargs)
@@ -136,14 +135,13 @@ def _get_string_variable(
 
     """
     data = loader.construct_mapping(node)
-    default_kwargs = {
-        "id": None,  # pyrefly: ignore[implicit-any-empty-container]
+    default_kwargs: dict[str, Any] = {
+        "id": None,
         "name": "",
         "description": "",
-        "initial_value": None,  # pyrefly: ignore[implicit-any-empty-container]
+        "initial_value": None,
         "default_value": "",
-        "connector_name": None,  # pyrefly: ignore[implicit-any-empty-container]
-        # pyrefly: ignore[implicit-any-empty-container]
+        "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = build_kwargs(data, default_kwargs)
@@ -176,14 +174,13 @@ def _get_boolean_variable(
 
     """
     data = loader.construct_mapping(node)
-    default_kwargs = {
-        "id": None,  # pyrefly: ignore[implicit-any-empty-container]
+    default_kwargs: dict[str, Any] = {
+        "id": None,
         "name": "",
         "description": "",
-        "initial_value": None,  # pyrefly: ignore[implicit-any-empty-container]
+        "initial_value": None,
         "default_value": False,
-        "connector_name": None,  # pyrefly: ignore[implicit-any-empty-container]
-        # pyrefly: ignore[implicit-any-empty-container]
+        "connector_name": None,
         "remote_resource_spec": None,
     }
     kwargs = build_kwargs(data, default_kwargs)
@@ -298,7 +295,7 @@ def _get_read_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "store_as": "",
     }
@@ -326,7 +323,7 @@ def _get_write_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "value": "",
     }
@@ -354,7 +351,7 @@ def _get_wait_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "operator": "",
         "rhs": "",
@@ -384,10 +381,10 @@ def _get_call_method_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "method": "",
-        "args": [],  # pyrefly: ignore[implicit-any-empty-container]
-        "kwargs": {},  # pyrefly: ignore[implicit-any-empty-container]
+        "args": [],
+        "kwargs": {},
     }
     kwargs = build_kwargs(data, default_kwargs)
     return CallMethodNode(
@@ -414,11 +411,11 @@ def _get_call_remote_method_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "method": "",
         "remote_id": "",
-        "args": [],  # pyrefly: ignore[implicit-any-empty-container]
-        "kwargs": {},  # pyrefly: ignore[implicit-any-empty-container]
+        "args": [],
+        "kwargs": {},
     }
     kwargs = build_kwargs(data, default_kwargs)
     return CallRemoteMethodNode(
@@ -446,7 +443,7 @@ def _get_read_remote_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "remote_id": "",
         "store_as": "",
@@ -476,7 +473,7 @@ def _get_write_remote_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "remote_id": "",
         "value": "",
@@ -506,7 +503,7 @@ def _get_wait_remote_event_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "operator": "",
         "rhs": "",
