@@ -119,6 +119,10 @@ class MqttConnector(AbstractAsyncConnector):
         self._topic_qos: dict[str, int] = {}
         self._next_subscription_id = 1
         self._callback_executor: ThreadPoolExecutor | None = None
+        self._reconnect_requested = False
+        self._reconnect_task: asyncio.Task[None] | None = None
+        self.reconnect_initial_backoff_s = 0.5
+        self.reconnect_max_backoff_s = 30.0
 
     @property
     def qos(self) -> int:
@@ -194,6 +198,7 @@ class MqttConnector(AbstractAsyncConnector):
     @override
     async def _async_disconnect(self) -> bool:
         """Asynchronously disconnects from the MQTT broker."""
+        self._reconnect_requested = False
         await self._cancel_listener_task()
         self._shutdown_callback_executor()
 
@@ -363,7 +368,13 @@ class MqttConnector(AbstractAsyncConnector):
         return True
 
     async def _listen_for_messages(self) -> None:
-        """Consume MQTT messages and dispatch callbacks."""
+        """Consume MQTT messages and dispatch callbacks.
+
+        On unexpected broker disconnects, schedules a reconnect-with-backoff
+        loop instead of exiting silently. ``asyncio.CancelledError`` (raised
+        when ``_async_disconnect`` cancels the listener) propagates so the
+        reconnect loop also stops.
+        """
         if self.client is None or not isinstance(self.client, aiomqtt.Client):
             return
 
@@ -377,7 +388,39 @@ class MqttConnector(AbstractAsyncConnector):
         except asyncio.CancelledError:
             raise
         except Exception:
-            _logger.exception(f"MQTT listener for '{self.name}' failed")
+            _logger.exception(
+                f"MQTT listener for '{self.name}' failed; "
+                f"scheduling reconnect"
+            )
+            self._reconnect_requested = True
+            self._reconnect_task = asyncio.create_task(self._reconnect_loop())
+
+    async def _reconnect_loop(self) -> None:
+        """Attempt to reconnect to the broker with exponential backoff."""
+        backoff = self.reconnect_initial_backoff_s
+        while self._reconnect_requested:
+            await self._close_client_context()
+            self.client = None
+            self._client_context = None
+            await asyncio.sleep(backoff)
+            if not self._reconnect_requested:
+                return
+            try:
+                connected = await self._async_connect()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                _logger.exception(
+                    f"MQTT reconnect for '{self.name}' raised; will retry"
+                )
+                connected = False
+            if connected:
+                _logger.info(f"MQTT '{self.name}' reconnected to broker")
+                self._reconnect_requested = False
+                self._reconnect_task = None
+                return
+            backoff = min(backoff * 2, self.reconnect_max_backoff_s)
+        self._reconnect_task = None
 
     def _handle_message(self, message: Any) -> None:
         """Decode one MQTT message and notify registered callbacks."""
