@@ -36,6 +36,7 @@ from asyncua.crypto.validator import (
     CertificateValidator,
     CertificateValidatorOptions,
 )
+import asyncua.ua
 from asyncua.ua import UaError, VariantType
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override

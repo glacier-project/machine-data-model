@@ -194,7 +194,7 @@ class TraceCollector:
         )
 
         # Record if current level is >= required level
-        return bool(self.level.value >= min_level.value)
+        return self.level.value >= min_level.value
 
     def get_events(
         self,

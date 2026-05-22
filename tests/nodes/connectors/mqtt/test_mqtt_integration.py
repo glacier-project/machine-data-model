@@ -137,7 +137,7 @@ async def _capture_message(
                     str(message.topic),
                 )
                 if message_topic == topic:
-                    return bytes(message.payload)
+                    return message.payload
     raise TimeoutError(f"Did not receive MQTT message for topic {topic}")
 
 
