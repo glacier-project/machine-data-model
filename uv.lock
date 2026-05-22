@@ -609,7 +609,6 @@ opcua = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "docker" },
     { name = "lizard" },
     { name = "pre-commit" },
     { name = "pyrefly" },
@@ -623,6 +622,9 @@ docs = [
     { name = "sphinx" },
     { name = "sphinx-autoapi" },
     { name = "sphinx-rtd-theme" },
+]
+integration = [
+    { name = "docker" },
 ]
 test = [
     { name = "pytest" },
@@ -642,7 +644,6 @@ provides-extras = ["opcua", "mqtt", "all"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "docker", specifier = ">=7.1.0,<8" },
     { name = "lizard", specifier = ">=1.17.13,<2" },
     { name = "pre-commit", specifier = ">=4.0.1,<5" },
     { name = "pyrefly", specifier = ">=1.0.0,<2" },
@@ -657,6 +658,7 @@ docs = [
     { name = "sphinx-autoapi", specifier = ">=3.4.0,<4" },
     { name = "sphinx-rtd-theme", specifier = ">=3.0.2,<4" },
 ]
+integration = [{ name = "docker", specifier = ">=7.1.0,<8" }]
 test = [
     { name = "pytest", specifier = ">=8.3.4,<9" },
     { name = "pytest-cov", specifier = ">=6.0.0,<7" },

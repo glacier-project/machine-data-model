@@ -25,9 +25,9 @@ dev = [
     "ruff>=0.8.3,<0.9",
     "tox>=4.23.2,<5",
     "tox-uv>=1.13,<2",
-    "docker>=7.1.0,<8",
 ]
 test = ["pytest>=8.3.4,<9", "pytest-cov>=6.0.0,<7"]
+integration = ["docker>=7.1.0,<8"]
 docs = [
     "sphinx>=8.2.3,<9",
     "sphinx-rtd-theme>=3.0.2,<4",
