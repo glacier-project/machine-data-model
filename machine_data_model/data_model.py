@@ -86,8 +86,7 @@ class DataModel:
             )
         )
         self._closed = False
-        # pyrefly: ignore[implicit-any-type-argument]
-        self._connector_finalizer: weakref.finalize | None = None
+        self._connector_finalizer: weakref.finalize[..., None] | None = None
 
         self._connectors: dict[str, AbstractConnector] = (
             self._initialize_connectors(connectors)

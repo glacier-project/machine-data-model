@@ -205,8 +205,8 @@ class TestVariableNode:
     def test_variable_node_subscription(
         self, var_name: str, var_description: str
     ) -> None:
-        updates = []  # pyrefly: ignore[implicit-any-empty-container]
-        custom_updates = []  # pyrefly: ignore[implicit-any-empty-container]
+        updates: list[Any] = []
+        custom_updates: list[Any] = []
 
         def on_data_change(
             subscription: VariableSubscription,

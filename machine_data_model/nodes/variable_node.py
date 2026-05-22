@@ -8,7 +8,7 @@ object variables with subscription and notification capabilities.
 from abc import abstractmethod
 from collections.abc import Callable, Generator
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -551,13 +551,11 @@ class VariableNode(DataModelNode):
         self.notify_subscribers()
 
     @override
-    def __getitem__(  # pyrefly: ignore[bad-override-param-name]
-        self, node_name: str
-    ) -> "VariableNode":
+    def __getitem__(self, child_name: str) -> "VariableNode":
         """Raises an exception because child nodes are not supported.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to retrieve.
 
         Raises:
@@ -570,13 +568,11 @@ class VariableNode(DataModelNode):
         )
 
     @override
-    def __contains__(  # pyrefly: ignore[bad-override-param-name]
-        self, node_name: str
-    ) -> bool:
+    def __contains__(self, child_name: str) -> bool:
         """Always returns False, as this node does not have child nodes.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to check.
 
         Returns:
@@ -718,8 +714,8 @@ class NumericalVariableNode(VariableNode):
                 The updated value of the numerical variable.
 
         """
-        # pyrefly: ignore[bad-argument-count]
-        self._value = self._value.__class__(value, self._measure_unit)
+        measure_cls = cast(Any, type(self._value))
+        self._value = measure_cls(value, self._measure_unit)
         return self._value.base_value  # type: ignore[no-any-return]
 
     def get_measure_unit(self) -> Enum:
@@ -893,13 +889,13 @@ class StringVariableNode(VariableNode):
         return result
 
     @override
-    def __getitem__(self, node_name: str) -> VariableNode:
+    def __getitem__(self, child_name: str) -> VariableNode:
         """Raise NotImplementedError.
 
         StringVariableNode does not support children.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to retrieve.
 
         Raises:
@@ -912,11 +908,11 @@ class StringVariableNode(VariableNode):
         )
 
     @override
-    def __contains__(self, node_name: str) -> bool:
+    def __contains__(self, child_name: str) -> bool:
         """Return False as StringVariableNode does not support child nodes.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to check.
 
         Returns:
@@ -1071,13 +1067,13 @@ class BooleanVariableNode(VariableNode):
         return result
 
     @override
-    def __getitem__(self, node_name: str) -> VariableNode:
+    def __getitem__(self, child_name: str) -> VariableNode:
         """Raise NotImplementedError.
 
         BooleanVariableNode does not support children.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node.
 
         Raises:
@@ -1090,11 +1086,11 @@ class BooleanVariableNode(VariableNode):
         )
 
     @override
-    def __contains__(self, node_name: str) -> bool:
+    def __contains__(self, child_name: str) -> bool:
         """Return False as BooleanVariableNode does not support child nodes.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node.
 
         Returns:
@@ -1181,8 +1177,7 @@ class ObjectVariableNode(VariableNode):
         for property_node in self._properties.values():
             if not isinstance(property_node, VariableNode):
                 raise TypeError("Property must be a VariableNode")
-        # pyrefly: ignore[missing-override-decorator]
-        self.value: dict[str, Any] = self._read_internal_value()
+        self.write(self._read_internal_value())
         self.register_children(self._properties)
 
     def add_property(self, property_node: VariableNode) -> None:
@@ -1370,13 +1365,11 @@ class ObjectVariableNode(VariableNode):
         return value
 
     @override
-    def __getitem__(  # pyrefly: ignore[bad-override-param-name]
-        self, property_name: str
-    ) -> VariableNode:
+    def __getitem__(self, child_name: str) -> VariableNode:
         """Get a property of the object variable.
 
         Args:
-            property_name (str):
+            child_name (str):
                 The name of the property to get.
 
         Returns:
@@ -1384,16 +1377,14 @@ class ObjectVariableNode(VariableNode):
                 The property node.
 
         """
-        return self.get_property(property_name)
+        return self.get_property(child_name)
 
     @override
-    def __contains__(  # pyrefly: ignore[bad-override-param-name]
-        self, property_name: str
-    ) -> bool:
+    def __contains__(self, child_name: str) -> bool:
         """Check if the object variable has a property.
 
         Args:
-            property_name (str):
+            child_name (str):
                 The name of the property to check.
 
         Returns:
@@ -1401,7 +1392,7 @@ class ObjectVariableNode(VariableNode):
                 True if the property exists, False otherwise.
 
         """
-        return self.has_property(property_name)
+        return self.has_property(child_name)
 
     @override
     def __iter__(self) -> Generator[VariableNode, None, None]:

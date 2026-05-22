@@ -7,6 +7,7 @@ various unit systems and a NoneMeasure class for dimensionless values.
 
 from enum import Enum
 import inspect
+from typing import Any, cast
 
 import unitsnet_py
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -228,8 +229,7 @@ class MeasureBuilder:
 
         """
         unit = self.get_measure_unit(unit)
-        measure = self._measure_ctor[unit.__class__]
-        # pyrefly: ignore[unexpected-keyword]
+        measure = cast(Any, self._measure_ctor[unit.__class__])
         return measure(value=value, from_unit=unit)
 
 

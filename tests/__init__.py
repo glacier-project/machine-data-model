@@ -59,8 +59,7 @@ def gen_random_simple_value() -> Any:
     )
 
 
-# pyrefly: ignore[implicit-any-type-argument]
-def gen_random_dict(num_items: int = 3) -> dict:
+def gen_random_dict(num_items: int = 3) -> dict[str, Any]:
     return {
         gen_random_string(5): gen_random_simple_value()
         for _ in range(num_items)
@@ -158,13 +157,11 @@ def get_random_folder_node(
     return folder_node
 
 
-# pyrefly: ignore[implicit-any-type-argument]
-def get_default_args(method_node: MethodNode) -> tuple:
+def get_default_args(method_node: MethodNode) -> tuple[Any, ...]:
     return tuple(param.read() for param in method_node.parameters)
 
 
-# pyrefly: ignore[implicit-any-type-argument]
-def get_default_kwargs(method_node: MethodNode) -> dict:
+def get_default_kwargs(method_node: MethodNode) -> dict[str, Any]:
     return {param.name: param.read() for param in method_node.parameters}
 
 
@@ -179,8 +176,7 @@ def get_dummy_method_node(
         var_name, var_description, parameters, returns, method_types
     )
 
-    # pyrefly: ignore[implicit-any-type-argument]
-    def method_callback(**kwargs: dict[str, Any]) -> tuple:
+    def method_callback(**kwargs: dict[str, Any]) -> tuple[Any, ...]:
         return tuple(param.read() for param in method_node.returns)
 
     method_node.callback = method_callback
@@ -283,10 +279,9 @@ def get_random_simple_node() -> VariableNode:
 
 def get_random_nodes(
     number: int,
-    # pyrefly: ignore[implicit-any-type-argument]
-    node_types: list | None = None,
+    node_types: list[Callable[..., DataModelNode]] | None = None,
 ) -> Sequence[DataModelNode]:
-    nodes = []  # pyrefly: ignore[implicit-any-empty-container]
+    nodes: list[DataModelNode] = []
     for _ in range(number):
         nodes.append(get_random_node(node_types))
     return nodes

@@ -4,7 +4,9 @@ pytest.importorskip("aiomqtt")
 
 from collections.abc import Callable  # noqa: E402
 from pathlib import Path  # noqa: E402
-from typing import Any  # noqa: E402
+from typing import Any, cast  # noqa: E402
+
+from typing_extensions import override  # noqa: E402
 
 from machine_data_model.data_model import DataModel  # noqa: E402
 from machine_data_model.nodes.connectors.abstract_connector import (  # noqa: E402
@@ -31,23 +33,26 @@ class NullRemoteConnector(AbstractConnector):
         self.write_resources: list[RemoteResource] = []
         self.subscription_resources: list[RemoteResource] = []
 
-    def connect(self) -> bool:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def connect(self) -> bool:
         return True
 
-    def disconnect(self) -> bool:  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def disconnect(self) -> bool:
         self.disconnect_calls += 1
         return True
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def _get_remote_resource(self, resource: RemoteResource) -> Any:
         return resource.path
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def read_node_value(self, resource: RemoteResource) -> Any:
         self.read_resources.append(resource)
         return None
 
-    def write_node_value(  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def write_node_value(
         self,
         resource: RemoteResource,
         value: Any,
@@ -55,14 +60,15 @@ class NullRemoteConnector(AbstractConnector):
         self.write_resources.append(resource)
         return True
 
-    def call_node_as_method(  # pyrefly: ignore[missing-override-decorator]
+    @override
+    def call_node_as_method(
         self,
         resource: RemoteResource,
         kwargs: dict[str, Any],
     ) -> Any:
-        return {}  # pyrefly: ignore[implicit-any-empty-container]
+        return cast(dict[str, Any], {})
 
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def subscribe_to_node_changes(
         self,
         resource: RemoteResource,
@@ -73,7 +79,7 @@ class NullRemoteConnector(AbstractConnector):
 
 
 class FailingSubscriptionConnector(NullRemoteConnector):
-    # pyrefly: ignore[missing-override-decorator]
+    @override
     def subscribe_to_node_changes(
         self,
         resource: RemoteResource,
