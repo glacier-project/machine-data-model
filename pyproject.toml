@@ -89,6 +89,13 @@ ignore = [
 # Google docstring convention
 convention = "google"
 
+[tool.ruff.lint.pylint]
+# Connector/data-model constructors accept up to ~20 configuration knobs
+# that are intentionally surfaced individually (the YAML builders enumerate
+# them by name). The default of 5 is too low for this codebase; 20 still
+# catches accidental signature bloat outside of those config classes.
+max-args = 20
+
 [tool.ruff.lint.isort]
 # Google style: absolute imports, sorted
 known-first-party = ["machine_data_model"]
