@@ -1,6 +1,7 @@
 """Tests for the NodeChangeCoalescer bridge primitive."""
 
 import asyncio
+import threading
 
 import pytest
 
@@ -59,5 +60,36 @@ def test_drain_empties_buffer() -> None:
         coalescer.notify("a", 1)
         coalescer._drain_for_test()
         assert coalescer._drain_for_test() == {}
+    finally:
+        loop.close()
+
+
+@pytest.mark.exposer
+def test_concurrent_notify_does_not_lose_final_value() -> None:
+    """Many threads notifying the same key never lose the final value."""
+    loop = asyncio.new_event_loop()
+    try:
+        coalescer = NodeChangeCoalescer(loop)
+        n_threads = 32
+        per_thread = 1000
+        barrier = threading.Barrier(n_threads)
+
+        def worker(thread_id: int) -> None:
+            barrier.wait()
+            for i in range(per_thread):
+                coalescer.notify(f"node-{thread_id}", i)
+
+        threads = [
+            threading.Thread(target=worker, args=(t,)) for t in range(n_threads)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        snapshot = coalescer._drain_for_test()
+        assert len(snapshot) == n_threads
+        for thread_id in range(n_threads):
+            assert snapshot[f"node-{thread_id}"] == per_thread - 1
     finally:
         loop.close()
