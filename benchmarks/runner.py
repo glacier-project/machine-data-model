@@ -31,7 +31,9 @@ DEFAULT_WARMUP_S = 1.0
 # Each bench_* module appends its scenarios here via register_scenarios().
 # Modules are imported in this list (statically); adding a new benchmark
 # means adding one line below.
-_BENCH_MODULES: list[str] = []
+_BENCH_MODULES: list[str] = [
+    "benchmarks.bench_coalescer",
+]
 
 
 def _discover_scenarios() -> list[Scenario]:
