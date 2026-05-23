@@ -146,7 +146,7 @@ def test_stop_timeout_does_not_raise(
 
     class _HangingExposer(AbstractExposer):
         def register(self, app, manager) -> None:  # type: ignore[no-untyped-def]
-            async def _hang(request):
+            async def _hang(request: web.Request) -> web.Response:
                 await asyncio.sleep(60)
                 return web.Response()
 

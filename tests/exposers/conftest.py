@@ -2,11 +2,10 @@
 
 All tests in this directory require the ``http`` optional extra;
 ``pytest.importorskip`` ensures the module is skipped cleanly if
-aiohttp is not installed.
+aiohttp is not installed. The aiohttp pytest plugin is registered in
+the top-level ``tests/conftest.py``.
 """
 
 import pytest
 
 pytest.importorskip("aiohttp")
-
-pytest_plugins = ["aiohttp.pytest_plugin"]

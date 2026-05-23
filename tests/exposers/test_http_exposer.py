@@ -6,6 +6,7 @@ from typing import Any
 
 import aiohttp
 import pytest
+from typing_extensions import override
 
 from machine_data_model.data_model import DataModel
 from machine_data_model.exposers.exposer_manager import ExposerManager
@@ -151,27 +152,34 @@ class _FakeConnector(AbstractConnector):
         super().__init__(name="fake", ip="127.0.0.1", port=0)
         self.writes: list[tuple[Any, Any]] = []
 
+    @override
     def connect(self) -> bool:
         return True
 
+    @override
     def disconnect(self) -> bool:
         return True
 
+    @override
     def _get_remote_resource(self, resource: RemoteResource) -> Any:
         return resource
 
+    @override
     def read_node_value(self, resource: RemoteResource) -> Any:
         return 0.0
 
+    @override
     def write_node_value(self, resource: RemoteResource, value: Any) -> bool:
         self.writes.append((resource, value))
         return True
 
+    @override
     def call_node_as_method(
         self, resource: RemoteResource, kwargs: dict[str, Any]
     ) -> Any:
         return None
 
+    @override
     def subscribe_to_node_changes(
         self,
         resource: RemoteResource,
