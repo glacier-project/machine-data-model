@@ -164,3 +164,28 @@ async def test_disconnect_detaches_subscription_when_empty(
             if not temp.get_subscriptions():
                 break
     assert temp.get_subscriptions() == []
+
+
+@pytest.mark.exposer
+async def test_failed_send_to_one_ws_does_not_block_others(
+    running_manager_and_temp: tuple[ExposerManager, NumericalVariableNode],
+) -> None:
+    """A WS that errors on send is removed; other WS keeps receiving."""
+    manager, temp = running_manager_and_temp
+    url = f"http://{manager.host}:{manager.port}/ws"
+    async with (
+        aiohttp.ClientSession() as session,
+        session.ws_connect(url) as ws_good,
+        session.ws_connect(url) as ws_bad,
+    ):
+        for ws in (ws_good, ws_bad):
+            await ws.send_json(
+                {"op": "subscribe", "node": "Sensors/Temperature"}
+            )
+            await ws.receive_json(timeout=1.0)
+        # Forcefully close ws_bad without going through the close handshake.
+        await ws_bad.close(code=1006)
+        # Now trigger a write. ws_good must still receive.
+        temp.write(11.0)
+        msg = await ws_good.receive_json(timeout=1.0)
+        assert msg["value"] == 11.0
