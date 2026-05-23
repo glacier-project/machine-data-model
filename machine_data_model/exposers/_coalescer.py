@@ -35,12 +35,25 @@ class NodeChangeCoalescer:
         self._lock = threading.Lock()
         self._event = asyncio.Event()
         self._consumers: list[Consumer] = []
+        self._post_close_warned = False
 
     def notify(self, node_id: str, value: Any) -> None:
-        """Record the latest value for ``node_id`` and wake the pump."""
+        """Record the latest value for ``node_id`` and wake the pump.
+
+        If the asyncio loop has been closed (e.g. during shutdown), the
+        wake-up is silently dropped and a single warning is logged for
+        the lifetime of this coalescer.
+        """
         with self._lock:
             self._pending[node_id] = value
-        self._loop.call_soon_threadsafe(self._event.set)
+        try:
+            self._loop.call_soon_threadsafe(self._event.set)
+        except RuntimeError:
+            if not self._post_close_warned:
+                self._post_close_warned = True
+                _logger.warning(
+                    "Coalescer notify ignored: asyncio loop is closed"
+                )
 
     def add_consumer(self, consumer: Consumer) -> None:
         """Register an async callback to receive drained snapshots."""

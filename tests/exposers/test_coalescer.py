@@ -161,3 +161,25 @@ def test_pump_continues_when_consumer_raises() -> None:
         loop.close()
 
     assert received == [{"a": 1}]
+
+
+@pytest.mark.exposer
+def test_notify_after_loop_close_no_ops_and_logs_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """notify after the loop is closed must not raise; logs once per session."""
+    loop = asyncio.new_event_loop()
+    coalescer = NodeChangeCoalescer(loop)
+    loop.close()
+
+    with caplog.at_level(
+        "WARNING", logger="machine_data_model.exposers._coalescer"
+    ):
+        coalescer.notify("a", 1)
+        coalescer.notify("b", 2)
+        coalescer.notify("c", 3)
+
+    warning_records = [
+        r for r in caplog.records if "loop is closed" in r.getMessage().lower()
+    ]
+    assert len(warning_records) == 1
