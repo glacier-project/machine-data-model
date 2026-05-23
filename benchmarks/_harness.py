@@ -11,8 +11,9 @@ class Sample:
     """One measured operation.
 
     ``latency_ns`` may be 0 for scenarios where per-op timing would
-    dominate the cost being measured (e.g. coalescer microbench).
-    Throughput (``ops_per_sec``) is always meaningful regardless.
+    dominate the cost being measured (e.g. coalescer microbench). The
+    aggregator still computes throughput correctly in that case because
+    it counts samples regardless of their latency value.
     """
 
     latency_ns: int
@@ -20,7 +21,13 @@ class Sample:
 
 @dataclass
 class ScenarioResult:
-    """Aggregated output of one scenario run."""
+    """Aggregated output of one scenario run.
+
+    Latencies are reported in **milliseconds** (``p50_ms``, ``p95_ms``,
+    ``p99_ms``) for human readability. Raw samples store latency in
+    **nanoseconds** (``Sample.latency_ns``); the aggregator divides by
+    1e6 when populating the percentile fields.
+    """
 
     scenario_key: str
     name: str
