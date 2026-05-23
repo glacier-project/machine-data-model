@@ -1,5 +1,6 @@
 """Integration tests for WebSocketExposer."""
 
+import asyncio
 from collections.abc import Iterator
 import socket
 
@@ -87,3 +88,29 @@ async def test_sync_write_broadcasts_to_subscriber(
             "node": "Sensors/Temperature",
             "value": 99.5,
         }
+
+
+@pytest.mark.exposer
+async def test_unsubscribe_stops_broadcasts(
+    running_manager_and_temp: tuple[ExposerManager, NumericalVariableNode],
+) -> None:
+    """After unsubscribe, the client receives no further frames."""
+    manager, temp = running_manager_and_temp
+    url = f"http://{manager.host}:{manager.port}/ws"
+    async with (
+        aiohttp.ClientSession() as session,
+        session.ws_connect(url) as ws,
+    ):
+        await ws.send_json({"op": "subscribe", "node": "Sensors/Temperature"})
+        await ws.receive_json(timeout=1.0)  # subscribed ack
+        temp.write(1.0)
+        await ws.receive_json(timeout=1.0)  # change frame
+        await ws.send_json({"op": "unsubscribe", "node": "Sensors/Temperature"})
+        ack2 = await ws.receive_json(timeout=1.0)
+        assert ack2 == {
+            "op": "unsubscribed",
+            "node": "Sensors/Temperature",
+        }
+        temp.write(2.0)
+        with pytest.raises(asyncio.TimeoutError):
+            await ws.receive_json(timeout=0.5)

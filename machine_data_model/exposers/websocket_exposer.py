@@ -74,8 +74,23 @@ class WebSocketExposer(AbstractExposer):
         node_id = payload.get("node")
         if op == "subscribe" and isinstance(node_id, str):
             await self._handle_subscribe(ws, node_id)
+        elif op == "unsubscribe" and isinstance(node_id, str):
+            await self._handle_unsubscribe(ws, node_id)
         else:
             await ws.send_json({"op": "error", "message": "unknown op"})
+
+    async def _handle_unsubscribe(
+        self,
+        ws: web.WebSocketResponse,
+        node_id: str,
+    ) -> None:
+        ws_set = self._subs.get(node_id)
+        if ws_set is not None:
+            ws_set.discard(ws)
+            if not ws_set:
+                self._detach_subscription(node_id)
+                del self._subs[node_id]
+        await ws.send_json({"op": "unsubscribed", "node": node_id})
 
     async def _handle_subscribe(
         self,
