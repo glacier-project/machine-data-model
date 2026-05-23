@@ -64,4 +64,9 @@ class NodeChangeCoalescer:
             if not snapshot:
                 continue
             for consumer in list(self._consumers):
-                await consumer(snapshot)
+                try:
+                    await consumer(snapshot)
+                except Exception:
+                    _logger.exception(
+                        "Exposer coalescer consumer raised; continuing"
+                    )

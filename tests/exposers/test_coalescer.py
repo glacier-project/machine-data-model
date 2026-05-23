@@ -127,3 +127,37 @@ def test_pump_dispatches_to_registered_consumer() -> None:
         loop.close()
 
     assert received == [{"a": 1, "b": 2}]
+
+
+@pytest.mark.exposer
+def test_pump_continues_when_consumer_raises() -> None:
+    """A failing consumer is isolated; other consumers still receive."""
+    loop = asyncio.new_event_loop()
+    received: list[dict[str, Any]] = []
+
+    async def bad_consumer(snapshot: dict[str, Any]) -> None:
+        raise RuntimeError("boom")
+
+    async def good_consumer(snapshot: dict[str, Any]) -> None:
+        received.append(snapshot)
+
+    async def driver() -> None:
+        coalescer = NodeChangeCoalescer(loop)
+        coalescer.add_consumer(bad_consumer)
+        coalescer.add_consumer(good_consumer)
+        pump_task = asyncio.create_task(coalescer._run_pump())
+        coalescer.notify("a", 1)
+        for _ in range(50):
+            await asyncio.sleep(0.01)
+            if received:
+                break
+        pump_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await pump_task
+
+    try:
+        loop.run_until_complete(driver())
+    finally:
+        loop.close()
+
+    assert received == [{"a": 1}]
