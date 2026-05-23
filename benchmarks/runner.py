@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
 
@@ -21,7 +22,6 @@ from benchmarks._harness import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from pathlib import Path
 
     from benchmarks._harness import Scenario, ScenarioResult
 
@@ -105,8 +105,6 @@ def _write_json(path: Path, results: list[ScenarioResult]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     """Parse CLI arguments, run selected scenarios, and print results."""
-    from pathlib import Path as _Path
-
     parser = argparse.ArgumentParser(prog="benchmarks.runner")
     parser.add_argument(
         "--scenario",
@@ -126,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--json",
-        type=_Path,
+        type=Path,
         help="Write machine-readable JSON results to this path.",
     )
     args = parser.parse_args(argv)
