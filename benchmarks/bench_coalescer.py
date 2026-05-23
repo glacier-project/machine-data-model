@@ -41,7 +41,10 @@ class NotifyScenario:
 
         self._thread = threading.Thread(target=_run_loop, daemon=True)
         self._thread.start()
-        loop_ready.wait(timeout=5.0)
+        if not loop_ready.wait(timeout=5.0):
+            raise RuntimeError(
+                "benchmark event loop did not start within 5 s"
+            )
 
         self._coalescer = NodeChangeCoalescer(self._loop)
 
