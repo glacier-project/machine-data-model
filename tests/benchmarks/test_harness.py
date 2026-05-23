@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
-
 import pytest
 
 from benchmarks._harness import (
@@ -80,9 +78,9 @@ class _FakeScenario:
     """Records how many times run() was called and with what duration."""
 
     name = "fake"
-    params: ClassVar[dict[str, object]] = {}
 
     def __init__(self) -> None:
+        self.params: dict[str, object] = {}
         self.run_calls: list[float] = []
         self.setup_called = False
         self.teardown_called = False
@@ -122,8 +120,10 @@ def test_run_scenario_skips_warmup_when_zero() -> None:
 def test_run_scenario_calls_teardown_on_run_exception() -> None:
     class _Boom:
         name = "boom"
-        params: ClassVar[dict[str, object]] = {}
-        teardown_called = False
+
+        def __init__(self) -> None:
+            self.params: dict[str, object] = {}
+            self.teardown_called = False
 
         def setup(self) -> None:
             pass
