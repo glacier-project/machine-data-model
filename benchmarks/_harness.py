@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from typing import Any, Protocol
 
 
@@ -71,3 +72,44 @@ def _percentile(values: list[int], pct: float) -> float:
     hi = min(lo + 1, len(s) - 1)
     frac = k - lo
     return s[lo] + (s[hi] - s[lo]) * frac
+
+
+def aggregate(
+    name: str,
+    params: dict[str, Any],
+    samples: list[Sample],
+    window_s: float,
+) -> ScenarioResult:
+    """Compute ops/sec and latency percentiles from raw samples."""
+    latencies_ns = [s.latency_ns for s in samples]
+    n = len(samples)
+    ops_per_sec = n / window_s if window_s > 0 else 0.0
+    return ScenarioResult(
+        scenario_key=scenario_key(name, params),
+        name=name,
+        params=params,
+        ops_per_sec=ops_per_sec,
+        p50_ms=_percentile(latencies_ns, 50.0) / 1e6,
+        p95_ms=_percentile(latencies_ns, 95.0) / 1e6,
+        p99_ms=_percentile(latencies_ns, 99.0) / 1e6,
+        samples=n,
+        window_s=window_s,
+    )
+
+
+def run_scenario(
+    scenario: Scenario,
+    duration_s: float,
+    warmup_s: float,
+) -> ScenarioResult:
+    """Drive a scenario: setup -> warmup -> measure -> teardown."""
+    scenario.setup()
+    try:
+        if warmup_s > 0:
+            scenario.run(warmup_s)
+        t0 = time.monotonic()
+        samples = scenario.run(duration_s)
+        window_s = time.monotonic() - t0
+    finally:
+        scenario.teardown()
+    return aggregate(scenario.name, scenario.params, samples, window_s)
