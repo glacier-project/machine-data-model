@@ -14,7 +14,8 @@ dependencies = [
 [project.optional-dependencies]
 opcua = ["asyncua>=1.1.6,<2"]
 mqtt = ["aiomqtt>=2.5.1,<3", "msgpack>=1.1.2,<2"]
-all = ["machine-data-model[opcua,mqtt]"]
+http = ["aiohttp>=3.10,<4"]
+all = ["machine-data-model[opcua,mqtt,http]"]
 
 [dependency-groups]
 dev = [
@@ -46,6 +47,7 @@ packages = ["machine_data_model"]
 [tool.pytest.ini_options]
 markers = [
     "connector: tests that need a connector optional extra installed",
+    "exposer: tests that need the http optional extra installed",
 ]
 
 
