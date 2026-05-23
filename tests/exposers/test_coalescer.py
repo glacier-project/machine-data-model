@@ -1,7 +1,9 @@
 """Tests for the NodeChangeCoalescer bridge primitive."""
 
 import asyncio
+import contextlib
 import threading
+from typing import Any
 
 import pytest
 
@@ -93,3 +95,35 @@ def test_concurrent_notify_does_not_lose_final_value() -> None:
             assert snapshot[f"node-{thread_id}"] == per_thread - 1
     finally:
         loop.close()
+
+
+@pytest.mark.exposer
+def test_pump_dispatches_to_registered_consumer() -> None:
+    """A registered consumer receives drained snapshots when the pump runs."""
+    loop = asyncio.new_event_loop()
+    received: list[dict[str, Any]] = []
+
+    async def consumer(snapshot: dict[str, Any]) -> None:
+        received.append(snapshot)
+
+    async def driver() -> None:
+        coalescer = NodeChangeCoalescer(loop)
+        coalescer.add_consumer(consumer)
+        pump_task = asyncio.create_task(coalescer._run_pump())
+        coalescer.notify("a", 1)
+        coalescer.notify("b", 2)
+        # Yield until the pump has drained.
+        for _ in range(50):
+            await asyncio.sleep(0.01)
+            if received:
+                break
+        pump_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await pump_task
+
+    try:
+        loop.run_until_complete(driver())
+    finally:
+        loop.close()
+
+    assert received == [{"a": 1, "b": 2}]
