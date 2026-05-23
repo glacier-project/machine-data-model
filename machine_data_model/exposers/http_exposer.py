@@ -24,6 +24,7 @@ class HttpExposer(AbstractExposer):
         """Attach the /nodes and /methods routes to the shared app."""
         self._manager = manager
         app.router.add_get("/nodes/{path:.*}", self._handle_get_node)
+        app.router.add_post("/nodes/{path:.*}", self._handle_post_node)
 
     def _resolve(self, path: str) -> Any:
         """Resolve a relative node path against the data model root."""
@@ -45,3 +46,35 @@ class HttpExposer(AbstractExposer):
             node.read,
         )
         return web.json_response({"value": value, "type": type(value).__name__})
+
+    async def _handle_post_node(self, request: web.Request) -> web.Response:
+        path = request.match_info["path"]
+        node = self._resolve(path)
+        if node is None or not isinstance(node, VariableNode):
+            return web.json_response({"error": "not found"}, status=404)
+        try:
+            body = await request.json()
+            value = body["value"]
+        except (KeyError, ValueError) as exp:
+            return web.json_response(
+                {"error": f"bad request: {exp}"},
+                status=400,
+            )
+        loop = request.app.loop
+        try:
+            ok = await loop.run_in_executor(
+                self._manager.executor,
+                node.write,
+                value,
+            )
+        except (TypeError, ValueError) as exp:
+            return web.json_response(
+                {"error": str(exp)},
+                status=400,
+            )
+        if not ok:
+            return web.json_response(
+                {"error": "write rejected"},
+                status=400,
+            )
+        return web.json_response({"ok": True})

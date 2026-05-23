@@ -84,3 +84,22 @@ async def test_get_unknown_node_returns_404(
         assert resp.status == 404
         body = await resp.json()
     assert "error" in body
+
+
+@pytest.mark.exposer
+async def test_post_node_updates_value(
+    running_manager: ExposerManager,
+) -> None:
+    """POST /nodes/{path} updates the variable; subsequent GET reflects it."""
+    base = _base_url(running_manager)
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{base}/nodes/Sensors/Temperature",
+            json={"value": 99.5},
+        ) as resp:
+            assert resp.status == 200
+            body = await resp.json()
+            assert body == {"ok": True}
+        async with session.get(f"{base}/nodes/Sensors/Temperature") as resp:
+            body = await resp.json()
+            assert body["value"] == 99.5
