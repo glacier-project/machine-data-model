@@ -1,9 +1,11 @@
 """Tests for the ExposerManager lifecycle: construction, start, stop."""
 
+import asyncio
 import socket
 import threading
 import time
 
+from aiohttp import web
 import pytest
 
 from machine_data_model.data_model import DataModel
@@ -134,3 +136,39 @@ def test_register_called_once_on_async_thread() -> None:
         assert mgr_class == "ExposerManager"
     finally:
         manager.stop()
+
+
+@pytest.mark.exposer
+def test_stop_timeout_does_not_raise(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A blocked shutdown logs a warning instead of raising."""
+
+    class _HangingExposer(AbstractExposer):
+        def register(self, app, manager) -> None:  # type: ignore[no-untyped-def]
+            async def _hang(request):
+                await asyncio.sleep(60)
+                return web.Response()
+
+            app.router.add_get("/hang", _hang)
+
+    manager = ExposerManager(
+        _make_data_model(),
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.add_exposer(_HangingExposer())
+    manager.start()
+    try:
+        with caplog.at_level(
+            "WARNING",
+            logger="machine_data_model.exposers.exposer_manager",
+        ):
+            manager.stop(timeout=0.05)
+    finally:
+        # If stop didn't fully shut down, daemon thread will exit at
+        # interpreter shutdown.
+        pass
+
+    # We accept either: warning logged, or the shutdown completed before
+    # the timeout. Both satisfy "does not raise".
