@@ -114,3 +114,30 @@ async def test_unsubscribe_stops_broadcasts(
         temp.write(2.0)
         with pytest.raises(asyncio.TimeoutError):
             await ws.receive_json(timeout=0.5)
+
+
+@pytest.mark.exposer
+async def test_two_clients_share_one_node_subscription(
+    running_manager_and_temp: tuple[ExposerManager, NumericalVariableNode],
+) -> None:
+    """Two WS clients on the same node attach only one VariableSubscription."""
+    manager, temp = running_manager_and_temp
+    url = f"http://{manager.host}:{manager.port}/ws"
+    async with (
+        aiohttp.ClientSession() as session,
+        session.ws_connect(url) as ws1,
+        session.ws_connect(url) as ws2,
+    ):
+        for ws in (ws1, ws2):
+            await ws.send_json(
+                {"op": "subscribe", "node": "Sensors/Temperature"}
+            )
+            await ws.receive_json(timeout=1.0)
+        # Only one VariableSubscription on the node.
+        assert len(temp.get_subscriptions()) == 1
+        # Write once: both clients receive the broadcast.
+        temp.write(7.0)
+        msg1 = await ws1.receive_json(timeout=1.0)
+        msg2 = await ws2.receive_json(timeout=1.0)
+        assert msg1["value"] == 7.0
+        assert msg2["value"] == 7.0
