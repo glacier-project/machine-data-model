@@ -141,3 +141,26 @@ async def test_two_clients_share_one_node_subscription(
         msg2 = await ws2.receive_json(timeout=1.0)
         assert msg1["value"] == 7.0
         assert msg2["value"] == 7.0
+
+
+@pytest.mark.exposer
+async def test_disconnect_detaches_subscription_when_empty(
+    running_manager_and_temp: tuple[ExposerManager, NumericalVariableNode],
+) -> None:
+    """When the last subscribed WS disconnects, the subscription detaches."""
+    manager, temp = running_manager_and_temp
+    url = f"http://{manager.host}:{manager.port}/ws"
+    async with aiohttp.ClientSession() as session:
+        async with session.ws_connect(url) as ws:
+            await ws.send_json(
+                {"op": "subscribe", "node": "Sensors/Temperature"}
+            )
+            await ws.receive_json(timeout=1.0)
+            assert len(temp.get_subscriptions()) == 1
+            await ws.close()
+        # Give the server time to clean up.
+        for _ in range(50):
+            await asyncio.sleep(0.02)
+            if not temp.get_subscriptions():
+                break
+    assert temp.get_subscriptions() == []
