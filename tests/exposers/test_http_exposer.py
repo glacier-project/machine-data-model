@@ -16,6 +16,7 @@ from machine_data_model.nodes.connectors.abstract_connector import (
 )
 from machine_data_model.nodes.connectors.remote_resource import RemoteResource
 from machine_data_model.nodes.folder_node import FolderNode
+from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
@@ -218,3 +219,115 @@ async def test_post_forwards_to_bound_connector() -> None:
 
     assert len(fake.writes) == 1
     assert fake.writes[0][1] == 42.0
+
+
+@pytest.mark.exposer
+async def test_post_method_returns_method_result() -> None:
+    """POST /methods/{path} returns the MethodExecutionResult.return_values."""
+
+    def _add(a: float, b: float) -> float:
+        return a + b
+
+    a = NumericalVariableNode(name="a", value=0.0)
+    b = NumericalVariableNode(name="b", value=0.0)
+    out = NumericalVariableNode(name="sum", value=0.0)
+    method = MethodNode(
+        name="Add",
+        parameters=[a, b],
+        returns=[out],
+        callback=_add,
+    )
+    methods_folder = FolderNode(name="Calc")
+    methods_folder.add_child(method)
+    root = FolderNode(name="root")
+    root.add_child(methods_folder)
+    data_model = DataModel(name="test", root=root)
+
+    manager = ExposerManager(
+        data_model,
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.add_exposer(HttpExposer())
+    manager.start()
+    try:
+        base = f"http://{manager.host}:{manager.port}"
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                f"{base}/methods/Calc/Add",
+                json={"args": {"a": 2.0, "b": 3.0}},
+            ) as resp,
+        ):
+            assert resp.status == 200
+            body = await resp.json()
+    finally:
+        manager.stop()
+
+    assert body == {"result": {"sum": 5.0}}
+
+
+@pytest.mark.exposer
+async def test_post_method_unknown_returns_404() -> None:
+    """POST /methods/{path} for a non-existent method returns 404."""
+    data_model = DataModel(name="test")
+    manager = ExposerManager(
+        data_model,
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.add_exposer(HttpExposer())
+    manager.start()
+    try:
+        base = f"http://{manager.host}:{manager.port}"
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                f"{base}/methods/Calc/DoesNotExist",
+                json={"args": {}},
+            ) as resp,
+        ):
+            assert resp.status == 404
+    finally:
+        manager.stop()
+
+
+@pytest.mark.exposer
+async def test_post_method_failure_returns_500() -> None:
+    """A method that raises returns 500."""
+
+    def _boom() -> str:
+        raise RuntimeError("boom")
+
+    out = StringVariableNode(name="result", value="")
+    method = MethodNode(
+        name="Boom",
+        parameters=[],
+        returns=[out],
+        callback=_boom,
+    )
+    folder = FolderNode(name="Calc")
+    folder.add_child(method)
+    root = FolderNode(name="root")
+    root.add_child(folder)
+    data_model = DataModel(name="test", root=root)
+
+    manager = ExposerManager(
+        data_model,
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.add_exposer(HttpExposer())
+    manager.start()
+    try:
+        base = f"http://{manager.host}:{manager.port}"
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                f"{base}/methods/Calc/Boom",
+                json={"args": {}},
+            ) as resp,
+        ):
+            assert resp.status == 500
+    finally:
+        manager.stop()

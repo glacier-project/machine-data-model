@@ -6,6 +6,10 @@ from aiohttp import web
 from typing_extensions import override
 
 from machine_data_model.exposers.abstract_exposer import AbstractExposer
+from machine_data_model.nodes.method_node import (
+    MethodExecutionResult,
+    MethodNode,
+)
 from machine_data_model.nodes.variable_node import VariableNode
 
 if TYPE_CHECKING:
@@ -25,6 +29,7 @@ class HttpExposer(AbstractExposer):
         self._manager = manager
         app.router.add_get("/nodes/{path:.*}", self._handle_get_node)
         app.router.add_post("/nodes/{path:.*}", self._handle_post_node)
+        app.router.add_post("/methods/{path:.*}", self._handle_post_method)
 
     def _resolve(self, path: str) -> Any:
         """Resolve a relative node path against the data model root."""
@@ -78,3 +83,39 @@ class HttpExposer(AbstractExposer):
                 status=400,
             )
         return web.json_response({"ok": True})
+
+    async def _handle_post_method(self, request: web.Request) -> web.Response:
+        path = request.match_info["path"]
+        node = self._resolve(path)
+        if node is None or not isinstance(node, MethodNode):
+            return web.json_response({"error": "not found"}, status=404)
+        try:
+            body = await request.json()
+            args = body.get("args", {})
+        except ValueError as exp:
+            return web.json_response(
+                {"error": f"bad request: {exp}"},
+                status=400,
+            )
+        if not isinstance(args, dict):
+            return web.json_response(
+                {"error": "args must be an object"},
+                status=400,
+            )
+        loop = request.app.loop
+        try:
+            result: MethodExecutionResult = await loop.run_in_executor(
+                self._manager.executor,
+                lambda: node(**args),
+            )
+        except (TypeError, ValueError) as exp:
+            return web.json_response(
+                {"error": str(exp)},
+                status=400,
+            )
+        except Exception as exp:
+            return web.json_response(
+                {"error": str(exp)},
+                status=500,
+            )
+        return web.json_response({"result": result.return_values})
