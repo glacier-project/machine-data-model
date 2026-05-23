@@ -63,3 +63,24 @@ def test_runner_runs_coalescer_drain_tiny_duration(tmp_path: Path) -> None:
     payload = json.loads(out.read_text())
     assert "coalescer.drain" in payload["scenarios"]
     assert payload["scenarios"]["coalescer.drain"]["ops_per_sec"] > 0
+
+
+def test_runner_runs_http_read_tiny_duration(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[2]
+    out = tmp_path / "out.json"
+    proc = _run(
+        "--scenario",
+        "http.read",
+        "--duration",
+        "0.5",
+        "--warmup",
+        "0.2",
+        "--json",
+        str(out),
+        cwd=repo,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(out.read_text())
+    # Default params: concurrency=32
+    assert "http.read[concurrency=32]" in payload["scenarios"]
+    assert payload["scenarios"]["http.read[concurrency=32]"]["ops_per_sec"] > 0

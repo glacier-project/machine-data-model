@@ -33,6 +33,7 @@ DEFAULT_WARMUP_S = 1.0
 # means adding one line below.
 _BENCH_MODULES: list[str] = [
     "benchmarks.bench_coalescer",
+    "benchmarks.bench_http",
 ]
 
 
