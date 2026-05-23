@@ -103,3 +103,35 @@ async def test_post_node_updates_value(
         async with session.get(f"{base}/nodes/Sensors/Temperature") as resp:
             body = await resp.json()
             assert body["value"] == 99.5
+
+
+@pytest.mark.exposer
+async def test_post_with_type_invalid_body_returns_400(
+    running_manager: ExposerManager,
+) -> None:
+    """Writing a string to a boolean node returns 400."""
+    base = _base_url(running_manager)
+    async with (
+        aiohttp.ClientSession() as session,
+        session.post(
+            f"{base}/nodes/Sensors/Online",
+            json={"value": "not a bool"},
+        ) as resp,
+    ):
+        assert resp.status == 400
+
+
+@pytest.mark.exposer
+async def test_post_with_malformed_body_returns_400(
+    running_manager: ExposerManager,
+) -> None:
+    """A JSON body missing the 'value' key returns 400."""
+    base = _base_url(running_manager)
+    async with (
+        aiohttp.ClientSession() as session,
+        session.post(
+            f"{base}/nodes/Sensors/Online",
+            json={},
+        ) as resp,
+    ):
+        assert resp.status == 400
