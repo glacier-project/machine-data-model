@@ -68,3 +68,19 @@ async def test_get_variable_returns_value_and_type(
         body = await resp.json()
     assert body["value"] == 22.5
     assert body["type"] == "float"
+
+
+@pytest.mark.exposer
+async def test_get_unknown_node_returns_404(
+    running_manager: ExposerManager,
+) -> None:
+    """GET /nodes/{path} for a non-existent node returns 404."""
+    async with (
+        aiohttp.ClientSession() as session,
+        session.get(
+            f"{_base_url(running_manager)}/nodes/Sensors/DoesNotExist"
+        ) as resp,
+    ):
+        assert resp.status == 404
+        body = await resp.json()
+    assert "error" in body
