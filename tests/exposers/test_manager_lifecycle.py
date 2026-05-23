@@ -7,6 +7,7 @@ import time
 import pytest
 
 from machine_data_model.data_model import DataModel
+from machine_data_model.exposers.abstract_exposer import AbstractExposer
 from machine_data_model.exposers.exposer_manager import ExposerManager
 
 
@@ -103,3 +104,33 @@ def test_stop_is_idempotent() -> None:
     manager.stop()
     # Second call must not raise.
     manager.stop()
+
+
+class _RecordingExposer(AbstractExposer):
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []  # (thread_name, manager_repr)
+
+    def register(self, app, manager) -> None:  # type: ignore[no-untyped-def]
+        self.calls.append(
+            (threading.current_thread().name, type(manager).__name__)
+        )
+
+
+@pytest.mark.exposer
+def test_register_called_once_on_async_thread() -> None:
+    """register() is called exactly once, on the asyncio loop thread."""
+    manager = ExposerManager(
+        _make_data_model(),
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    exposer = _RecordingExposer()
+    manager.add_exposer(exposer)
+    manager.start()
+    try:
+        assert len(exposer.calls) == 1
+        thread_name, mgr_class = exposer.calls[0]
+        assert "exposer-loop" in thread_name
+        assert mgr_class == "ExposerManager"
+    finally:
+        manager.stop()
