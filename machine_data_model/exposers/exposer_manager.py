@@ -1,6 +1,7 @@
 """ExposerManager - owns the asyncio thread, executor, and aiohttp app."""
 
 from asyncio import AbstractEventLoop
+from concurrent.futures import ThreadPoolExecutor
 
 from machine_data_model.data_model import DataModel
 
@@ -39,6 +40,10 @@ class ExposerManager:
         self._host = host
         self._port = port
         self._supplied_event_loop = event_loop
+        self._executor = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix=f"exposer-{data_model.name}",
+        )
 
     @property
     def data_model(self) -> DataModel:
@@ -54,3 +59,8 @@ class ExposerManager:
     def port(self) -> int:
         """Port the aiohttp server binds to."""
         return self._port
+
+    @property
+    def executor(self) -> ThreadPoolExecutor:
+        """The single-worker pool used to dispatch sync-side calls."""
+        return self._executor

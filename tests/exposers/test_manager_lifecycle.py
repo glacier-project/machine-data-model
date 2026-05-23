@@ -1,5 +1,8 @@
 """Tests for the ExposerManager lifecycle: construction, start, stop."""
 
+import threading
+import time
+
 import pytest
 
 from machine_data_model.data_model import DataModel
@@ -18,3 +21,29 @@ def test_constructor_stores_data_model_and_defaults() -> None:
     assert manager.data_model is data_model
     assert manager.host == "0.0.0.0"
     assert manager.port == 8080
+
+
+@pytest.mark.exposer
+def test_executor_is_single_worker() -> None:
+    """Two slow jobs submitted to the executor must serialise."""
+    manager = ExposerManager(_make_data_model())
+    overlap_count = 0
+    in_flight = 0
+    lock = threading.Lock()
+
+    def slow_job() -> None:
+        nonlocal overlap_count, in_flight
+        with lock:
+            in_flight += 1
+            if in_flight > 1:
+                overlap_count += 1
+        time.sleep(0.05)
+        with lock:
+            in_flight -= 1
+
+    f1 = manager.executor.submit(slow_job)
+    f2 = manager.executor.submit(slow_job)
+    f1.result()
+    f2.result()
+    manager.executor.shutdown(wait=True)
+    assert overlap_count == 0
