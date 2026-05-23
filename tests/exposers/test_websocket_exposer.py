@@ -63,3 +63,27 @@ async def test_subscribe_returns_subscribed_ack(
             "op": "subscribed",
             "node": "Sensors/Temperature",
         }
+
+
+@pytest.mark.exposer
+async def test_sync_write_broadcasts_to_subscriber(
+    running_manager_and_temp: tuple[ExposerManager, NumericalVariableNode],
+) -> None:
+    """A sync write to a subscribed node triggers a 'change' frame."""
+    manager, temp = running_manager_and_temp
+    url = f"http://{manager.host}:{manager.port}/ws"
+    async with (
+        aiohttp.ClientSession() as session,
+        session.ws_connect(url) as ws,
+    ):
+        await ws.send_json({"op": "subscribe", "node": "Sensors/Temperature"})
+        ack = await ws.receive_json(timeout=1.0)
+        assert ack["op"] == "subscribed"
+        # Write on the main (sync) thread.
+        temp.write(99.5)
+        change = await ws.receive_json(timeout=1.0)
+        assert change == {
+            "op": "change",
+            "node": "Sensors/Temperature",
+            "value": 99.5,
+        }
