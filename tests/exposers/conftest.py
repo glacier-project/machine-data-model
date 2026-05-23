@@ -8,3 +8,5 @@ aiohttp is not installed.
 import pytest
 
 pytest.importorskip("aiohttp")
+
+pytest_plugins = ["aiohttp.pytest_plugin"]
