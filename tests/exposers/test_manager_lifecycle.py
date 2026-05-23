@@ -73,3 +73,33 @@ def test_start_then_stop_is_clean() -> None:
         manager.stop()
     # After stop, the thread is gone and the loop is closed.
     assert manager._thread is None or not manager._thread.is_alive()
+
+
+@pytest.mark.exposer
+def test_start_twice_raises() -> None:
+    """Calling start() while already running is an error."""
+    manager = ExposerManager(
+        _make_data_model(),
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.start()
+    try:
+        with pytest.raises(RuntimeError, match="already started"):
+            manager.start()
+    finally:
+        manager.stop()
+
+
+@pytest.mark.exposer
+def test_stop_is_idempotent() -> None:
+    """Calling stop() a second time is a no-op."""
+    manager = ExposerManager(
+        _make_data_model(),
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.start()
+    manager.stop()
+    # Second call must not raise.
+    manager.stop()
