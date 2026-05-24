@@ -247,6 +247,51 @@ class WriteScenario:
         self._fix.stop()
 
 
+@dataclass
+class MethodScenario:
+    """POST /methods/Sensors/Sum invoking a trivial sum callback."""
+
+    name: str = "http.method"
+    params: dict[str, Any] = field(
+        default_factory=lambda: {"concurrency": 32}
+    )
+    _fix: _HttpFixture = field(init=False, repr=False)
+
+    def setup(self) -> None:
+        """Start the HTTP fixture."""
+        self._fix = _HttpFixture()
+        self._fix.start()
+
+    def run(self, duration_s: float) -> list[Sample]:
+        """Drive concurrent POSTs invoking the Sum method."""
+        base = self._fix.base_url
+        concurrency = int(self.params["concurrency"])
+
+        async def _go() -> list[int]:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async def _do_one(s: aiohttp.ClientSession) -> int:
+                    payload = {"args": {"a": 1, "b": 2}}
+                    t0 = time.monotonic_ns()
+                    async with s.post(
+                        f"{base}/methods/Sensors/Sum",
+                        json=payload,
+                    ) as r:
+                        await r.read()
+                    return time.monotonic_ns() - t0
+
+                return await _driver_loop(
+                    session, _do_one, duration_s, concurrency
+                )
+
+        latencies = self._fix.submit(_go())
+        return [Sample(latency_ns=lat) for lat in latencies]
+
+    def teardown(self) -> None:
+        """Stop the HTTP fixture."""
+        self._fix.stop()
+
+
 def register_scenarios() -> list[Scenario]:
     """Return all scenarios defined in this module."""
-    return [ReadScenario(), WriteScenario()]
+    return [ReadScenario(), WriteScenario(), MethodScenario()]
