@@ -84,3 +84,23 @@ def test_runner_runs_http_read_tiny_duration(tmp_path: Path) -> None:
     # Default params: concurrency=32
     assert "http.read[concurrency=32]" in payload["scenarios"]
     assert payload["scenarios"]["http.read[concurrency=32]"]["ops_per_sec"] > 0
+
+
+def test_runner_runs_http_write_tiny_duration(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[2]
+    out = tmp_path / "out.json"
+    proc = _run(
+        "--scenario",
+        "http.write",
+        "--duration",
+        "0.5",
+        "--warmup",
+        "0.2",
+        "--json",
+        str(out),
+        cwd=repo,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(out.read_text())
+    assert "http.write[concurrency=32]" in payload["scenarios"]
+    assert payload["scenarios"]["http.write[concurrency=32]"]["ops_per_sec"] > 0

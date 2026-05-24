@@ -199,6 +199,54 @@ class ReadScenario:
         self._fix.stop()
 
 
+@dataclass
+class WriteScenario:
+    """POST /nodes/Sensors/Temperature with K concurrent clients."""
+
+    name: str = "http.write"
+    params: dict[str, Any] = field(
+        default_factory=lambda: {"concurrency": 32}
+    )
+    _fix: _HttpFixture = field(init=False, repr=False)
+    _counter: int = field(init=False, default=0)
+
+    def setup(self) -> None:
+        """Start the HTTP fixture and reset the value counter."""
+        self._fix = _HttpFixture()
+        self._fix.start()
+        self._counter = 0
+
+    def run(self, duration_s: float) -> list[Sample]:
+        """Drive concurrent POSTs that write monotonically increasing values."""
+        base = self._fix.base_url
+        concurrency = int(self.params["concurrency"])
+
+        async def _go() -> list[int]:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async def _do_one(s: aiohttp.ClientSession) -> int:
+                    self._counter += 1
+                    payload = {"value": float(self._counter)}
+                    t0 = time.monotonic_ns()
+                    async with s.post(
+                        f"{base}/nodes/Sensors/Temperature",
+                        json=payload,
+                    ) as r:
+                        await r.read()
+                    return time.monotonic_ns() - t0
+
+                return await _driver_loop(
+                    session, _do_one, duration_s, concurrency
+                )
+
+        latencies = self._fix.submit(_go())
+        return [Sample(latency_ns=lat) for lat in latencies]
+
+    def teardown(self) -> None:
+        """Stop the HTTP fixture."""
+        self._fix.stop()
+
+
 def register_scenarios() -> list[Scenario]:
     """Return all scenarios defined in this module."""
-    return [ReadScenario()]
+    return [ReadScenario(), WriteScenario()]
