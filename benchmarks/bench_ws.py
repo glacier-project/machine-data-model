@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import socket
 import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
 
@@ -184,7 +184,7 @@ class E2ELatencyScenario:
     params: dict[str, Any] = field(default_factory=dict)
     # Rate is hardcoded here, not a public param, because changing it
     # invalidates the measurement (too high -> coalesced frames).
-    WRITES_PER_SEC: int = 50
+    WRITES_PER_SEC: ClassVar[int] = 50
     _fix: _WsFixture = field(init=False, repr=False)
 
     def setup(self) -> None:
