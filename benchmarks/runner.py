@@ -34,6 +34,7 @@ DEFAULT_WARMUP_S = 1.0
 _BENCH_MODULES: list[str] = [
     "benchmarks.bench_coalescer",
     "benchmarks.bench_http",
+    "benchmarks.bench_ws",
 ]
 
 

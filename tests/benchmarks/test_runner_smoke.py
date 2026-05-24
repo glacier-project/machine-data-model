@@ -126,3 +126,23 @@ def test_runner_runs_http_method_tiny_duration(tmp_path: Path) -> None:
     assert (
         payload["scenarios"]["http.method[concurrency=32]"]["ops_per_sec"] > 0
     )
+
+
+def test_runner_runs_ws_fanout_tiny_duration(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[2]
+    out = tmp_path / "out.json"
+    proc = _run(
+        "--scenario",
+        "ws.fanout",
+        "--duration",
+        "0.5",
+        "--warmup",
+        "0.2",
+        "--json",
+        str(out),
+        cwd=repo,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(out.read_text())
+    assert "ws.fanout[subscribers=100]" in payload["scenarios"]
+    assert payload["scenarios"]["ws.fanout[subscribers=100]"]["ops_per_sec"] > 0
