@@ -9,6 +9,7 @@ executor + JSON), so the percentile fields are meaningful.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass, field
 import socket
 import threading
@@ -83,20 +84,24 @@ class _HttpFixture:
         self.manager.start()
         self.base_url = f"http://127.0.0.1:{port}"
 
-        loop_ready = threading.Event()
-        self._client_loop = asyncio.new_event_loop()
+        try:
+            loop_ready = threading.Event()
+            self._client_loop = asyncio.new_event_loop()
 
-        def _run() -> None:
-            asyncio.set_event_loop(self._client_loop)
-            loop_ready.set()
-            self._client_loop.run_forever()
+            def _run() -> None:
+                asyncio.set_event_loop(self._client_loop)
+                loop_ready.set()
+                self._client_loop.run_forever()
 
-        self._client_thread = threading.Thread(target=_run, daemon=True)
-        self._client_thread.start()
-        if not loop_ready.wait(timeout=5.0):
-            raise RuntimeError(
-                "benchmark client loop did not start within 5 s"
-            )
+            self._client_thread = threading.Thread(target=_run, daemon=True)
+            self._client_thread.start()
+            if not loop_ready.wait(timeout=5.0):
+                raise RuntimeError(
+                    "benchmark client loop did not start within 5 s"
+                )
+        except BaseException:
+            self.manager.stop()
+            raise
 
     def stop(self) -> None:
         """Stop the client loop and the ExposerManager in order."""
@@ -137,7 +142,10 @@ async def _driver_loop(
         )
         for t in done:
             in_flight.discard(t)
-            latencies.append(t.result())
+            with contextlib.suppress(Exception):
+                # Drop failed requests from latency stats — matches the
+                # drain's isinstance(r, int) guard below.
+                latencies.append(t.result())
             if time.monotonic() < end:
                 _spawn()
 
