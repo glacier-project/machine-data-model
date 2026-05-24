@@ -49,6 +49,26 @@ _BENCH_MODULES: list[str] = [
 ]
 
 
+def _expand_sweep(scenarios: list[Scenario]) -> list[Scenario]:
+    """Expand each scenario by its SWEEP_PARAMS (cartesian product)."""
+    import copy
+    import itertools
+
+    expanded: list[Scenario] = []
+    for s in scenarios:
+        sweep = getattr(s, "SWEEP_PARAMS", None)
+        if not sweep:
+            expanded.append(s)
+            continue
+        keys = list(sweep.keys())
+        values_lists = [sweep[k] for k in keys]
+        for combo in itertools.product(*values_lists):
+            clone = copy.copy(s)
+            clone.params = dict(zip(keys, combo, strict=True))
+            expanded.append(clone)
+    return expanded
+
+
 def _discover_scenarios() -> list[Scenario]:
     """Import each bench_* module and collect its scenarios."""
     import importlib
@@ -236,9 +256,16 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_BASELINE_PATH,
         help=f"Baseline file path (default: {DEFAULT_BASELINE_PATH}).",
     )
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="Expand each scenario across its SWEEP_PARAMS.",
+    )
     args = parser.parse_args(argv)
 
     scenarios = _discover_scenarios()
+    if args.sweep:
+        scenarios = _expand_sweep(scenarios)
     selected = _filter_scenarios(scenarios, args.scenario)
 
     if args.scenario and not selected:

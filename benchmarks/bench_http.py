@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import socket
 import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
 
@@ -166,6 +166,9 @@ class ReadScenario:
     params: dict[str, Any] = field(
         default_factory=lambda: {"concurrency": 32}
     )
+    SWEEP_PARAMS: ClassVar[dict[str, list[Any]]] = {
+        "concurrency": [1, 8, 32, 128],
+    }
     _fix: _HttpFixture = field(init=False, repr=False)
 
     def setup(self) -> None:
@@ -207,6 +210,9 @@ class WriteScenario:
     params: dict[str, Any] = field(
         default_factory=lambda: {"concurrency": 32}
     )
+    SWEEP_PARAMS: ClassVar[dict[str, list[Any]]] = {
+        "concurrency": [1, 8, 32, 128],
+    }
     _fix: _HttpFixture = field(init=False, repr=False)
     _counter: int = field(init=False, default=0)
 
@@ -255,6 +261,9 @@ class MethodScenario:
     params: dict[str, Any] = field(
         default_factory=lambda: {"concurrency": 32}
     )
+    SWEEP_PARAMS: ClassVar[dict[str, list[Any]]] = {
+        "concurrency": [1, 8, 32, 128],
+    }
     _fix: _HttpFixture = field(init=False, repr=False)
 
     def setup(self) -> None:

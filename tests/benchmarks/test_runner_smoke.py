@@ -208,3 +208,28 @@ def test_runner_save_baseline_then_compare_passes(tmp_path: Path) -> None:
     )
     # Same machine, same scenario, ~10% threshold -> should not regress.
     assert compare_proc.returncode == 0, compare_proc.stderr
+
+
+def test_runner_sweep_expands_http_read(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[2]
+    out = tmp_path / "out.json"
+    proc = _run(
+        "--scenario",
+        "http.read",
+        "--duration",
+        "0.3",
+        "--warmup",
+        "0.1",
+        "--sweep",
+        "--json",
+        str(out),
+        cwd=repo,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(out.read_text())
+    # Sweep over concurrency in {1, 8, 32, 128} -> 4 entries.
+    keys = list(payload["scenarios"])
+    assert "http.read[concurrency=1]" in keys
+    assert "http.read[concurrency=8]" in keys
+    assert "http.read[concurrency=32]" in keys
+    assert "http.read[concurrency=128]" in keys

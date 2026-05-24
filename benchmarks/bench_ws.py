@@ -104,6 +104,9 @@ class FanoutScenario:
     params: dict[str, Any] = field(
         default_factory=lambda: {"subscribers": 100}
     )
+    SWEEP_PARAMS: ClassVar[dict[str, list[Any]]] = {
+        "subscribers": [1, 10, 100, 1000],
+    }
     _fix: _WsFixture = field(init=False, repr=False)
 
     def setup(self) -> None:
