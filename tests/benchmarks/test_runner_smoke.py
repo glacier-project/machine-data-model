@@ -146,3 +146,26 @@ def test_runner_runs_ws_fanout_tiny_duration(tmp_path: Path) -> None:
     payload = json.loads(out.read_text())
     assert "ws.fanout[subscribers=100]" in payload["scenarios"]
     assert payload["scenarios"]["ws.fanout[subscribers=100]"]["ops_per_sec"] > 0
+
+
+def test_runner_runs_ws_e2e_latency_tiny_duration(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[2]
+    out = tmp_path / "out.json"
+    proc = _run(
+        "--scenario",
+        "ws.e2e_latency",
+        "--duration",
+        "1.0",
+        "--warmup",
+        "0.2",
+        "--json",
+        str(out),
+        cwd=repo,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(out.read_text())
+    assert "ws.e2e_latency" in payload["scenarios"]
+    # Should produce ~50 samples in 1s at 50 writes/sec
+    assert payload["scenarios"]["ws.e2e_latency"]["samples"] >= 10
+    # p95 must be a positive (non-zero) latency for this scenario
+    assert payload["scenarios"]["ws.e2e_latency"]["p95_ms"] > 0

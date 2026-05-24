@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass, field
 import socket
 import threading
@@ -174,6 +175,84 @@ class FanoutScenario:
         self._fix.stop()
 
 
+@dataclass
+class E2ELatencyScenario:
+    """write -> WS-frame latency at a low rate (avoids coalescing)."""
+
+    name: str = "ws.e2e_latency"
+    # Empty params -> scenario_key is just "ws.e2e_latency".
+    params: dict[str, Any] = field(default_factory=dict)
+    # Rate is hardcoded here, not a public param, because changing it
+    # invalidates the measurement (too high -> coalesced frames).
+    WRITES_PER_SEC: int = 50
+    _fix: _WsFixture = field(init=False, repr=False)
+
+    def setup(self) -> None:
+        """Start the WS fixture."""
+        self._fix = _WsFixture()
+        self._fix.start()
+
+    def run(self, duration_s: float) -> list[Sample]:
+        """Send timestamped writes, record per-frame arrival latency."""
+        url = self._fix.ws_url
+        temp = self._fix.temp
+        interval_s = 1.0 / self.WRITES_PER_SEC
+
+        async def _go() -> list[int]:
+            timeout = aiohttp.ClientTimeout(total=duration_s + 10.0)
+            sent_ns: dict[float, int] = {}
+            received: list[int] = []
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.ws_connect(url) as ws,
+            ):
+                await ws.send_json(
+                    {"op": "subscribe", "node": self._fix.NODE_PATH}
+                )
+                await ws.receive_json(timeout=2.0)
+
+                async def _receiver() -> None:
+                    try:
+                        while True:
+                            msg = await ws.receive(
+                                timeout=duration_s + 2.0
+                            )
+                            if msg.type != aiohttp.WSMsgType.TEXT:
+                                break
+                            arrived_ns = time.monotonic_ns()
+                            payload = msg.json()
+                            value = float(payload["value"])
+                            sent = sent_ns.pop(value, None)
+                            if sent is not None:
+                                received.append(arrived_ns - sent)
+                    except (TimeoutError, asyncio.CancelledError):
+                        return
+
+                recv_task = asyncio.create_task(_receiver())
+
+                end = time.monotonic() + duration_s
+                i = 1.0
+                while time.monotonic() < end:
+                    sent_ns[i] = time.monotonic_ns()
+                    temp.write(i)
+                    i += 1.0
+                    await asyncio.sleep(interval_s)
+
+                # Drain a moment for the last few frames to arrive.
+                await asyncio.sleep(0.3)
+                recv_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await recv_task
+            return received
+
+        latencies = self._fix.submit(_go())
+        return [Sample(latency_ns=lat) for lat in latencies]
+
+    def teardown(self) -> None:
+        """Stop the WS fixture."""
+        self._fix.stop()
+
+
 def register_scenarios() -> list[Scenario]:
     """Return all scenarios defined in this module."""
-    return [FanoutScenario()]
+    return [FanoutScenario(), E2ELatencyScenario()]
