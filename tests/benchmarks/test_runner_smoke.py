@@ -169,3 +169,42 @@ def test_runner_runs_ws_e2e_latency_tiny_duration(tmp_path: Path) -> None:
     assert payload["scenarios"]["ws.e2e_latency"]["samples"] >= 10
     # p95 must be a positive (non-zero) latency for this scenario
     assert payload["scenarios"]["ws.e2e_latency"]["p95_ms"] > 0
+
+
+def test_runner_save_baseline_then_compare_passes(tmp_path: Path) -> None:
+    """Run a fast scenario, save baseline, re-run --compare, expect exit 0."""
+    repo = Path(__file__).resolve().parents[2]
+    baseline_path = tmp_path / "baseline.json"
+    save_proc = _run(
+        "--scenario",
+        "coalescer.notify",
+        "--duration",
+        "0.3",
+        "--warmup",
+        "0.1",
+        "--save-baseline",
+        "--baseline-path",
+        str(baseline_path),
+        cwd=repo,
+    )
+    assert save_proc.returncode == 0, save_proc.stderr
+    assert baseline_path.exists()
+    payload = json.loads(baseline_path.read_text())
+    assert "coalescer.notify" in payload["scenarios"]
+    assert "version" in payload
+    assert "machine" in payload
+
+    compare_proc = _run(
+        "--scenario",
+        "coalescer.notify",
+        "--duration",
+        "0.3",
+        "--warmup",
+        "0.1",
+        "--compare",
+        "--baseline-path",
+        str(baseline_path),
+        cwd=repo,
+    )
+    # Same machine, same scenario, ~10% threshold -> should not regress.
+    assert compare_proc.returncode == 0, compare_proc.stderr

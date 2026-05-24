@@ -10,11 +10,20 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from datetime import UTC, datetime
 import json
 from pathlib import Path
+import platform
 import sys
 from typing import TYPE_CHECKING
 
+from benchmarks._baseline import (
+    Baseline,
+    BaselineEntry,
+    compare,
+    load,
+    save,
+)
 from benchmarks._harness import (
     run_scenario,
     scenario_key,
@@ -23,10 +32,12 @@ from benchmarks._harness import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from benchmarks._baseline import CompareReport
     from benchmarks._harness import Scenario, ScenarioResult
 
 DEFAULT_DURATION_S = 5.0
 DEFAULT_WARMUP_S = 1.0
+DEFAULT_BASELINE_PATH = Path("benchmarks/baseline.json")
 
 # Each bench_* module appends its scenarios here via register_scenarios().
 # Modules are imported in this list (statically); adding a new benchmark
@@ -107,6 +118,81 @@ def _write_json(path: Path, results: list[ScenarioResult]) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n")
 
 
+def _project_version() -> str:
+    """Return the project version from pyproject.toml ([project] version)."""
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    for raw_line in pyproject.read_text().splitlines():
+        line = raw_line.strip()
+        if line.startswith("version") and "=" in line:
+            # e.g. version = "1.0.0"
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return "unknown"
+
+
+def _capture_machine_info() -> dict[str, str]:
+    """Capture CPU / Python / OS strings used to tag a baseline file."""
+    return {
+        "cpu": platform.processor() or platform.machine() or "unknown",
+        "python": platform.python_version(),
+        "os": f"{platform.system().lower()}-{platform.machine()}",
+    }
+
+
+def _results_to_baseline(results: list[ScenarioResult]) -> Baseline:
+    """Wrap fresh scenario results into a Baseline payload for save()."""
+    return Baseline(
+        version=_project_version(),
+        captured_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        machine=_capture_machine_info(),
+        scenarios={
+            r.scenario_key: BaselineEntry(
+                ops_per_sec=r.ops_per_sec,
+                p50_ms=r.p50_ms,
+                p95_ms=r.p95_ms,
+                p99_ms=r.p99_ms,
+                samples=r.samples,
+            )
+            for r in results
+        },
+    )
+
+
+def _print_compare(report: CompareReport) -> None:
+    """Print a per-scenario delta table and any warning/error messages."""
+    if report.deltas:
+        header = (
+            f"{'scenario':<40} {'ops_delta':>10}"
+            f" {'p95_delta':>10} {'p99_delta':>10}"
+        )
+        print(header)
+        print("-" * len(header))
+        for key in sorted(report.deltas):
+            d = report.deltas[key]
+            print(
+                f"{key:<40} "
+                f"{d['ops_per_sec'] * 100:>+9.2f}% "
+                f"{d['p95_ms'] * 100:>+9.2f}% "
+                f"{d['p99_ms'] * 100:>+9.2f}%"
+            )
+    if report.missing_in_baseline:
+        print()
+        print(
+            "WARNING: scenarios not in baseline (re-save before release):"
+        )
+        for k in report.missing_in_baseline:
+            print(f"  - {k}")
+    if report.missing_in_current:
+        print()
+        print("ERROR: scenarios in baseline but missing in this run:")
+        for k in report.missing_in_current:
+            print(f"  - {k}")
+    if report.regressions:
+        print()
+        print("ERROR: regressions exceeding threshold:")
+        for k in report.regressions:
+            print(f"  - {k}")
+
+
 def main(argv: list[str] | None = None) -> int:
     """Parse CLI arguments, run selected scenarios, and print results."""
     parser = argparse.ArgumentParser(prog="benchmarks.runner")
@@ -131,6 +217,25 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Write machine-readable JSON results to this path.",
     )
+    parser.add_argument(
+        "--save-baseline",
+        action="store_true",
+        help="Save the current run's results as the new baseline.",
+    )
+    parser.add_argument(
+        "--compare",
+        action="store_true",
+        help=(
+            "Compare results against the baseline and exit nonzero on "
+            "regression."
+        ),
+    )
+    parser.add_argument(
+        "--baseline-path",
+        type=Path,
+        default=DEFAULT_BASELINE_PATH,
+        help=f"Baseline file path (default: {DEFAULT_BASELINE_PATH}).",
+    )
     args = parser.parse_args(argv)
 
     scenarios = _discover_scenarios()
@@ -152,6 +257,25 @@ def main(argv: list[str] | None = None) -> int:
     _print_summary(results)
     if args.json is not None:
         _write_json(args.json, results)
+
+    if args.save_baseline:
+        baseline = _results_to_baseline(results)
+        save(args.baseline_path, baseline)
+        print(f"baseline saved to {args.baseline_path}")
+
+    if args.compare:
+        if not args.baseline_path.exists():
+            print(
+                f"error: baseline file not found: {args.baseline_path}",
+                file=sys.stderr,
+            )
+            return 2
+        baseline = load(args.baseline_path)
+        current = {r.scenario_key: r for r in results}
+        report = compare(baseline, current)
+        _print_compare(report)
+        if report.failed:
+            return 1
     return 0
 
 
