@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "captured_at": "2026-05-24T19:13:40Z",
+  "machine": {
+    "cpu": "x86_64",
+    "python": "3.11.10",
+    "os": "linux-x86_64"
+  },
+  "scenarios": {
+    "coalescer.drain": {
+      "ops_per_sec": 5604.203475770435,
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "p99_ms": 0.0,
+      "samples": 28066
+    },
+    "coalescer.notify": {
+      "ops_per_sec": 69402.34435898464,
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "p99_ms": 0.0,
+      "samples": 359003
+    },
+    "http.method[concurrency=32]": {
+      "ops_per_sec": 2369.372867325758,
+      "p50_ms": 12.516569,
+      "p95_ms": 17.72684125,
+      "p99_ms": 21.791309300000023,
+      "samples": 11906
+    },
+    "http.read[concurrency=32]": {
+      "ops_per_sec": 2802.00143952066,
+      "p50_ms": 9.5181095,
+      "p95_ms": 14.172632,
+      "p99_ms": 17.046451930000018,
+      "samples": 14072
+    },
+    "http.write[concurrency=32]": {
+      "ops_per_sec": 2454.9443599828055,
+      "p50_ms": 11.956894,
+      "p95_ms": 17.640941400000003,
+      "p99_ms": 21.464048140000017,
+      "samples": 12307
+    },
+    "ws.e2e_latency": {
+      "ops_per_sec": 44.58377650902196,
+      "p50_ms": 0.780066,
+      "p95_ms": 1.2620162,
+      "p99_ms": 1.30875528,
+      "samples": 237
+    },
+    "ws.fanout[subscribers=100]": {
+      "ops_per_sec": 18795.972164781906,
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "p99_ms": 0.0,
+      "samples": 99150
+    }
+  }
+}
