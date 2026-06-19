@@ -1,0 +1,27 @@
+name: "boiler"
+machine_category: "boiler_cat"
+machine_type: "boiler_type"
+machine_model: "boiler_model"
+description: "Boiler data model with MQTT-backed variables"
+connectors:
+  - !!MqttConnector
+    name: "mqtt_broker"
+    ip: "127.0.0.1"
+    port: 1883
+    topic_prefix: "machines/boiler-1"
+    payload_codec: "string"
+root:
+  !!FolderNode
+  name: "Objects"
+  connector_name: "mqtt_broker"
+  children:
+    - !!NumericalVariableNode
+      name: "Temperature"
+      default_value: 20.0
+    - !!BooleanVariableNode
+      name: "StartCommand"
+      default_value: false
+      remote_resource_spec:
+        !!MqttRemoteResourceSpec
+        subscribe_topic: "plant/line-1/start/state"
+        publish_topic: "plant/line-1/start/set"

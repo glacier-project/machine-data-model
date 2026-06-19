@@ -27,6 +27,10 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.connectors.mqtt import (
+    MqttConnector,
+    MqttRemoteResourceSpec,
+)
 from machine_data_model.nodes.connectors.opcua.opcua_connector import (
     OpcuaConnector,
     OpcuaRemoteResourceSpec,
@@ -89,14 +93,7 @@ def _opcua_connector_representer(
     """
     connector_dict: dict[str, Any] = {"name": connector.name}
 
-    if connector.ip_env_var:
-        connector_dict["ip_env_var"] = connector.ip_env_var
-    else:
-        connector_dict["ip"] = connector.ip
-    if connector.port_env_var:
-        connector_dict["port_env_var"] = connector.port_env_var
-    else:
-        connector_dict["port"] = connector.port
+    connector_dict.update(connector.address_to_dict())
     if connector.security_policy:
         connector_dict["security_policy"] = connector.security_policy
     if connector.client_app_uri != connector.get_default_client_app_uri():
@@ -144,6 +141,47 @@ def _get_opcua_remote_resource_spec_representer(
 
     return dumper.represent_mapping(
         "tag:yaml.org,2002:OpcuaRemoteResourceSpec", remote_resource_spec
+    )
+
+
+def _mqtt_connector_representer(
+    dumper: yaml.Dumper, connector: MqttConnector
+) -> yaml.nodes.MappingNode:
+    """Represent an MqttConnector as a YAML mapping node."""
+    connector_dict: dict[str, Any] = {"name": connector.name}
+
+    connector_dict.update(connector.address_to_dict())
+    connector_dict.update(connector.auth_to_dict())
+    if connector.client_id:
+        connector_dict["client_id"] = connector.client_id
+    if connector.topic_prefix:
+        connector_dict["topic_prefix"] = connector.topic_prefix
+    if connector.keepalive != 60:
+        connector_dict["keepalive"] = connector.keepalive
+    if connector.qos != 0:
+        connector_dict["qos"] = connector.qos
+    if connector.retain:
+        connector_dict["retain"] = connector.retain
+    if connector.payload_codec != "string":
+        connector_dict["payload_codec"] = connector.payload_codec
+
+    return dumper.represent_mapping(
+        "tag:yaml.org,2002:MqttConnector", connector_dict
+    )
+
+
+def _get_mqtt_remote_resource_spec_representer(
+    dumper: yaml.Dumper, spec: MqttRemoteResourceSpec
+) -> yaml.nodes.MappingNode:
+    """Represent an MqttRemoteResourceSpec as a YAML mapping node."""
+    remote_resource_spec: dict[str, Any] = {}
+    for key, value in spec.to_dict().items():
+        if value is not None:
+            remote_resource_spec[key] = value
+
+    return dumper.represent_mapping(
+        "tag:yaml.org,2002:MqttRemoteResourceSpec",
+        remote_resource_spec,
     )
 
 
@@ -623,6 +661,8 @@ def _register_representers() -> None:
         DataModel: _data_model_representer,
         OpcuaConnector: _opcua_connector_representer,
         OpcuaRemoteResourceSpec: _get_opcua_remote_resource_spec_representer,
+        MqttConnector: _mqtt_connector_representer,
+        MqttRemoteResourceSpec: _get_mqtt_remote_resource_spec_representer,
         FolderNode: _folder_node_representer,
         NumericalVariableNode: _numerical_variable_node_representer,
         BooleanVariableNode: _boolean_variable_node_representer,

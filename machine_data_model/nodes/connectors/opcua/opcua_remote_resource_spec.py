@@ -17,7 +17,6 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
 
     def __init__(
         self,
-        parent: "DataModelNode | None" = None,
         remote_path: str | None = None,
         node_id: str | None = None,
         namespace: str | None = None,
@@ -26,8 +25,6 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
         """Constructor.
 
         Args:
-            parent (DataModelNode, optional):
-                Node which owns these properties.
             remote_path (str, optional):
                 Node's path on the remote OPC UA server.
             node_id (str, optional):
@@ -37,7 +34,7 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
             parent_node_id (str, optional):
                 Parent node's id of node_id on the remote OPC UA server.
         """
-        super().__init__(parent=parent, remote_path=remote_path)
+        super().__init__(remote_path=remote_path)
         self.node_id: str | None = node_id
         self.parent_node_id: str | None = parent_node_id
         self.namespace: str | None = namespace
@@ -80,7 +77,10 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
         return isinstance(self.remote_node, asyncua.Node)
 
     @override
-    def get_remote_path(self) -> str | None:
+    def get_remote_path(
+        self,
+        node: "DataModelNode | None" = None,
+    ) -> str | None:
         """Returns the 'remote_path' used to interact with the remote node.
 
         Returns:
@@ -90,17 +90,14 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
         if self.remote_path is not None:
             return self.remote_path
 
-        if self.parent:
+        if node is not None:
             remote_path = ""
-            if self.parent.parent:
-                parent_remote_path = self.parent.parent.remote_path
+            if node.parent:
+                parent_remote_path = node.parent.remote_path
                 remote_path = parent_remote_path if parent_remote_path else ""
             if self.namespace:
-                return (
-                    remote_path + "/" + self.namespace + ":" + self.parent.name
-                )
-            else:
-                return remote_path + "/" + self.parent.name
+                return remote_path + "/" + self.namespace + ":" + node.name
+            return remote_path + "/" + node.name
         return None
 
     @override
@@ -116,6 +113,24 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
         """
         return OpcuaRemoteResourceSpec(
             namespace=self.namespace, node_id=self.node_id
+        )
+
+    @override
+    def clone_for_child(self) -> "OpcuaRemoteResourceSpec":
+        """Create an OPC UA spec for a child node.
+
+        The parent's node id becomes the child's parent node id, preserving the
+        inheritance behavior used by existing OPC UA data models.
+
+        Returns:
+            OpcuaRemoteResourceSpec:
+                New OPC UA spec for the child node.
+        """
+        inheritable_spec = self.inheritable_spec()
+        return OpcuaRemoteResourceSpec(
+            namespace=inheritable_spec.namespace,
+            remote_path=inheritable_spec.remote_path,
+            parent_node_id=inheritable_spec.node_id,
         )
 
     @override

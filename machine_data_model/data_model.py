@@ -1,5 +1,7 @@
 from collections.abc import Callable, Iterable
+import logging
 from typing import Any
+import weakref
 
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.behavior.remote_execution_node import (
@@ -25,9 +27,7 @@ from machine_data_model.nodes.variable_node import (
     VariableNode,
 )
 
-from .nodes.connectors.opcua.opcua_remote_resource_spec import (
-    OpcuaRemoteResourceSpec,
-)
+_logger = logging.getLogger(__name__)
 
 
 class DataModel:
@@ -75,28 +75,38 @@ class DataModel:
                 name="root", description="Root folder of the data model"
             )
         )
+        self._closed = False
+        self._connector_finalizer: weakref.finalize | None = None
 
         self._connectors: dict[str, AbstractConnector] = (
             self._initialize_connectors(connectors)
         )
+        if self._connectors:
+            self._connector_finalizer = weakref.finalize(
+                self,
+                DataModel._disconnect_connectors,
+                tuple(self._connectors.values()),
+            )
 
-        # hashmap for fast access to nodes by id
-        self._nodes: dict[str, DataModelNode] = {}
-        self._register_nodes(self._root)
+        try:
+            # hashmap for fast access to nodes by id
+            self._nodes: dict[str, DataModelNode] = {}
+            self._register_nodes(self._root)
 
-        # set up the connector for each node
-        # todo: this can be optimized by setting
-        #       the connectors while registering the nodes
-        self._setup_inheritable_specs(self._root)
-        for node in self._nodes.values():
-            self._set_node_connector(node)
-            # subscribe to all the variable changes
-            # > if it is an object, skip it: the subscription is done on the
-            # properties
-            if isinstance(node, VariableNode) and not isinstance(
-                node, ObjectVariableNode
-            ):
-                node.subscribe_to_remote_changes()
+            # set up the connector and resolved remote resource for each node
+            self._setup_inheritable_specs(self._root)
+            for node in self._nodes.values():
+                self._set_node_connector(node)
+                # subscribe to all the variable changes
+                # > if it is an object, skip it: the subscription is done on the
+                # properties
+                if isinstance(node, VariableNode) and not isinstance(
+                    node, ObjectVariableNode
+                ):
+                    node.subscribe_to_remote_changes()
+        except Exception:
+            self._cleanup_connectors(self._connectors.values())
+            raise
 
     def _initialize_connectors(
         self, connectors: list[AbstractConnector] | None
@@ -128,7 +138,7 @@ class DataModel:
         for connector in connectors:
             if connector.name is None:
                 self._cleanup_connectors(connectors)
-                raise Exception(
+                raise ValueError(
                     "At least one connector doesn't have the name attribute "
                     "defined"
                 )
@@ -136,7 +146,7 @@ class DataModel:
             # check if the name/identifier is unique
             if connectors_dict.get(connector.name) is not None:
                 self._cleanup_connectors(connectors)
-                raise Exception(
+                raise ValueError(
                     f"There are at least two connectors with the same "
                     f"name/identifier: {connector.name}."
                 )
@@ -147,7 +157,7 @@ class DataModel:
             # connectors
             if not connection_successful:
                 self._cleanup_connectors(connectors)
-                raise Exception(
+                raise ConnectionError(
                     f"Failed to connect to the remote server using the "
                     f"{connector.name} connector."
                 )
@@ -178,6 +188,7 @@ class DataModel:
                     node.set_remote_path(remote_path)
                 else:
                     node.set_remote_path(node.qualified_name)
+            node.configure_remote_resource()
 
     def _setup_inheritable_specs(self, root: DataModelNode) -> None:
         """Calls the recursive method which sets up all the nodes remote specs.
@@ -200,19 +211,13 @@ class DataModel:
                 Parent of node. Can have inheritable specs.
         """
         if parent and parent.remote_resource_spec:
-            inheritable_spec = parent.remote_resource_spec.inheritable_spec()
+            parent_spec = parent.remote_resource_spec
             if node.remote_resource_spec:
-                node.remote_resource_spec.inherit_spec(inheritable_spec)
+                node.remote_resource_spec.inherit_spec(
+                    parent_spec.inheritable_spec()
+                )
             else:
-                # Only create OpcuaRemoteResourceSpec if parent has one
-                if isinstance(inheritable_spec, OpcuaRemoteResourceSpec):
-                    node.remote_resource_spec = OpcuaRemoteResourceSpec(
-                        namespace=inheritable_spec.namespace,
-                        parent=node,
-                        remote_path=inheritable_spec.remote_path,
-                        parent_node_id=inheritable_spec.node_id,
-                    )
-                    node.remote_resource_spec.parent = node
+                node.remote_resource_spec = parent_spec.clone_for_child()
 
         for child in node:
             self._setup_child_inherited_specs(child, node)
@@ -621,6 +626,23 @@ class DataModel:
         """Disconnect all connectors and stop their threads."""
         self._cleanup_connectors(self._connectors.values())
 
+    def close(self) -> None:
+        """Close the data model and release connector resources."""
+        self.close_connectors()
+
+    def __enter__(self) -> "DataModel":
+        """Enter a context manager for deterministic connector cleanup."""
+        return self
+
+    def __exit__(
+        self,
+        _exc_type: type[BaseException] | None,
+        _exc_value: BaseException | None,
+        _traceback: Any,
+    ) -> None:
+        """Exit a context manager and close connectors."""
+        self.close()
+
     def _cleanup_connectors(
         self, connectors: Iterable[AbstractConnector]
     ) -> None:
@@ -630,8 +652,30 @@ class DataModel:
             connectors:
                 Connectors that have resources to clean up.
         """
+        if self._closed:
+            return
+        self._closed = True
+        if (
+            self._connector_finalizer is not None
+            and self._connector_finalizer.alive
+        ):
+            self._connector_finalizer.detach()
+        self._disconnect_connectors(connectors)
+
+    @staticmethod
+    def _disconnect_connectors(
+        connectors: Iterable[AbstractConnector],
+    ) -> None:
+        """Disconnect connectors without requiring a live DataModel object."""
         for connector in connectors:
-            connector.disconnect()
+            try:
+                connector.disconnect()
+            except Exception as exp:
+                _logger.error(
+                    "Failed to disconnect connector %r during cleanup",
+                    connector.name,
+                )
+                _logger.error(exp)
 
     def __str__(self) -> str:
         return (

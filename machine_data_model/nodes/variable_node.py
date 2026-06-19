@@ -24,7 +24,11 @@ from machine_data_model.tracing import (
     trace_variable_write,
 )
 
-from .connectors.abstract_connector import SubscriptionArguments
+from .connectors.abstract_connector import (
+    AbstractConnector,
+    SubscriptionArguments,
+)
+from .connectors.remote_resource import RemoteResource
 from .data_model_node import DataModelNode
 from .measurement_unit.measure_builder import (
     MeasureBuilder,
@@ -378,6 +382,21 @@ class VariableNode(DataModelNode):
         else:
             return self._read_internal_value()
 
+    def _require_remote_connector(self) -> AbstractConnector:
+        """Return the connector or fail with a runtime exception."""
+        if self._connector is None:
+            raise RuntimeError("Remote nodes must have a valid connector")
+        return self._connector
+
+    def _require_remote_resource(self) -> RemoteResource:
+        """Return the configured remote resource or fail clearly."""
+        try:
+            return self.remote_resource
+        except ValueError as exp:
+            raise ValueError(
+                "Remote nodes must have a valid remote path or resource spec"
+            ) from exp
+
     @abstractmethod
     def _read_internal_value(self) -> Any:
         """Read the value locally.
@@ -400,21 +419,9 @@ class VariableNode(DataModelNode):
             Any:
                 Variable's remote (or its cached) value.
         """
-        assert (
-            self._connector is not None
-        ), "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-            or self._remote_resource_spec is not None
-        ), "Remote nodes must have a valid remote path"
+        connector = self._require_remote_connector()
         if force_remote_read:
-            # Use empty string as fallback since remote_resource_spec can
-            # provide the path
-            path = self.remote_path if self.remote_path is not None else ""
-            result = self._connector.read_node_value(
-                path, self._remote_resource_spec
-            )
-            return result
+            return connector.read_node_value(self._require_remote_resource())
         return self._read_internal_value()
 
     def _update_value(self, value: Any) -> Any:
@@ -438,17 +445,10 @@ class VariableNode(DataModelNode):
                 New value when the update action is successful.
                 Otherwise, it returns the previous value.
         """
-        assert (
-            self._connector is not None
-        ), "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-            or self.remote_resource_spec is not None
-        ), "Remote nodes must have a valid remote path"
+        connector = self._require_remote_connector()
         prev_value = self._read_internal_value()
-        path = self.remote_path if self.remote_path is not None else ""
-        write_successful = self._connector.write_node_value(
-            path, value, self.remote_resource_spec
+        write_successful = connector.write_node_value(
+            self._require_remote_resource(), value
         )
         if write_successful:
             return value
@@ -519,20 +519,19 @@ class VariableNode(DataModelNode):
         When the new value is retrieved, calls the _remote_subscription_callback
         which updates the internal cached value.
         """
-        if not self.connector or not (
+        connector = self.connector
+        if connector is None or not (
             self._remote_path or self._remote_resource_spec
         ):
             return None
-        # Use empty string as fallback since remote_resource_spec can
-        # provide the path
-        path = self.remote_path if self.remote_path is not None else ""
-        self.connector.subscribe_to_node_changes(
-            path,
+        resource = self.remote_resource
+        connector.subscribe_to_node_changes(
+            resource,
             self._remote_subscription_callback,
-            self._remote_resource_spec,
         )
-        value = self._read_remote_value(force_remote_read=True)
-        self._update_internal_value(value)
+        value = connector.read_node_value(resource)
+        if value is not None:
+            self._update_internal_value(value)
         return None
 
     def _remote_subscription_callback(
@@ -691,6 +690,8 @@ class NumericalVariableNode(VariableNode):
                 The value of the numerical variable.
         """
         result = super()._read_remote_value(force_remote_read)
+        if result is None:
+            return self._read_internal_value()
         assert isinstance(result, int | float)
         return result
 
@@ -835,6 +836,8 @@ class StringVariableNode(VariableNode):
                 The value of the string variable.
         """
         result = super()._read_remote_value(force_remote_read)
+        if result is None:
+            return self._read_internal_value()
         assert isinstance(result, str)
         return result
 
@@ -1004,6 +1007,8 @@ class BooleanVariableNode(VariableNode):
                 successful.Otherwise, returns the previous value.
         """
         result = super()._read_remote_value(force_remote_read)
+        if result is None:
+            return self._read_internal_value()
         assert isinstance(result, bool)
         return result
 
@@ -1269,12 +1274,8 @@ class ObjectVariableNode(VariableNode):
             Any:
                 The value of the object variable.
         """
-        assert (
-            self._connector is not None
-        ), "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
+        self._require_remote_connector()
+        self._require_remote_resource()
         value = {}
         for property_name, property_node in self._properties.items():
             if isinstance(property_node, VariableNode):
@@ -1318,12 +1319,8 @@ class ObjectVariableNode(VariableNode):
                 The updated value if the operation was successful.
                 Otherwise, returns the previous value.
         """
-        assert (
-            self._connector is not None
-        ), "Remote nodes must have a valid connector"
-        assert (
-            self.remote_path is not None
-        ), "Remote nodes must have a valid remote path"
+        self._require_remote_connector()
+        self._require_remote_resource()
         prev_value = self._read_internal_value()
         write_successful = True
         for property_name, property_value in value.items():

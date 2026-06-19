@@ -29,6 +29,10 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
+from machine_data_model.nodes.connectors.mqtt import (
+    MqttConnector,
+    MqttRemoteResourceSpec,
+)
 from machine_data_model.nodes.connectors.opcua.opcua_connector import (
     OpcuaConnector,
     OpcuaRemoteResourceSpec,
@@ -640,6 +644,50 @@ def _get_opcua_remote_resource_spec(
     return OpcuaRemoteResourceSpec(**kwargs)
 
 
+def _get_mqtt_connector_node(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> MqttConnector:
+    """Construct an MQTT Connector from a yaml node."""
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "name": None,
+        "ip": "127.0.0.1",
+        "ip_env_var": None,
+        "port": 1883,
+        "port_env_var": None,
+        "username": None,
+        "username_env_var": None,
+        "password": None,
+        "password_env_var": None,
+        "client_id": None,
+        "topic_prefix": None,
+        "keepalive": 60,
+        "qos": 0,
+        "retain": False,
+        "payload_codec": "string",
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return MqttConnector(**kwargs)
+
+
+def _get_mqtt_remote_resource_spec(
+    loader: yaml.FullLoader, node: yaml.MappingNode
+) -> MqttRemoteResourceSpec:
+    """Construct an MQTT remote resource spec from a yaml node."""
+    data = loader.construct_mapping(node, deep=True)
+    default_kwargs = {
+        "remote_path": None,
+        "topic": None,
+        "topic_prefix": None,
+        "publish_topic": None,
+        "subscribe_topic": None,
+        "qos": None,
+        "retain": None,
+    }
+    kwargs = _build_kwargs(data, default_kwargs)
+    return MqttRemoteResourceSpec(**kwargs)
+
+
 def _register_yaml_constructors() -> None:
     """Register all YAML constructors for data model building."""
     constructors = {
@@ -661,6 +709,8 @@ def _register_yaml_constructors() -> None:
         WaitRemoteEventNode: _get_wait_remote_event_node,
         OpcuaConnector: _get_opcua_connector_node,
         OpcuaRemoteResourceSpec: _get_opcua_remote_resource_spec,
+        MqttConnector: _get_mqtt_connector_node,
+        MqttRemoteResourceSpec: _get_mqtt_remote_resource_spec,
     }
 
     for node, constructor in constructors.items():

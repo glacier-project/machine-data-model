@@ -10,24 +10,33 @@ import asyncio
 from asyncio import AbstractEventLoop
 from collections.abc import Callable, Coroutine
 from concurrent.futures import Future
+from concurrent.futures import TimeoutError as FutureTimeoutError
 import logging
+import threading
 from threading import Thread
 from typing import Any, TypeVar
 
 from typing_extensions import override
 
-from machine_data_model.nodes.connectors.abstract_remote_resource_spec import (
-    AbstractRemoteResourceSpec,
-)
-
 from .abstract_connector import AbstractConnector, SubscriptionArguments
+from .remote_resource import RemoteResource
 
 TaskReturnType = TypeVar("TaskReturnType")
 
 _logger = logging.getLogger(__name__)
 
 
-def create_event_loop_thread() -> AbstractEventLoop:
+class _ReentrantDispatchState(threading.local):
+    """Per-thread flag, ``False`` on every thread until a dispatch sets it.
+
+    It marks threads running a user callback while the connector's event loop
+    is blocked dispatching it, so re-entrant calls avoid that busy loop.
+    """
+
+    active: bool = False
+
+
+def create_event_loop_thread() -> tuple[AbstractEventLoop, Thread]:
     """Creates a thread with an asyncio event loop.
 
     The loop can then be used to execute the async tasks inside the thread.
@@ -36,8 +45,8 @@ def create_event_loop_thread() -> AbstractEventLoop:
     https://gist.github.com/dmfigol/3e7d5b84a16d076df02baa9f53271058?permalink_comment_id=5553292#gistcomment-5553292
 
     Returns:
-        AbstractEventLoop:
-            Asyncio event loop which will be run in a separate thread.
+        tuple[AbstractEventLoop, Thread]:
+            Asyncio event loop and thread running it.
     """
 
     def start_background_loop(loop: AbstractEventLoop) -> None:
@@ -57,7 +66,7 @@ def create_event_loop_thread() -> AbstractEventLoop:
     )
     thread.start()
     _logger.debug("Created thread and its event loop")
-    return event_loop
+    return event_loop, thread
 
 
 def run_coroutine_in_thread(
@@ -141,9 +150,15 @@ class AbstractAsyncConnector(AbstractConnector):
             password_env_var=password_env_var,
         )
 
-        self._event_loop = (
-            create_event_loop_thread() if event_loop is None else event_loop
-        )
+        self._owns_event_loop = event_loop is None
+        self._event_loop_thread: Thread | None = None
+        self._reentrant_local = _ReentrantDispatchState()
+        if event_loop is None:
+            self._event_loop, self._event_loop_thread = (
+                create_event_loop_thread()
+            )
+        else:
+            self._event_loop = event_loop
 
     @override
     def connect(self) -> bool:
@@ -153,7 +168,17 @@ class AbstractAsyncConnector(AbstractConnector):
             bool:
                 True if the client is connected to the server.
         """
+        self._ensure_owned_event_loop()
         return self._handle_task(self._async_connect())
+
+    def _ensure_owned_event_loop(self) -> None:
+        """Create a fresh private event loop when reconnecting."""
+        if not self._owns_event_loop:
+            return
+        if self._event_loop.is_closed():
+            self._event_loop, self._event_loop_thread = (
+                create_event_loop_thread()
+            )
 
     @abstractmethod
     async def _async_connect(self) -> bool:
@@ -172,9 +197,24 @@ class AbstractAsyncConnector(AbstractConnector):
             bool:
                 True if the client is disconnected from the server.
         """
-        res = self._handle_task(self._async_disconnect())
-        self._event_loop.stop()
+        if self._event_loop.is_closed():
+            return True
+        try:
+            res = self._handle_task(self._async_disconnect())
+        finally:
+            self._stop_owned_event_loop()
         return res
+
+    def _stop_owned_event_loop(self) -> None:
+        """Stop and close the private event loop when this connector owns it."""
+        if not self._owns_event_loop or self._event_loop.is_closed():
+            return
+        if self._event_loop.is_running():
+            self._event_loop.call_soon_threadsafe(self._event_loop.stop)
+            if self._event_loop_thread is not None:
+                self._event_loop_thread.join(timeout=5)
+        if not self._event_loop.is_running():
+            self._event_loop.close()
 
     @abstractmethod
     async def _async_disconnect(self) -> bool:
@@ -186,79 +226,53 @@ class AbstractAsyncConnector(AbstractConnector):
         """
 
     @override
-    def _get_remote_node(
-        self,
-        path: str | None = None,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
-    ) -> Any:
-        """Retrieves and returns a node from the remote resource.
+    def _get_remote_resource(self, resource: RemoteResource) -> Any:
+        """Resolve and return a protocol-specific remote resource handle.
 
         Args:
-            path (str):
-                Node's path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
+            resource:
+                Resolved remote resource reference.
 
         Returns:
             Any:
-                Node with the given path.
+                Protocol-specific resource handle.
         """
-        return self._handle_task(
-            self._async_get_remote_node(path, remote_resource_spec)
-        )
+        return self._handle_task(self._async_get_remote_resource(resource))
 
     @abstractmethod
-    async def _async_get_remote_node(
-        self,
-        path: str | None = None,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
-    ) -> Any:
-        """Asynchronously retrieves and returns a node from the remote resource.
+    async def _async_get_remote_resource(self, resource: RemoteResource) -> Any:
+        """Asynchronously resolve a protocol-specific remote resource handle.
 
         Args:
-            path (str):
-                Node's path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
+            resource:
+                Resolved remote resource reference.
 
         Returns:
             Any:
-                Node with the given path.
+                Protocol-specific resource handle.
         """
 
     @override
-    def read_node_value(
-        self,
-        path: str,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
-    ) -> Any:
-        """Reatrieves and returns a node's value.
+    def read_node_value(self, resource: RemoteResource) -> Any:
+        """Retrieve and return a node's value.
 
         Args:
-            path (str):
-                Node's path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
+            resource:
+                Resolved remote resource reference.
 
         Returns:
             Any:
                 Node's value.
         """
-        return self._handle_task(
-            self._async_read_node_value(path, remote_resource_spec)
-        )
+        return self._handle_task(self._async_read_node_value(resource))
 
     @abstractmethod
-    async def _async_read_node_value(
-        self, path: str, remote_resource_spec: AbstractRemoteResourceSpec | None
-    ) -> Any:
+    async def _async_read_node_value(self, resource: RemoteResource) -> Any:
         """Asynchronous code which reads a node's value.
 
         Args:
-            path (str):
-                Node's path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
+            resource:
+                Resolved remote resource reference.
 
         Returns:
             Any:
@@ -268,44 +282,36 @@ class AbstractAsyncConnector(AbstractConnector):
     @override
     def write_node_value(
         self,
-        path: str,
+        resource: RemoteResource,
         value: Any,
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ) -> bool:
         """Writes a variable node.
 
         Args:
-            path (str):
-                Node's path.
-            value (Any):
+            resource:
+                Resolved remote resource reference.
+            value:
                 New value to write.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
 
         Returns:
             bool:
                 True if the operation was successful, False otherwise.
         """
-        return self._handle_task(
-            self._async_write_node_value(path, value, remote_resource_spec)
-        )
+        return self._handle_task(self._async_write_node_value(resource, value))
 
     @abstractmethod
     async def _async_write_node_value(
         self,
-        path: str,
+        resource: RemoteResource,
         value: Any,
-        remote_resource_spec: AbstractRemoteResourceSpec | None,
     ) -> bool:
         """Asynchronous code which writes a variable node.
 
         Args:
-            path (str):
-                Node's path.
-            value (Any):
+            resource:
+                Resolved remote resource reference.
+            value:
                 New value to write.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
 
         Returns:
             bool:
@@ -315,44 +321,38 @@ class AbstractAsyncConnector(AbstractConnector):
     @override
     def call_node_as_method(
         self,
-        path: str,
+        resource: RemoteResource,
         kwargs: dict[str, Any],
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ) -> Any:
-        """Invokes the method with path <path> using <kwargs>.
+        """Invoke the remote method using ``kwargs``.
 
         Args:
-            path (str):
-                Node/method path.
-            kwargs (dict[str, Any]):
+            resource:
+                Resolved remote resource reference.
+            kwargs:
                 Method arguments expressed as key/name - value pairs
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
                 Method's returned value.
         """
         return self._handle_task(
-            self._async_call_node_as_method(path, kwargs, remote_resource_spec)
+            self._async_call_node_as_method(resource, kwargs)
         )
 
     @abstractmethod
     async def _async_call_node_as_method(
         self,
-        path: str,
+        resource: RemoteResource,
         kwargs: dict[str, Any],
-        remote_resource_spec: AbstractRemoteResourceSpec | None,
     ) -> Any:
-        """Asynchronously invokes the method with path <path> using <kwargs>.
+        """Asynchronously invoke the remote method using ``kwargs``.
 
         Args:
-            path (str):
-                Node/method path.
-            kwargs (dict[str, Any]):
+            resource:
+                Resolved remote resource reference.
+            kwargs:
                 Method arguments expressed as key/name - value pairs.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
 
         Returns:
             Any:
@@ -362,18 +362,15 @@ class AbstractAsyncConnector(AbstractConnector):
     @override
     def subscribe_to_node_changes(
         self,
-        path: str,
+        resource: RemoteResource,
         callback: Callable[[Any, SubscriptionArguments], None],
-        remote_resource_spec: AbstractRemoteResourceSpec | None = None,
     ) -> int:
         """Subscribes to remote node changes.
 
         Args:
-            path (str):
-                Node path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
-            callback (Callable[[Any, SubscriptionArguments], None]):
+            resource:
+                Resolved remote resource reference.
+            callback:
                 Subscription's callback. The first parameter is the new value,
                 while the second parameter is additional data that is protocol
                 dependent.
@@ -384,27 +381,23 @@ class AbstractAsyncConnector(AbstractConnector):
         """
         return self._handle_task(
             self._async_subscribe_to_node_changes(
-                path,
-                remote_resource_spec,
-                callback,  # Correct order
+                resource,
+                callback,
             )
         )
 
     @abstractmethod
     async def _async_subscribe_to_node_changes(
         self,
-        path: str,
-        remote_resource_spec: AbstractRemoteResourceSpec | None,
+        resource: RemoteResource,
         callback: Callable[[Any, SubscriptionArguments], None],
     ) -> int:
         """Asynchronously subscribes to remote node changes.
 
         Args:
-            path (str):
-                Node path.
-            remote_resource_spec (AbstractRemoteResourceSpec | None):
-                Protocol-specific properties for remote nodes.
-            callback (Callable[[Any, SubscriptionArguments], None]):
+            resource:
+                Resolved remote resource reference.
+            callback:
                 Subscription's callback. The first parameter is the new value,
                 while the second parameter is additional data that is protocol
                 dependent.
@@ -414,22 +407,87 @@ class AbstractAsyncConnector(AbstractConnector):
                 Handler code which can be used to unsubscribe from new events.
         """
 
+    @override
+    def unsubscribe_from_node_changes(self, handle: int) -> bool:
+        """Unsubscribes from remote node changes.
+
+        Args:
+            handle:
+                Handler code returned by ``subscribe_to_node_changes``.
+
+        Returns:
+            bool:
+                True if the subscription was found and removed.
+        """
+        return self._handle_task(
+            self._async_unsubscribe_from_node_changes(handle)
+        )
+
+    async def _async_unsubscribe_from_node_changes(self, handle: int) -> bool:
+        """Asynchronously unsubscribes from remote node changes.
+
+        Connectors that support subscriptions override this method. The default
+        keeps connectors that never expose subscriptions concrete.
+
+        Args:
+            handle:
+                Handler code returned by ``subscribe_to_node_changes``.
+
+        Returns:
+            bool:
+                True if the subscription was found and removed.
+        """
+        raise NotImplementedError(
+            f"'{self.name}' connector does not support unsubscribe"
+        )
+
+    def _set_reentrant_dispatch(self, active: bool) -> None:
+        """Flag the current thread as running a re-entrant callback dispatch.
+
+        While the flag is set on a thread, ``_handle_task`` calls issued from
+        that thread run on a private event loop instead of the connector's main
+        loop, which is blocked waiting for the callback to finish.
+        """
+        self._reentrant_local.active = active
+
     def _handle_task(
-        self, task: Coroutine[None, None, TaskReturnType]
+        self,
+        task: Coroutine[None, None, TaskReturnType],
+        timeout: float | None = None,
     ) -> TaskReturnType:
         """Run a task in the thread, wait for the result and return it.
 
         Args:
             task (Coroutine[None, None, TaskReturnType]):
                 Coroutine which will be executed in the connector's thread.
+            timeout (float | None):
+                Maximum number of seconds to wait for the result. If None,
+                wait indefinitely.
 
         Returns:
             TaskReturnType:
                 Coroutine result.
         """
+        if self._event_loop.is_closed():
+            task.close()
+            raise RuntimeError(
+                f"Cannot run task using '{self.name}' connector: the event "
+                "loop is closed"
+            )
+        if self._reentrant_local.active:
+            # The call originates from a user callback that is running while the
+            # connector's event loop is blocked dispatching it. Submitting to
+            # that loop would deadlock, so run the coroutine on a private loop.
+            if timeout is not None:
+                task = asyncio.wait_for(task, timeout)
+            return asyncio.run(task)
         _logger.debug(f"Running task {task} using '{self.name}' connector")
         res = run_coroutine_in_thread(self._event_loop, task)
-        output = res.result()
+        try:
+            output = res.result(timeout=timeout)
+        except FutureTimeoutError:
+            res.cancel()
+            raise
         _logger.debug(
             f"Ran task {task} using '{self.name}' connector. "
             f"Its result is {output!r}"
