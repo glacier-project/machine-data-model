@@ -273,3 +273,19 @@ class AbstractConnector(ABC):
             int:
                 Handler code which can be used to unsubscribe from new events.
         """
+
+    @abstractmethod
+    def unsubscribe_from_node_changes(self, handle: int) -> bool:
+        """Unsubscribes from remote node changes.
+
+        Consumes the handle returned by ``subscribe_to_node_changes`` and stops
+        delivering updates to that subscription's callback.
+
+        Args:
+            handle:
+                Handler code returned by ``subscribe_to_node_changes``.
+
+        Returns:
+            bool:
+                True if the subscription was found and removed.
+        """

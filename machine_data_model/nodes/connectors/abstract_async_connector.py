@@ -12,6 +12,7 @@ from collections.abc import Callable, Coroutine
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeoutError
 import logging
+import threading
 from threading import Thread
 from typing import Any, TypeVar
 
@@ -23,6 +24,16 @@ from .remote_resource import RemoteResource
 TaskReturnType = TypeVar("TaskReturnType")
 
 _logger = logging.getLogger(__name__)
+
+
+class _ReentrantDispatchState(threading.local):
+    """Per-thread flag, ``False`` on every thread until a dispatch sets it.
+
+    It marks threads running a user callback while the connector's event loop
+    is blocked dispatching it, so re-entrant calls avoid that busy loop.
+    """
+
+    active: bool = False
 
 
 def create_event_loop_thread() -> tuple[AbstractEventLoop, Thread]:
@@ -141,6 +152,7 @@ class AbstractAsyncConnector(AbstractConnector):
 
         self._owns_event_loop = event_loop is None
         self._event_loop_thread: Thread | None = None
+        self._reentrant_local = _ReentrantDispatchState()
         if event_loop is None:
             self._event_loop, self._event_loop_thread = (
                 create_event_loop_thread()
@@ -395,6 +407,49 @@ class AbstractAsyncConnector(AbstractConnector):
                 Handler code which can be used to unsubscribe from new events.
         """
 
+    @override
+    def unsubscribe_from_node_changes(self, handle: int) -> bool:
+        """Unsubscribes from remote node changes.
+
+        Args:
+            handle:
+                Handler code returned by ``subscribe_to_node_changes``.
+
+        Returns:
+            bool:
+                True if the subscription was found and removed.
+        """
+        return self._handle_task(
+            self._async_unsubscribe_from_node_changes(handle)
+        )
+
+    async def _async_unsubscribe_from_node_changes(self, handle: int) -> bool:
+        """Asynchronously unsubscribes from remote node changes.
+
+        Connectors that support subscriptions override this method. The default
+        keeps connectors that never expose subscriptions concrete.
+
+        Args:
+            handle:
+                Handler code returned by ``subscribe_to_node_changes``.
+
+        Returns:
+            bool:
+                True if the subscription was found and removed.
+        """
+        raise NotImplementedError(
+            f"'{self.name}' connector does not support unsubscribe"
+        )
+
+    def _set_reentrant_dispatch(self, active: bool) -> None:
+        """Flag the current thread as running a re-entrant callback dispatch.
+
+        While the flag is set on a thread, ``_handle_task`` calls issued from
+        that thread run on a private event loop instead of the connector's main
+        loop, which is blocked waiting for the callback to finish.
+        """
+        self._reentrant_local.active = active
+
     def _handle_task(
         self,
         task: Coroutine[None, None, TaskReturnType],
@@ -419,6 +474,11 @@ class AbstractAsyncConnector(AbstractConnector):
                 f"Cannot run task using '{self.name}' connector: the event "
                 "loop is closed"
             )
+        if self._reentrant_local.active:
+            # The call originates from a user callback that is running while the
+            # connector's event loop is blocked dispatching it. Submitting to
+            # that loop would deadlock, so run the coroutine on a private loop.
+            return asyncio.run(task)
         _logger.debug(f"Running task {task} using '{self.name}' connector")
         res = run_coroutine_in_thread(self._event_loop, task)
         try:

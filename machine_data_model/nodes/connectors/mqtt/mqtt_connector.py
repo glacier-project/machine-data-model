@@ -1,7 +1,9 @@
 import asyncio
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import logging
+import threading
 from typing import Any
 
 import aiomqtt
@@ -41,6 +43,16 @@ class MqttSubscriptionArguments(SubscriptionArguments):
     retain: bool
 
 
+@dataclass
+class _MqttSubscription:
+    """Per-subscriber state kept for a single ``subscribe_to_node_changes``."""
+
+    topic: str
+    callback: Callable[[Any, MqttSubscriptionArguments], None]
+    resource: RemoteResource
+    qos: int
+
+
 class MqttConnector(AbstractAsyncConnector):
     """Represents an MQTT client."""
 
@@ -66,10 +78,6 @@ class MqttConnector(AbstractAsyncConnector):
         payload_deserializer: MqttPayloadDeserializer | None = None,
     ) -> None:
         """Initializes an MQTT client."""
-        if qos not in (0, 1, 2):
-            raise ValueError("MQTT QoS must be 0, 1, or 2")
-        if not isinstance(retain, bool):
-            raise TypeError("MQTT retain must be a bool")
         super().__init__(
             id=id,
             name=name,
@@ -99,13 +107,36 @@ class MqttConnector(AbstractAsyncConnector):
         self._client_context: Any | None = None
         self._listener_task: asyncio.Task[None] | None = None
         self._topic_payloads: dict[str, bytes] = {}
-        self._topic_callbacks: dict[
-            str,
-            dict[int, Callable[[Any, MqttSubscriptionArguments], None]],
-        ] = {}
+        self._topic_callbacks: dict[str, dict[int, _MqttSubscription]] = {}
+        self._subscription_topics: dict[int, str] = {}
         self._topic_resources: dict[str, RemoteResource] = {}
         self._topic_qos: dict[str, int] = {}
         self._next_subscription_id = 1
+        self._callback_executor: ThreadPoolExecutor | None = None
+
+    @property
+    def qos(self) -> int:
+        """Return the default MQTT QoS used for publishes and subscriptions."""
+        return self._qos
+
+    @qos.setter
+    def qos(self, value: int) -> None:
+        """Validate and store the default MQTT QoS."""
+        if value not in (0, 1, 2):
+            raise ValueError("MQTT QoS must be 0, 1, or 2")
+        self._qos = value
+
+    @property
+    def retain(self) -> bool:
+        """Return the default MQTT retain flag used for publishes."""
+        return self._retain
+
+    @retain.setter
+    def retain(self, value: bool) -> None:
+        """Validate and store the default MQTT retain flag."""
+        if not isinstance(value, bool):
+            raise TypeError("MQTT retain must be a bool")
+        self._retain = value
 
     @override
     async def _async_connect(self) -> bool:
@@ -149,6 +180,7 @@ class MqttConnector(AbstractAsyncConnector):
     async def _async_disconnect(self) -> bool:
         """Asynchronously disconnects from the MQTT broker."""
         await self._cancel_listener_task()
+        self._shutdown_callback_executor()
 
         if self._client_context is None:
             self.client = None
@@ -269,9 +301,15 @@ class MqttConnector(AbstractAsyncConnector):
 
         callbacks = self._topic_callbacks.setdefault(topic, {})
         first_subscription = len(callbacks) == 0
-        callbacks[subscription_id] = callback
-        previous_qos = self._topic_qos.get(topic)
         requested_qos = self._resolve_qos(resource)
+        callbacks[subscription_id] = _MqttSubscription(
+            topic=topic,
+            callback=callback,
+            resource=resource,
+            qos=requested_qos,
+        )
+        self._subscription_topics[subscription_id] = topic
+        previous_qos = self._topic_qos.get(topic)
         qos = (
             requested_qos
             if previous_qos is None
@@ -284,6 +322,35 @@ class MqttConnector(AbstractAsyncConnector):
                 qos=qos,
             )
         return subscription_id
+
+    @override
+    async def _async_unsubscribe_from_node_changes(self, handle: int) -> bool:
+        """Remove a subscription and adjust the topic's broker state."""
+        topic = self._subscription_topics.pop(handle, None)
+        if topic is None:
+            return False
+        callbacks = self._topic_callbacks.get(topic, {})
+        callbacks.pop(handle, None)
+
+        if callbacks:
+            # Other subscribers remain: re-subscribe at the new maximum QoS,
+            # which may be lower than before (QoS now ratchets down too).
+            new_qos = max(sub.qos for sub in callbacks.values())
+            if new_qos != self._topic_qos.get(topic):
+                self._topic_qos[topic] = new_qos
+                if self.client is not None:
+                    await self.client.subscribe(topic, qos=new_qos)
+            return True
+
+        # Last subscriber left: drop the broker subscription and per-topic
+        # state instead of leaking it for the connector's lifetime.
+        if self.client is not None:
+            await self.client.unsubscribe(topic)
+        self._topic_callbacks.pop(topic, None)
+        self._topic_qos.pop(topic, None)
+        self._topic_payloads.pop(topic, None)
+        self._topic_resources.pop(topic, None)
+        return True
 
     async def _listen_for_messages(self) -> None:
         """Consume MQTT messages and dispatch callbacks."""
@@ -308,29 +375,87 @@ class MqttConnector(AbstractAsyncConnector):
         topic = self._message_topic(message)
         payload = self._message_payload(message)
         self._topic_payloads[topic] = payload
-        resource = self._topic_resource(topic)
-        try:
-            value = self.deserialize_value(payload, resource)
-        except Exception as exp:
-            _logger.error(
-                f"Failed to deserialize MQTT payload for topic '{topic}'"
-            )
-            _logger.error(exp)
-            return
+        # Keep a fallback resource for reads that arrive without one.
+        self._topic_resource(topic)
         other = MqttSubscriptionArguments(
             topic=topic,
             payload=payload,
             qos=int(getattr(message, "qos", 0)),
             retain=bool(getattr(message, "retain", False)),
         )
-        for callback in list(self._topic_callbacks.get(topic, {}).values()):
-            try:
-                callback(value, other)
-            except Exception as exp:
-                _logger.error(
-                    f"MQTT subscription callback for topic '{topic}' failed"
-                )
-                _logger.error(exp)
+        subscriptions = list(self._topic_callbacks.get(topic, {}).values())
+        self._dispatch_subscriptions(subscriptions, payload, other, topic)
+
+    def _dispatch_subscriptions(
+        self,
+        subscriptions: list[_MqttSubscription],
+        payload: bytes,
+        other: MqttSubscriptionArguments,
+        topic: str,
+    ) -> None:
+        """Run subscription callbacks, off the event loop when necessary."""
+        if not subscriptions:
+            return
+        if threading.current_thread() is self._event_loop_thread:
+            # The listener runs on the event loop. Dispatch callbacks on a
+            # worker thread so a callback may safely re-enter the connector
+            # (read/write) without deadlocking the loop, and wait for them to
+            # finish so delivery is observable to the caller.
+            executor = self._ensure_callback_executor()
+            future = executor.submit(
+                self._run_subscriptions, subscriptions, payload, other, True
+            )
+            future.result()
+        else:
+            self._run_subscriptions(subscriptions, payload, other, False)
+
+    def _run_subscriptions(
+        self,
+        subscriptions: list[_MqttSubscription],
+        payload: bytes,
+        other: MqttSubscriptionArguments,
+        reentrant: bool,
+    ) -> None:
+        """Decode per subscriber and invoke each callback."""
+        if reentrant:
+            self._set_reentrant_dispatch(True)
+        try:
+            for sub in subscriptions:
+                try:
+                    value = self.deserialize_value(payload, sub.resource)
+                except Exception as exp:
+                    _logger.error(
+                        "Failed to deserialize MQTT payload for topic "
+                        f"'{sub.topic}'"
+                    )
+                    _logger.error(exp)
+                    continue
+                try:
+                    sub.callback(value, other)
+                except Exception as exp:
+                    _logger.error(
+                        "MQTT subscription callback for topic "
+                        f"'{sub.topic}' failed"
+                    )
+                    _logger.error(exp)
+        finally:
+            if reentrant:
+                self._set_reentrant_dispatch(False)
+
+    def _ensure_callback_executor(self) -> ThreadPoolExecutor:
+        """Return the single-worker executor used to dispatch callbacks."""
+        if self._callback_executor is None:
+            self._callback_executor = ThreadPoolExecutor(
+                max_workers=1,
+                thread_name_prefix=f"mqtt-callbacks-{self.name}",
+            )
+        return self._callback_executor
+
+    def _shutdown_callback_executor(self) -> None:
+        """Tear down the callback dispatch executor, if it was created."""
+        if self._callback_executor is not None:
+            self._callback_executor.shutdown(wait=False)
+            self._callback_executor = None
 
     def _message_topic(self, message: Any) -> str:
         """Extract the topic string from an aiomqtt message."""
@@ -503,19 +628,42 @@ class MqttConnector(AbstractAsyncConnector):
         return self.retain
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
+        """Convert to dictionary representation.
+
+        Environment-variable references are preserved instead of their resolved
+        values so that a dump/reload stays env-driven.
+        """
+        data: dict[str, Any] = {
             "name": self.name,
             "id": self.id,
-            "ip": self.ip,
-            "port": self.port,
-            "client_id": self.client_id,
-            "topic_prefix": self.topic_prefix,
-            "keepalive": self.keepalive,
-            "qos": self.qos,
-            "retain": self.retain,
-            "payload_codec": self.payload_codec,
         }
+        if self.ip_env_var:
+            data["ip_env_var"] = self.ip_env_var
+        else:
+            data["ip"] = self.ip
+        if self.port_env_var:
+            data["port_env_var"] = self.port_env_var
+        else:
+            data["port"] = self.port
+        if self.username_env_var:
+            data["username_env_var"] = self.username_env_var
+        elif self.username:
+            data["username"] = self.username
+        if self.password_env_var:
+            data["password_env_var"] = self.password_env_var
+        elif self.password:
+            data["password"] = self.password
+        data.update(
+            {
+                "client_id": self.client_id,
+                "topic_prefix": self.topic_prefix,
+                "keepalive": self.keepalive,
+                "qos": self.qos,
+                "retain": self.retain,
+                "payload_codec": self.payload_codec,
+            }
+        )
+        return data
 
     def __str__(self) -> str:
         return (

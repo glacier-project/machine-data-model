@@ -112,14 +112,14 @@ def deserialize_string_payload(
 ) -> Any:
     """Decode supported scalar values from UTF-8 MQTT payloads."""
     value = payload.decode("utf-8")
-    node = resource.node
-    if node is None:
+    node_type = resource.node_type
+    if node_type is None:
         return _infer_scalar_value(value)
-    if isinstance(node, StringVariableNode):
+    if issubclass(node_type, StringVariableNode):
         return value
-    if isinstance(node, BooleanVariableNode):
+    if issubclass(node_type, BooleanVariableNode):
         return _decode_bool(value)
-    if isinstance(node, NumericalVariableNode):
+    if issubclass(node_type, NumericalVariableNode):
         return _decode_number(value)
     return _infer_scalar_value(value)
 
