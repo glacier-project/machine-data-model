@@ -142,29 +142,6 @@ class TestMqttConnector:
         finally:
             connector.disconnect()
 
-    def test_read_with_spec_replaces_topic_fallback_resource(self) -> None:
-        connector = MqttConnector(name="mqtt")
-        try:
-            connector._handle_message(
-                SimpleNamespace(
-                    topic=SimpleNamespace(value="plant/name"),
-                    payload=b"10",
-                    qos=0,
-                    retain=False,
-                )
-            )
-            fallback_resource = connector._topic_resources["plant/name"]
-            resource = RemoteResource(
-                "ignored",
-                MqttRemoteResourceSpec(topic="plant/name"),
-            )
-
-            assert connector.read_node_value(resource) == 10
-            assert connector._topic_resources["plant/name"] is resource
-            assert fallback_resource is not resource
-        finally:
-            connector.disconnect()
-
     def test_read_without_message_returns_none(self) -> None:
         connector = MqttConnector(name="mqtt", topic_prefix="machines/b1")
         try:

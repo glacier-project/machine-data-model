@@ -161,6 +161,40 @@ class AbstractConnector(ABC):
             value = yaml_entry_type(value)
         return value
 
+    def address_to_dict(self) -> dict[str, Any]:
+        """Serialize host/port, preserving environment-variable indirection.
+
+        An ``*_env_var`` reference is emitted instead of its resolved value so a
+        dump/reload stays env-driven.
+        """
+        data: dict[str, Any] = {}
+        if self.ip_env_var:
+            data["ip_env_var"] = self.ip_env_var
+        else:
+            data["ip"] = self.ip
+        if self.port_env_var:
+            data["port_env_var"] = self.port_env_var
+        else:
+            data["port"] = self.port
+        return data
+
+    def auth_to_dict(self) -> dict[str, Any]:
+        """Serialize credentials, preserving environment-variable indirection.
+
+        An ``*_env_var`` reference is emitted instead of its resolved value, and
+        unset credentials are omitted.
+        """
+        data: dict[str, Any] = {}
+        if self.username_env_var:
+            data["username_env_var"] = self.username_env_var
+        elif self.username:
+            data["username"] = self.username
+        if self.password_env_var:
+            data["password_env_var"] = self.password_env_var
+        elif self.password:
+            data["password"] = self.password
+        return data
+
     @abstractmethod
     def connect(self) -> bool:
         """Connect to the server.

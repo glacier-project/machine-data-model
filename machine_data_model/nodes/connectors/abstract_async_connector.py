@@ -478,6 +478,8 @@ class AbstractAsyncConnector(AbstractConnector):
             # The call originates from a user callback that is running while the
             # connector's event loop is blocked dispatching it. Submitting to
             # that loop would deadlock, so run the coroutine on a private loop.
+            if timeout is not None:
+                task = asyncio.wait_for(task, timeout)
             return asyncio.run(task)
         _logger.debug(f"Running task {task} using '{self.name}' connector")
         res = run_coroutine_in_thread(self._event_loop, task)

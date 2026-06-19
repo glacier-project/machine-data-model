@@ -27,9 +27,6 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.connectors.abstract_connector import (
-    AbstractConnector,
-)
 from machine_data_model.nodes.connectors.mqtt import (
     MqttConnector,
     MqttRemoteResourceSpec,
@@ -79,36 +76,6 @@ def _data_model_representer(
     )
 
 
-def _add_connector_address_fields(
-    connector_dict: dict[str, Any],
-    connector: AbstractConnector,
-) -> None:
-    """Add host/port fields while preserving environment-variable settings."""
-    if connector.ip_env_var:
-        connector_dict["ip_env_var"] = connector.ip_env_var
-    else:
-        connector_dict["ip"] = connector.ip
-    if connector.port_env_var:
-        connector_dict["port_env_var"] = connector.port_env_var
-    else:
-        connector_dict["port"] = connector.port
-
-
-def _add_connector_auth_fields(
-    connector_dict: dict[str, Any],
-    connector: AbstractConnector,
-) -> None:
-    """Add username/password fields while preserving environment variables."""
-    if connector.username_env_var:
-        connector_dict["username_env_var"] = connector.username_env_var
-    elif connector.username:
-        connector_dict["username"] = connector.username
-    if connector.password_env_var:
-        connector_dict["password_env_var"] = connector.password_env_var
-    elif connector.password:
-        connector_dict["password"] = connector.password
-
-
 def _opcua_connector_representer(
     dumper: yaml.Dumper, connector: OpcuaConnector
 ) -> yaml.nodes.MappingNode:
@@ -126,7 +93,7 @@ def _opcua_connector_representer(
     """
     connector_dict: dict[str, Any] = {"name": connector.name}
 
-    _add_connector_address_fields(connector_dict, connector)
+    connector_dict.update(connector.address_to_dict())
     if connector.security_policy:
         connector_dict["security_policy"] = connector.security_policy
     if connector.client_app_uri != connector.get_default_client_app_uri():
@@ -183,8 +150,8 @@ def _mqtt_connector_representer(
     """Represent an MqttConnector as a YAML mapping node."""
     connector_dict: dict[str, Any] = {"name": connector.name}
 
-    _add_connector_address_fields(connector_dict, connector)
-    _add_connector_auth_fields(connector_dict, connector)
+    connector_dict.update(connector.address_to_dict())
+    connector_dict.update(connector.auth_to_dict())
     if connector.client_id:
         connector_dict["client_id"] = connector.client_id
     if connector.topic_prefix:

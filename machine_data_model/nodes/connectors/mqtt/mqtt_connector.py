@@ -109,7 +109,6 @@ class MqttConnector(AbstractAsyncConnector):
         self._topic_payloads: dict[str, bytes] = {}
         self._topic_callbacks: dict[str, dict[int, _MqttSubscription]] = {}
         self._subscription_topics: dict[int, str] = {}
-        self._topic_resources: dict[str, RemoteResource] = {}
         self._topic_qos: dict[str, int] = {}
         self._next_subscription_id = 1
         self._callback_executor: ThreadPoolExecutor | None = None
@@ -235,7 +234,6 @@ class MqttConnector(AbstractAsyncConnector):
     async def _async_read_node_value(self, resource: RemoteResource) -> Any:
         """Return the last MQTT value received for this node's topic."""
         topic = self._resolve_subscribe_topic(resource)
-        self._bind_topic_resource(topic, resource)
         payload = self._topic_payloads.get(topic)
         if payload is None:
             return None
@@ -295,7 +293,6 @@ class MqttConnector(AbstractAsyncConnector):
                 "connector: the client is not connected"
             )
         topic = self._resolve_subscribe_topic(resource)
-        self._bind_topic_resource(topic, resource)
         subscription_id = self._next_subscription_id
         self._next_subscription_id += 1
 
@@ -349,7 +346,6 @@ class MqttConnector(AbstractAsyncConnector):
         self._topic_callbacks.pop(topic, None)
         self._topic_qos.pop(topic, None)
         self._topic_payloads.pop(topic, None)
-        self._topic_resources.pop(topic, None)
         return True
 
     async def _listen_for_messages(self) -> None:
@@ -375,8 +371,6 @@ class MqttConnector(AbstractAsyncConnector):
         topic = self._message_topic(message)
         payload = self._message_payload(message)
         self._topic_payloads[topic] = payload
-        # Keep a fallback resource for reads that arrive without one.
-        self._topic_resource(topic)
         other = MqttSubscriptionArguments(
             topic=topic,
             payload=payload,
@@ -537,35 +531,6 @@ class MqttConnector(AbstractAsyncConnector):
             raise TypeError("MQTT payload_deserializer must be callable")
         self._payload_deserializer = deserializer
 
-    def _topic_resource(self, topic: str) -> RemoteResource:
-        """Return stable resource context for a received topic."""
-        resource = self._topic_resources.get(topic)
-        if resource is None:
-            resource = RemoteResource(topic)
-            self._topic_resources[topic] = resource
-        return resource
-
-    def _bind_topic_resource(
-        self, topic: str, resource: RemoteResource
-    ) -> None:
-        """Remember topic resource context for later deserialization."""
-        current_resource = self._topic_resources.get(topic)
-        if current_resource is None or self._has_more_resource_context(
-            candidate=resource,
-            current=current_resource,
-        ):
-            self._topic_resources[topic] = resource
-
-    @staticmethod
-    def _has_more_resource_context(
-        candidate: RemoteResource,
-        current: RemoteResource,
-    ) -> bool:
-        """Return whether candidate carries more deserialization context."""
-        if current.node is None and candidate.node is not None:
-            return True
-        return current.spec is None and candidate.spec is not None
-
     def _resolve_subscribe_topic(
         self,
         resource: RemoteResource,
@@ -637,22 +602,8 @@ class MqttConnector(AbstractAsyncConnector):
             "name": self.name,
             "id": self.id,
         }
-        if self.ip_env_var:
-            data["ip_env_var"] = self.ip_env_var
-        else:
-            data["ip"] = self.ip
-        if self.port_env_var:
-            data["port_env_var"] = self.port_env_var
-        else:
-            data["port"] = self.port
-        if self.username_env_var:
-            data["username_env_var"] = self.username_env_var
-        elif self.username:
-            data["username"] = self.username
-        if self.password_env_var:
-            data["password_env_var"] = self.password_env_var
-        elif self.password:
-            data["password"] = self.password
+        data.update(self.address_to_dict())
+        data.update(self.auth_to_dict())
         data.update(
             {
                 "client_id": self.client_id,
