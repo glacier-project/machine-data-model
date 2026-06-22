@@ -106,6 +106,7 @@ class VariableSubscription:
         if self.subscription_callback is not None:
             self.subscription_callback(self, variable_node, new_value)
 
+    @override
     def __eq__(self, other: object) -> bool:
         if other is self:
             return True
@@ -116,12 +117,14 @@ class VariableSubscription:
             and self.correlation_id == other.correlation_id
         )
 
+    @override
     def __str__(self) -> str:
         return (
             f"{self.__class__.__name__}(subscriber_id={self.subscriber_id}, "
             f"correlation_id={self.correlation_id})"
         )
 
+    @override
     def __repr__(self) -> str:
         return str(self)
 

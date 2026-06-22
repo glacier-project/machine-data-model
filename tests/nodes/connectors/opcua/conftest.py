@@ -3,7 +3,7 @@ from collections.abc import Generator
 from contextlib import suppress
 from pathlib import Path
 import time
-from typing import Any
+from typing import Any, cast
 
 from asyncua.client.client import Client
 from asyncua.crypto.cert_gen import setup_self_signed_certificate
@@ -44,9 +44,8 @@ def start_opcua_test_server() -> Generator[tuple[Container, int], Any, None]:
 
     # retrieve randomly generated port
     container.reload()
-    container_host_port = container.ports.get(container_guest_port)[0][
-        "HostPort"
-    ]
+    ports = cast(dict[str, Any], container.ports)
+    container_host_port = ports[container_guest_port][0]["HostPort"]
     assert str.isnumeric(
         container_host_port
     ), "container_host_port must be numeric"

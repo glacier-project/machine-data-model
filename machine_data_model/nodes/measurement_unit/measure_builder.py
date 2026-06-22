@@ -7,6 +7,7 @@ various unit systems and a NoneMeasure class for dimensionless values.
 
 from enum import Enum
 import inspect
+from typing import Any, cast
 
 import unitsnet_py
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -24,7 +25,7 @@ class NoneMeasureUnits(Enum):
     NONE = 0
 
 
-class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
+class NoneMeasure(AbstractMeasure):
     """Represents a value with no unit.
 
     This class is used to represent a value that does not have any unit
@@ -51,7 +52,8 @@ class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
                 ensures it cannot be anything else.
 
         """
-        assert from_unit == NoneMeasureUnits.NONE
+        if not (from_unit == NoneMeasureUnits.NONE):
+            raise RuntimeError("Invariant violated")
         self._value = value
 
     @property
@@ -88,7 +90,8 @@ class NoneMeasure(AbstractMeasure):  # type: ignore[misc]
                 A string representation of the `NoneMeasure`.
 
         """
-        assert unit == NoneMeasureUnits.NONE
+        if not (unit == NoneMeasureUnits.NONE):
+            raise RuntimeError("Invariant violated")
         if fractional_digits is not None:
             ret_value = super()._truncate_fraction_digits(
                 self._value, fractional_digits
@@ -157,7 +160,8 @@ class MeasureBuilder:
             unit_name = unit[0]
             measure_name = unit_name.replace("Units", "")
             measure = getattr(unitsnet_py, measure_name)
-            assert inspect.isclass(measure)
+            if not (inspect.isclass(measure)):
+                raise RuntimeError("Invariant violated")
             self._measure_ctor[unit[1]] = measure
 
         # Add the NoneMeasure unit.
@@ -184,10 +188,12 @@ class MeasureBuilder:
 
         """
         if isinstance(unit, Enum):
-            assert unit.__class__ in self._measure_ctor
+            if unit.__class__ not in self._measure_ctor:
+                raise RuntimeError("Invariant violated")
             return unit
         if isinstance(unit, str):
-            assert "." in unit
+            if "." not in unit:
+                raise RuntimeError("Invariant violated")
             unit_class, unit_name = unit.split(".")
         else:
             raise TypeError("Invalid unit type")
@@ -223,7 +229,7 @@ class MeasureBuilder:
 
         """
         unit = self.get_measure_unit(unit)
-        measure = self._measure_ctor[unit.__class__]
+        measure = cast(Any, self._measure_ctor[unit.__class__])
         return measure(value=value, from_unit=unit)
 
 

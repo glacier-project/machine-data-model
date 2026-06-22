@@ -9,6 +9,8 @@ from collections.abc import Callable
 from typing import Any
 import uuid
 
+from typing_extensions import override
+
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import (
     ExecutionContext,
@@ -405,10 +407,12 @@ class CompositeMethodNode(MethodNode):
         """
         context_id = str(uuid.uuid4())
         context = ExecutionContext(context_id, **kwargs)
-        assert context_id not in self._contexts
+        if not (context_id not in self._contexts):
+            raise RuntimeError("Invariant violated")
         self._contexts[context_id] = context
         return context
 
+    @override
     def __str__(self) -> str:
         return (
             f"CompositeMethodNode(id={self.id}, "
@@ -418,6 +422,7 @@ class CompositeMethodNode(MethodNode):
             f"returns={self.returns})"
         )
 
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True

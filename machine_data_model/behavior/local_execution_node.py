@@ -7,7 +7,10 @@ conditions.
 
 from collections.abc import Callable
 from enum import Enum
-from typing import Any
+import operator
+from typing import TYPE_CHECKING, Any
+
+from typing_extensions import override
 
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
@@ -29,6 +32,13 @@ from machine_data_model.nodes.subscription.variable_subscription import (
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
+
+if TYPE_CHECKING:
+    from machine_data_model.nodes.composite_method import (
+        composite_method_node as _composite_method_node,
+    )
+
+    CompositeMethodNode = _composite_method_node.CompositeMethodNode
 
 
 class LocalExecutionNode(ControlFlowNode):
@@ -105,7 +115,8 @@ class LocalExecutionNode(ControlFlowNode):
                 The reference to the node in the machine data model.
 
         """
-        assert ref_node.name == self.node.split("/")[-1]
+        if not (ref_node.name == self.node.split("/")[-1]):
+            raise RuntimeError("Invariant violated")
         self._ref_node = ref_node
 
     def get_ref_node(self) -> DataModelNode | None:
@@ -138,11 +149,14 @@ class LocalExecutionNode(ControlFlowNode):
             return self._ref_node
         node_path = resolve_string_in_context(self.node, context)
 
-        assert self.get_data_model_node is not None
+        if self.get_data_model_node is None:
+            raise RuntimeError("self.get_data_model_node must not be None")
         x = self.get_data_model_node(node_path)
-        assert x is not None, f"Invalid node path: {node_path}"
+        if x is None:
+            raise RuntimeError(f"Invalid node path: {node_path}")
         return x
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -201,6 +215,7 @@ class ReadVariableNode(LocalExecutionNode):
         super().__init__(node=variable_node, successors=successors)
         self.store_as = store_as
 
+    @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the read operation of the variable in the machine data model.
 
@@ -214,9 +229,8 @@ class ReadVariableNode(LocalExecutionNode):
 
         """
         ref_variable = self._get_ref_node(context)
-        assert isinstance(
-            ref_variable, VariableNode
-        ), f"Node {ref_variable} is not a VariableNode"
+        if not isinstance(ref_variable, VariableNode):
+            raise TypeError(f"Node {ref_variable} is not a VariableNode")
 
         # Trace the control flow step.
         trace_control_flow_step(
@@ -235,6 +249,7 @@ class ReadVariableNode(LocalExecutionNode):
         context.set_value(name, value)
         return execution_success()
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -303,6 +318,7 @@ class WriteVariableNode(LocalExecutionNode):
         """
         return self._value
 
+    @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Write the value to the variable in the machine data model.
 
@@ -316,7 +332,10 @@ class WriteVariableNode(LocalExecutionNode):
 
         """
         ref_variable = self._get_ref_node(context)
-        assert isinstance(ref_variable, VariableNode)
+        if not isinstance(ref_variable, VariableNode):
+            raise TypeError(
+                "Expected ref_variable to be an instance of VariableNode"
+            )
 
         # Trace the control flow step.
         trace_control_flow_step(
@@ -334,6 +353,7 @@ class WriteVariableNode(LocalExecutionNode):
         ref_variable.write(value)
         return execution_success()
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -419,6 +439,7 @@ class CallMethodNode(LocalExecutionNode):
         """
         return self._kwargs
 
+    @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the call operation of the method in the machine data model.
 
@@ -436,87 +457,131 @@ class CallMethodNode(LocalExecutionNode):
         )
 
         ref_method = self._get_ref_node(context)
-        assert isinstance(ref_method, MethodNode)
+        if not isinstance(ref_method, MethodNode):
+            raise TypeError(
+                "Expected ref_method to be an instance of MethodNode"
+            )
 
-        data_model_id = ""
-        if ref_method.data_model is not None:
-            data_model_id = ref_method.data_model.name
-
+        data_model_id = (
+            ref_method.data_model.name
+            if ref_method.data_model is not None
+            else ""
+        )
         pending_key = f"call_method_pending_{context.get_pc()}"
 
         if isinstance(ref_method, composite_method_node.CompositeMethodNode):
-            try:
-                pending_context_id = context.get_value(pending_key)
-            except KeyError:
-                pending_context_id = None
+            resumed = self._resume_pending_composite(
+                context, ref_method, pending_key, data_model_id
+            )
+            if resumed is not None:
+                return resumed
 
-            if pending_context_id is not None:
-                if not ref_method.is_terminated(pending_context_id):
-                    trace_control_flow_step(
-                        node_id=self.node,
-                        node_type=type(self).__name__,
-                        execution_result=False,
-                        program_counter=context.get_pc(),
-                        source=context.id(),
-                        data_model_id=data_model_id,
-                    )
-                    return execution_failure()
+        self._trace_step(context, data_model_id, execution_result=True)
 
-                ret = ref_method.get_completed_return_values(pending_context_id)
-                assert ret is not None
-                context.set_all_values(**ret)
-                ref_method.delete_context(pending_context_id)
-                context.delete_value(pending_key)
+        args, kwargs = self._resolve_call_args(context)
+        res = ref_method(*args, **kwargs)
 
-                trace_control_flow_step(
-                    node_id=self.node,
-                    node_type=type(self).__name__,
-                    execution_result=True,
-                    program_counter=context.get_pc(),
-                    source=context.id(),
-                    data_model_id=data_model_id,
-                )
-                return execution_success()
+        if isinstance(ref_method, composite_method_node.CompositeMethodNode):
+            registered = self._register_pending_composite(
+                context, ref_method, res, pending_key
+            )
+            if registered is not None:
+                return registered
 
-        # Trace the control flow step.
+        context.set_all_values(**res.return_values)
+        return execution_success(list(res.messages or []))
+
+    def _resolve_call_args(
+        self, context: ExecutionContext
+    ) -> tuple[list[Any], dict[str, Any]]:
+        """Resolve context-bound values for positional and keyword args."""
+        args = [resolve_value(arg, context) for arg in self._args]
+        kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
+        return args, kwargs
+
+    def _trace_step(
+        self,
+        context: ExecutionContext,
+        data_model_id: str,
+        *,
+        execution_result: bool,
+    ) -> None:
+        """Emit a control-flow step trace for this node."""
         trace_control_flow_step(
             node_id=self.node,
             node_type=type(self).__name__,
-            execution_result=True,
+            execution_result=execution_result,
             program_counter=context.get_pc(),
             source=context.id(),
             data_model_id=data_model_id,
         )
 
-        # resolve variables in the context
-        args = [resolve_value(arg, context) for arg in self._args]
-        kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
-        res = ref_method(*args, **kwargs)
+    def _resume_pending_composite(
+        self,
+        context: ExecutionContext,
+        ref_method: "CompositeMethodNode",
+        pending_key: str,
+        data_model_id: str,
+    ) -> ExecutionNodeResult | None:
+        """Resume a previously suspended composite method, if any.
 
-        if isinstance(ref_method, composite_method_node.CompositeMethodNode):
-            pending_context_id = res.return_values.get("@context_id")
-            if pending_context_id is not None:
-                context.set_value(pending_key, pending_context_id)
+        Returns None when there is nothing to resume so the caller can fall
+        through to a fresh invocation.
+        """
+        try:
+            pending_context_id = context.get_value(pending_key)
+        except KeyError:
+            return None
+        if pending_context_id is None:
+            return None
+        if not ref_method.is_terminated(pending_context_id):
+            self._trace_step(context, data_model_id, execution_result=False)
+            return execution_failure()
 
-                parent_method = None
-                if self.parent_cfg is not None:
-                    parent_method = self.parent_cfg.composite_method_node
+        ret = ref_method.get_completed_return_values(pending_context_id)
+        if ret is None:
+            raise RuntimeError("ret must not be None")
+        context.set_all_values(**ret)
+        ref_method.delete_context(pending_context_id)
+        context.delete_value(pending_key)
 
-                if parent_method is not None:
-                    child_context = ref_method._get_context(pending_context_id)
-                    child_context.set_value(
-                        "__nested_parent_method__",
-                        parent_method,
-                    )
-                    child_context.set_value(
-                        "__nested_parent_context_id__", context.id()
-                    )
+        self._trace_step(context, data_model_id, execution_result=True)
+        return execution_success()
 
-                return execution_failure(list(res.messages or []))
+    def _register_pending_composite(
+        self,
+        context: ExecutionContext,
+        ref_method: "CompositeMethodNode",
+        res: Any,
+        pending_key: str,
+    ) -> ExecutionNodeResult | None:
+        """Track a newly suspended composite method invocation.
 
-        context.set_all_values(**res.return_values)
-        return execution_success(list(res.messages or []))
+        Returns the suspended-state ExecutionNodeResult when ``res`` carries a
+        nested context id, otherwise None so the caller can fall through to
+        the synchronous completion path.
+        """
+        pending_context_id = res.return_values.get("@context_id")
+        if pending_context_id is None:
+            return None
 
+        context.set_value(pending_key, pending_context_id)
+        parent_method = None
+        if self.parent_cfg is not None:
+            parent_method = self.parent_cfg.composite_method_node
+
+        if parent_method is not None:
+            child_context = ref_method._get_context(pending_context_id)
+            child_context.set_value(
+                "__nested_parent_method__",
+                parent_method,
+            )
+            child_context.set_value(
+                "__nested_parent_context_id__", context.id()
+            )
+        return execution_failure(list(res.messages or []))
+
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -551,6 +616,17 @@ class WaitConditionOperator(str, Enum):
     GT = ">"
     LE = "<="
     GE = ">="
+
+
+_WaitOpFunc = Callable[[Any, Any], bool]
+_WAIT_OPERATOR_FUNCS: dict[WaitConditionOperator, _WaitOpFunc] = {
+    WaitConditionOperator.EQ: operator.eq,
+    WaitConditionOperator.NE: operator.ne,
+    WaitConditionOperator.LT: operator.lt,
+    WaitConditionOperator.GT: operator.gt,
+    WaitConditionOperator.LE: operator.le,
+    WaitConditionOperator.GE: operator.ge,
+}
 
 
 def get_condition_operator(op: str) -> WaitConditionOperator:
@@ -649,6 +725,7 @@ class WaitConditionNode(LocalExecutionNode):
         """
         return self._op
 
+    @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the wait condition in the control flow graph.
 
@@ -665,41 +742,26 @@ class WaitConditionNode(LocalExecutionNode):
 
         """
         ref_variable = self._get_ref_node(context)
-        assert isinstance(ref_variable, VariableNode)
+        if not isinstance(ref_variable, VariableNode):
+            raise TypeError(
+                "Expected ref_variable to be an instance of VariableNode"
+            )
 
-        # Get the data model id for tracing.
-        data_model_id = ""
-        if ref_variable.data_model is not None:
-            data_model_id = ref_variable.data_model.name
+        data_model_id = (
+            ref_variable.data_model.name
+            if ref_variable.data_model is not None
+            else ""
+        )
 
         rhs = resolve_value(self._rhs, context)
         lhs = ref_variable.read()
-        if self._op == WaitConditionOperator.EQ:
-            result = lhs == rhs
-        elif self._op == WaitConditionOperator.NE:
-            result = lhs != rhs
-        elif self._op == WaitConditionOperator.LT:
-            result = lhs < rhs
-        elif self._op == WaitConditionOperator.GT:
-            result = lhs > rhs
-        elif self._op == WaitConditionOperator.LE:
-            result = lhs <= rhs
-        elif self._op == WaitConditionOperator.GE:
-            result = lhs >= rhs
-        else:
-            raise ValueError(f"Invalid operator: {self._op}")
+        result = self._evaluate_condition(lhs, rhs)
 
-        # Build base keys used to store wait-related data inside the context.
-        # Use a single base so derived keys are colocated and consistent.
         base_wait_key = f"wait_{self.node}_{context.id()}"
-
-        # Create a unique wait key per context to avoid collisions.
         wait_key = f"{base_wait_key}_start"
-
-        # Save the outcome for tracing.
+        sub_key = f"{base_wait_key}_subscription"
         outcome = execution_success() if result else execution_failure()
 
-        # Trace the control flow step.
         trace_control_flow_step(
             node_id=self.node,
             node_type=type(self).__name__,
@@ -709,77 +771,114 @@ class WaitConditionNode(LocalExecutionNode):
             data_model_id=data_model_id,
         )
 
-        # Create or retrieve a subscription object specific to this context so
-        # that multiple concurrent invocations of the same composite method do
-        # not share the same subscription (which would bind them to the same
-        # subscriber id / correlation id).
-        sub_key = f"{base_wait_key}_subscription"
-        subscription = None
+        subscription = self._get_or_create_subscription(context, sub_key)
+
+        if result:
+            self._end_wait(
+                context,
+                ref_variable,
+                subscription,
+                sub_key,
+                wait_key,
+                data_model_id,
+            )
+        else:
+            self._begin_wait(
+                context,
+                ref_variable,
+                subscription,
+                wait_key,
+                lhs,
+                rhs,
+                data_model_id,
+            )
+        return outcome
+
+    def _evaluate_condition(self, lhs: Any, rhs: Any) -> bool:
+        """Evaluate the wait condition between ``lhs`` and ``rhs``."""
+        try:
+            return _WAIT_OPERATOR_FUNCS[self._op](lhs, rhs)
+        except KeyError as exc:
+            raise ValueError(f"Invalid operator: {self._op}") from exc
+
+    def _get_or_create_subscription(
+        self,
+        context: ExecutionContext,
+        sub_key: str,
+    ) -> VariableSubscription:
+        """Return a subscription tied to ``context``, creating one if needed.
+
+        Each context keeps its own subscription instance so concurrent
+        invocations of the same composite method don't share a subscriber id.
+        """
+        subscription_callback = context.get_subscription_callback()
         try:
             subscription = context.get_value(sub_key)
         except KeyError:
             subscription = None
 
-        subscription_callback = context.get_subscription_callback()
-
         if subscription is None:
-            # Create a new subscription for this context. Leave correlation_id
-            # unspecified so the VariableSubscription constructor generates a
-            # unique id for the subscription (previous behavior).
             subscription = VariableSubscription(
                 subscriber_id=context.id(),
                 subscription_callback=subscription_callback,
             )
-            # store the subscription in the context for later retrieval
             context.set_value(sub_key, subscription)
         elif (
             subscription_callback is not None
             and subscription.subscription_callback is None
         ):
             subscription.subscription_callback = subscription_callback
+        return subscription
 
-        # Condition not met - start waiting
-        if not result:
-            if subscription not in ref_variable.get_subscriptions():
-                # First time waiting for this condition
-                start_time = trace_wait_start(
-                    variable_id=ref_variable.id,
-                    condition=f"{lhs} {self._op.value} {rhs}",
-                    expected_value=rhs,
-                    source=f"{ref_variable.qualified_name} "
-                    f"(context: {context.id()})",
-                    data_model_id=data_model_id,
-                )
-                # Store the start time of the wait inside the context.
-                context.set_value(wait_key, start_time)
-                # Subscribe to the variable to be notified when its value
-                # changes. We rely on the Subscription object being unique to
-                # the context so that unsubscribe will remove the correct
-                # subscription later.
-                ref_variable.subscribe(subscription)
+    def _begin_wait(
+        self,
+        context: ExecutionContext,
+        ref_variable: VariableNode,
+        subscription: VariableSubscription,
+        wait_key: str,
+        lhs: Any,
+        rhs: Any,
+        data_model_id: str,
+    ) -> None:
+        """Subscribe to the variable on the first failing evaluation."""
+        if subscription in ref_variable.get_subscriptions():
+            return
+        start_time = trace_wait_start(
+            variable_id=ref_variable.id,
+            condition=f"{lhs} {self._op.value} {rhs}",
+            expected_value=rhs,
+            source=f"{ref_variable.qualified_name} "
+            f"(context: {context.id()})",
+            data_model_id=data_model_id,
+        )
+        context.set_value(wait_key, start_time)
+        ref_variable.subscribe(subscription)
 
-        # Condition met - stop waiting
-        else:
-            # Unsubscribe if we were subscribed.
-            ref_variable.unsubscribe(subscription)
-            # Remove the subscription stored in the context
-            context.delete_value(sub_key)
-            # If the wait key is in the context, it means we were waiting.
-            if context.has_value(wait_key):
-                start_time = context.get_value(wait_key)
-                trace_wait_end(
-                    variable_id=ref_variable.id,
-                    start_time=start_time,
-                    source=f"{ref_variable.qualified_name} "
-                    f"(context: {context.id()})",
-                    data_model_id=data_model_id,
-                )
-                # Remove the wait key from the context.
-                context.delete_value(wait_key)
+    def _end_wait(
+        self,
+        context: ExecutionContext,
+        ref_variable: VariableNode,
+        subscription: VariableSubscription,
+        sub_key: str,
+        wait_key: str,
+        data_model_id: str,
+    ) -> None:
+        """Unsubscribe and emit the wait-end trace once the condition holds."""
+        ref_variable.unsubscribe(subscription)
+        context.delete_value(sub_key)
+        if not context.has_value(wait_key):
+            return
+        start_time = context.get_value(wait_key)
+        trace_wait_end(
+            variable_id=ref_variable.id,
+            start_time=start_time,
+            source=f"{ref_variable.qualified_name} "
+            f"(context: {context.id()})",
+            data_model_id=data_model_id,
+        )
+        context.delete_value(wait_key)
 
-        # Return the outcome.
-        return outcome
-
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

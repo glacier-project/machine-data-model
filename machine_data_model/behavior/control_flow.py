@@ -7,6 +7,8 @@ implementing the logic of a run-time method.
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
 )
@@ -166,9 +168,6 @@ class ControlFlow:
 
         while pc < len(self._nodes):
             node = self._nodes[pc]
-            # TODO: fix me here if contains_template_variables(node.node):
-            # node.node = context.get_value(node.node)
-
             result = node.execute(context)
             executed_steps += 1
 
@@ -202,6 +201,7 @@ class ControlFlow:
 
         return messages
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

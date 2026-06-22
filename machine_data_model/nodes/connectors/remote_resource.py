@@ -1,7 +1,15 @@
+"""Lightweight handle binding a data-model node to a remote resource.
+
+A :class:`RemoteResource` pairs a local :class:`DataModelNode` with the
+connector that knows how to read or write it on a remote system.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 import weakref
+
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from machine_data_model.nodes.data_model_node import DataModelNode
@@ -77,6 +85,7 @@ class RemoteResource:
         resource._node_type = type(node)
         return resource
 
+    @override
     def __repr__(self) -> str:
         return (
             "RemoteResource(" f"path={self.path!r}, " f"spec={self.spec!r}" ")"

@@ -4,7 +4,7 @@ This module provides functionality to build data models, including nodes and
 control flows, from YAML configuration files using custom YAML constructors.
 """
 
-from collections.abc import Callable, Hashable
+from collections.abc import Callable
 import os
 from typing import Any
 
@@ -29,13 +29,11 @@ from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
-from machine_data_model.nodes.connectors.mqtt import (
-    MqttConnector,
-    MqttRemoteResourceSpec,
-)
-from machine_data_model.nodes.connectors.opcua.opcua_connector import (
-    OpcuaConnector,
-    OpcuaRemoteResourceSpec,
+from machine_data_model.nodes.connectors._yaml_helpers import build_kwargs
+from machine_data_model.nodes.connectors.registry import (
+    discover_connectors,
+    iter_available,
+    iter_unavailable,
 )
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.measurement_unit.measure_builder import (
@@ -49,38 +47,7 @@ from machine_data_model.nodes.variable_node import (
     StringVariableNode,
 )
 
-
-def _build_kwargs(
-    data: dict[Hashable, Any], default_kwargs: dict[str, Any]
-) -> dict[str, Any]:
-    """Build kwargs by merging data with default values and validating keys.
-
-    Args:
-        data (dict[Hashable, Any]):
-            Input data from YAML
-        default_kwargs (dict[str, Any]):
-            Default values for all allowed keys
-
-    Returns:
-        dict[str, Any]:
-            Merged kwargs dictionary
-
-    Raises:
-        ValueError:
-            If unexpected keys are found in data
-
-    """
-    unexpected_keys = set(data.keys()) - set(default_kwargs.keys())
-    if unexpected_keys:
-        raise ValueError(
-            f"Unexpected keys: {', '.join(map(str, unexpected_keys))}. "
-            f"Allowed keys: {', '.join(default_kwargs.keys())}"
-        )
-
-    kwargs = default_kwargs.copy()
-    for key, value in data.items():
-        kwargs[str(key)] = value
-    return kwargs
+discover_connectors()
 
 
 def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
@@ -106,7 +73,7 @@ def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["children"] = {child.name: child for child in kwargs["children"]}
 
     return FolderNode(**kwargs)
@@ -129,7 +96,7 @@ def _get_numerical_variable(
 
     """
     data = loader.construct_mapping(node)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "id": None,
         "name": "",
         "description": "",
@@ -139,7 +106,7 @@ def _get_numerical_variable(
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["value"] = (
         kwargs["initial_value"]
         if kwargs["initial_value"] is not None
@@ -168,7 +135,7 @@ def _get_string_variable(
 
     """
     data = loader.construct_mapping(node)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "id": None,
         "name": "",
         "description": "",
@@ -177,7 +144,7 @@ def _get_string_variable(
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["value"] = (
         kwargs["initial_value"]
         if kwargs["initial_value"] is not None
@@ -207,7 +174,7 @@ def _get_boolean_variable(
 
     """
     data = loader.construct_mapping(node)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "id": None,
         "name": "",
         "description": "",
@@ -216,7 +183,7 @@ def _get_boolean_variable(
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["value"] = (
         kwargs["initial_value"]
         if kwargs["initial_value"] is not None
@@ -253,7 +220,7 @@ def _get_object_variable(
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["properties"] = {prop.name: prop for prop in kwargs["properties"]}
     return ObjectVariableNode(**kwargs)
 
@@ -288,7 +255,7 @@ def _get_method_node(
         "connector_name": None,
         "remote_resource_spec": None,
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return ctor(**kwargs)
 
 
@@ -328,11 +295,11 @@ def _get_read_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "store_as": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return ReadVariableNode(
         variable_node=kwargs["variable"],
         store_as=kwargs["store_as"],
@@ -356,11 +323,11 @@ def _get_write_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "value": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WriteVariableNode(
         variable_node=kwargs["variable"],
         value=kwargs["value"],
@@ -384,12 +351,12 @@ def _get_wait_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "operator": "",
         "rhs": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WaitConditionNode(
         variable_node=kwargs["variable"],
         op=get_condition_operator(kwargs["operator"]),
@@ -414,12 +381,12 @@ def _get_call_method_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "method": "",
         "args": [],
         "kwargs": {},
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return CallMethodNode(
         method_node=kwargs["method"],
         args=kwargs["args"],
@@ -444,13 +411,13 @@ def _get_call_remote_method_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "method": "",
         "remote_id": "",
         "args": [],
         "kwargs": {},
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return CallRemoteMethodNode(
         method_node=kwargs["method"],
         remote_id=kwargs["remote_id"],
@@ -476,12 +443,12 @@ def _get_read_remote_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "remote_id": "",
         "store_as": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return ReadRemoteVariableNode(
         variable_node=kwargs["variable"],
         remote_id=kwargs["remote_id"],
@@ -506,12 +473,12 @@ def _get_write_remote_variable_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "remote_id": "",
         "value": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WriteRemoteVariableNode(
         variable_node=kwargs["variable"],
         remote_id=kwargs["remote_id"],
@@ -536,13 +503,13 @@ def _get_wait_remote_event_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "variable": "",
         "operator": "",
         "rhs": "",
         "remote_id": "",
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     return WaitRemoteEventNode(
         variable_node=kwargs["variable"],
         op=get_condition_operator(kwargs["operator"]),
@@ -576,121 +543,28 @@ def _get_composite_method_node(
         "returns": [],
         "cfg": [],
     }
-    kwargs = _build_kwargs(data, default_kwargs)
+    kwargs = build_kwargs(data, default_kwargs)
     kwargs["cfg"] = ControlFlow(kwargs["cfg"])
     return CompositeMethodNode(**kwargs)
 
 
-def _get_opcua_connector_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> OpcuaConnector:
-    """Construct an OPC-UA Connector from a yaml node.
+def _make_missing_extra_constructor(
+    name: str, hint: str
+) -> Callable[[yaml.SafeLoader, yaml.Node], None]:
+    """Return a YAML constructor that raises ImportError with install hint."""
 
-    Args:
-        loader:
-            The yaml loader.
-        node:
-            The yaml node.
+    def _raise(loader: yaml.SafeLoader, node: yaml.Node) -> None:
+        raise ImportError(
+            f"Loading {name} connectors requires its optional dependencies. "
+            f"Install with: {hint}"
+        )
 
-    Returns:
-        OpcuaConnector:
-            The constructed OPC-UA Connector.
-    """
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "name": None,
-        "ip": "127.0.0.1",
-        "ip_env_var": None,
-        "port": 4840,
-        "port_env_var": None,
-        "security_policy": None,
-        "host_name": None,
-        "client_app_uri": None,
-        "certificate_file_path": None,
-        "private_key_file_path": None,
-        "trust_store_certificates_paths": None,
-        "username": None,
-        "username_env_var": None,
-        "password": None,
-        "password_env_var": None,
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return OpcuaConnector(**kwargs)
-
-
-def _get_opcua_remote_resource_spec(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> OpcuaRemoteResourceSpec:
-    """Construct an object with node settings that are OPC UA specific.
-
-    Args:
-        loader:
-            The yaml loader.
-        node:
-            The yaml node.
-
-    Returns:
-        OpcuaRemoteResourceSpec:
-            The object with the OPC UA node's settings.
-    """
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "remote_path": None,
-        "node_id": None,
-        "namespace": None,
-        "parent_node_id": None,
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return OpcuaRemoteResourceSpec(**kwargs)
-
-
-def _get_mqtt_connector_node(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> MqttConnector:
-    """Construct an MQTT Connector from a yaml node."""
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "name": None,
-        "ip": "127.0.0.1",
-        "ip_env_var": None,
-        "port": 1883,
-        "port_env_var": None,
-        "username": None,
-        "username_env_var": None,
-        "password": None,
-        "password_env_var": None,
-        "client_id": None,
-        "topic_prefix": None,
-        "keepalive": 60,
-        "qos": 0,
-        "retain": False,
-        "payload_codec": "string",
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return MqttConnector(**kwargs)
-
-
-def _get_mqtt_remote_resource_spec(
-    loader: yaml.FullLoader, node: yaml.MappingNode
-) -> MqttRemoteResourceSpec:
-    """Construct an MQTT remote resource spec from a yaml node."""
-    data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
-        "remote_path": None,
-        "topic": None,
-        "topic_prefix": None,
-        "publish_topic": None,
-        "subscribe_topic": None,
-        "qos": None,
-        "retain": None,
-    }
-    kwargs = _build_kwargs(data, default_kwargs)
-    return MqttRemoteResourceSpec(**kwargs)
+    return _raise
 
 
 def _register_yaml_constructors() -> None:
     """Register all YAML constructors for data model building."""
-    constructors = {
+    constructors: dict[type, Callable[..., Any]] = {
         FolderNode: _get_folder,
         NumericalVariableNode: _get_numerical_variable,
         StringVariableNode: _get_string_variable,
@@ -707,10 +581,6 @@ def _register_yaml_constructors() -> None:
         ReadRemoteVariableNode: _get_read_remote_variable_node,
         WriteRemoteVariableNode: _get_write_remote_variable_node,
         WaitRemoteEventNode: _get_wait_remote_event_node,
-        OpcuaConnector: _get_opcua_connector_node,
-        OpcuaRemoteResourceSpec: _get_opcua_remote_resource_spec,
-        MqttConnector: _get_mqtt_connector_node,
-        MqttRemoteResourceSpec: _get_mqtt_remote_resource_spec,
     }
 
     for node, constructor in constructors.items():
@@ -720,6 +590,27 @@ def _register_yaml_constructors() -> None:
         yaml.SafeLoader.add_constructor(
             f"tag:yaml.org,2002:python/object:{module}.{tag}", constructor
         )
+
+    # Available connectors (via plugin registry)
+    for plugin in iter_available():
+        for cls, fn in (
+            (plugin.connector_cls, plugin.construct_connector),
+            (plugin.spec_cls, plugin.construct_spec),
+        ):
+            tag = cls.__name__
+            module = cls.__module__
+            yaml.SafeLoader.add_constructor(f"tag:yaml.org,2002:{tag}", fn)
+            yaml.SafeLoader.add_constructor(
+                f"tag:yaml.org,2002:python/object:{module}.{tag}", fn
+            )
+
+    # Known-but-unavailable connectors: friendly ImportError fallback
+    for info in iter_unavailable():
+        fallback = _make_missing_extra_constructor(info.name, info.install_hint)
+        for tag_class in info.yaml_tag_classes:
+            yaml.SafeLoader.add_constructor(
+                f"tag:yaml.org,2002:{tag_class}", fallback
+            )
 
 
 _register_yaml_constructors()

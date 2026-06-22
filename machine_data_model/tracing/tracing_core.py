@@ -5,11 +5,13 @@ verification, including variable changes, method executions, communication
 events, and control flow.
 """
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from abc import ABC
+from dataclasses import dataclass, field, fields
 from enum import Enum
 import json
 from typing import Any
+
+from machine_data_model.utils.timestamp import get_timestamp_ns
 
 
 class TraceLevel(Enum):
@@ -51,16 +53,21 @@ class TraceEventType(Enum):
     CONTROL_FLOW_END = "control_flow_end"
 
 
-@dataclass
+_BASE_FIELD_NAMES = frozenset(
+    {"timestamp_ns", "event_type", "source", "data_model_id"}
+)
+
+
+@dataclass(kw_only=True)
 class TraceEvent(ABC):
     """Base class for all trace events.
 
     Attributes:
         timestamp_ns (int):
             The time when the event occurred, as nanoseconds since the Unix
-            epoch (January 1, 1970 UTC).
+            epoch (January 1, 1970 UTC). Defaults to ``get_timestamp_ns()``.
         event_type (TraceEventType):
-            The type of event that occurred.
+            The type of event that occurred. Subclasses override the default.
         source (str):
             The source or context where the event originated (e.g., node path,
             method name).
@@ -70,10 +77,10 @@ class TraceEvent(ABC):
 
     """
 
-    timestamp_ns: int
+    timestamp_ns: int = field(default_factory=get_timestamp_ns)
     event_type: TraceEventType
-    source: str
-    data_model_id: str
+    source: str = ""
+    data_model_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary for serialization."""
@@ -90,9 +97,18 @@ class TraceEvent(ABC):
         """Get event-specific details."""
         return self._get_details()
 
-    @abstractmethod
     def _get_details(self) -> dict[str, Any]:
-        """Get event-specific details. Must be implemented by subclasses."""
+        """Return subclass-specific fields as a dict.
+
+        Looks at the dataclass field list and returns everything except the
+        four common ``TraceEvent`` fields, so subclasses do not need to
+        override this method.
+        """
+        return {
+            f.name: getattr(self, f.name)
+            for f in fields(self)
+            if f.name not in _BASE_FIELD_NAMES
+        }
 
 
 class TraceCollector:
@@ -178,7 +194,7 @@ class TraceCollector:
         )
 
         # Record if current level is >= required level
-        return bool(self.level.value >= min_level.value)
+        return self.level.value >= min_level.value
 
     def get_events(
         self,

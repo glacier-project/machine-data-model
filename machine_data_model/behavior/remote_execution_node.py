@@ -224,6 +224,7 @@ class RemoteExecutionNode(ControlFlowNode):
         context.active_request = msg.correlation_id
         return ExecutionNodeResult(False, [msg])
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -354,6 +355,7 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             },
         )
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -420,6 +422,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
         super().__init__(variable_node, remote_id, successors)
         self.store_as = store_as
 
+    @override
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
@@ -459,6 +462,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
         return True
 
+    @override
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
         """Create the request message for a remote variable read.
 
@@ -477,6 +481,7 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
             node=resolve_string_in_context(self.node, context),
         )
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -539,6 +544,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
         super().__init__(variable_node, remote_id, successors)
         self.value = value
 
+    @override
     def _validate_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
@@ -568,6 +574,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
             self.node, context
         )
 
+    @override
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
         """Create the request message for a remote variable write.
 
@@ -587,6 +594,7 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
             value=resolve_value(self.value, context),
         )
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 
@@ -711,6 +719,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
 
         return res
 
+    @override
     def _create_request(self, context: ExecutionContext) -> FrostMessage:
         """Create the request message for a remote event subscription.
 
@@ -748,6 +757,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             node=resolve_string_in_context(self.node, context),
         )
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

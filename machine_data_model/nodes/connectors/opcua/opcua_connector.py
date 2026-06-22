@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import logging
 from pathlib import Path
 import socket
-from typing import Any
+from typing import Any, cast
 
 import asyncua
 from asyncua import Client as AsyncuaClient
@@ -36,6 +36,7 @@ from asyncua.crypto.validator import (
     CertificateValidator,
     CertificateValidatorOptions,
 )
+import asyncua.ua
 from asyncua.ua import UaError, VariantType
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override
@@ -218,7 +219,9 @@ class OpcuaConnector(AbstractAsyncConnector):
             else self.get_default_certificate_file_path()
         )
 
-        if not isinstance(trust_store_certificates_paths, list | None):
+        if trust_store_certificates_paths is not None and not isinstance(
+            trust_store_certificates_paths, list
+        ):
             raise TypeError(
                 f"Connector '{name}': trust_store_certificates_paths, when "
                 f"defined, must be a list of strings"
@@ -439,7 +442,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                     _logger.debug(
                         f"Using already retrieved remote node for '{path}'"
                     )
-                    return remote_resource_spec.remote_node
+                    return _require_asyncua_node(
+                        remote_resource_spec.remote_node
+                    )
 
                 if remote_resource_spec.has_node_id():
                     _logger.debug(
@@ -447,7 +452,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                         f"'{remote_resource_spec.node_id}'"
                     )
                     node = _require_asyncua_node(
-                        self.client.get_node(remote_resource_spec.node_id)
+                        self.client.get_node(
+                            cast(Any, remote_resource_spec.node_id)
+                        )
                     )
                     remote_resource_spec.remote_node = node
                     return node
@@ -470,7 +477,9 @@ class OpcuaConnector(AbstractAsyncConnector):
                     raise ValueError(
                         f"Couldn't retrieve node '{path}': empty path"
                     )
-            _logger.debug(f"Retrieving node '{path}' by remote path '{path}'")
+            _logger.debug(
+                f"Retrieving node '{resource.path}' by remote path '{path}'"
+            )
             split_path = [p for p in path.split("/") if p]
             node = _require_asyncua_node(
                 await self.client.get_root_node().get_child(split_path)
@@ -534,7 +543,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         success = True
         try:
             current_value = await node.read_data_value()
-            current_value_type = current_value.Value.VariantType
+            current_value_type = cast(Any, current_value).Value.VariantType
             _logger.debug(
                 f"Overriding node '{path}', which previously had value "
                 f"{current_value!r} (type {current_value_type}), with value: "
@@ -582,7 +591,7 @@ class OpcuaConnector(AbstractAsyncConnector):
         node = await self._remote_node(resource)
 
         method_inputs = await get_input_arguments(node)
-        inputs = []
+        inputs: list[Any] = []
         if method_inputs is not None:
             inputs = await method_inputs.read_value()
             if not isinstance(inputs, list):
@@ -630,7 +639,7 @@ class OpcuaConnector(AbstractAsyncConnector):
                     f"{remote_resource_spec.parent_node_id}"
                 )
                 parent = self.client.get_node(
-                    remote_resource_spec.parent_node_id
+                    cast(Any, remote_resource_spec.parent_node_id)
                 )
             else:
                 parent = await node.get_parent()
@@ -693,6 +702,7 @@ class OpcuaConnector(AbstractAsyncConnector):
             "certificate_file_path": str(self.certificate_file_path),
         }
 
+    @override
     def __str__(self) -> str:
         return (
             "OpcuaConnector("
@@ -708,11 +718,12 @@ class OpcuaConnector(AbstractAsyncConnector):
             ")"
         )
 
+    @override
     def __repr__(self) -> str:
         return self.__str__()
 
 
-class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[misc]
+class OpcUaDataChangeHandler(DataChangeNotificationHandler):
     """Handles OPC UA data changes by calling a callback function."""
 
     def __init__(
@@ -726,6 +737,7 @@ class OpcUaDataChangeHandler(DataChangeNotificationHandler):  # type: ignore[mis
         """
         self._callback = callback
 
+    @override
     def datachange_notification(
         self, node: asyncua.Node, val: Any, data: DataChangeNotif
     ) -> None:

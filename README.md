@@ -344,15 +344,15 @@ More information about the protocol manager can be found in the directory
 #### Pre-requisites
 
 - Python 3.11 or higher
-- Poetry 1.8 or higher
+- [uv](https://docs.astral.sh/uv/)
 
 #### Building the library
 
 ```bash
 git clone https://github.com/glacier-project/machine-data-model.git
 cd machine-data-model
-poetry build
-python3.11 -m pip install dist/machine_data_model-0.0.1-py3-none-any.whl
+uv build
+python3.11 -m pip install dist/machine_data_model-1.0.0-py3-none-any.whl
 ```
 
 ### From PyPI
@@ -364,22 +364,25 @@ Coming soon!
 Contributions are welcome! If you have suggestions for improvements or
 features, please open an issue or submit a pull request.
 
+Adding a new connector? See
+[`docs/contributing/new-connector.md`](docs/contributing/new-connector.md)
+for the registration pattern, optional extras, and test layout.
+
 ## Development Setup
 
-The development environment is managed with [Poetry](https://python-poetry.org/).
+The development environment is managed with [uv](https://docs.astral.sh/uv/).
 To set up the development environment, follow these steps:
 
 1. Clone the repository
-2. Download and install Poetry from the [official website](<https://python-poetry.org/docs/#installation>).
-3. execute `poetry install --all-extras` to install the development dependencies.
+2. Install uv from the [official website](<https://docs.astral.sh/uv/getting-started/installation/>).
+3. Execute `uv sync --all-extras --all-groups` to install the development dependencies.
 
 ## Development
 
-Before committing changes, make sure to run tox with `bash scripts/run_tox.sh`.
-Tox will test the code with different Python versions, formats the code with
-`ruff` and check the types with `mypy`.
+Before committing changes, run the full tox matrix with `uv run tox run`.
+Tox will test the code with different Python versions, format the code with
+`ruff` and check the types with `pyrefly`.
 In addition, the GitHub Actions can be tested locally with [act](<https://github.com/nektos/act>) using the command `act`.
-Additional scripts are available in the `scripts` folder.
 
 **Note**: All the commits must pass a set of pre-commit checks. To manually run
-the checks, execute `poetry run pre-commit run --all-files`.
+the checks, execute `uv run pre-commit run --all-files`.

@@ -9,6 +9,8 @@ from enum import IntEnum
 import re
 from typing import Any
 
+from typing_extensions import override
+
 from machine_data_model.nodes.subscription.variable_subscription import (
     SubscriptionCallback,
 )
@@ -75,7 +77,8 @@ def resolve_string_in_context(string: str, context: "ExecutionContext") -> Any:
 
     if is_template_variable(string):
         match = template_re.fullmatch(string)
-        assert match is not None
+        if match is None:
+            raise RuntimeError("match must not be None")
         return context.get_value(match.group(1))
 
     matches = list(template_re.finditer(string))
@@ -372,6 +375,7 @@ class ExecutionContext:
         """
         return self._context_id
 
+    @override
     def __str__(self) -> str:
         """Return a string representation of the ExecutionContext.
 

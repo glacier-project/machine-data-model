@@ -7,6 +7,8 @@ result structure for node executions in the machine data model.
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
@@ -172,6 +174,7 @@ class ControlFlowNode(ABC):
 
         """
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

@@ -1,7 +1,17 @@
+"""Root container type for a machine data model.
+
+The ``DataModel`` defined here owns the folder/variable/method node tree and
+exposes lookup, traversal, and subscription primitives. Connectors, behaviour
+nodes, and protocol managers all operate against this type rather than the
+raw node graph.
+"""
+
 from collections.abc import Callable, Iterable
 import logging
 from typing import Any
 import weakref
+
+from typing_extensions import override
 
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.behavior.remote_execution_node import (
@@ -76,7 +86,7 @@ class DataModel:
             )
         )
         self._closed = False
-        self._connector_finalizer: weakref.finalize | None = None
+        self._connector_finalizer: weakref.finalize[..., None] | None = None
 
         self._connectors: dict[str, AbstractConnector] = (
             self._initialize_connectors(connectors)
@@ -344,7 +354,10 @@ class DataModel:
             elif isinstance(cf_node, LocalExecutionNode):
                 if cf_node.is_node_static():
                     ref_node = resolver(cf_node.node)
-                    assert isinstance(ref_node, DataModelNode)
+                    if not isinstance(ref_node, DataModelNode):
+                        raise TypeError(
+                            "Expected ref_node to be a DataModelNode"
+                        )
                     cf_node.set_ref_node(ref_node)
                 else:
                     cf_node.get_data_model_node = resolver
@@ -677,6 +690,7 @@ class DataModel:
                 )
                 _logger.error(exp)
 
+    @override
     def __str__(self) -> str:
         return (
             f"DataModel(name={self._name}, "
@@ -688,9 +702,11 @@ class DataModel:
             f"connectors={self._connectors})"
         )
 
+    @override
     def __repr__(self) -> str:
         return self.__str__()
 
+    @override
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
 

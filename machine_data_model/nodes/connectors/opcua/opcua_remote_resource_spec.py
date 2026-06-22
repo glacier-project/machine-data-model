@@ -1,3 +1,10 @@
+"""OPC UA-specific :class:`RemoteResource` specification.
+
+Stores the asyncua node id / browse path and caches the resolved
+:class:`asyncua.Node` reference so repeated reads don't re-walk the address
+space.
+"""
+
 from typing import TYPE_CHECKING, Any
 
 import asyncua
@@ -163,6 +170,7 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
             "remote_node": self.remote_node,
         }
 
+    @override
     def __str__(self) -> str:
         return (
             "OpcuaRemoteResourceSpec("
@@ -173,5 +181,6 @@ class OpcuaRemoteResourceSpec(AbstractRemoteResourceSpec):
             ")"
         )
 
+    @override
     def __repr__(self) -> str:
         return self.__str__()

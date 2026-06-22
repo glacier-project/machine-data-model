@@ -1,4 +1,5 @@
 import random
+from typing import Any
 import uuid
 
 import pytest
@@ -421,8 +422,8 @@ class TestFrostMessageBuilder:
         message_builder: FrostMessageBuilder,
         target: str,
         node: str,
-        args: list,
-        kwargs: dict,
+        args: list[Any],
+        kwargs: dict[str, Any],
     ) -> None:
         message = message_builder.build_invoke_method_message(
             target=target, node=node, args=args, kwargs=kwargs
@@ -457,9 +458,9 @@ class TestFrostMessageBuilder:
         message_builder: FrostMessageBuilder,
         target: str,
         node: str,
-        args: list,
-        kwargs: dict,
-        ret: dict,
+        args: list[Any],
+        kwargs: dict[str, Any],
+        ret: dict[str, Any],
     ) -> None:
         msg_id = str(uuid.uuid4())
         message = message_builder.build_method_completed_message(

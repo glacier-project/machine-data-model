@@ -65,9 +65,8 @@ class FolderNode(DataModelNode):
         )
         self._children = {} if children is None else children
         for child in self._children.values():
-            assert isinstance(
-                child, DataModelNode
-            ), "Child must be a DataModelNode"
+            if not isinstance(child, DataModelNode):
+                raise TypeError("Child must be a DataModelNode")
         self.register_children(self._children)
 
     @property
@@ -90,7 +89,8 @@ class FolderNode(DataModelNode):
                 The child node to add to the folder.
 
         """
-        assert isinstance(child, DataModelNode), "Child must be a DataModelNode"
+        if not isinstance(child, DataModelNode):
+            raise TypeError("Child must be a DataModelNode")
         self._children[child.name] = child
         child.parent = self
 
@@ -175,6 +175,7 @@ class FolderNode(DataModelNode):
         for child in children:
             yield children[child]
 
+    @override
     def __str__(self) -> str:
         """Returns a string representation of the FolderNode.
 
@@ -191,6 +192,7 @@ class FolderNode(DataModelNode):
             f"connector_name={self.connector_name!r})"
         )
 
+    @override
     def __repr__(self) -> str:
         """Returns a string representation of the FolderNode.
 
@@ -201,6 +203,7 @@ class FolderNode(DataModelNode):
         """
         return self.__str__()
 
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True

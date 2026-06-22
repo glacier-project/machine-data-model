@@ -1,20 +1,28 @@
-from collections.abc import Callable
-from pathlib import Path
-from typing import Any
-
 import pytest
 
-from machine_data_model.data_model import DataModel
-from machine_data_model.nodes.connectors.abstract_connector import (
+pytest.importorskip("aiomqtt")
+
+from collections.abc import Callable  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any, cast  # noqa: E402
+
+from typing_extensions import override  # noqa: E402
+
+from machine_data_model.data_model import DataModel  # noqa: E402
+from machine_data_model.nodes.connectors.abstract_connector import (  # noqa: E402
     AbstractConnector,
     SubscriptionArguments,
 )
-from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (
+from machine_data_model.nodes.connectors.mqtt.mqtt_remote_resource_spec import (  # noqa: E402
     MqttRemoteResourceSpec,
 )
-from machine_data_model.nodes.connectors.remote_resource import RemoteResource
-from machine_data_model.nodes.folder_node import FolderNode
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.connectors.remote_resource import (  # noqa: E402
+    RemoteResource,
+)
+from machine_data_model.nodes.folder_node import FolderNode  # noqa: E402
+from machine_data_model.nodes.variable_node import (  # noqa: E402
+    NumericalVariableNode,
+)
 
 
 class NullRemoteConnector(AbstractConnector):
@@ -25,20 +33,25 @@ class NullRemoteConnector(AbstractConnector):
         self.write_resources: list[RemoteResource] = []
         self.subscription_resources: list[RemoteResource] = []
 
+    @override
     def connect(self) -> bool:
         return True
 
+    @override
     def disconnect(self) -> bool:
         self.disconnect_calls += 1
         return True
 
+    @override
     def _get_remote_resource(self, resource: RemoteResource) -> Any:
         return resource.path
 
+    @override
     def read_node_value(self, resource: RemoteResource) -> Any:
         self.read_resources.append(resource)
         return None
 
+    @override
     def write_node_value(
         self,
         resource: RemoteResource,
@@ -47,13 +60,15 @@ class NullRemoteConnector(AbstractConnector):
         self.write_resources.append(resource)
         return True
 
+    @override
     def call_node_as_method(
         self,
         resource: RemoteResource,
         kwargs: dict[str, Any],
     ) -> Any:
-        return {}
+        return cast(dict[str, Any], {})
 
+    @override
     def subscribe_to_node_changes(
         self,
         resource: RemoteResource,
@@ -62,11 +77,13 @@ class NullRemoteConnector(AbstractConnector):
         self.subscription_resources.append(resource)
         return 1
 
+    @override
     def unsubscribe_from_node_changes(self, handle: int) -> bool:
         return True
 
 
 class FailingSubscriptionConnector(NullRemoteConnector):
+    @override
     def subscribe_to_node_changes(
         self,
         resource: RemoteResource,

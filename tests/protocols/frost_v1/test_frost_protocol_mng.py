@@ -1,6 +1,6 @@
 import os
 import random
-from typing import Any
+from typing import Any, cast
 import uuid
 
 import pytest
@@ -345,8 +345,9 @@ class TestFrostProtocolMng:
         method_node = MethodNode(
             name=method_name, description="A test method", callback=callback
         )
-        input_param = type(node)(name="in_var", description="A test parameter")
-        output_param = type(node)(
+        node_cls = cast(Any, type(node))
+        input_param = node_cls(name="in_var", description="A test parameter")
+        output_param = node_cls(
             name="out_var", description="A test return value"
         )
 

@@ -81,15 +81,14 @@ class DataModelNode(ABC):
 
         """
         self._id: str = str(uuid.uuid4()) if id is None else id
-        assert (
-            isinstance(self._id, str) and len(self._id) > 0
-        ), "ID must be a non-empty string"
+        if not (isinstance(self._id, str) and len(self._id) > 0):
+            raise RuntimeError("ID must be a non-empty string")
         self._name: str = "" if name is None else name
-        assert isinstance(self._name, str), "Name must be a string"
+        if not isinstance(self._name, str):
+            raise TypeError("Name must be a string")
         self._description = "" if description is None else description
-        assert isinstance(
-            self._description, str
-        ), "Description must be a string"
+        if not isinstance(self._description, str):
+            raise TypeError("Description must be a string")
         self.parent: DataModelNode | None = None
         self._data_model: weakref.ReferenceType[DataModel] | None = None
 
@@ -314,7 +313,8 @@ class DataModelNode(ABC):
         if isinstance(child_nodes, dict):
             child_nodes = list(child_nodes.values())
 
-        assert isinstance(child_nodes, list)
+        if not isinstance(child_nodes, list):
+            raise TypeError("Expected child_nodes to be an instance of list")
         for child in child_nodes:
             child.parent = self
 

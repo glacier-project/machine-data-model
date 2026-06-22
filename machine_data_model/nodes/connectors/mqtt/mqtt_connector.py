@@ -1,10 +1,17 @@
+"""MQTT connector backed by ``aiomqtt``.
+
+Implements :class:`AbstractAsyncConnector` for MQTT brokers, including
+publish/subscribe routing, payload codec selection, and topic resolution
+against :class:`MqttRemoteResourceSpec`.
+"""
+
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import logging
 import threading
-from typing import Any
+from typing import Any, cast
 
 import aiomqtt
 from typing_extensions import override
@@ -26,8 +33,8 @@ from .mqtt_payload_codec import (
 )
 from .mqtt_remote_resource_spec import (
     MqttRemoteResourceSpec,
-    _join_topic,
-    _validate_topic,
+    join_topic,
+    validate_topic,
 )
 
 _logger = logging.getLogger(__name__)
@@ -112,6 +119,10 @@ class MqttConnector(AbstractAsyncConnector):
         self._topic_qos: dict[str, int] = {}
         self._next_subscription_id = 1
         self._callback_executor: ThreadPoolExecutor | None = None
+        self._reconnect_requested = False
+        self._reconnect_task: asyncio.Task[None] | None = None
+        self.reconnect_initial_backoff_s = 0.5
+        self.reconnect_max_backoff_s = 30.0
 
     @property
     def qos(self) -> int:
@@ -140,14 +151,7 @@ class MqttConnector(AbstractAsyncConnector):
     @override
     async def _async_connect(self) -> bool:
         """Asynchronously connects to the MQTT broker."""
-        client = aiomqtt.Client(
-            hostname=self.ip or "127.0.0.1",
-            port=self.port or 1883,
-            username=self.username,
-            password=self.password,
-            identifier=self.client_id,
-            keepalive=self.keepalive,
-        )
+        client = self._make_client()
         client_context_entered = False
         try:
             self.client = await client.__aenter__()
@@ -156,17 +160,12 @@ class MqttConnector(AbstractAsyncConnector):
             self._listener_task = asyncio.create_task(
                 self._listen_for_messages()
             )
-            for topic in self._topic_callbacks:
-                await self.client.subscribe(
-                    topic,
-                    qos=self._topic_qos.get(topic, self.qos),
-                )
-        except Exception as exp:
-            _logger.error(
+            await self._resubscribe_existing_topics()
+        except Exception:
+            _logger.exception(
                 f"Couldn't connect the '{self.name}' connector to the MQTT "
                 f"broker"
             )
-            _logger.error(exp)
             if client_context_entered:
                 await self._close_client_context()
             self.client = None
@@ -175,9 +174,31 @@ class MqttConnector(AbstractAsyncConnector):
         _logger.debug(f"Connected the '{self.name}' connector to MQTT broker")
         return True
 
+    def _make_client(self) -> aiomqtt.Client:
+        """Build an aiomqtt client from the connector configuration."""
+        return aiomqtt.Client(
+            hostname=self.ip or "127.0.0.1",
+            port=self.port or 1883,
+            username=self.username,
+            password=self.password,
+            identifier=self.client_id,
+            keepalive=self.keepalive,
+        )
+
+    async def _resubscribe_existing_topics(self) -> None:
+        """Re-subscribe to every topic that already has registered callbacks."""
+        if self.client is None:
+            return
+        for topic in self._topic_callbacks:
+            await self.client.subscribe(
+                topic,
+                qos=self._topic_qos.get(topic, self.qos),
+            )
+
     @override
     async def _async_disconnect(self) -> bool:
         """Asynchronously disconnects from the MQTT broker."""
+        self._reconnect_requested = False
         await self._cancel_listener_task()
         self._shutdown_callback_executor()
 
@@ -187,9 +208,8 @@ class MqttConnector(AbstractAsyncConnector):
 
         try:
             await self._client_context.__aexit__(None, None, None)
-        except Exception as exp:
-            _logger.error(f"Couldn't disconnect '{self.name}' connector")
-            _logger.error(exp)
+        except Exception:
+            _logger.exception(f"Couldn't disconnect '{self.name}' connector")
             return False
         finally:
             self.client = None
@@ -204,9 +224,10 @@ class MqttConnector(AbstractAsyncConnector):
             return
         try:
             await self._client_context.__aexit__(None, None, None)
-        except Exception as exp:
-            _logger.error(f"Couldn't close '{self.name}' MQTT client context")
-            _logger.error(exp)
+        except Exception:
+            _logger.exception(
+                f"Couldn't close '{self.name}' MQTT client context"
+            )
 
     async def _cancel_listener_task(self) -> None:
         """Cancel the background MQTT listener task."""
@@ -217,11 +238,10 @@ class MqttConnector(AbstractAsyncConnector):
             await self._listener_task
         except asyncio.CancelledError:
             pass
-        except Exception as exp:
-            _logger.error(
+        except Exception:
+            _logger.exception(
                 f"MQTT listener for '{self.name}' stopped with an error"
             )
-            _logger.error(exp)
         finally:
             self._listener_task = None
 
@@ -262,12 +282,11 @@ class MqttConnector(AbstractAsyncConnector):
                 qos=qos,
                 retain=retain,
             )
-        except Exception as exp:
-            _logger.error(
+        except Exception:
+            _logger.exception(
                 f"Failed to publish node '{resource.path}' to MQTT topic "
                 f"'{topic}'"
             )
-            _logger.error(exp)
             return False
         return True
 
@@ -349,22 +368,60 @@ class MqttConnector(AbstractAsyncConnector):
         return True
 
     async def _listen_for_messages(self) -> None:
-        """Consume MQTT messages and dispatch callbacks."""
+        """Consume MQTT messages and dispatch callbacks.
+
+        On unexpected broker disconnects, schedules a reconnect-with-backoff
+        loop instead of exiting silently. ``asyncio.CancelledError`` (raised
+        when ``_async_disconnect`` cancels the listener) propagates so the
+        reconnect loop also stops.
+        """
         if self.client is None or not isinstance(self.client, aiomqtt.Client):
             return
 
         messages = self.client.messages
         if callable(messages):
             messages = messages()
+        messages = cast(AsyncIterator[Any], messages)
 
         try:
             async for message in messages:
                 self._handle_message(message)
         except asyncio.CancelledError:
             raise
-        except Exception as exp:
-            _logger.error(f"MQTT listener for '{self.name}' failed")
-            _logger.error(exp)
+        except Exception:
+            _logger.exception(
+                f"MQTT listener for '{self.name}' failed; "
+                f"scheduling reconnect"
+            )
+            self._reconnect_requested = True
+            self._reconnect_task = asyncio.create_task(self._reconnect_loop())
+
+    async def _reconnect_loop(self) -> None:
+        """Attempt to reconnect to the broker with exponential backoff."""
+        backoff = self.reconnect_initial_backoff_s
+        while self._reconnect_requested:
+            await self._close_client_context()
+            self.client = None
+            self._client_context = None
+            await asyncio.sleep(backoff)
+            if not self._reconnect_requested:
+                return
+            try:
+                connected = await self._async_connect()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                _logger.exception(
+                    f"MQTT reconnect for '{self.name}' raised; will retry"
+                )
+                connected = False
+            if connected:
+                _logger.info(f"MQTT '{self.name}' reconnected to broker")
+                self._reconnect_requested = False
+                self._reconnect_task = None
+                return
+            backoff = min(backoff * 2, self.reconnect_max_backoff_s)
+        self._reconnect_task = None
 
     def _handle_message(self, message: Any) -> None:
         """Decode one MQTT message and notify registered callbacks."""
@@ -417,21 +474,19 @@ class MqttConnector(AbstractAsyncConnector):
             for sub in subscriptions:
                 try:
                     value = self.deserialize_value(payload, sub.resource)
-                except Exception as exp:
-                    _logger.error(
+                except Exception:
+                    _logger.exception(
                         "Failed to deserialize MQTT payload for topic "
                         f"'{sub.topic}'"
                     )
-                    _logger.error(exp)
                     continue
                 try:
                     sub.callback(value, other)
-                except Exception as exp:
-                    _logger.error(
+                except Exception:
+                    _logger.exception(
                         "MQTT subscription callback for topic "
                         f"'{sub.topic}' failed"
                     )
-                    _logger.error(exp)
         finally:
             if reentrant:
                 self._set_reentrant_dispatch(False)
@@ -457,7 +512,7 @@ class MqttConnector(AbstractAsyncConnector):
         topic = getattr(message_topic, "value", None)
         if topic is None:
             topic = str(message_topic)
-        return _validate_topic(topic)
+        return validate_topic(topic)
 
     @staticmethod
     def _message_payload(message: Any) -> bytes:
@@ -539,7 +594,7 @@ class MqttConnector(AbstractAsyncConnector):
         path = resource.path
         remote_resource_spec = self._mqtt_spec(resource)
         if remote_resource_spec is None:
-            return _validate_topic(_join_topic(self.topic_prefix, path))
+            return validate_topic(join_topic(self.topic_prefix, path))
         return remote_resource_spec.resolve_subscribe_topic(
             path=path,
             default_topic_prefix=self.topic_prefix,
@@ -553,7 +608,7 @@ class MqttConnector(AbstractAsyncConnector):
         path = resource.path
         remote_resource_spec = self._mqtt_spec(resource)
         if remote_resource_spec is None:
-            return _validate_topic(_join_topic(self.topic_prefix, path))
+            return validate_topic(join_topic(self.topic_prefix, path))
         return remote_resource_spec.resolve_publish_topic(
             path=path,
             default_topic_prefix=self.topic_prefix,
@@ -616,6 +671,7 @@ class MqttConnector(AbstractAsyncConnector):
         )
         return data
 
+    @override
     def __str__(self) -> str:
         return (
             "MqttConnector("
@@ -632,5 +688,6 @@ class MqttConnector(AbstractAsyncConnector):
             ")"
         )
 
+    @override
     def __repr__(self) -> str:
         return self.__str__()

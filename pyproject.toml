@@ -1,44 +1,62 @@
-[tool.poetry]
+[project]
 name = "machine-data-model"
 version = "1.0.0"
 description = "Machine data model for the Glacier platform."
-authors = ["Sebastiano Gaiardelli <sebastiano.gaiardelli@univr.it>"]
+authors = [{ name = "Sebastiano Gaiardelli", email = "sebastiano.gaiardelli@univr.it" }]
 license = "BSD-2-Clause"
 readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "pyyaml>=6.0.2,<7",
+    "typing-extensions>=4.4,<5",
+    "unitsnet-py>=0.1.154,<0.2",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-pyyaml = "^6.0.2"
-unitsnet-py = "^0.1.154"
-asyncua = "1.1.6"
-aiomqtt = "^2.5.1"
-msgpack = "^1.1.2"
+[project.optional-dependencies]
+opcua = [
+    # Cap below 1.1.7: asyncua >=1.1.7 sends a ServerUri in
+    # CreateSessionRequest that OPC PLC (our docker test server) and other
+    # strict servers reject with BadServerUriInvalid. No released version
+    # fixes it yet — see https://github.com/FreeOpcUa/opcua-asyncio/issues/1883.
+    # A bare upper bound (<2) lets `uv lock --upgrade` silently re-break it.
+    "asyncua>=1.1.6,<1.1.7",
+]
+mqtt = ["aiomqtt>=2.5.1,<3", "msgpack>=1.1.2,<2"]
+http = ["aiohttp>=3.10,<4"]
+all = ["machine-data-model[opcua,mqtt,http]"]
 
-
-[tool.poetry.group.dev.dependencies]
-radon = "^6.0.1"
-lizard = "^1.17.13"
-pre-commit = "^4.0.1"
-mypy = "^1.13.0"
-ruff = "^0.8.3"
-tox = "^4.23.2"
-docker = "^7.1.0"
-
-
-[tool.poetry.group.test.dependencies]
-pytest = "^8.3.4"
-pytest-cov = "^6.0.0"
-
-
-[tool.poetry.group.docs.dependencies]
-sphinx = "^8.2.3"
-sphinx-rtd-theme = "^3.0.2"
-sphinx-autoapi = "^3.4.0"
-furo = "^2024.8.6"
+[dependency-groups]
+dev = [
+    "radon>=6.0.1,<7",
+    "lizard>=1.17.13,<2",
+    "pre-commit>=4.0.1,<5",
+    "pyrefly>=1.0.0,<2",
+    "ruff>=0.8.3,<0.9",
+    "tox>=4.23.2,<5",
+    "tox-uv>=1.13,<2",
+]
+test = ["pytest>=8.3.4,<9", "pytest-cov>=6.0.0,<7"]
+integration = ["docker>=7.1.0,<8"]
+docs = [
+    "sphinx>=8.2.3,<9",
+    "sphinx-rtd-theme>=3.0.2,<4",
+    "sphinx-autoapi>=3.4.0,<4",
+    "furo>=2024.8.6,<2026",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["machine_data_model"]
+
+
+[tool.pytest.ini_options]
+markers = [
+    "connector: tests that need a connector optional extra installed",
+    "exposer: tests that need the http optional extra installed",
+]
 
 
 [tool.ruff]
@@ -69,6 +87,7 @@ ignore = [
     "D107",   # missing docstring in __init__
     "D203",   # one-blank-line-before-class (conflicts with D211)
     "D213",   # multi-line-summary-second-line (conflicts with D212)
+    "ERA001", # commented-out code; collides with `# pyrefly: ignore[...]`
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -79,6 +98,13 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 # Google docstring convention
 convention = "google"
+
+[tool.ruff.lint.pylint]
+# Connector/data-model constructors accept up to ~20 configuration knobs
+# that are intentionally surfaced individually (the YAML builders enumerate
+# them by name). The default of 5 is too low for this codebase; 20 still
+# catches accidental signature bloat outside of those config classes.
+max-args = 20
 
 [tool.ruff.lint.isort]
 # Google style: absolute imports, sorted
@@ -91,3 +117,35 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.pyrefly]
+project-includes = ["machine_data_model", "tests"]
+python-version   = "3.11"
+preset           = "strict"
+
+# Match mypy's check_untyped_defs = true + warn_return_any = true behavior
+check-unannotated-defs = true
+infer-return-types     = "never"   # mypy treats untyped returns as Any
+
+[tool.pyrefly.errors]
+# Direct mypy → pyrefly parallels
+redundant-cast        = "error"  # mypy: warn_redundant_casts
+unused-ignore         = "error"  # mypy: warn_unused_ignores
+implicit-any          = true     # mypy: warn_return_any + disallow_untyped_defs (returns/locals)
+unannotated-parameter = "error"  # mypy: disallow_incomplete_defs + disallow_untyped_defs (params)
+bad-override          = "error"  # part of strict preset; called out explicitly
+
+# Translations of mypy's disable_error_code = annotation-unchecked,import-not-found,import-untyped
+missing-import = false   # mypy: import-not-found
+untyped-import = false   # mypy: import-untyped
+# annotation-unchecked has no pyrefly counterpart — see "Known gaps" below.
+
+# Known gaps from mypy.ini that have no direct pyrefly equivalent (2026-05-20):
+#   local_partial_types          — pyrefly handles partial types differently
+#   warn_incomplete_stub         — no per-stub completeness check
+#   warn_unused_configs          — no config-level usage tracking
+#   enable_error_code: ignore-without-code, redundant-self, truthy-iterable
+#   disallow_subclassing_any     — no equivalent
+#   disallow_untyped_decorators  — no equivalent
+#   warn_unreachable             — no dedicated unreachable check
+# Re-evaluate as pyrefly evolves; mirror gaps in the audit handoff doc.

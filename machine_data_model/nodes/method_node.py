@@ -120,13 +120,11 @@ class MethodNode(DataModelNode):
         self.register_children(self._parameters)
         self.register_children(self._returns)
         for parameter in self._parameters:
-            assert isinstance(
-                parameter, VariableNode
-            ), "Parameter must be a VariableNode"
+            if not isinstance(parameter, VariableNode):
+                raise TypeError("Parameter must be a VariableNode")
         for return_value in self._returns:
-            assert isinstance(
-                return_value, VariableNode
-            ), "Return value must be a VariableNode"
+            if not isinstance(return_value, VariableNode):
+                raise TypeError("Return value must be a VariableNode")
 
     @property
     def parameters(self) -> list[VariableNode]:
@@ -148,9 +146,8 @@ class MethodNode(DataModelNode):
                 The parameter to add to the method.
 
         """
-        assert isinstance(
-            parameter, VariableNode
-        ), "Parameter must be a VariableNode"
+        if not isinstance(parameter, VariableNode):
+            raise TypeError("Parameter must be a VariableNode")
         self._parameters.append(parameter)
         parameter.parent = self
 
@@ -193,9 +190,8 @@ class MethodNode(DataModelNode):
                 The return value to add to the method.
 
         """
-        assert isinstance(
-            return_value, VariableNode
-        ), "Return value must be a VariableNode"
+        if not isinstance(return_value, VariableNode):
+            raise TypeError("Return value must be a VariableNode")
         self._returns.append(return_value)
         return_value.parent = self
 
@@ -219,7 +215,7 @@ class MethodNode(DataModelNode):
         return_value.parent = None
 
     @property
-    def callback(self) -> Callable:
+    def callback(self) -> Callable[..., Any]:
         """Gets the callback function for the method.
 
         Returns:
@@ -230,7 +226,7 @@ class MethodNode(DataModelNode):
         return self._callback
 
     @callback.setter
-    def callback(self, call: Callable) -> None:
+    def callback(self, call: Callable[..., Any]) -> None:
         """Sets the callback function for the method.
 
         Args:
@@ -241,7 +237,7 @@ class MethodNode(DataModelNode):
         self._callback = call
 
     @property
-    def pre_callback(self) -> Callable:
+    def pre_callback(self) -> Callable[..., Any]:
         """Gets the pre-call function for the method.
 
         Returns:
@@ -252,7 +248,7 @@ class MethodNode(DataModelNode):
         return self._pre_call
 
     @pre_callback.setter
-    def pre_callback(self, pre_call: Callable) -> None:
+    def pre_callback(self, pre_call: Callable[..., Any]) -> None:
         """Sets the pre-call function for the method.
 
         Args:
@@ -263,7 +259,7 @@ class MethodNode(DataModelNode):
         self._pre_call = pre_call
 
     @property
-    def post_callback(self) -> Callable:
+    def post_callback(self) -> Callable[..., Any]:
         """Gets the post-call function for the method.
 
         Returns:
@@ -274,7 +270,7 @@ class MethodNode(DataModelNode):
         return self._post_call
 
     @post_callback.setter
-    def post_callback(self, callback: Callable) -> None:
+    def post_callback(self, callback: Callable[..., Any]) -> None:
         """Sets the post-call function for the method.
 
         Args:
@@ -295,11 +291,11 @@ class MethodNode(DataModelNode):
         return False
 
     @override
-    def __getitem__(self, node_name: str) -> VariableNode:
+    def __getitem__(self, child_name: str) -> VariableNode:
         """Get a parameter or return value of the method by name.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the parameter or return value to get from the
                 method.
 
@@ -313,21 +309,21 @@ class MethodNode(DataModelNode):
 
         """
         for parameter in self._parameters:
-            if parameter.name == node_name:
+            if parameter.name == child_name:
                 return parameter
         for return_value in self._returns:
-            if return_value.name == node_name:
+            if return_value.name == child_name:
                 return return_value
         raise ValueError(
-            f"Node with name '{node_name}' not found in method '{self.id}'"
+            f"Node with name '{child_name}' not found in method '{self.id}'"
         )
 
     @override
-    def __contains__(self, node_name: str) -> bool:
+    def __contains__(self, child_name: str) -> bool:
         """Check if the method has the specified parameter or return value.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the parameter or return value to check.
 
         Returns:
@@ -337,10 +333,10 @@ class MethodNode(DataModelNode):
 
         """
         for parameter in self._parameters:
-            if parameter.name == node_name:
+            if parameter.name == child_name:
                 return True
         for return_value in self._returns:
-            if return_value.name == node_name:
+            if return_value.name == child_name:
                 return True
         return False
 
@@ -450,15 +446,19 @@ class MethodNode(DataModelNode):
                 the return values.
 
         """
-        ret_dict = {}
-        assert not isinstance(ret, Mapping), "Return value cannot be a mapping."
+        ret_dict: dict[str, Any] = {}
+        if isinstance(ret, Mapping):
+            raise RuntimeError("Return value cannot be a mapping.")
         f" Received {ret} of type {type(ret)}."
-        ret = ret if isinstance(ret, list | tuple) else (ret,)
+        if not isinstance(ret, list) and not isinstance(ret, tuple):
+            ret = (ret,)
         for index, return_value in enumerate(ret):
             ret_dict[self._returns[index].name] = return_value
-        assert len(ret_dict) == len(self._returns), f"{ret_dict}"
+        if not (len(ret_dict) == len(self._returns)):
+            raise RuntimeError(f"{ret_dict}")
         return ret_dict
 
+    @override
     def __str__(self) -> str:
         """Returns a string representation of the MethodNode.
 
@@ -474,6 +474,7 @@ class MethodNode(DataModelNode):
             f"description={self.description})"
         )
 
+    @override
     def __repr__(self) -> str:
         """Returns a string representation of the MethodNode.
 
@@ -484,6 +485,7 @@ class MethodNode(DataModelNode):
         """
         return self.__str__()
 
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True
@@ -553,6 +555,7 @@ class AsyncMethodNode(MethodNode):
             remote_resource_spec=remote_resource_spec,
         )
 
+    @override
     def is_async(self) -> bool:
         """Returns always True for asynchronous methods.
 
@@ -563,6 +566,7 @@ class AsyncMethodNode(MethodNode):
         """
         return True
 
+    @override
     def __str__(self) -> str:
         return (
             f"AsyncMethodNode(id={self.id}, "

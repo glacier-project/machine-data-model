@@ -8,7 +8,7 @@ object variables with subscription and notification capabilities.
 from abc import abstractmethod
 from collections.abc import Callable, Generator
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -183,7 +183,8 @@ class VariableNode(DataModelNode):
             self.notify_subscribers()
         else:
             value = self._update_value(prev_value)
-            assert value == prev_value
+            if not (value == prev_value):
+                raise RuntimeError("Invariant violated")
         return success
 
     @property
@@ -340,7 +341,11 @@ class VariableNode(DataModelNode):
         """
         # Get the current value of the node.
         value = self._read_internal_value()
-        for subscription in self._subscriptions:
+        # Iterate a snapshot: subscribe/unsubscribe may mutate the list from
+        # another thread (or re-entrantly from a callback) during dispatch.
+        # Without the copy, a removal shifts indices and silently skips a
+        # subscriber; see test_notify_dispatches_over_a_consistent_snapshot.
+        for subscription in list(self._subscriptions):
             if not subscription.should_notify(value):
                 continue
             # Trace the notification operation.
@@ -549,11 +554,12 @@ class VariableNode(DataModelNode):
         self._update_internal_value(value)
         self.notify_subscribers()
 
-    def __getitem__(self, node_name: str) -> "VariableNode":
+    @override
+    def __getitem__(self, child_name: str) -> "VariableNode":
         """Raises an exception because child nodes are not supported.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to retrieve.
 
         Raises:
@@ -565,11 +571,12 @@ class VariableNode(DataModelNode):
             f"{self.__class__.__name__} does not support child nodes"
         )
 
-    def __contains__(self, node_name: str) -> bool:
+    @override
+    def __contains__(self, child_name: str) -> bool:
         """Always returns False, as this node does not have child nodes.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to check.
 
         Returns:
@@ -579,6 +586,7 @@ class VariableNode(DataModelNode):
         """
         return False
 
+    @override
     def __iter__(self) -> Generator["VariableNode", None, None]:
         """Returns an empty iterator, as this node does not have child nodes.
 
@@ -589,6 +597,7 @@ class VariableNode(DataModelNode):
         """
         yield from []
 
+    @override
     def __eq__(self, other: object) -> bool:
         if self is other:
             return True
@@ -673,7 +682,7 @@ class NumericalVariableNode(VariableNode):
                 The value of the numerical variable.
 
         """
-        return self._value.base_value  # type: ignore[no-any-return]
+        return cast(float, cast(Any, self._value).base_value)
 
     @override
     def _read_remote_value(self, force_remote_read: bool = False) -> float:
@@ -692,7 +701,8 @@ class NumericalVariableNode(VariableNode):
         result = super()._read_remote_value(force_remote_read)
         if result is None:
             return self._read_internal_value()
-        assert isinstance(result, int | float)
+        if not isinstance(result, int | float):
+            raise TypeError("Expected result to be an instance of int | float")
         return result
 
     @override
@@ -708,8 +718,9 @@ class NumericalVariableNode(VariableNode):
                 The updated value of the numerical variable.
 
         """
-        self._value = self._value.__class__(value, self._measure_unit)
-        return self._value.base_value  # type: ignore[no-any-return]
+        measure_cls = cast(Any, type(self._value))
+        self._value = measure_cls(value, self._measure_unit)
+        return cast(float, cast(Any, self._value).base_value)
 
     def get_measure_unit(self) -> Enum:
         """Get the measure unit of the numerical variable.
@@ -735,9 +746,11 @@ class NumericalVariableNode(VariableNode):
                 successful. Otherwise, it returns the previous value.
         """
         result = super()._update_remote_value(value)
-        assert isinstance(result, int | float)
+        if not isinstance(result, int | float):
+            raise TypeError("Expected result to be an instance of int | float")
         return result
 
+    @override
     def __str__(self) -> str:
         """Returns a string representation of the NumericalVariableNode.
 
@@ -754,6 +767,7 @@ class NumericalVariableNode(VariableNode):
             f"value={self._read_internal_value()!r})"
         )
 
+    @override
     def __repr__(self) -> str:
         """Return the string representation of the NumericalVariableNode.
 
@@ -838,7 +852,8 @@ class StringVariableNode(VariableNode):
         result = super()._read_remote_value(force_remote_read)
         if result is None:
             return self._read_internal_value()
-        assert isinstance(result, str)
+        if not isinstance(result, str):
+            raise TypeError("Expected result to be an instance of str")
         return result
 
     @override
@@ -854,7 +869,8 @@ class StringVariableNode(VariableNode):
                 The updated value of the string variable.
 
         """
-        assert isinstance(value, str)
+        if not isinstance(value, str):
+            raise TypeError("Expected value to be an instance of str")
         self._value = value
         return self._value
 
@@ -872,16 +888,18 @@ class StringVariableNode(VariableNode):
                 successful. Otherwise, it returns the previous value.
         """
         result = super()._update_remote_value(value)
-        assert isinstance(result, str)
+        if not isinstance(result, str):
+            raise TypeError("Expected result to be an instance of str")
         return result
 
-    def __getitem__(self, node_name: str) -> VariableNode:
+    @override
+    def __getitem__(self, child_name: str) -> VariableNode:
         """Raise NotImplementedError.
 
         StringVariableNode does not support children.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to retrieve.
 
         Raises:
@@ -893,11 +911,12 @@ class StringVariableNode(VariableNode):
             "StringVariableNode does not support child nodes"
         )
 
-    def __contains__(self, node_name: str) -> bool:
+    @override
+    def __contains__(self, child_name: str) -> bool:
         """Return False as StringVariableNode does not support child nodes.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node to check.
 
         Returns:
@@ -907,6 +926,7 @@ class StringVariableNode(VariableNode):
         """
         return False
 
+    @override
     def __str__(self) -> str:
         """Returns a string representation of the StringVariableNode.
 
@@ -922,6 +942,7 @@ class StringVariableNode(VariableNode):
             f"value={self._read_internal_value()!r})"
         )
 
+    @override
     def __repr__(self) -> str:
         """Return the string representation of the StringVariableNode.
 
@@ -1009,7 +1030,8 @@ class BooleanVariableNode(VariableNode):
         result = super()._read_remote_value(force_remote_read)
         if result is None:
             return self._read_internal_value()
-        assert isinstance(result, bool)
+        if not isinstance(result, bool):
+            raise TypeError("Expected result to be an instance of bool")
         return result
 
     @override
@@ -1025,7 +1047,8 @@ class BooleanVariableNode(VariableNode):
                 The updated value of the boolean variable.
 
         """
-        assert isinstance(value, bool)
+        if not isinstance(value, bool):
+            raise TypeError("Expected value to be an instance of bool")
         self._value = value
         return self._value
 
@@ -1043,16 +1066,18 @@ class BooleanVariableNode(VariableNode):
                 successful. Otherwise, returns the previous value.
         """
         result = super()._update_remote_value(value)
-        assert isinstance(result, bool)
+        if not isinstance(result, bool):
+            raise TypeError("Expected result to be an instance of bool")
         return result
 
-    def __getitem__(self, node_name: str) -> VariableNode:
+    @override
+    def __getitem__(self, child_name: str) -> VariableNode:
         """Raise NotImplementedError.
 
         BooleanVariableNode does not support children.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node.
 
         Raises:
@@ -1064,11 +1089,12 @@ class BooleanVariableNode(VariableNode):
             "BooleanVariableNode does not support child nodes"
         )
 
-    def __contains__(self, node_name: str) -> bool:
+    @override
+    def __contains__(self, child_name: str) -> bool:
         """Return False as BooleanVariableNode does not support child nodes.
 
         Args:
-            node_name (str):
+            child_name (str):
                 The name of the node.
 
         Returns:
@@ -1078,6 +1104,7 @@ class BooleanVariableNode(VariableNode):
         """
         return False
 
+    @override
     def __str__(self) -> str:
         """Returns a string representation of the BooleanVariableNode.
 
@@ -1093,6 +1120,7 @@ class BooleanVariableNode(VariableNode):
             f"value={self._read_internal_value()!r})"
         )
 
+    @override
     def __repr__(self) -> str:
         """Return the string representation of the BooleanVariableNode.
 
@@ -1151,10 +1179,9 @@ class ObjectVariableNode(VariableNode):
             properties if properties is not None else {}
         )
         for property_node in self._properties.values():
-            assert isinstance(
-                property_node, VariableNode
-            ), "Property must be a VariableNode"
-        self.value: dict[str, Any] = self._read_internal_value()
+            if not isinstance(property_node, VariableNode):
+                raise TypeError("Property must be a VariableNode")
+        self.write(self._read_internal_value())
         self.register_children(self._properties)
 
     def add_property(self, property_node: VariableNode) -> None:
@@ -1165,9 +1192,8 @@ class ObjectVariableNode(VariableNode):
                 The property node to add.
 
         """
-        assert isinstance(
-            property_node, VariableNode
-        ), "Property must be a VariableNode"
+        if not isinstance(property_node, VariableNode):
+            raise TypeError("Property must be a VariableNode")
         self._properties[property_node.name] = property_node
         property_node.parent = self
 
@@ -1297,9 +1323,13 @@ class ObjectVariableNode(VariableNode):
                 The updated value of the object variable.
 
         """
-        assert len(value) == len(self._properties) and all(
-            prop in self._properties for prop in value
-        ), "The value must contain all properties of the object variable"
+        if not (
+            len(value) == len(self._properties)
+            and all(prop in self._properties for prop in value)
+        ):
+            raise RuntimeError(
+                "The value must contain all properties of the object variable"
+            )
         for property_name, property_value in value.items():
             self._properties[property_name]._update_internal_value(
                 property_value
@@ -1338,11 +1368,12 @@ class ObjectVariableNode(VariableNode):
             return prev_value
         return value
 
-    def __getitem__(self, property_name: str) -> VariableNode:
+    @override
+    def __getitem__(self, child_name: str) -> VariableNode:
         """Get a property of the object variable.
 
         Args:
-            property_name (str):
+            child_name (str):
                 The name of the property to get.
 
         Returns:
@@ -1350,13 +1381,14 @@ class ObjectVariableNode(VariableNode):
                 The property node.
 
         """
-        return self.get_property(property_name)
+        return self.get_property(child_name)
 
-    def __contains__(self, property_name: str) -> bool:
+    @override
+    def __contains__(self, child_name: str) -> bool:
         """Check if the object variable has a property.
 
         Args:
-            property_name (str):
+            child_name (str):
                 The name of the property to check.
 
         Returns:
@@ -1364,8 +1396,9 @@ class ObjectVariableNode(VariableNode):
                 True if the property exists, False otherwise.
 
         """
-        return self.has_property(property_name)
+        return self.has_property(child_name)
 
+    @override
     def __iter__(self) -> Generator[VariableNode, None, None]:
         """Iterate over the properties of the object variable.
 
@@ -1376,6 +1409,7 @@ class ObjectVariableNode(VariableNode):
         """
         yield from self._properties.values()
 
+    @override
     def __str__(self) -> str:
         """Returns a string representation of the ObjectVariableNode.
 
@@ -1391,6 +1425,7 @@ class ObjectVariableNode(VariableNode):
             f"value={self._read_internal_value()})"
         )
 
+    @override
     def __repr__(self) -> str:
         """Return the string representation of the ObjectVariableNode.
 

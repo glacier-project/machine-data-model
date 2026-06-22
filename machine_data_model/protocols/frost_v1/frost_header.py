@@ -7,6 +7,8 @@ message types, namespaces, names, and the FrostHeader dataclass.
 from dataclasses import dataclass, field
 from enum import Enum
 
+from typing_extensions import override
+
 from machine_data_model.utils.timestamp import get_timestamp_ns
 
 
@@ -200,6 +202,7 @@ class FrostHeader:
             and (_msg_name is None or self.msg_name == _msg_name)
         )
 
+    @override
     def __str__(self) -> str:
         """Returns a string representation of the FrostHeader.
 
@@ -220,6 +223,7 @@ class FrostHeader:
             f"Timestamp: {self.timestamp_ns} ns"
         )
 
+    @override
     def __repr__(self) -> str:
         """Returns an official string representation of the FrostHeader.
 
