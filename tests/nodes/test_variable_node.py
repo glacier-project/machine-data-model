@@ -295,3 +295,41 @@ class TestVariableNode:
 
         assert len(num_var.get_subscriptions()) == 0
         assert all(unsubscriptions)
+
+
+def test_notify_dispatches_over_a_consistent_subscription_snapshot() -> None:
+    """notify_subscribers must dispatch to the subscribers present when the
+    write began, even if the subscription list is mutated mid-dispatch.
+
+    Regression for F1: the WebSocket exposer mutates ``_subscriptions`` (via
+    subscribe/unsubscribe) concurrently with ``write()`` -> notify on another
+    thread. CPython lists don't raise on concurrent mutation, but removing an
+    earlier element shifts the live list's indices and silently *skips* a
+    later subscriber. Dispatching over a snapshot keeps every subscriber that
+    was present when the write started. Re-entrant mutation from a callback
+    reproduces the index shift deterministically.
+    """
+    node = NumericalVariableNode(name="temp", value=0.0)
+    notified: list[str] = []
+
+    subs = [VariableSubscription(f"s{i}", f"c{i}") for i in range(5)]
+    for sub in subs:
+        node.subscribe(sub)
+
+    def on_change(
+        subscription: VariableSubscription,
+        variable: VariableNode,
+        value: Any,
+    ) -> None:
+        notified.append(subscription.subscriber_id)
+        # While dispatching s3, drop an *earlier* subscriber (s1). On the live
+        # list this shifts indices so the last subscriber (s4) is skipped.
+        if subscription.subscriber_id == "s3":
+            node.unsubscribe(subs[1])
+
+    node.set_subscription_callback(on_change)
+    node.write(42.0)
+
+    # s4 was present for the whole write and never removed; it must be
+    # notified despite the mid-dispatch removal of an earlier subscriber.
+    assert "s4" in notified

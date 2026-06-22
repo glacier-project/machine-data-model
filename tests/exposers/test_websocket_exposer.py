@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Iterator
 import socket
+from typing import Any, cast
 
 import aiohttp
 import pytest
@@ -189,3 +190,68 @@ async def test_failed_send_to_one_ws_does_not_block_others(
         temp.write(11.0)
         msg = await ws_good.receive_json(timeout=1.0)
         assert msg["value"] == 11.0
+
+
+class _RecordingWS:
+    """Minimal WebSocketResponse double; optionally slow or failing."""
+
+    def __init__(
+        self, delay: float = 0.0, error: Exception | None = None
+    ) -> None:
+        self.delay = delay
+        self.error = error
+        self.sent: list[dict[str, Any]] = []
+
+    async def send_json(self, data: dict[str, Any]) -> None:
+        if self.delay:
+            await asyncio.sleep(self.delay)
+        if self.error is not None:
+            raise self.error
+        self.sent.append(data)
+
+
+@pytest.mark.exposer
+async def test_slow_ws_client_is_isolated_by_send_timeout() -> None:
+    """One slow client must not block the fan-out to others (F5).
+
+    A send that exceeds the per-send timeout drops that client; fast clients
+    still receive promptly and the broadcast returns within the timeout
+    instead of stalling on the slow client (which would hang the next drain).
+    """
+    exposer = WebSocketExposer()
+    exposer._send_timeout = 0.05
+    fast = _RecordingWS(delay=0.0)
+    slow = _RecordingWS(delay=10.0)
+    exposer._subs = cast(Any, {"n": {fast, slow}})
+    exposer._node_subscriptions = {}
+
+    # Sequential awaiting (pre-fix) would block ~10s on the slow client and
+    # trip this bounded wait.
+    await asyncio.wait_for(exposer._on_changes({"n": 42}), timeout=2.0)
+
+    assert {"op": "change", "node": "n", "value": 42} in fast.sent
+    assert slow.sent == []  # slow send timed out before completing
+    remaining: Any = exposer._subs.get("n", set())
+    assert fast in remaining  # fast client retained
+    assert slow not in remaining  # slow client dropped
+
+
+@pytest.mark.exposer
+async def test_unexpected_send_error_drops_only_that_client() -> None:
+    """Any send error (not just connection errors) drops that client (F9).
+
+    A send raising an error outside the historical catch tuple must still
+    remove the client and must not abort delivery to the others.
+    """
+    exposer = WebSocketExposer()
+    good = _RecordingWS()
+    bad = _RecordingWS(error=ValueError("kaboom"))
+    exposer._subs = cast(Any, {"n": {good, bad}})
+    exposer._node_subscriptions = {}
+
+    await exposer._on_changes({"n": 7})
+
+    assert {"op": "change", "node": "n", "value": 7} in good.sent
+    remaining: Any = exposer._subs.get("n", set())
+    assert good in remaining  # healthy client retained
+    assert bad not in remaining  # failing client dropped

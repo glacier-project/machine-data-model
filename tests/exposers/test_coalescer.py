@@ -17,7 +17,7 @@ def test_single_notify_then_drain_returns_value() -> None:
     try:
         coalescer = NodeChangeCoalescer(loop)
         coalescer.notify("Sensors/Temperature", 25.0)
-        snapshot = coalescer._drain_for_test()
+        snapshot = coalescer.drain()
         assert snapshot == {"Sensors/Temperature": 25.0}
     finally:
         loop.close()
@@ -32,7 +32,7 @@ def test_repeated_notify_same_key_keeps_latest() -> None:
         coalescer.notify("Sensors/Temperature", 25.0)
         coalescer.notify("Sensors/Temperature", 26.0)
         coalescer.notify("Sensors/Temperature", 27.0)
-        snapshot = coalescer._drain_for_test()
+        snapshot = coalescer.drain()
         assert snapshot == {"Sensors/Temperature": 27.0}
     finally:
         loop.close()
@@ -47,7 +47,7 @@ def test_multiple_keys_all_surfaced() -> None:
         coalescer.notify("a", 1)
         coalescer.notify("b", 2)
         coalescer.notify("c", 3)
-        snapshot = coalescer._drain_for_test()
+        snapshot = coalescer.drain()
         assert snapshot == {"a": 1, "b": 2, "c": 3}
     finally:
         loop.close()
@@ -60,8 +60,8 @@ def test_drain_empties_buffer() -> None:
     try:
         coalescer = NodeChangeCoalescer(loop)
         coalescer.notify("a", 1)
-        coalescer._drain_for_test()
-        assert coalescer._drain_for_test() == {}
+        coalescer.drain()
+        assert coalescer.drain() == {}
     finally:
         loop.close()
 
@@ -89,7 +89,7 @@ def test_concurrent_notify_does_not_lose_final_value() -> None:
         for t in threads:
             t.join()
 
-        snapshot = coalescer._drain_for_test()
+        snapshot = coalescer.drain()
         assert len(snapshot) == n_threads
         for thread_id in range(n_threads):
             assert snapshot[f"node-{thread_id}"] == per_thread - 1
@@ -109,7 +109,7 @@ def test_pump_dispatches_to_registered_consumer() -> None:
     async def driver() -> None:
         coalescer = NodeChangeCoalescer(loop)
         coalescer.add_consumer(consumer)
-        pump_task = asyncio.create_task(coalescer._run_pump())
+        pump_task = asyncio.create_task(coalescer.run_pump())
         coalescer.notify("a", 1)
         coalescer.notify("b", 2)
         # Yield until the pump has drained.
@@ -145,7 +145,7 @@ def test_pump_continues_when_consumer_raises() -> None:
         coalescer = NodeChangeCoalescer(loop)
         coalescer.add_consumer(bad_consumer)
         coalescer.add_consumer(good_consumer)
-        pump_task = asyncio.create_task(coalescer._run_pump())
+        pump_task = asyncio.create_task(coalescer.run_pump())
         coalescer.notify("a", 1)
         for _ in range(50):
             await asyncio.sleep(0.01)

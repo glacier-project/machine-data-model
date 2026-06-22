@@ -2,16 +2,19 @@
 
 import asyncio
 from asyncio import AbstractEventLoop
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 import contextlib
 import logging
 import threading
 
 from aiohttp import web
+from aiohttp.typedefs import Middleware
 
 from machine_data_model.data_model import DataModel
 from machine_data_model.exposers._coalescer import NodeChangeCoalescer
 from machine_data_model.exposers.abstract_exposer import AbstractExposer
+from machine_data_model.nodes.data_model_node import DataModelNode
 
 _logger = logging.getLogger(__name__)
 
@@ -22,9 +25,10 @@ class ExposerManager:
     def __init__(
         self,
         data_model: DataModel,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8080,
         event_loop: AbstractEventLoop | None = None,
+        middlewares: Iterable[Middleware] | None = None,
     ) -> None:
         """Initialize the manager.
 
@@ -32,7 +36,11 @@ class ExposerManager:
             data_model:
                 The DataModel this manager exposes.
             host:
-                Host the aiohttp server binds to.
+                Host the aiohttp server binds to. Defaults to ``127.0.0.1``
+                (loopback): the exposer surface has no built-in auth or TLS,
+                so binding to other interfaces (e.g. ``0.0.0.0``) is an
+                explicit opt-in and should be paired with ``middlewares``
+                that add authentication.
             port:
                 Port the aiohttp server binds to.
             event_loop:
@@ -40,11 +48,16 @@ class ExposerManager:
                 (the default), a fresh loop is created in a new
                 background thread on ``start()`` and torn down on
                 ``stop()``.
+            middlewares:
+                Optional aiohttp middlewares applied to every route. Use
+                this to inject authentication/authorization before exposing
+                read/write/method-invoke access.
         """
         self._data_model = data_model
         self._host = host
         self._port = port
         self._supplied_event_loop = event_loop
+        self._middlewares = list(middlewares) if middlewares is not None else []
         self._executor = ThreadPoolExecutor(
             max_workers=1,
             thread_name_prefix=f"exposer-{data_model.name}",
@@ -64,6 +77,19 @@ class ExposerManager:
     def data_model(self) -> DataModel:
         """The DataModel exposed by this manager."""
         return self._data_model
+
+    def resolve(self, path: str) -> DataModelNode | None:
+        """Resolve a relative node path against the data model root.
+
+        A leading ``/`` is optional and the root name may be omitted, so
+        ``Sensors/Temp`` and ``root/Sensors/Temp`` resolve identically.
+        Returns None if no such node exists.
+        """
+        path = path.lstrip("/")
+        root_name = self._data_model.root.name
+        if path == root_name or path.startswith(f"{root_name}/"):
+            return self._data_model.get_node(path)
+        return self._data_model.get_node(f"{root_name}/{path}")
 
     @property
     def host(self) -> str:
@@ -93,8 +119,13 @@ class ExposerManager:
             raise RuntimeError("Cannot add exposers after start()")
         self._exposers.append(exposer)
 
-    def start(self) -> None:
-        """Start the asyncio thread and the aiohttp server."""
+    def start(self, timeout: float = 5.0) -> None:
+        """Start the asyncio thread and the aiohttp server.
+
+        Args:
+            timeout:
+                Seconds to wait for the server to come up before raising.
+        """
         if self._started:
             raise RuntimeError("ExposerManager already started")
         self._started = True
@@ -109,7 +140,7 @@ class ExposerManager:
                 daemon=True,
             )
             self._thread.start()
-        if not self._started_event.wait(timeout=5.0):
+        if not self._started_event.wait(timeout=timeout):
             self._started = False
             raise RuntimeError("ExposerManager start timed out")
         if self._start_error is not None:
@@ -130,16 +161,26 @@ class ExposerManager:
         assert self._loop is not None
         try:
             self._coalescer = NodeChangeCoalescer(self._loop)
-            app = web.Application()
+            app = web.Application(middlewares=self._middlewares)
             for exposer in self._exposers:
                 exposer.register(app, self)
             self._runner = web.AppRunner(app)
             await self._runner.setup()
             site = web.TCPSite(self._runner, self._host, self._port)
             await site.start()
-            self._pump_task = asyncio.create_task(self._coalescer._run_pump())
+            # Reflect the OS-assigned port back when an ephemeral port (0)
+            # was requested, so callers can discover where we bound.
+            if self._port == 0 and self._runner.addresses:
+                self._port = self._runner.addresses[0][1]
+            self._pump_task = asyncio.create_task(self._coalescer.run_pump())
         except BaseException as e:
             self._start_error = e
+            # Tear down a partially set-up runner so a failed start (e.g.
+            # port in use) does not leak it (F8).
+            if self._runner is not None:
+                with contextlib.suppress(Exception):
+                    await self._runner.cleanup()
+                self._runner = None
             self._started_event.set()
             return
         self._started_event.set()
@@ -182,5 +223,7 @@ class ExposerManager:
             asyncio.run_coroutine_threadsafe(_shutdown(), self._loop).result(
                 timeout=timeout
             )
-        self._executor.shutdown(wait=True)
+        # cancel_futures drops queued-but-unstarted jobs so a backlog cannot
+        # block shutdown; we still wait for the in-flight job to finish.
+        self._executor.shutdown(wait=True, cancel_futures=True)
         self._started = False

@@ -1,5 +1,6 @@
 """WebSocket exposer - stateful node subscriptions over JSON frames."""
 
+import asyncio
 from collections.abc import Callable
 import logging
 from typing import TYPE_CHECKING, Any
@@ -23,9 +24,20 @@ _logger = logging.getLogger(__name__)
 class WebSocketExposer(AbstractExposer):
     """Streams node changes to WebSocket clients via on-demand subscribe."""
 
-    def __init__(self) -> None:
+    _manager: "ExposerManager"
+
+    def __init__(self, send_timeout: float = 5.0) -> None:
+        """Initialize the exposer.
+
+        Args:
+            send_timeout:
+                Per-client timeout (seconds) for a single ``send_json``
+                during broadcast. A client that exceeds it is dropped so it
+                cannot stall the fan-out or the next drain.
+        """
         self._subs: dict[str, set[web.WebSocketResponse]] = {}
         self._node_subscriptions: dict[str, VariableSubscription] = {}
+        self._send_timeout = send_timeout
 
     @override
     def register(
@@ -36,15 +48,6 @@ class WebSocketExposer(AbstractExposer):
         self._manager = manager
         app.router.add_get("/ws", self._handle_ws)
         manager.coalescer.add_consumer(self._on_changes)
-
-    def _resolve(self, path: str) -> Any:
-        """Resolve a relative node path against the data model root."""
-        data_model = self._manager.data_model
-        path = path.lstrip("/")
-        root_name = data_model.root.name
-        if path == root_name or path.startswith(f"{root_name}/"):
-            return data_model.get_node(path)
-        return data_model.get_node(f"{root_name}/{path}")
 
     async def _handle_ws(self, request: web.Request) -> web.WebSocketResponse:
         ws = web.WebSocketResponse()
@@ -97,7 +100,7 @@ class WebSocketExposer(AbstractExposer):
         ws: web.WebSocketResponse,
         node_id: str,
     ) -> None:
-        node = self._resolve(node_id)
+        node = self._manager.resolve(node_id)
         if not isinstance(node, VariableNode):
             await ws.send_json(
                 {"op": "error", "message": f"unknown node: {node_id}"}
@@ -128,15 +131,52 @@ class WebSocketExposer(AbstractExposer):
         return _cb
 
     async def _on_changes(self, snapshot: dict[str, Any]) -> None:
-        """Pump callback: broadcast each (node, value) to WS subscribers."""
+        """Pump callback: broadcast each (node, value) to WS subscribers.
+
+        Clients are served concurrently (one slow client cannot block the
+        others or stall the next drain), but each client's own frames are
+        sent sequentially to avoid interleaving on a single socket.
+        """
+        # Group the snapshot per client so each client gets a single
+        # sequential send coroutine.
+        per_ws: dict[web.WebSocketResponse, list[tuple[str, Any]]] = {}
         for node_id, value in snapshot.items():
-            for ws in list(self._subs.get(node_id, ())):
-                try:
-                    await ws.send_json(
+            for ws in self._subs.get(node_id, ()):
+                per_ws.setdefault(ws, []).append((node_id, value))
+        if per_ws:
+            await asyncio.gather(
+                *(
+                    self._send_changes(ws, items)
+                    for ws, items in per_ws.items()
+                ),
+                return_exceptions=True,
+            )
+
+    async def _send_changes(
+        self,
+        ws: web.WebSocketResponse,
+        items: list[tuple[str, Any]],
+    ) -> None:
+        """Send one client's coalesced changes, dropping it on failure.
+
+        A send that errors or exceeds ``send_timeout`` removes the client so
+        a slow/stuck peer cannot hold up the broadcast.
+        """
+        try:
+            for node_id, value in items:
+                await asyncio.wait_for(
+                    ws.send_json(
                         {"op": "change", "node": node_id, "value": value}
-                    )
-                except (ConnectionResetError, RuntimeError):
-                    self._cleanup_ws(ws)
+                    ),
+                    timeout=self._send_timeout,
+                )
+        except Exception:
+            # Any send failure (disconnect, timeout, protocol error, ...)
+            # drops just this client; siblings are unaffected (F9).
+            _logger.debug(
+                "Dropping WS client after send failure", exc_info=True
+            )
+            self._cleanup_ws(ws)
 
     def _cleanup_ws(self, ws: web.WebSocketResponse) -> None:
         for node_id in list(self._subs.keys()):
@@ -149,6 +189,6 @@ class WebSocketExposer(AbstractExposer):
         subscription = self._node_subscriptions.pop(node_id, None)
         if subscription is None:
             return
-        node = self._resolve(node_id)
+        node = self._manager.resolve(node_id)
         if isinstance(node, VariableNode):
             node.unsubscribe(subscription)

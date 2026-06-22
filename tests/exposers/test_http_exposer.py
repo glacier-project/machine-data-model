@@ -3,8 +3,11 @@
 from collections.abc import Callable, Iterator
 import socket
 from typing import Any
+import warnings
 
 import aiohttp
+from aiohttp import web
+from aiohttp.typedefs import Handler
 import pytest
 from typing_extensions import override
 
@@ -280,6 +283,70 @@ async def test_post_method_returns_method_result() -> None:
 
 
 @pytest.mark.exposer
+async def test_handlers_do_not_use_deprecated_app_loop(
+    running_manager: ExposerManager,
+) -> None:
+    """Handlers must not touch the deprecated ``request.app.loop`` (F4).
+
+    aiohttp 3.14 warns on ``app.loop`` ("loop property is deprecated") and
+    removes it in v4; handlers should use ``asyncio.get_running_loop()``.
+    The handler runs on the loop thread, but ``warnings`` state is global so
+    a warning it emits is recorded here.
+    """
+    base = _base_url(running_manager)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{base}/nodes/Sensors/Temperature") as r:
+                assert r.status == 200
+            async with session.post(
+                f"{base}/nodes/Sensors/Temperature", json={"value": 1.0}
+            ) as r:
+                assert r.status == 200
+    offenders = [
+        str(w.message)
+        for w in caught
+        if "loop property is deprecated" in str(w.message)
+    ]
+    assert not offenders, f"handler used deprecated app.loop: {offenders}"
+
+
+@pytest.mark.exposer
+async def test_middlewares_guard_every_route() -> None:
+    """Middlewares passed to the manager wrap all routes, enabling auth (F3)."""
+
+    @web.middleware
+    async def require_token(
+        request: web.Request,
+        handler: Handler,
+    ) -> web.StreamResponse:
+        if request.headers.get("X-Token") != "secret":
+            return web.json_response({"error": "unauthorized"}, status=401)
+        return await handler(request)
+
+    manager = ExposerManager(
+        _make_data_model(),
+        host="127.0.0.1",
+        port=_find_free_port(),
+        middlewares=[require_token],
+    )
+    manager.add_exposer(HttpExposer())
+    manager.start()
+    try:
+        base = f"http://{manager.host}:{manager.port}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{base}/nodes/Sensors/Temperature") as resp:
+                assert resp.status == 401
+            async with session.get(
+                f"{base}/nodes/Sensors/Temperature",
+                headers={"X-Token": "secret"},
+            ) as resp:
+                assert resp.status == 200
+    finally:
+        manager.stop()
+
+
+@pytest.mark.exposer
 async def test_post_method_unknown_returns_404() -> None:
     """POST /methods/{path} for a non-existent method returns 404."""
     data_model = DataModel(name="test")
@@ -343,3 +410,55 @@ async def test_post_method_failure_returns_500() -> None:
             assert resp.status == 500
     finally:
         manager.stop()
+
+
+@pytest.mark.exposer
+async def test_method_failure_does_not_leak_exception_detail(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Failing method -> generic 500; detail logged, not leaked (F7)."""
+    secret = "super-secret-internal-detail-xyz"
+
+    def _boom() -> str:
+        raise RuntimeError(secret)
+
+    out = StringVariableNode(name="result", value="")
+    method = MethodNode(
+        name="Boom",
+        parameters=[],
+        returns=[out],
+        callback=_boom,
+    )
+    folder = FolderNode(name="Calc")
+    folder.add_child(method)
+    root = FolderNode(name="root")
+    root.add_child(folder)
+    data_model = DataModel(name="test", root=root)
+
+    manager = ExposerManager(
+        data_model,
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.add_exposer(HttpExposer())
+    manager.start()
+    try:
+        base = f"http://{manager.host}:{manager.port}"
+        with caplog.at_level(
+            "ERROR", logger="machine_data_model.exposers.http_exposer"
+        ):
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    f"{base}/methods/Calc/Boom",
+                    json={"args": {}},
+                ) as resp,
+            ):
+                assert resp.status == 500
+                body = await resp.json()
+    finally:
+        manager.stop()
+
+    # The raw exception text must not reach the client, but must be logged.
+    assert secret not in body["error"]
+    assert secret in caplog.text

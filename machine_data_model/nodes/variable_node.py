@@ -341,7 +341,11 @@ class VariableNode(DataModelNode):
         """
         # Get the current value of the node.
         value = self._read_internal_value()
-        for subscription in self._subscriptions:
+        # Iterate a snapshot: subscribe/unsubscribe may mutate the list from
+        # another thread (or re-entrantly from a callback) during dispatch.
+        # Without the copy, a removal shifts indices and silently skips a
+        # subscriber; see test_notify_dispatches_over_a_consistent_snapshot.
+        for subscription in list(self._subscriptions):
             if not subscription.should_notify(value):
                 continue
             # Trace the notification operation.

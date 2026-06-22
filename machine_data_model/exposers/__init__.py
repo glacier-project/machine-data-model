@@ -8,6 +8,16 @@ HTTP, and stream node changes over WebSockets. Install the optional
 The public entry points are ``ExposerManager``, ``HttpExposer``, and
 ``WebSocketExposer``. ``AbstractExposer`` is exposed for users
 implementing their own protocol.
+
+.. warning::
+   **No built-in authentication, authorization, or TLS.** The exposers
+   grant read, write, and method-invoke access to the DataModel to anyone
+   who can reach the socket. The server therefore binds to ``127.0.0.1``
+   (loopback) by default. Binding to a routable interface (e.g.
+   ``0.0.0.0``) exposes the surface to the network and is an explicit
+   opt-in: pair it with ``ExposerManager(middlewares=...)`` to add
+   authentication, and terminate TLS in front of it (e.g. a reverse
+   proxy).
 """
 
 from machine_data_model.exposers.abstract_exposer import AbstractExposer

@@ -59,21 +59,23 @@ class NodeChangeCoalescer:
         """Register an async callback to receive drained snapshots."""
         self._consumers.append(consumer)
 
-    def _drain_for_test(self) -> dict[str, Any]:
-        """Atomically swap out the pending dict and return its contents."""
+    def drain(self) -> dict[str, Any]:
+        """Atomically remove and return all pending values.
+
+        Also clears the wake-up event so the pump only re-fires on the next
+        ``notify``. Used by the pump and exposed for direct draining/tests.
+        """
         with self._lock:
             snapshot = self._pending
             self._pending = {}
+            self._event.clear()
         return snapshot
 
-    async def _run_pump(self) -> None:
-        """Drain forever: wait, swap, dispatch, repeat."""
+    async def run_pump(self) -> None:
+        """Drain forever: wait, drain, dispatch, repeat."""
         while True:
             await self._event.wait()
-            with self._lock:
-                snapshot = self._pending
-                self._pending = {}
-                self._event.clear()
+            snapshot = self.drain()
             if not snapshot:
                 continue
             for consumer in list(self._consumers):
