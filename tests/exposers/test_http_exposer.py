@@ -187,6 +187,10 @@ class _FakeConnector(AbstractConnector):
     ) -> int:
         return 0
 
+    @override
+    def unsubscribe_from_node_changes(self, handle: int) -> bool:
+        return True
+
 
 @pytest.mark.exposer
 async def test_post_forwards_to_bound_connector() -> None:

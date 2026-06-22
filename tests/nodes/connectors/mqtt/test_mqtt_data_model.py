@@ -77,6 +77,7 @@ class NullRemoteConnector(AbstractConnector):
         self.subscription_resources.append(resource)
         return 1
 
+    @override
     def unsubscribe_from_node_changes(self, handle: int) -> bool:
         return True
 
