@@ -255,3 +255,50 @@ async def test_unexpected_send_error_drops_only_that_client() -> None:
     remaining: Any = exposer._subs.get("n", set())
     assert good in remaining  # healthy client retained
     assert bad not in remaining  # failing client dropped
+
+
+@pytest.mark.exposer
+async def test_stop_closes_lingering_ws_clients() -> None:
+    """stop() closes open WS clients so cleanup doesn't block on them (F12.4).
+
+    A WS handler parked in ``async for msg in ws`` keeps the connection
+    'ongoing'; without an on_shutdown that closes it, ``runner.cleanup()``
+    waits and the loop thread lingers past stop()'s timeout.
+    """
+    data_model, _ = _make_data_model()
+    manager = ExposerManager(
+        data_model,
+        host="127.0.0.1",
+        port=_find_free_port(),
+    )
+    manager.add_exposer(WebSocketExposer())
+    manager.start()
+    url = f"http://{manager.host}:{manager.port}/ws"
+    loop = asyncio.get_running_loop()
+    async with (
+        aiohttp.ClientSession() as session,
+        session.ws_connect(url) as ws,
+    ):
+        await ws.send_json({"op": "subscribe", "node": "Sensors/Temperature"})
+        await ws.receive_json(timeout=1.0)  # subscribed ack
+
+        async def _drain() -> None:
+            # Keep reading so the client answers the server's close handshake.
+            try:
+                async for _ in ws:
+                    pass
+            except Exception:
+                pass
+
+        reader = asyncio.create_task(_drain())
+        # stop() is blocking; run it off the event loop so the client can react.
+        await loop.run_in_executor(None, lambda: manager.stop(timeout=2.0))
+        # Capture while the client is STILL connected: a clean shutdown means
+        # on_shutdown closed the server side, so the loop thread exited even
+        # though this client never disconnected on its own.
+        thread_alive = (
+            manager._thread is not None and manager._thread.is_alive()
+        )
+        reader.cancel()
+
+    assert not thread_alive

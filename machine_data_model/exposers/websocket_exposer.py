@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from aiohttp import WSMsgType, web
+from aiohttp import WSCloseCode, WSMsgType, web
 from typing_extensions import override
 
 from machine_data_model.exposers.abstract_exposer import AbstractExposer
@@ -37,6 +37,7 @@ class WebSocketExposer(AbstractExposer):
         """
         self._subs: dict[str, set[web.WebSocketResponse]] = {}
         self._node_subscriptions: dict[str, VariableSubscription] = {}
+        self._connections: set[web.WebSocketResponse] = set()
         self._send_timeout = send_timeout
 
     @override
@@ -47,11 +48,24 @@ class WebSocketExposer(AbstractExposer):
     ) -> None:
         self._manager = manager
         app.router.add_get("/ws", self._handle_ws)
+        app.on_shutdown.append(self._close_all_connections)
         manager.coalescer.add_consumer(self._on_changes)
+
+    async def _close_all_connections(self, _app: web.Application) -> None:
+        """Close every open WS connection on shutdown.
+
+        Without this, ``runner.cleanup()`` blocks on handlers parked in
+        ``async for msg in ws`` until the server's shutdown timeout (F12.4).
+        """
+        for ws in list(self._connections):
+            await ws.close(
+                code=WSCloseCode.GOING_AWAY, message=b"server shutdown"
+            )
 
     async def _handle_ws(self, request: web.Request) -> web.WebSocketResponse:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
+        self._connections.add(ws)
         try:
             async for msg in ws:
                 if msg.type != WSMsgType.TEXT:
@@ -65,6 +79,7 @@ class WebSocketExposer(AbstractExposer):
                     continue
                 await self._dispatch(ws, payload)
         finally:
+            self._connections.discard(ws)
             self._cleanup_ws(ws)
         return ws
 

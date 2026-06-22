@@ -822,6 +822,7 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },
+    { name = "typing-extensions" },
     { name = "unitsnet-py" },
 ]
 
@@ -871,10 +872,11 @@ test = [
 requires-dist = [
     { name = "aiohttp", marker = "extra == 'http'", specifier = ">=3.10,<4" },
     { name = "aiomqtt", marker = "extra == 'mqtt'", specifier = ">=2.5.1,<3" },
-    { name = "asyncua", marker = "extra == 'opcua'", specifier = ">=1.1.6,<2" },
+    { name = "asyncua", marker = "extra == 'opcua'", specifier = ">=1.1.6,<1.1.7" },
     { name = "machine-data-model", extras = ["opcua", "mqtt", "http"], marker = "extra == 'all'" },
     { name = "msgpack", marker = "extra == 'mqtt'", specifier = ">=1.1.2,<2" },
     { name = "pyyaml", specifier = ">=6.0.2,<7" },
+    { name = "typing-extensions", specifier = ">=4.4,<5" },
     { name = "unitsnet-py", specifier = ">=0.1.154,<0.2" },
 ]
 provides-extras = ["opcua", "mqtt", "http", "all"]

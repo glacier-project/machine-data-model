@@ -54,9 +54,8 @@ class NotifyScenario:
         self._coalescer.add_consumer(_noop_consumer)
 
         async def _start_pump() -> None:
-            # The coalescer's pump is a private coroutine; we drive it
-            # from this scenario the same way ExposerManager does.
-            self._pump_task = asyncio.create_task(self._coalescer._run_pump())
+            # Drive the coalescer pump the same way ExposerManager does.
+            self._pump_task = asyncio.create_task(self._coalescer.run_pump())
 
         asyncio.run_coroutine_threadsafe(_start_pump(), self._loop).result(
             timeout=2.0
@@ -131,7 +130,7 @@ class DrainScenario:
         self._coalescer.add_consumer(_counting_consumer)
 
         async def _start_pump() -> None:
-            self._pump_task = asyncio.create_task(self._coalescer._run_pump())
+            self._pump_task = asyncio.create_task(self._coalescer.run_pump())
 
         asyncio.run_coroutine_threadsafe(_start_pump(), self._loop).result(
             timeout=2.0
