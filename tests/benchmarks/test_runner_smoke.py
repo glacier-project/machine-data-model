@@ -204,9 +204,14 @@ def test_runner_save_baseline_then_compare_passes(tmp_path: Path) -> None:
         "--compare",
         "--baseline-path",
         str(baseline_path),
+        # This is a plumbing smoke test of the save -> compare -> exit-0 path,
+        # not a perf gate. Two short timed runs on a shared/CI machine routinely
+        # differ by far more than the default 10%, so use a generous threshold
+        # to keep the exit code deterministic instead of timing-dependent.
+        "--threshold",
+        "100.0",
         cwd=repo,
     )
-    # Same machine, same scenario, ~10% threshold -> should not regress.
     assert compare_proc.returncode == 0, compare_proc.stderr
 
 

@@ -18,6 +18,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from benchmarks._baseline import (
+    THRESHOLD,
     Baseline,
     BaselineEntry,
     compare,
@@ -196,9 +197,7 @@ def _print_compare(report: CompareReport) -> None:
             )
     if report.missing_in_baseline:
         print()
-        print(
-            "WARNING: scenarios not in baseline (re-save before release):"
-        )
+        print("WARNING: scenarios not in baseline (re-save before release):")
         for k in report.missing_in_baseline:
             print(f"  - {k}")
     if report.missing_in_current:
@@ -261,6 +260,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Expand each scenario across its SWEEP_PARAMS.",
     )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=THRESHOLD,
+        help=(
+            "Relative regression tolerance for --compare, e.g. 0.10 for 10%% "
+            f"(default: {THRESHOLD}). Raise it to absorb run-to-run timing "
+            "noise on shared/CI machines."
+        ),
+    )
     args = parser.parse_args(argv)
 
     scenarios = _discover_scenarios()
@@ -299,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         baseline = load(args.baseline_path)
         current = {r.scenario_key: r for r in results}
-        report = compare(baseline, current)
+        report = compare(baseline, current, threshold=args.threshold)
         _print_compare(report)
         if report.failed:
             return 1
