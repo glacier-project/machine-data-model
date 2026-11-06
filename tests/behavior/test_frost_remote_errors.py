@@ -12,7 +12,10 @@ from machine_data_model.behavior.execution_error import ExecutionErrorCode
 from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
+    ReadRemoteVariableNode,
+    RemoteExecutionNode,
     WaitRemoteEventNode,
+    WriteRemoteVariableNode,
 )
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
@@ -22,6 +25,7 @@ from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.protocols.frost_v1.frost_header import (
     FrostHeader,
     MethodMsgName,
+    MsgName,
     MsgNamespace,
     MsgType,
     VariableMsgName,
@@ -320,3 +324,146 @@ def test_long_remote_text_is_truncated() -> None:
     assert error is not None
     assert len(error.message) < 400
     assert error.message.endswith("...")
+
+
+def remote_nodes() -> list[tuple[str, RemoteExecutionNode, tuple[object, ...]]]:
+    return [
+        (
+            "call",
+            CallRemoteMethodNode(
+                method_node="remote_method",
+                remote_id="remote_dm",
+                args=[],
+                kwargs={},
+            ),
+            (MsgNamespace.METHOD, MethodMsgName.INVOKE),
+        ),
+        (
+            "read",
+            ReadRemoteVariableNode(
+                variable_node="remote/var",
+                remote_id="remote_dm",
+                store_as="x",
+            ),
+            (MsgNamespace.VARIABLE, VariableMsgName.READ),
+        ),
+        (
+            "write",
+            WriteRemoteVariableNode(
+                variable_node="remote/var", remote_id="remote_dm", value=1
+            ),
+            (MsgNamespace.VARIABLE, VariableMsgName.WRITE),
+        ),
+        (
+            "wait",
+            WaitRemoteEventNode(
+                variable_node="remote/var",
+                remote_id="remote_dm",
+                rhs=1,
+                op=WaitConditionOperator.EQ,
+            ),
+            (MsgNamespace.VARIABLE, VariableMsgName.SUBSCRIBE),
+        ),
+    ]
+
+
+@pytest.mark.parametrize("index", range(4))
+class TestRequestKind:
+    """An error only answers the kind of request the node sent."""
+
+    def prepare(
+        self, index: int
+    ) -> tuple[RemoteExecutionNode, tuple[object, ...], FrostMessage, object]:
+        _, node, kind = remote_nodes()[index]
+        node.set_message_builder(FrostMessageBuilder(sender="dm"))
+        context = new_context()
+        request = node.execute(context).messages[0]
+        return node, kind, request, context
+
+    def with_header(
+        self, request: FrostMessage, namespace: MsgNamespace, name: MsgName
+    ) -> FrostMessage:
+        error = remote_error(request)
+        return replace(
+            error,
+            header=FrostHeader(
+                type=MsgType.ERROR, namespace=namespace, msg_name=name
+            ),
+        )
+
+    def test_the_matching_error_is_accepted(self, index: int) -> None:
+        node, kind, request, context = self.prepare(index)
+
+        error = node.handle_error(context, remote_error(request))  # type: ignore[arg-type]
+
+        assert error is not None
+        assert error.code is ExecutionErrorCode.REMOTE_ERROR
+
+    def test_wrong_namespace_is_ignored(self, index: int) -> None:
+        node, kind, request, context = self.prepare(index)
+        other = (
+            MsgNamespace.NODE
+            if kind[0] is not MsgNamespace.NODE
+            else MsgNamespace.METHOD
+        )
+
+        message = self.with_header(request, other, kind[1])  # type: ignore[arg-type]
+
+        assert node.handle_error(context, message) is None  # type: ignore[arg-type]
+
+    def test_wrong_msg_name_is_ignored(self, index: int) -> None:
+        node, kind, request, context = self.prepare(index)
+        wrong = (
+            VariableMsgName.UNSUBSCRIBE
+            if kind[0] is MsgNamespace.VARIABLE
+            else MethodMsgName.COMPLETED
+        )
+
+        message = self.with_header(request, kind[0], wrong)  # type: ignore[arg-type]
+
+        assert node.handle_error(context, message) is None  # type: ignore[arg-type]
+
+    def test_error_of_another_kind_of_the_same_namespace_is_ignored(
+        self, index: int
+    ) -> None:
+        node, kind, request, context = self.prepare(index)
+        names: list[MsgName] = (
+            [
+                VariableMsgName.READ,
+                VariableMsgName.WRITE,
+                VariableMsgName.SUBSCRIBE,
+            ]
+            if kind[0] is MsgNamespace.VARIABLE
+            else [MethodMsgName.STARTED, MethodMsgName.COMPLETED]
+        )
+
+        for name in names:
+            if name is kind[1]:
+                continue
+            message = self.with_header(request, kind[0], name)  # type: ignore[arg-type]
+            assert node.handle_error(context, message) is None  # type: ignore[arg-type]
+
+
+def test_a_node_without_a_declared_kind_never_accepts_an_error() -> None:
+    class Undeclared(CallRemoteMethodNode):
+        request_kind = None  # type: ignore[assignment]
+
+    node = Undeclared(
+        method_node="remote_method", remote_id="remote_dm", args=[], kwargs={}
+    )
+    node.set_message_builder(FrostMessageBuilder(sender="dm"))
+    context = new_context()
+    request = node.execute(context).messages[0]
+
+    assert node.handle_error(context, remote_error(request)) is None
+
+
+def test_every_remote_node_declares_its_request_kind() -> None:
+    kinds = {name: node.request_kind for name, node, _ in remote_nodes()}
+
+    assert kinds == {
+        "call": (MsgNamespace.METHOD, MethodMsgName.INVOKE),
+        "read": (MsgNamespace.VARIABLE, VariableMsgName.READ),
+        "write": (MsgNamespace.VARIABLE, VariableMsgName.WRITE),
+        "wait": (MsgNamespace.VARIABLE, VariableMsgName.SUBSCRIBE),
+    }

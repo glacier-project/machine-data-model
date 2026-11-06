@@ -5,7 +5,7 @@ by sending messages and waiting for responses.
 """
 
 from abc import abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 from typing_extensions import override
 
@@ -30,6 +30,7 @@ from machine_data_model.behavior.local_execution_node import (
 )
 from machine_data_model.protocols.frost_v1.frost_header import (
     MethodMsgName,
+    MsgName,
     MsgNamespace,
     MsgType,
     VariableMsgName,
@@ -68,6 +69,11 @@ class RemoteExecutionNode(ControlFlowNode):
     sender_id: str
     remote_id: str
     _message_builder: FrostMessageBuilder
+
+    # The namespace and message name of the request this node sends. An error
+    # message is only accepted as the answer to that kind of request. A node
+    # that does not declare it never accepts an error (fails closed).
+    request_kind: ClassVar[tuple[MsgNamespace, MsgName] | None] = None
 
     def __init__(
         self,
@@ -231,8 +237,13 @@ class RemoteExecutionNode(ControlFlowNode):
                 error, or None if the message does not answer the request.
 
         """
+        kind = self.request_kind
         if (
-            context.active_request is None
+            kind is None
+            or not error_message.header.matches(
+                _type=MsgType.ERROR, _namespace=kind[0], _msg_name=kind[1]
+            )
+            or context.active_request is None
             or error_message.header.type is not MsgType.ERROR
             or error_message.correlation_id != context.active_request
             or error_message.sender
@@ -339,6 +350,8 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             The keyword arguments to pass to the remote method.
 
     """
+
+    request_kind = (MsgNamespace.METHOD, MethodMsgName.INVOKE)
 
     args: list[Any]
     kwargs: dict[str, Any]
@@ -468,6 +481,8 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
     """
 
+    request_kind = (MsgNamespace.VARIABLE, VariableMsgName.READ)
+
     store_as: str
 
     def __init__(
@@ -588,6 +603,8 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
 
     """
 
+    request_kind = (MsgNamespace.VARIABLE, VariableMsgName.WRITE)
+
     value: Any
 
     def __init__(
@@ -699,6 +716,8 @@ class WaitRemoteEventNode(RemoteExecutionNode):
             The comparison operator.
 
     """
+
+    request_kind = (MsgNamespace.VARIABLE, VariableMsgName.SUBSCRIBE)
 
     rhs: Any
     op: WaitConditionOperator
