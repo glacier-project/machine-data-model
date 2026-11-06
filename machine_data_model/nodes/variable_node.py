@@ -96,12 +96,19 @@ class VariableNode(DataModelNode):
         """
         super().__init_subclass__(**kwargs)
         for hook, advice in _REMOVED_HOOKS.items():
-            if hook in cls.__dict__:
+            # The hook can come from the class itself or from a mixin. Warn
+            # once: at the first variable class that has it, not again in its
+            # subclasses (which already warned).
+            already_warned = any(
+                issubclass(base, VariableNode) and hasattr(base, hook)
+                for base in cls.__bases__
+            )
+            if hasattr(cls, hook) and not already_warned:
                 # Level 3: ABCMeta.__new__ sits between the class statement of
                 # the subclass and this hook.
                 warnings.warn(
-                    f"{cls.__qualname__} defines {hook}(), which was removed "
-                    f"and is never called; {advice}",
+                    f"{cls.__qualname__} defines or inherits {hook}(), which "
+                    f"was removed and is never called; {advice}",
                     DeprecationWarning,
                     stacklevel=3,
                 )

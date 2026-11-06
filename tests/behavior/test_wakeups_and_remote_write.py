@@ -781,3 +781,76 @@ class TestOffsetUnitRestore:
 
         assert converted != 20.1
         assert variable._remote_value(variable._snapshot()) == 20.1
+
+
+class TestRemovedHookGuardMixins:
+    class LegacyMixin:
+        def _update_remote_value(self, value: Any) -> Any:
+            return value
+
+    def test_hook_from_a_mixin_warns_at_the_combining_class(self) -> None:
+        mixin = self.LegacyMixin
+
+        with pytest.warns(
+            DeprecationWarning, match="_update_remote_value"
+        ) as rec:
+
+            class Combined(mixin, NumericalVariableNode):  # type: ignore[valid-type,misc]
+                pass
+
+        assert len(rec) == 1
+        assert "Combined" in str(rec[0].message)
+        assert "inherits" in str(rec[0].message)
+
+    def test_mixin_after_the_variable_class_also_warns(self) -> None:
+        mixin = self.LegacyMixin
+
+        with pytest.warns(DeprecationWarning, match="_update_remote_value"):
+
+            class Combined(NumericalVariableNode, mixin):  # type: ignore[valid-type,misc]
+                pass
+
+    def test_subclasses_of_a_warned_class_do_not_warn_again(self) -> None:
+        mixin = self.LegacyMixin
+        with pytest.warns(DeprecationWarning):
+
+            class Combined(mixin, NumericalVariableNode):  # type: ignore[valid-type,misc]
+                pass
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            class Child(Combined):
+                pass
+
+            class GrandChild(Child):
+                pass
+
+    def test_overriding_again_in_a_subclass_does_not_warn_twice(self) -> None:
+        mixin = self.LegacyMixin
+        with pytest.warns(DeprecationWarning):
+
+            class Combined(mixin, NumericalVariableNode):  # type: ignore[valid-type,misc]
+                pass
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            class Child(Combined):
+                def _update_remote_value(self, value: Any) -> Any:
+                    return value
+
+    def test_each_removed_hook_warns_once(self) -> None:
+        with pytest.warns(DeprecationWarning) as rec:
+
+            class Both(NumericalVariableNode):
+                def _update_value(self, value: Any) -> Any:
+                    return value
+
+                def _read_remote_value(self) -> Any:
+                    return 0
+
+        messages = [str(r.message) for r in rec]
+        assert len(messages) == 2
+        assert any("_update_value" in m for m in messages)
+        assert any("_read_remote_value" in m for m in messages)
