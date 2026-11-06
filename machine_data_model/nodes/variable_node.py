@@ -10,6 +10,7 @@ from collections.abc import Callable, Generator
 from enum import Enum
 import logging
 from typing import Any
+import warnings
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -41,6 +42,15 @@ from .subscription.variable_subscription import (
 )
 
 _logger = logging.getLogger(__name__)
+
+# Hooks that earlier versions called and that no longer exist: a subclass that
+# still overrides one of them is silently ignored, so warn about it.
+_REMOVED_HOOKS = {
+    "_update_remote_value": "implement _write_remote(value) -> bool",
+    "_update_value": "implement _write_remote(value) -> bool",
+    "_read_remote_value": "the raw remote value comes from "
+    "_fetch_remote_value()",
+}
 
 
 class VariableNode(DataModelNode):
@@ -75,6 +85,26 @@ class VariableNode(DataModelNode):
     _subscription_callback: Callable[
         [VariableSubscription, "VariableNode", Any], None
     ]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Warn about overrides of hooks that were removed.
+
+        Args:
+            **kwargs (Any):
+                Class keyword arguments, passed on.
+
+        """
+        super().__init_subclass__(**kwargs)
+        for hook, advice in _REMOVED_HOOKS.items():
+            if hook in cls.__dict__:
+                # Level 3: ABCMeta.__new__ sits between the class statement of
+                # the subclass and this hook.
+                warnings.warn(
+                    f"{cls.__qualname__} defines {hook}(), which was removed "
+                    f"and is never called; {advice}",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
 
     def __init__(
         self,

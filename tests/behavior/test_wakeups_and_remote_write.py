@@ -4,6 +4,7 @@ import logging
 from typing import Any
 from unittest.mock import MagicMock
 import uuid
+import warnings
 
 import pytest
 from unitsnet_py import LengthUnits, TemperatureUnits
@@ -677,3 +678,59 @@ class TestObjectWriteRollback:
 
         assert log == [("a", 5), ("b", 6), ("c", 7)]
         assert obj.read(force_remote_read=False) == {"a": 5, "b": 6, "c": 7}
+
+
+class TestRemovedHookGuard:
+    @pytest.mark.parametrize(
+        "hook, advice",
+        [
+            ("_update_remote_value", "_write_remote(value) -> bool"),
+            ("_update_value", "_write_remote(value) -> bool"),
+            ("_read_remote_value", "_fetch_remote_value()"),
+        ],
+    )
+    def test_overriding_a_removed_hook_warns(
+        self, hook: str, advice: str
+    ) -> None:
+        with pytest.warns(DeprecationWarning, match=hook) as record:
+            type(
+                "LegacyVariable",
+                (NumericalVariableNode,),
+                {hook: lambda self, *args, **kwargs: None},
+            )
+
+        assert advice in str(record[0].message)
+        assert "LegacyVariable" in str(record[0].message)
+
+    def test_warning_points_at_the_subclass_definition(self) -> None:
+        with pytest.warns(DeprecationWarning) as record:
+
+            class Legacy(NumericalVariableNode):
+                def _update_remote_value(self, value: Any) -> Any:
+                    return value
+
+        assert record[0].filename == __file__
+
+    def test_only_the_defining_class_warns(self) -> None:
+        with pytest.warns(DeprecationWarning):
+
+            class Legacy(NumericalVariableNode):
+                def _update_value(self, value: Any) -> Any:
+                    return value
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            class Child(Legacy):
+                pass
+
+    def test_regular_subclasses_do_not_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            class Regular(NumericalVariableNode):
+                def _write_remote(self, value: Any) -> bool:
+                    return True
+
+                def _snapshot(self) -> Any:
+                    return super()._snapshot()
