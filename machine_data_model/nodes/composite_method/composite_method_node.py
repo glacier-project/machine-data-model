@@ -6,6 +6,7 @@ flow elements within the machine data model framework.
 """
 
 from collections.abc import Callable
+import logging
 from typing import Any
 import uuid
 
@@ -34,6 +35,8 @@ from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_message_builder import (
     FrostMessageBuilder,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class ContextNotFoundError(ValueError):
@@ -183,11 +186,64 @@ class CompositeMethodNode(MethodNode):
                     )
                 )
                 return {}
-        ret_t = tuple(context.get_value(node.name) for node in self.returns)
-        ret = self._build_return_dict(ret_t)
+        try:
+            ret_t = tuple(context.get_value(node.name) for node in self.returns)
+            ret = self._build_return_dict(ret_t)
+        except Exception as exc:
+            return self._reject_completion_unexpected(
+                context, "the return values could not be built", exc
+            )
         self._completed_results[context.id()] = ret
-        self._post_call(ret)
+        try:
+            self._post_call(ret)
+        except Exception as exc:
+            self._completed_results.pop(context.id(), None)
+            return self._reject_completion_unexpected(
+                context, "post-call callback raised", exc
+            )
         return ret
+
+    def _reject_completion_unexpected(
+        self, context: ExecutionContext, what: str, exc: Exception
+    ) -> dict[str, Any]:
+        """Fail a just-completed context because the completion step raised.
+
+        The failure goes through the normal path (notify the parent, answer the
+        request, release the context) instead of escaping into whoever
+        triggered the resume. In strict mode the context is failed the same way
+        and the exception is then re-raised.
+
+        Args:
+            context (ExecutionContext):
+                The completed context.
+            what (str):
+                What failed, for the error message.
+            exc (Exception):
+                The exception that was raised.
+
+        Returns:
+            dict[str, Any]:
+                An empty dictionary (a failed method has no return values).
+
+        """
+        _logger.error(
+            "%s in method '%s' (context %s)",
+            what,
+            self.qualified_name,
+            context.id(),
+            exc_info=True,
+        )
+        context.reject_completion(
+            ExecutionError(
+                ExecutionErrorCode.UNEXPECTED_ERROR,
+                f"{what}: {type(exc).__name__}: {exc}",
+                node=self.qualified_name,
+            )
+        )
+        if self.cfg.strict:
+            # Still failed and released like any failure, then re-raised.
+            raise exc
+        return {}
 
     def get_completed_return_values(
         self, context_id: str
@@ -504,8 +560,8 @@ class CompositeMethodNode(MethodNode):
         """
         context = self._create_context(**kwargs)
         remote_messages = self.cfg.execute(context)
-        return_values = self._terminate_execution(context)
         try:
+            return_values = self._terminate_execution(context)
             if not context.is_active():
                 remote_messages.extend(self._notify_nested_parent(context))
         finally:

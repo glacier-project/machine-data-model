@@ -784,7 +784,15 @@ class FrostProtocolMng(ProtocolMng):
             return None
 
         root_id = self._root_context_id(context_id)
-        ret = owner.resume_execution(context_id)
+        try:
+            ret = owner.resume_execution(context_id)
+        except Exception:
+            # Whatever went wrong, the request must still be answered and
+            # released if its context ended; then the error goes on.
+            response = self._finish_if_terminated(root_id)
+            if response is not None:
+                self._update_messages.append(response)
+            raise
 
         if ret.messages:
             self._update_messages.extend(ret.messages)
