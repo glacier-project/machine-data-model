@@ -195,7 +195,9 @@ class TestEvaluate:
         assert info.value.variable == "mode"
         assert "not a variable" in info.value.message
 
-    def test_no_data_for_remote_variable_without_connector(self) -> None:
+    def test_remote_variable_without_connector_raises_condition_error(
+        self,
+    ) -> None:
         var = NumericalVariableNode(
             name="mode", value=2, connector_name="missing"
         )
@@ -203,9 +205,11 @@ class TestEvaluate:
         assert not var.has_connector()
         cond = Condition("mode", WaitConditionOperator.EQ, 2)
 
-        outcome = cond.evaluate(resolver_for(var), None)
+        with pytest.raises(ConditionError) as info:
+            cond.evaluate(resolver_for(var), None)
 
-        assert outcome.result is ConditionResult.NO_DATA
+        assert info.value.variable == "mode"
+        assert "no connector" in info.value.message
 
     def test_remote_variable_without_value_reads_internal_default(
         self,
@@ -489,15 +493,18 @@ class TestResolveAndEvaluateOn:
 
         assert outcome.variable == var.qualified_name
 
-    def test_evaluate_on_no_connector_is_no_data(self) -> None:
+    def test_evaluate_on_no_connector_raises_condition_error(self) -> None:
         var = NumericalVariableNode(name="r", value=1, connector_name="missing")
 
-        outcome = Condition("r", WaitConditionOperator.EQ, 1).evaluate_on(
-            var, 1, path="r"
-        )
+        with pytest.raises(ConditionError) as info:
+            Condition("r", WaitConditionOperator.EQ, 1).evaluate_on(
+                var, 1, path="r"
+            )
 
-        assert outcome.result is ConditionResult.NO_DATA
-        assert outcome.message == "r == 1: no connector"
+        assert info.value.variable == "r"
+        assert (
+            info.value.message == "variable 'r' is remote but has no connector"
+        )
 
 
 class TestDataclasses:

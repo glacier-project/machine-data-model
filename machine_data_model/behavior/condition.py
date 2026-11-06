@@ -366,10 +366,14 @@ class Condition:
 
         Returns:
             ConditionOutcome:
-                `NO_DATA` if the variable has no value, has no connector, cannot
+                `NO_DATA` if the variable has no value, cannot
                 be read (`OSError`, including `ConnectionError` and
                 `TimeoutError`) or cannot be compared with the right-hand
                 side. Otherwise `OK` or `FAILED`.
+
+        Raises:
+            ConditionError:
+                If the variable is remote and has no connector.
 
         """
         if path is None:
@@ -377,10 +381,10 @@ class Condition:
         text = f"{path} {self.operator.value} {rhs}"
 
         if variable.is_remote() and not variable.has_connector():
-            return ConditionOutcome(
-                ConditionResult.NO_DATA,
-                f"{text}: no connector",
-                path,
+            # A configuration problem, not a transient lack of data: there is
+            # nothing to wait for.
+            raise ConditionError(
+                path, f"variable '{path}' is remote but has no connector"
             )
 
         try:
