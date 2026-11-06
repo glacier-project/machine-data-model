@@ -697,8 +697,11 @@ a received variable still restores.
 4.G **Exceptions raised by `variable.read()` (DECIDED by the user: `OSError` ->
 `NO_DATA`, every other exception propagates, connector exception audit
 included).** `Condition.evaluate`
-catches `OSError` (covers `ConnectionError` and `TimeoutError`) around the read
-and returns `NO_DATA` with message "(read failed: <type>)". Everything else
+catches `ConnectionError` and `TimeoutError` around the read (narrowed from
+`OSError` in revision 7, group A review finding 6: `FileNotFoundError`,
+`PermissionError` and `EMFILE` are also `OSError` but are configuration or
+system faults, and with a phase 5 wait they would wait forever) and returns
+`NO_DATA` with message "<text>: read failed (<type>)". Everything else
 (`RuntimeError`, `AssertionError`, programming errors) propagates. With the
 cached reads of P3 this is rare; it matters for `force_remote_read=True`
 (phase 5, `WaitConditionNode`). Open sub-task: connector libraries raise their
@@ -784,7 +787,10 @@ Files / changes:
    has `requires` (4.4 step 2). Not applied to
    `CallRemoteMethodNode` (P4). The pass already exists from phase 4 (static
    `requires` paths, 4.C); this phase adds the `on_unmet` rule to it. In wait
-   mode `Condition.resolve` is called once per attempt and its result feeds both
+   mode (G3, group A review finding 4) `Condition.resolve()` itself raises the
+   same `ConditionError` as `evaluate_on` for a remote variable without a
+   connector, so `variables()` and the evaluation agree and a wait never
+   subscribes to a variable that evaluation later rejects. `Condition.resolve` is called once per attempt and its result feeds both
    the subscription (`variables`) and the evaluation (`evaluate_on`); a
    `ConditionError` from it fails the node with `INVALID_CONFIGURATION` instead
    of subscribing to nothing.
