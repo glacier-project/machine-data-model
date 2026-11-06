@@ -359,6 +359,11 @@ class DataModel:
     ) -> tuple[CompositeMethodNode, ExecutionContext] | None:
         """Find a live execution context by id, at any nesting level.
 
+        Known limits: only contexts created while the composite was attached
+        to this model are indexed, and a composite removed with `remove_child`
+        keeps its live contexts in the index until they are deleted (the model
+        does not unregister nodes).
+
         Args:
             context_id (str):
                 The id of the context.

@@ -731,31 +731,26 @@ class TestNestedParentNotification:
         assert_no_contexts(method)
 
 
-class TestFrostNestedLimit:
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "pre-existing limit: under Frost a nested child composite that "
-            "waits is never resumed, its subscriber id (child context id) is "
-            "not in FrostProtocolMng._running_methods"
-        ),
-    )
+class TestFrostNested:
     def test_nested_waiting_child_is_resumed_by_frost(self) -> None:
         trigger = NumericalVariableNode(id="t", name="t", value=0)
         parent, child = build_nested([wait_for_nonzero(trigger)])
-        manager, _ = frost_setup(child, parent, variables=(trigger,))
+        manager, data_model = frost_setup(child, parent, variables=(trigger,))
         started = manager.handle_request(frost_request("dm", "parent"))
         assert isinstance(started, FrostMessage)
         manager.clear_update_messages()
 
         trigger.write(1)
 
-        # The parent invocation must complete: a method response is sent and
-        # the invocation is no longer running. Today only a plain variable
-        # update for the child context id is produced.
         updates = manager.get_update_messages()
-        assert any(isinstance(u.payload, MethodPayload) for u in updates)
+        assert len(updates) == 1
+        assert updates[0].header.type is MsgType.RESPONSE
+        assert isinstance(updates[0].payload, MethodPayload)
+        assert updates[0].correlation_id == started.correlation_id
         assert manager._running_methods == {}
+        assert data_model._contexts == {}
+        assert trigger.get_subscriptions() == []
+        assert_no_contexts(parent, child)
 
 
 class RaisingNode(LocalExecutionNode):

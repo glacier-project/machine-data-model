@@ -690,8 +690,61 @@ class FrostProtocolMng(ProtocolMng):
 
         return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
 
+    def _is_known_context(self, context_id: str) -> bool:
+        """Whether the id is a running request or a live context of the model.
+
+        Args:
+            context_id (str):
+                The id to look up.
+
+        Returns:
+            bool:
+                True if a running request or an indexed context has this id.
+
+        """
+        return (
+            context_id in self._running_methods
+            or self._data_model.find_context(context_id) is not None
+        )
+
+    def _root_context_id(self, context_id: str) -> str:
+        """Follow the nested-parent links up to the context of the request.
+
+        This must run BEFORE the context is resumed: the resume cascade deletes
+        the child contexts, which breaks the links.
+
+        Args:
+            context_id (str):
+                The id of a (possibly nested) context.
+
+        Returns:
+            str:
+                The id of the outermost context, which is the one started by
+                the request. It is the given id if the context is not nested.
+
+        """
+        seen = {context_id}
+        current = context_id
+        while True:
+            found = self._data_model.find_context(current)
+            if found is None:
+                return current
+            _, context = found
+            if not context.has_value("__nested_parent_context_id__"):
+                return current
+            parent_id = context.get_value("__nested_parent_context_id__")
+            if not isinstance(parent_id, str) or parent_id in seen:
+                return current
+            seen.add(parent_id)
+            current = parent_id
+
     def _resume_composite_method(self, context_id: str) -> FrostMessage | None:
-        """Try to resume a composite method with the specified context ID.
+        """Resume the composite context with the specified id.
+
+        The context can be the one of a running request or a nested one (a
+        composite called by another composite). The outermost context is
+        found first, then the context is resumed, then the request that owns
+        the outermost context is answered if it ended.
 
         Args:
             context_id (str):
@@ -699,32 +752,65 @@ class FrostProtocolMng(ProtocolMng):
 
         Returns:
             FrostMessage | None:
-                A response message if the method is completed, otherwise None.
+                A response message if the request ended, otherwise None.
 
         """
-        cm, msg = self._running_methods[context_id]
-        ret = cm.resume_execution(context_id)
+        found = self._data_model.find_context(context_id)
+        if found is not None:
+            owner = found[0]
+        elif context_id in self._running_methods:
+            owner = self._running_methods[context_id][0]
+        else:
+            _logger.debug("Ignoring unknown context '%s'", context_id)
+            return None
+
+        root_id = self._root_context_id(context_id)
+        ret = owner.resume_execution(context_id)
 
         if ret.messages:
             self._update_messages.extend(ret.messages)
 
-        if not cm.is_terminated(context_id):
+        return self._finish_if_terminated(root_id)
+
+    def _finish_if_terminated(self, root_id: str) -> FrostMessage | None:
+        """Answer and release a request whose outermost context ended.
+
+        Idempotent: it does nothing unless `root_id` is still a running
+        request, so a second call (a duplicate trigger) is a no-op.
+
+        Args:
+            root_id (str):
+                The id of the context of the request.
+
+        Returns:
+            FrostMessage | None:
+                The response (completed or error) if the request ended and was
+                released now, otherwise None.
+
+        """
+        entry = self._running_methods.get(root_id)
+        if entry is None:
+            return None
+        cm, msg = entry
+        if root_id not in cm._contexts:
+            # Released elsewhere: nothing left to answer from.
+            del self._running_methods[root_id]
+            return None
+        if not cm.is_terminated(root_id):
             return None
 
-        failure = (
-            cm.get_error(context_id) if cm.has_failed(context_id) else None
-        )
-        cm.delete_context(context_id)
-        del self._running_methods[context_id]
+        failure = cm.get_error(root_id) if cm.has_failed(root_id) else None
+        return_values = cm.get_completed_return_values(root_id) or {}
+        cm.delete_context(root_id)
+        del self._running_methods[root_id]
         if failure is not None:
             return self._create_execution_error_message(msg, failure)
-        # append response message
         assert isinstance(msg.payload, MethodPayload)
         return self._trace_and_return_response(
             self._message_builder.build_method_completed_message(
                 target=msg.sender,
                 node=msg.payload.node,
-                ret=ret.return_values,
+                ret=return_values,
                 args=msg.payload.args,
                 kwargs=msg.payload.kwargs,
                 correlation_id=msg.correlation_id,
@@ -752,11 +838,16 @@ class FrostProtocolMng(ProtocolMng):
         # subscriptions where subscriber_id == context.id()). This allows
         # subscriptions to keep randomly-generated correlation_ids while
         # still resuming the correct execution context.
+        # A nested composite (called by another composite) is not in
+        # `_running_methods`: its context is found through the data model.
         ctx_id = None
-        if subscription.correlation_id in self._running_methods:
-            ctx_id = subscription.correlation_id
-        elif subscription.subscriber_id in self._running_methods:
-            ctx_id = subscription.subscriber_id
+        for candidate in (
+            subscription.correlation_id,
+            subscription.subscriber_id,
+        ):
+            if self._is_known_context(candidate):
+                ctx_id = candidate
+                break
 
         if ctx_id is not None:
             return self.resume_composite_method(ctx_id, node, value)
