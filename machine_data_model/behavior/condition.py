@@ -169,6 +169,25 @@ class ConditionOutcome:
 
 
 @dataclass(frozen=True)
+class ResolvedCondition:
+    """A condition whose templates and variable path were resolved.
+
+    Attributes:
+        path (str):
+            The resolved path of the variable.
+        variable (VariableNode):
+            The variable node the path resolves to.
+        rhs (Any):
+            The resolved right-hand side.
+
+    """
+
+    path: str
+    variable: "VariableNode"
+    rhs: Any
+
+
+@dataclass(frozen=True)
 class Condition:
     """A comparison between a variable and a value.
 
@@ -246,13 +265,44 @@ class Condition:
             raise ConditionError(path, f"node '{path}' is not a variable")
         return path, node
 
+    def resolve(
+        self,
+        resolve_node: "Callable[[str], DataModelNode | None]",
+        scope: ExecutionContext | None,
+    ) -> ResolvedCondition:
+        """Resolve the variable and the right-hand side.
+
+        Resolving once lets a caller both subscribe to the variable and
+        evaluate the condition on it (`evaluate_on`).
+
+        Args:
+            resolve_node (Callable[[str], DataModelNode | None]):
+                Resolves a path to a node of the data model.
+            scope (ExecutionContext | None):
+                The context used to resolve `${name}` templates.
+
+        Returns:
+            ResolvedCondition:
+                The resolved path, variable node and right-hand side.
+
+        Raises:
+            ConditionError:
+                If the variable is missing or is not a variable, or if a
+                template is used without a scope.
+            KeyError:
+                If a template refers to a name missing in the scope.
+
+        """
+        path, variable = self._resolve_variable(resolve_node, scope)
+        return ResolvedCondition(path, variable, self._resolve_rhs(scope))
+
     def evaluate(
         self,
         resolve_node: "Callable[[str], DataModelNode | None]",
         scope: ExecutionContext | None,
         force_remote_read: bool = False,
     ) -> ConditionOutcome:
-        """Evaluate the condition.
+        """Evaluate the condition: `resolve` followed by `evaluate_on`.
 
         Args:
             resolve_node (Callable[[str], DataModelNode | None]):
@@ -265,9 +315,7 @@ class Condition:
 
         Returns:
             ConditionOutcome:
-                `NO_DATA` if the variable has no value, has no connector or
-                cannot be compared with the right-hand side. Otherwise `OK` or
-                `FAILED`.
+                See `evaluate_on`.
 
         Raises:
             ConditionError:
@@ -277,8 +325,44 @@ class Condition:
                 If a template refers to a name missing in the scope.
 
         """
-        path, variable = self._resolve_variable(resolve_node, scope)
-        rhs = self._resolve_rhs(scope)
+        resolved = self.resolve(resolve_node, scope)
+        return self.evaluate_on(
+            resolved.variable,
+            resolved.rhs,
+            force_remote_read=force_remote_read,
+            path=resolved.path,
+        )
+
+    def evaluate_on(
+        self,
+        variable: "VariableNode",
+        rhs: Any,
+        force_remote_read: bool = False,
+        path: str | None = None,
+    ) -> ConditionOutcome:
+        """Evaluate the condition on an already resolved variable.
+
+        Args:
+            variable (VariableNode):
+                The variable to compare.
+            rhs (Any):
+                The resolved right-hand side.
+            force_remote_read (bool):
+                If True, remote variables are read from the remote server,
+                otherwise their cached value is used.
+            path (str | None):
+                The path used in messages. Defaults to the qualified name of
+                the variable.
+
+        Returns:
+            ConditionOutcome:
+                `NO_DATA` if the variable has no value, has no connector or
+                cannot be compared with the right-hand side. Otherwise `OK` or
+                `FAILED`.
+
+        """
+        if path is None:
+            path = variable.qualified_name
         text = f"{path} {self.operator.value} {rhs}"
 
         if variable.is_remote() and not variable.has_connector():

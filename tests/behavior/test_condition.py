@@ -14,6 +14,7 @@ from machine_data_model.behavior.condition import (
     Condition,
     ConditionError,
     ConditionResult,
+    ResolvedCondition,
     WaitConditionOperator,
     compare,
     get_condition_operator,
@@ -331,6 +332,82 @@ class TestVariables:
             cond.variables(resolver_for(), None)
         with pytest.raises(ConditionError):
             cond.variables(resolver_for(FolderNode(name="mode")), None)
+
+
+class TestResolveAndEvaluateOn:
+    def test_resolve_returns_path_variable_and_rhs(self) -> None:
+        var = NumericalVariableNode(id="mode", name="mode", value=1)
+        cond = Condition("${which}", WaitConditionOperator.EQ, "${want}")
+
+        resolved = cond.resolve(resolver_for(var), scope(which="mode", want=2))
+
+        assert isinstance(resolved, ResolvedCondition)
+        assert resolved.path == "mode"
+        assert resolved.variable is var
+        assert resolved.rhs == 2
+
+    def test_resolve_raises_like_evaluate(self) -> None:
+        cond = Condition("missing", WaitConditionOperator.EQ, 1)
+        with pytest.raises(ConditionError):
+            cond.resolve(resolver_for(), None)
+        with pytest.raises(ConditionError):
+            cond.resolve(resolver_for(FolderNode(name="missing")), None)
+        with pytest.raises(ConditionError):
+            Condition("${v}", WaitConditionOperator.EQ, 1).resolve(
+                resolver_for(), None
+            )
+        with pytest.raises(KeyError):
+            Condition("mode", WaitConditionOperator.EQ, "${x}").resolve(
+                resolver_for(NumericalVariableNode(id="m", name="mode")),
+                scope(),
+            )
+
+    def test_resolved_condition_is_frozen(self) -> None:
+        var = NumericalVariableNode(id="mode", name="mode", value=1)
+        resolved = Condition("mode", WaitConditionOperator.EQ, 1).resolve(
+            resolver_for(var), None
+        )
+        with pytest.raises(AttributeError):
+            resolved.path = "x"  # type: ignore[misc]
+
+    @pytest.mark.parametrize(
+        ("value", "rhs", "result"),
+        [
+            (2, 2, ConditionResult.OK),
+            (1, 2, ConditionResult.FAILED),
+            (None, 2, ConditionResult.NO_DATA),
+        ],
+    )
+    def test_evaluate_on_matches_evaluate(
+        self, value: Any, rhs: Any, result: ConditionResult
+    ) -> None:
+        var = NumericalVariableNode(id="mode", name="mode", value=value)
+        cond = Condition("mode", WaitConditionOperator.EQ, rhs)
+
+        direct = cond.evaluate(resolver_for(var), None)
+        on = cond.evaluate_on(var, rhs, path="mode")
+
+        assert on == direct
+        assert on.result is result
+
+    def test_evaluate_on_default_path_is_qualified_name(self) -> None:
+        var = NumericalVariableNode(id="mode", name="mode", value=1)
+
+        outcome = Condition("mode", WaitConditionOperator.EQ, 1).evaluate_on(
+            var, 1
+        )
+
+        assert outcome.variable == var.qualified_name
+
+    def test_evaluate_on_no_connector_is_no_data(self) -> None:
+        var = NumericalVariableNode(name="r", value=1, connector_name="missing")
+
+        outcome = Condition("r", WaitConditionOperator.EQ, 1).evaluate_on(
+            var, 1, path="r"
+        )
+
+        assert outcome.result is ConditionResult.NO_DATA
+        assert outcome.message.endswith("(no connector)")
 
 
 class TestDataclasses:
