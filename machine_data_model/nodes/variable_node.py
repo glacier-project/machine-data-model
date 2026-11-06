@@ -1370,8 +1370,11 @@ class ObjectVariableNode(VariableNode):
     def _write_remote(self, value: dict[str, Any]) -> bool:
         """Write the properties of the object variable to the remote server.
 
-        If a property write is not confirmed the properties already written
-        are restored to their previous values.
+        All the properties must be given: this is checked before the machine is
+        touched. If a property write is not confirmed, or raises, only the
+        properties that were confirmed are rolled back, in reverse order, to
+        the value (in the unit of the property) they had before. A rollback
+        that fails is logged with the names of the properties left unrestored.
 
         Args:
             value (dict[str, Any]):
@@ -1381,21 +1384,71 @@ class ObjectVariableNode(VariableNode):
             bool:
                 True only if every property write was confirmed.
 
+        Raises:
+            ValueError:
+                If the value does not contain exactly the properties of the
+                object.
+
         """
         self._require_remote_connector()
         self._require_remote_resource()
-        prev_value = self._read_internal_value()
-        confirmed = True
-        for property_name, property_value in value.items():
-            confirmed = self._properties[property_name]._write_remote(
-                property_value
+        if set(value) != set(self._properties):
+            missing = sorted(set(self._properties) - set(value))
+            unknown = sorted(set(value) - set(self._properties))
+            raise ValueError(
+                f"cannot write '{self.qualified_name}': missing properties "
+                f"{missing}, unknown properties {unknown}"
             )
-            if not confirmed:
-                break
-        if not confirmed:
-            for property_name, property_value in prev_value.items():
-                self._properties[property_name]._write_remote(property_value)
-        return confirmed
+        before = {
+            name: node._remote_value(node._snapshot())
+            for name, node in self._properties.items()
+        }
+        written: list[str] = []
+        try:
+            for property_name, property_value in value.items():
+                if not self._properties[property_name]._write_remote(
+                    property_value
+                ):
+                    self._roll_back(written, before)
+                    return False
+                written.append(property_name)
+        except Exception:
+            self._roll_back(written, before)
+            raise
+        return True
+
+    def _roll_back(self, written: list[str], before: dict[str, Any]) -> None:
+        """Restore the confirmed properties on the remote server.
+
+        Args:
+            written (list[str]):
+                The names of the properties whose write was confirmed.
+            before (dict[str, Any]):
+                The previous value of every property, in its own unit.
+
+        """
+        unrestored: list[str] = []
+        for property_name in reversed(written):
+            try:
+                restored = self._properties[property_name]._write_remote(
+                    before[property_name]
+                )
+            except Exception:
+                _logger.exception(
+                    "Rollback of property '%s' of '%s' raised",
+                    property_name,
+                    self.qualified_name,
+                )
+                restored = False
+            if not restored:
+                unrestored.append(property_name)
+        if unrestored:
+            _logger.error(
+                "Failed to roll back properties %s of '%s': the machine keeps "
+                "their new values",
+                unrestored,
+                self.qualified_name,
+            )
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """Get a property of the object variable.

@@ -542,3 +542,138 @@ class TestSnapshotRestore:
             c.args[1] for c in flag_connector.write_node_value.call_args_list
         ]
         assert flag_sent == [False, True]
+
+
+def object_with_properties(
+    outcomes: dict[str, list[Any]],
+) -> tuple[ObjectVariableNode, list[tuple[str, Any]]]:
+    """Build a remote object; every property write is logged in order.
+
+    `outcomes` gives, per property, the results of its successive remote
+    writes: a bool, or an exception instance to raise.
+    """
+    log: list[tuple[str, Any]] = []
+    properties: dict[str, VariableNode] = {}
+    for name, results in outcomes.items():
+        variable = NumericalVariableNode(name=name, value=1)
+        pending = list(results)
+
+        def write(
+            resource: Any, value: Any, name: str = name, pending: list = pending
+        ) -> bool:
+            log.append((name, value))
+            result = pending.pop(0) if pending else True
+            if isinstance(result, Exception):
+                raise result
+            return bool(result)
+
+        connector = MagicMock()
+        connector.write_node_value.side_effect = write
+        variable.set_connector(connector)
+        variable._remote_resource = RemoteResource(f"ns={name}")
+        properties[name] = variable
+    obj = ObjectVariableNode(
+        name="o", properties=properties, connector_name="c"
+    )
+    obj.set_connector(MagicMock())
+    obj._remote_resource = RemoteResource("ns=o")
+    return obj, log
+
+
+class TestObjectWriteRollback:
+    def test_first_property_fails_one_write_no_rollback(self) -> None:
+        obj, log = object_with_properties(
+            {"a": [False], "b": [True], "c": [True]}
+        )
+
+        assert obj.write({"a": 5, "b": 6, "c": 7}) is False
+
+        assert log == [("a", 5)]
+        assert obj.read(force_remote_read=False) == {"a": 1, "b": 1, "c": 1}
+
+    def test_second_property_fails_exactly_one_rollback(self) -> None:
+        obj, log = object_with_properties(
+            {"a": [True, True], "b": [False], "c": [True]}
+        )
+
+        assert obj.write({"a": 5, "b": 6, "c": 7}) is False
+
+        assert log == [("a", 5), ("b", 6), ("a", 1)]
+        assert obj.read(force_remote_read=False) == {"a": 1, "b": 1, "c": 1}
+
+    def test_rollback_is_in_reverse_order_and_only_confirmed(self) -> None:
+        obj, log = object_with_properties(
+            {"a": [True, True], "b": [True, True], "c": [False]}
+        )
+
+        assert obj.write({"a": 5, "b": 6, "c": 7}) is False
+
+        assert log == [("a", 5), ("b", 6), ("c", 7), ("b", 1), ("a", 1)]
+
+    def test_failed_rollback_is_logged_with_the_names(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        obj, log = object_with_properties(
+            {"a": [True, False], "b": [True, True], "c": [False]}
+        )
+
+        with caplog.at_level(logging.ERROR):
+            assert obj.write({"a": 5, "b": 6, "c": 7}) is False
+
+        assert log == [("a", 5), ("b", 6), ("c", 7), ("b", 1), ("a", 1)]
+        assert "Failed to roll back properties ['a']" in caplog.text
+
+    def test_exception_rolls_back_confirmed_and_reraises(self) -> None:
+        obj, log = object_with_properties(
+            {"a": [True, True], "b": [RuntimeError("down")], "c": [True]}
+        )
+
+        with pytest.raises(RuntimeError, match="down"):
+            obj.write({"a": 5, "b": 6, "c": 7})
+
+        assert log == [("a", 5), ("b", 6), ("a", 1)]
+        assert obj.read(force_remote_read=False) == {"a": 1, "b": 1, "c": 1}
+
+    def test_exception_in_rollback_is_logged_and_the_rest_continues(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        obj, log = object_with_properties(
+            {
+                "a": [True, True],
+                "b": [True, RuntimeError("rollback down")],
+                "c": [False],
+            }
+        )
+
+        with caplog.at_level(logging.ERROR):
+            assert obj.write({"a": 5, "b": 6, "c": 7}) is False
+
+        assert log == [("a", 5), ("b", 6), ("c", 7), ("b", 1), ("a", 1)]
+        assert "Failed to roll back properties ['b']" in caplog.text
+
+    @pytest.mark.parametrize(
+        "value",
+        [{"a": 5, "b": 6}, {"a": 5, "b": 6, "c": 7, "d": 8}, {}],
+    )
+    def test_missing_or_unknown_property_touches_nothing(
+        self, value: dict[str, Any]
+    ) -> None:
+        obj, log = object_with_properties(
+            {"a": [True], "b": [True], "c": [True]}
+        )
+
+        with pytest.raises(ValueError, match="missing properties"):
+            obj.write(value)
+
+        assert log == []
+        assert obj.read(force_remote_read=False) == {"a": 1, "b": 1, "c": 1}
+
+    def test_success_writes_each_property_once(self) -> None:
+        obj, log = object_with_properties(
+            {"a": [True], "b": [True], "c": [True]}
+        )
+
+        assert obj.write({"a": 5, "b": 6, "c": 7}) is True
+
+        assert log == [("a", 5), ("b", 6), ("c", 7)]
+        assert obj.read(force_remote_read=False) == {"a": 5, "b": 6, "c": 7}
