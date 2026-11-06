@@ -1,5 +1,9 @@
 """Frost handling of nested composite contexts (a composite calling one)."""
 
+import logging
+
+import pytest
+
 from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
@@ -16,6 +20,7 @@ from machine_data_model.protocols.frost_v1.frost_message_builder import (
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
     ErrorCode,
+    ErrorMessages,
     ErrorPayload,
     MethodPayload,
 )
@@ -344,3 +349,53 @@ class TestNestedRemoteCall:
 
         assert manager._running_methods == {}
         assert data_model._contexts == {}
+
+
+class TestFinishEdgeCases:
+    def test_released_root_is_answered_with_a_generic_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        trigger = NumericalVariableNode(id="t", name="t", value=0)
+        child = composite("child", [wait_for_nonzero(trigger)])
+        manager, data_model, response = started(
+            child, trigger=trigger, root="child"
+        )
+        (root_id,) = manager._running_methods
+        # Somebody released the context behind the manager's back.
+        child.delete_context(root_id)
+
+        with caplog.at_level(logging.WARNING):
+            answer = manager._finish_if_terminated(root_id)
+
+        assert isinstance(answer, FrostMessage)
+        assert answer.header.type is MsgType.ERROR
+        assert answer.correlation_id == response.correlation_id
+        assert isinstance(answer.payload, ErrorPayload)
+        assert answer.payload.error_code is ErrorCode.UNKNOWN
+        assert (
+            answer.payload.error_message == ErrorMessages.UNEXPECTED_ERROR.value
+        )
+        assert manager._running_methods == {}
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert str(response.correlation_id) in warnings[0].getMessage()
+        # Idempotent: the request is gone, a second call answers nothing.
+        assert manager._finish_if_terminated(root_id) is None
+
+    def test_root_walk_logs_when_it_ends_off_a_running_request(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        trigger = NumericalVariableNode(id="t", name="t", value=0)
+        child = composite("child", [wait_for_nonzero(trigger)])
+        manager, data_model, _ = started(child, trigger=trigger, root="child")
+        (root_id,) = manager._running_methods
+
+        with caplog.at_level(logging.DEBUG):
+            assert manager._root_context_id(root_id) == root_id
+            quiet = [r for r in caplog.records if "walk up" in r.getMessage()]
+            assert manager._root_context_id("unknown") == "unknown"
+            noisy = [r for r in caplog.records if "walk up" in r.getMessage()]
+
+        assert quiet == []
+        assert len(noisy) == 1
+        assert "unknown" in noisy[0].getMessage()

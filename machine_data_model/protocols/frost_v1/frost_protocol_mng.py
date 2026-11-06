@@ -751,15 +751,23 @@ class FrostProtocolMng(ProtocolMng):
         while True:
             found = self._data_model.find_context(current)
             if found is None:
-                return current
+                break
             _, context = found
             if not context.has_value("__nested_parent_context_id__"):
-                return current
+                break
             parent_id = context.get_value("__nested_parent_context_id__")
             if not isinstance(parent_id, str) or parent_id in seen:
-                return current
+                break
             seen.add(parent_id)
             current = parent_id
+        if current not in self._running_methods:
+            _logger.debug(
+                "The walk up from context '%s' ended on '%s', which is not a "
+                "running request",
+                context_id,
+                current,
+            )
+        return current
 
     def _resume_composite_method(self, context_id: str) -> FrostMessage | None:
         """Resume the composite context with the specified id.
@@ -820,9 +828,21 @@ class FrostProtocolMng(ProtocolMng):
             return None
         cm, msg = entry
         if root_id not in cm._contexts:
-            # Released elsewhere: nothing left to answer from.
+            # Released elsewhere: the request must not stay unanswered.
+            _logger.warning(
+                "The context of request %s was released before the request "
+                "ended; answering with an error",
+                msg.correlation_id,
+            )
             del self._running_methods[root_id]
-            return None
+            return self._create_execution_error_message(
+                msg,
+                ExecutionError(
+                    ExecutionErrorCode.UNEXPECTED_ERROR,
+                    "the context of the request was released before it ended",
+                    node=cm.qualified_name,
+                ),
+            )
         if not cm.is_terminated(root_id):
             return None
 
