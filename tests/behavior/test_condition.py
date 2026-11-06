@@ -259,6 +259,58 @@ class TestEvaluate:
         assert var.read() == 1
 
 
+class TestReadFailures:
+    @staticmethod
+    def failing_variable(error: Exception) -> NumericalVariableNode:
+        class Failing(NumericalVariableNode):
+            def read(self, force_remote_read: bool = True) -> Any:
+                raise error
+
+        return Failing(name="mode", value=1)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ConnectionError("down"),
+            TimeoutError("slow"),
+            ConnectionResetError("reset"),
+            OSError("io"),
+        ],
+    )
+    def test_os_errors_give_no_data(self, error: OSError) -> None:
+        var = self.failing_variable(error)
+        cond = Condition("mode", WaitConditionOperator.EQ, 1)
+
+        outcome = cond.evaluate(resolver_for(var), None, force_remote_read=True)
+
+        assert outcome.result is ConditionResult.NO_DATA
+        assert outcome.message == (
+            f"mode == 1: read failed ({type(error).__name__})"
+        )
+        assert outcome.observed is None
+        # The text of the exception is not part of the message.
+        assert str(error) not in outcome.message
+
+    @pytest.mark.parametrize(
+        "error", [RuntimeError("bug"), AssertionError("bug"), KeyError("k")]
+    )
+    def test_other_errors_propagate(self, error: Exception) -> None:
+        var = self.failing_variable(error)
+        cond = Condition("mode", WaitConditionOperator.EQ, 1)
+
+        with pytest.raises(type(error)):
+            cond.evaluate(resolver_for(var), None)
+
+    def test_evaluate_on_also_catches_os_errors(self) -> None:
+        var = self.failing_variable(TimeoutError("slow"))
+
+        outcome = Condition("mode", WaitConditionOperator.EQ, 1).evaluate_on(
+            var, 1, path="mode"
+        )
+
+        assert outcome.result is ConditionResult.NO_DATA
+
+
 class TestTemplates:
     def test_template_in_rhs(self) -> None:
         var = NumericalVariableNode(name="mode", value=2)

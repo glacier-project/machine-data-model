@@ -366,9 +366,10 @@ class Condition:
 
         Returns:
             ConditionOutcome:
-                `NO_DATA` if the variable has no value, has no connector or
-                cannot be compared with the right-hand side. Otherwise `OK` or
-                `FAILED`.
+                `NO_DATA` if the variable has no value, has no connector, cannot
+                be read (`OSError`, including `ConnectionError` and
+                `TimeoutError`) or cannot be compared with the right-hand
+                side. Otherwise `OK` or `FAILED`.
 
         """
         if path is None:
@@ -382,7 +383,16 @@ class Condition:
                 path,
             )
 
-        lhs = variable.read(force_remote_read=force_remote_read)
+        try:
+            lhs = variable.read(force_remote_read=force_remote_read)
+        except OSError as error:
+            # Covers ConnectionError and TimeoutError: a transient lack of
+            # data. Any other exception is a programming error and propagates.
+            return ConditionOutcome(
+                ConditionResult.NO_DATA,
+                f"{text}: read failed ({type(error).__name__})",
+                path,
+            )
         if lhs is None:
             return ConditionOutcome(
                 ConditionResult.NO_DATA, f"{text}: no value", path
