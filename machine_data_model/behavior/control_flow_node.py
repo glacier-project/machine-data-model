@@ -271,18 +271,24 @@ class ControlFlowNode(ABC):
             return self._parent_cfg.get_composite_method_id()
         return self.node
 
-    def release(self, context: ExecutionContext) -> None:  # noqa: B027
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
         """Release what this node owns in the context.
 
-        Called, best effort, on the node that raised an unexpected exception,
-        so that it can remove its subscriptions and context keys. The default
-        implementation does nothing.
+        Called, best effort, on the node that raised an unexpected exception
+        (or whose context is aborted), so that it can remove its subscriptions
+        and context keys. The default implementation does nothing.
 
         Args:
             context (ExecutionContext):
                 The execution context of the control flow graph.
 
+        Returns:
+            list[FrostMessage]:
+                Messages to send to remote parties as part of the release (for
+                example an unsubscribe request). Empty by default.
+
         """
+        return []
 
     @abstractmethod
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:

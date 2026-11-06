@@ -142,6 +142,32 @@ class RemoteExecutionNode(ControlFlowNode):
 
         """
 
+    @override
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
+        """Build the cleanup message for a request that was already sent.
+
+        If the node never sent its request there is nothing to clean up on
+        the remote side. Otherwise (the request is in flight, or its response
+        was received and not yet cleaned up) the cleanup message of the node is
+        returned, for example the unsubscribe of a remote event wait.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            list[FrostMessage]:
+                The cleanup message, if any.
+
+        """
+        if (
+            context.active_request is None
+            and context.status is not ControlFlowStatus.RESPONSE_RECEIVED
+        ):
+            return []
+        message = self._create_cleanup_msg(context)
+        return [message] if message is not None else []
+
     def handle_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:

@@ -33,6 +33,7 @@ from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import VariableNode
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
 
@@ -435,12 +436,17 @@ class CallMethodNode(LocalExecutionNode):
         """
         return self._kwargs
 
-    def release(self, context: ExecutionContext) -> None:
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
         """Drop the pending callee of this node and release its context.
 
         Args:
             context (ExecutionContext):
                 The context of the control flow graph.
+
+        Returns:
+            list[FrostMessage]:
+                The messages produced by releasing the callee context (for
+                example a remote unsubscribe).
 
         """
         from machine_data_model.nodes.composite_method import (
@@ -449,12 +455,13 @@ class CallMethodNode(LocalExecutionNode):
 
         pending_key = f"call_method_pending_{context.get_pc()}"
         if not context.has_value(pending_key):
-            return
+            return []
         pending_context_id = context.get_value(pending_key)
         context.delete_value(pending_key)
         ref_method = self._get_ref_node(context)
         if isinstance(ref_method, composite_method_node.CompositeMethodNode):
-            ref_method.abort_context(pending_context_id)
+            return ref_method.abort_context(pending_context_id)
+        return []
 
     @staticmethod
     def _wrap_error(error: ExecutionError, callee: str) -> ExecutionError:
@@ -836,12 +843,16 @@ class WaitConditionNode(LocalExecutionNode):
         # Return the outcome.
         return outcome
 
-    def release(self, context: ExecutionContext) -> None:
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
         """Remove the wait subscription and the context keys of this node.
 
         Args:
             context (ExecutionContext):
                 The context of the control flow graph.
+
+        Returns:
+            list[FrostMessage]:
+                Always empty: the subscription is local.
 
         """
         base_wait_key = f"wait_{self.node}_{context.id()}"
@@ -859,6 +870,7 @@ class WaitConditionNode(LocalExecutionNode):
             for key in (sub_key, wait_key):
                 if context.has_value(key):
                     context.delete_value(key)
+        return []
 
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.

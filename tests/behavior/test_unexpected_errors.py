@@ -63,8 +63,9 @@ class Boom(LocalExecutionNode):
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         raise self._exc
 
-    def release(self, context: ExecutionContext) -> None:
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
         self.released += 1
+        return []
 
 
 class Ok(LocalExecutionNode):
@@ -137,7 +138,7 @@ class TestRunLoop:
 
     def test_failing_release_is_logged_not_raised(self) -> None:
         class BadRelease(Boom):
-            def release(self, context: ExecutionContext) -> None:
+            def release(self, context: ExecutionContext) -> list[FrostMessage]:
                 raise RuntimeError("release failed")
 
         context = new_context()

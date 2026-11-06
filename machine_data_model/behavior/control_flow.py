@@ -209,8 +209,9 @@ class ControlFlow:
                 context.id(),
                 exc_info=True,
             )
+            released: list[FrostMessage] = []
             try:
-                node.release(context)
+                released = list(node.release(context) or [])
             except Exception:
                 _logger.error(
                     "Failed to release node '%s' (context %s)",
@@ -223,7 +224,8 @@ class ControlFlow:
                     ExecutionErrorCode.UNEXPECTED_ERROR,
                     f"{type(exc).__name__}: {exc}",
                     node=node_name,
-                )
+                ),
+                released,
             )
 
     def execute(self, context: ExecutionContext) -> list[FrostMessage]:

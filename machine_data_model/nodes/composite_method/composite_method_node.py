@@ -344,7 +344,7 @@ class CompositeMethodNode(MethodNode):
             data_model.unregister_context(context_id)
         return context is not None
 
-    def abort_context(self, context_id: str) -> None:
+    def abort_context(self, context_id: str) -> list[FrostMessage]:
         """Release a context that will never be resumed, best effort.
 
         The node the context is waiting on releases what it owns (for example
@@ -355,14 +355,20 @@ class CompositeMethodNode(MethodNode):
             context_id (str):
                 The id of the context to abort.
 
+        Returns:
+            list[FrostMessage]:
+                The messages produced by the release (for example the remote
+                unsubscribe of a remote event wait).
+
         """
         context = self._contexts.get(context_id)
         if context is None:
-            return
+            return []
         try:
             node = self.cfg.get_current_node(context)
-            if node is not None:
-                node.release(context)
+            if node is None:
+                return []
+            return list(node.release(context) or [])
         finally:
             self._drop_context(context_id)
 
