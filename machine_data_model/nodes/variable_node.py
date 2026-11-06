@@ -9,6 +9,7 @@ from abc import abstractmethod
 from collections.abc import Callable, Generator
 from enum import Enum
 import logging
+import time
 from typing import Any
 import warnings
 
@@ -152,6 +153,8 @@ class VariableNode(DataModelNode):
         self._post_update_value: Callable[[Any, Any], bool] = (
             lambda prev, curr: True
         )
+        # Epoch seconds at which a value last arrived from the remote side.
+        self._received_at: float | None = None
         # List of subscribers and related callbacks.
         self._subscriptions: list[VariableSubscription] = []
         self._subscription_callback: Callable[
@@ -472,6 +475,7 @@ class VariableNode(DataModelNode):
                 value = self._fetch_remote_value()
                 if value is not None:
                     self._update_internal_value(value)
+                    self._mark_received()
                     return value
             return self._read_internal_value()
         else:
@@ -548,6 +552,43 @@ class VariableNode(DataModelNode):
 
         """
         return snapshot
+
+    @property
+    def received_at(self) -> float | None:
+        """When a value last arrived from the remote side.
+
+        This is the time (epoch seconds, `time.time()`) the value arrived in
+        this process, not the time the source produced it: a retained message
+        or the first read at start-up looks fresh. It proves that a value was
+        received, never that it is recent.
+
+        Returns:
+            float | None:
+                The time of the last value received from the remote side, or
+                None if none arrived. A successful remote write and a read of
+                the cached initial value do not count.
+
+        """
+        return self._received_at
+
+    def has_received_value(self) -> bool:
+        """Whether the variable holds a real value rather than its default.
+
+        A remote variable starts with the default given to its constructor and
+        keeps it until the remote side sends a value. A local variable always
+        holds its own value.
+
+        Returns:
+            bool:
+                True for a local variable, or for a remote one that received a
+                value from the remote side.
+
+        """
+        return not self.is_remote() or self._received_at is not None
+
+    def _mark_received(self) -> None:
+        """Record that a value just arrived from the remote side."""
+        self._received_at = time.time()
 
     def _is_remote_with_connector(self) -> bool:
         """Whether writes go through a connector."""
@@ -655,6 +696,7 @@ class VariableNode(DataModelNode):
         value = connector.read_node_value(resource)
         if value is not None:
             self._update_internal_value(value)
+            self._mark_received()
         return None
 
     def _remote_subscription_callback(
@@ -670,6 +712,8 @@ class VariableNode(DataModelNode):
                 subscription.
         """
         self._update_internal_value(value)
+        if value is not None:
+            self._mark_received()
         self.notify_subscribers()
 
     def __getitem__(self, node_name: str) -> "VariableNode":
@@ -1344,6 +1388,52 @@ class ObjectVariableNode(VariableNode):
                     for name, property_node in self._properties.items()
                 }
         return self._read_internal_value()
+
+    @property
+    @override
+    def received_at(self) -> float | None:
+        """When the oldest property of the object last arrived.
+
+        Returns:
+            float | None:
+                The earliest `received_at` of the properties, or None if the
+                object has no property or one of them never received a value.
+
+        """
+        times = [
+            node.received_at
+            for node in self._properties.values()
+            if isinstance(node, VariableNode)
+        ]
+        if not times or any(t is None for t in times):
+            return None
+        return min(t for t in times if t is not None)
+
+    @override
+    def has_received_value(self) -> bool:
+        """Whether every property of the object received a value.
+
+        Returns:
+            bool:
+                True for a local object (and for a remote one without
+                properties), otherwise True only if every property received a
+                value.
+
+        """
+        if not self.is_remote():
+            return True
+        return all(
+            node.received_at is not None
+            for node in self._properties.values()
+            if isinstance(node, VariableNode)
+        )
+
+    @override
+    def _mark_received(self) -> None:
+        """Record that a value arrived for every property of the object."""
+        for node in self._properties.values():
+            if isinstance(node, VariableNode):
+                node._mark_received()
 
     @override
     def _update_internal_value(self, value: dict[str, Any]) -> dict[str, Any]:
