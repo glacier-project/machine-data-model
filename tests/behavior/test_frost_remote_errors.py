@@ -406,6 +406,67 @@ class TestRemoteTextSanitized:
         assert len(error.message) < 400
 
 
+class TestFinishOwnership:
+    """`_finish_if_terminated` claims the request before answering it."""
+
+    def test_running_request_stays_registered(self) -> None:
+        m = composite("m", [remote_call()])
+        manager, _, _, _ = start(m, root="m")
+        (root_id,) = manager._running_methods
+        before = manager._running_methods[root_id]
+
+        assert manager._finish_if_terminated(root_id) is None
+
+        assert manager._running_methods[root_id] is before
+
+    def test_reentrant_finish_does_not_answer_twice(self) -> None:
+        m = composite("m", [remote_call()])
+        manager, data_model, started, request = start(m, root="m")
+        (root_id,) = manager._running_methods
+        m._contexts[root_id].fail(
+            ExecutionError(ExecutionErrorCode.TIMEOUT, "late")
+        )
+        nested: list[FrostMessage | None] = []
+        real_delete = m.delete_context
+
+        def delete_and_retrigger(context_id: str) -> None:
+            # A second trigger arrives while the first is still answering.
+            nested.append(manager._finish_if_terminated(root_id))
+            real_delete(context_id)
+
+        m.delete_context = delete_and_retrigger  # type: ignore[method-assign]
+
+        answer = manager._finish_if_terminated(root_id)
+
+        assert isinstance(answer, FrostMessage)
+        assert answer.correlation_id == started.correlation_id
+        assert nested == [None]
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+
+    def test_non_error_payload_is_logged_at_debug(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        m = composite("m", [remote_call()])
+        manager, _, _, request = start(m, root="m")
+        message = FrostMessageBuilder(
+            sender="remote_dm"
+        ).build_method_completed_message(
+            target="dm",
+            correlation_id=str(request.correlation_id),
+            ret={},
+            node="remote_method",
+        )
+        message.header.type = MsgType.ERROR
+
+        with caplog.at_level(logging.DEBUG):
+            assert manager.handle_error(message) is None
+
+        levels = {r.levelno for r in caplog.records}
+        assert logging.WARNING not in levels
+        assert "without error payload" in caplog.text
+
+
 def remote_nodes() -> list[tuple[str, RemoteExecutionNode, tuple[object, ...]]]:
     return [
         (

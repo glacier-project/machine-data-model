@@ -357,7 +357,7 @@ class FrostProtocolMng(ProtocolMng):
 
         """
         if not isinstance(msg.payload, ErrorPayload):
-            _logger.warning("Ignoring an error message without error payload")
+            _logger.debug("Ignoring an error message without error payload")
             return None
         context_id = msg.correlation_id
         owner = self._owner_of_context(context_id)
@@ -880,7 +880,10 @@ class FrostProtocolMng(ProtocolMng):
         """Answer and release a request whose outermost context ended.
 
         Idempotent: it does nothing unless `root_id` is still a running
-        request, so a second call (a duplicate trigger) is a no-op.
+        request, so a second call (a duplicate trigger) is a no-op. The entry
+        is claimed (popped) before anything else, so of two concurrent callers
+        only one answers; the entry is put back if the request is still
+        running.
 
         Args:
             root_id (str):
@@ -892,7 +895,7 @@ class FrostProtocolMng(ProtocolMng):
                 released now, otherwise None.
 
         """
-        entry = self._running_methods.get(root_id)
+        entry = self._running_methods.pop(root_id, None)
         if entry is None:
             return None
         cm, msg = entry
@@ -903,7 +906,6 @@ class FrostProtocolMng(ProtocolMng):
                 "ended; answering with an error",
                 msg.correlation_id,
             )
-            del self._running_methods[root_id]
             return self._create_execution_error_message(
                 msg,
                 ExecutionError(
@@ -913,12 +915,12 @@ class FrostProtocolMng(ProtocolMng):
                 ),
             )
         if not cm.is_terminated(root_id):
+            self._running_methods[root_id] = entry
             return None
 
         failure = cm.get_error(root_id) if cm.has_failed(root_id) else None
         return_values = cm.get_completed_return_values(root_id) or {}
         cm.delete_context(root_id)
-        del self._running_methods[root_id]
         if failure is not None:
             return self._create_execution_error_message(msg, failure)
         assert isinstance(msg.payload, MethodPayload)
