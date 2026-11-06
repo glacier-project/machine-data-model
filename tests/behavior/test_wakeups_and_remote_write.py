@@ -854,3 +854,103 @@ class TestRemovedHookGuardMixins:
         assert len(messages) == 2
         assert any("_update_value" in m for m in messages)
         assert any("_read_remote_value" in m for m in messages)
+
+
+def logging_variable(
+    name: str, results: list[Any], log: list[tuple[str, Any]]
+) -> NumericalVariableNode:
+    variable = NumericalVariableNode(name=name, value=1)
+    pending = list(results)
+
+    def write(resource: Any, value: Any) -> bool:
+        log.append((name, value))
+        result = pending.pop(0) if pending else True
+        if isinstance(result, Exception):
+            raise result
+        return bool(result)
+
+    connector = MagicMock()
+    connector.write_node_value.side_effect = write
+    variable.set_connector(connector)
+    variable._remote_resource = RemoteResource(f"ns={name}")
+    return variable
+
+
+def remote_object(name: str, properties: dict[str, VariableNode]) -> Any:
+    obj = ObjectVariableNode(
+        name=name, properties=properties, connector_name="c"
+    )
+    obj.set_connector(MagicMock())
+    obj._remote_resource = RemoteResource(f"ns={name}")
+    return obj
+
+
+class TestNestedObjectRollback:
+    def test_inner_rollback_failure_names_the_inner_path_and_outer_continues(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        log: list[tuple[str, Any]] = []
+        inner = remote_object(
+            "inner",
+            {
+                "p": logging_variable("p", [True, False], log),
+                "q": logging_variable("q", [False], log),
+            },
+        )
+        outer = remote_object(
+            "outer",
+            {
+                "a": logging_variable("a", [True, True], log),
+                "inner": inner,
+                "z": logging_variable("z", [True], log),
+            },
+        )
+
+        with caplog.at_level(logging.ERROR):
+            assert (
+                outer.write({"a": 5, "inner": {"p": 6, "q": 7}, "z": 8})
+                is False
+            )
+
+        # a, then inner: p ok, q fails, p rollback fails; then the outer
+        # rolls back its confirmed property "a"; "z" is never written.
+        assert log == [("a", 5), ("p", 6), ("q", 7), ("p", 1), ("a", 1)]
+        errors = [
+            r.getMessage()
+            for r in caplog.records
+            if "Failed to roll back" in r.getMessage()
+        ]
+        assert len(errors) == 1
+        assert "['p']" in errors[0]
+        assert inner.qualified_name in errors[0]
+        assert outer.qualified_name + "'" not in errors[0]
+        assert "['a']" not in errors[0]
+        assert outer.read(force_remote_read=False) == {
+            "a": 1,
+            "inner": {"p": 1, "q": 1},
+            "z": 1,
+        }
+
+    def test_inner_exception_rolls_back_inner_then_outer_and_reraises(
+        self,
+    ) -> None:
+        log: list[tuple[str, Any]] = []
+        inner = remote_object(
+            "inner",
+            {
+                "p": logging_variable("p", [True, True], log),
+                "q": logging_variable("q", [RuntimeError("down")], log),
+            },
+        )
+        outer = remote_object(
+            "outer",
+            {
+                "a": logging_variable("a", [True, True], log),
+                "inner": inner,
+            },
+        )
+
+        with pytest.raises(RuntimeError, match="down"):
+            outer.write({"a": 5, "inner": {"p": 6, "q": 7}})
+
+        assert log == [("a", 5), ("p", 6), ("q", 7), ("p", 1), ("a", 1)]
