@@ -1,6 +1,9 @@
 """Frost handling of nested composite contexts (a composite calling one)."""
 
 from machine_data_model.behavior.local_execution_node import CallMethodNode
+from machine_data_model.behavior.remote_execution_node import (
+    CallRemoteMethodNode,
+)
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -8,6 +11,9 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 from machine_data_model.protocols.frost_v1.frost_header import MsgType
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
 from machine_data_model.protocols.frost_v1.frost_payload import (
     ErrorCode,
     ErrorPayload,
@@ -18,6 +24,7 @@ from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
 )
 from tests.behavior import (
     ERROR,
+    assert_no_contexts,
     composite,
     failing_stub,
     frost_request,
@@ -190,3 +197,150 @@ class TestNestedResume:
         assert len(updates) == 1
         assert updates[0].correlation_id == response.correlation_id
         assert isinstance(updates[0].payload, MethodPayload)
+
+
+def remote_call(method: str = "remote_method") -> CallRemoteMethodNode:
+    return CallRemoteMethodNode(
+        method_node=method, remote_id="remote_dm", args=[], kwargs={}
+    )
+
+
+def remote_response(
+    request: FrostMessage,
+    sender: str = "remote_dm",
+    node: str = "remote_method",
+    correlation_id: str | None = None,
+) -> FrostMessage:
+    return FrostMessageBuilder(sender=sender).build_method_completed_message(
+        target=request.sender,
+        correlation_id=correlation_id or str(request.correlation_id),
+        ret={},
+        node=node,
+    )
+
+
+def start_with_remote(
+    *composites: CompositeMethodNode, root: str
+) -> tuple[FrostProtocolMng, DataModel, FrostMessage, FrostMessage]:
+    manager, data_model = frost_setup(*composites)
+    response = manager.handle_request(frost_request("dm", root))
+    assert isinstance(response, FrostMessage)
+    sent = manager.drain_update_messages()
+    requests = [m for m in sent if m.header.type is MsgType.REQUEST]
+    assert len(requests) == 1
+    return manager, data_model, response, requests[0]
+
+
+class TestNestedRemoteCall:
+    def test_response_is_routed_to_the_nested_child(self) -> None:
+        child = composite("child", [remote_call()])
+        parent = composite("parent", [call("child")])
+        manager, data_model, response, request = start_with_remote(
+            child, parent, root="parent"
+        )
+        child_id = next(iter(child._contexts))
+        # The request carries the id of the context that issued it.
+        assert request.correlation_id == child_id
+        assert child_id in data_model._contexts
+        assert child_id not in manager._running_methods
+
+        final = manager.handle_message(remote_response(request))
+
+        assert isinstance(final, FrostMessage)
+        assert final.header.type is MsgType.RESPONSE
+        assert isinstance(final.payload, MethodPayload)
+        assert final.correlation_id == response.correlation_id
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+        assert_no_contexts(parent, child)
+        assert manager.drain_update_messages() == []
+
+    def test_chain_with_the_remote_call_in_the_innermost(self) -> None:
+        c = composite("c", [remote_call()])
+        b = composite("b", [call("c")])
+        a = composite("a", [call("b")])
+        manager, data_model, response, request = start_with_remote(
+            c, b, a, root="a"
+        )
+        assert len(data_model._contexts) == 3
+
+        final = manager.handle_message(remote_response(request))
+
+        assert isinstance(final, FrostMessage)
+        assert final.correlation_id == response.correlation_id
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+        assert_no_contexts(a, b, c)
+
+    def test_top_level_remote_call_is_unchanged(self) -> None:
+        method = composite("m", [remote_call()])
+        manager, data_model, response, request = start_with_remote(
+            method, root="m"
+        )
+
+        final = manager.handle_message(remote_response(request))
+
+        assert isinstance(final, FrostMessage)
+        assert final.correlation_id == response.correlation_id
+        assert data_model._contexts == {}
+
+    def test_response_from_the_wrong_sender_is_ignored(self) -> None:
+        child = composite("child", [remote_call()])
+        parent = composite("parent", [call("child")])
+        manager, data_model, _, request = start_with_remote(
+            child, parent, root="parent"
+        )
+
+        assert (
+            manager.handle_message(remote_response(request, sender="intruder"))
+            is None
+        )
+
+        assert len(manager._running_methods) == 1
+        assert len(data_model._contexts) == 2
+
+    def test_response_for_the_wrong_node_is_ignored(self) -> None:
+        child = composite("child", [remote_call()])
+        parent = composite("parent", [call("child")])
+        manager, data_model, _, request = start_with_remote(
+            child, parent, root="parent"
+        )
+
+        assert (
+            manager.handle_message(
+                remote_response(request, node="other_method")
+            )
+            is None
+        )
+
+        assert len(data_model._contexts) == 2
+
+    def test_response_with_an_unknown_correlation_id_is_ignored(self) -> None:
+        child = composite("child", [remote_call()])
+        parent = composite("parent", [call("child")])
+        manager, data_model, _, request = start_with_remote(
+            child, parent, root="parent"
+        )
+
+        assert (
+            manager.handle_message(
+                remote_response(request, correlation_id="unknown")
+            )
+            is None
+        )
+
+        assert len(manager._running_methods) == 1
+        assert len(data_model._contexts) == 2
+
+    def test_duplicate_response_is_a_no_op(self) -> None:
+        child = composite("child", [remote_call()])
+        parent = composite("parent", [call("child")])
+        manager, data_model, _, request = start_with_remote(
+            child, parent, root="parent"
+        )
+        assert manager.handle_message(remote_response(request)) is not None
+
+        assert manager.handle_message(remote_response(request)) is None
+
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}

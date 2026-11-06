@@ -275,11 +275,18 @@ class FrostProtocolMng(ProtocolMng):
                 msg, ErrorMessages.INVALID_RESPONSE
             )
 
-        # Resume methods waiting for a response
-        if msg.correlation_id in self._running_methods:
-            cm, _ = self._running_methods[msg.correlation_id]
-            if cm.handle_message(msg.correlation_id, msg):
-                return self._resume_composite_method(msg.correlation_id)
+        # Resume the context that sent the request: the correlation id of a
+        # remote request is the id of the context that issued it, which can be
+        # a nested one (a composite called by another composite).
+        owner = self._owner_of_context(msg.correlation_id)
+        if owner is None:
+            _logger.debug(
+                "Ignoring a response for unknown context '%s'",
+                msg.correlation_id,
+            )
+            return None
+        if owner.handle_message(msg.correlation_id, msg):
+            return self._resume_composite_method(msg.correlation_id)
         return None
 
     def handle_message(self, msg: Message) -> Message | None:
@@ -690,6 +697,25 @@ class FrostProtocolMng(ProtocolMng):
 
         return self._create_error_message(msg, ErrorMessages.NOT_SUPPORTED)
 
+    def _owner_of_context(self, context_id: str) -> CompositeMethodNode | None:
+        """Find the composite method that owns a live context.
+
+        Args:
+            context_id (str):
+                The id of the context (running request or nested).
+
+        Returns:
+            CompositeMethodNode | None:
+                The owner, or None if the id is unknown.
+
+        """
+        found = self._data_model.find_context(context_id)
+        if found is not None:
+            return found[0]
+        if context_id in self._running_methods:
+            return self._running_methods[context_id][0]
+        return None
+
     def _is_known_context(self, context_id: str) -> bool:
         """Whether the id is a running request or a live context of the model.
 
@@ -702,10 +728,7 @@ class FrostProtocolMng(ProtocolMng):
                 True if a running request or an indexed context has this id.
 
         """
-        return (
-            context_id in self._running_methods
-            or self._data_model.find_context(context_id) is not None
-        )
+        return self._owner_of_context(context_id) is not None
 
     def _root_context_id(self, context_id: str) -> str:
         """Follow the nested-parent links up to the context of the request.
@@ -755,12 +778,8 @@ class FrostProtocolMng(ProtocolMng):
                 A response message if the request ended, otherwise None.
 
         """
-        found = self._data_model.find_context(context_id)
-        if found is not None:
-            owner = found[0]
-        elif context_id in self._running_methods:
-            owner = self._running_methods[context_id][0]
-        else:
+        owner = self._owner_of_context(context_id)
+        if owner is None:
             _logger.debug("Ignoring unknown context '%s'", context_id)
             return None
 
