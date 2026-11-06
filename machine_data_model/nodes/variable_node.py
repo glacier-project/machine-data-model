@@ -163,8 +163,10 @@ class VariableNode(DataModelNode):
                 True if the value was updated successfully, False otherwise.
 
         """
-        # Read the current value of the variable before the update.
+        # Read the current value of the variable before the update, and keep a
+        # snapshot of its state to restore it exactly if the update is rejected.
         prev_value = self._read_value()
+        snapshot = self._snapshot()
         # Apply the pre-update callback to the new value.
         value = self._pre_update_value(value)
         remote = self._is_remote_with_connector()
@@ -200,7 +202,7 @@ class VariableNode(DataModelNode):
         # previous value.
         if success:
             self.notify_subscribers()
-        elif remote and not self._write_remote(prev_value):
+        elif remote and not self._write_remote(self._remote_value(snapshot)):
             # The restore is a second remote write and can fail too: the
             # machine keeps the new value, so does the cache.
             _logger.error(
@@ -209,7 +211,7 @@ class VariableNode(DataModelNode):
                 self.qualified_name,
             )
         else:
-            self._update_internal_value(prev_value)
+            self._restore(snapshot)
         return success
 
     @property
@@ -473,6 +475,42 @@ class VariableNode(DataModelNode):
             Any:
                 Variable's internal value.
         """
+
+    def _snapshot(self) -> Any:
+        """Capture the state of the variable so that it can be restored.
+
+        Returns:
+            Any:
+                An opaque snapshot, to be passed to `_restore` and
+                `_remote_value`.
+
+        """
+        return self._read_internal_value()
+
+    def _restore(self, snapshot: Any) -> None:
+        """Restore the cache from a snapshot, exactly.
+
+        Args:
+            snapshot (Any):
+                A snapshot taken by `_snapshot`.
+
+        """
+        self._update_internal_value(snapshot)
+
+    def _remote_value(self, snapshot: Any) -> Any:
+        """Return the value to send to the remote server for a snapshot.
+
+        Args:
+            snapshot (Any):
+                A snapshot taken by `_snapshot`.
+
+        Returns:
+            Any:
+                The value in the form the machine expects (the unit of the
+                variable), which is what it held before the update.
+
+        """
+        return snapshot
 
     def _is_remote_with_connector(self) -> bool:
         """Whether writes go through a connector."""
@@ -738,6 +776,48 @@ class NumericalVariableNode(VariableNode):
         """
         self._value = self._value.__class__(value, self._measure_unit)
         return self._value.base_value  # type: ignore[no-any-return]
+
+    @override
+    def _snapshot(self) -> AbstractMeasure:
+        """Capture the measure (value and unit) of the variable.
+
+        The measure is replaced, never mutated, by an update, so keeping the
+        reference is a faithful snapshot.
+
+        Returns:
+            AbstractMeasure:
+                The current measure.
+
+        """
+        return self._value
+
+    @override
+    def _restore(self, snapshot: AbstractMeasure) -> None:
+        """Restore the exact measure captured by `_snapshot`.
+
+        Args:
+            snapshot (AbstractMeasure):
+                The measure to restore.
+
+        """
+        self._value = snapshot
+
+    @override
+    def _remote_value(self, snapshot: AbstractMeasure) -> float:
+        """Return the snapshot in the unit of the variable.
+
+        Args:
+            snapshot (AbstractMeasure):
+                The measure captured by `_snapshot`.
+
+        Returns:
+            float:
+                The value in the unit of the variable, as the machine had it.
+
+        """
+        if self._measure_unit == NoneMeasureUnits.NONE:
+            return snapshot.base_value  # type: ignore[no-any-return]
+        return snapshot.convert(self._measure_unit)  # type: ignore[no-any-return]
 
     def get_measure_unit(self) -> Enum:
         """Get the measure unit of the numerical variable.
@@ -1242,6 +1322,49 @@ class ObjectVariableNode(VariableNode):
                 property_value
             )
         return self._read_internal_value()
+
+    @override
+    def _snapshot(self) -> dict[str, Any]:
+        """Capture the state of every property.
+
+        Returns:
+            dict[str, Any]:
+                The snapshot of each property, by name.
+
+        """
+        return {
+            name: node._snapshot() for name, node in self._properties.items()
+        }
+
+    @override
+    def _restore(self, snapshot: dict[str, Any]) -> None:
+        """Restore every property from its snapshot.
+
+        Args:
+            snapshot (dict[str, Any]):
+                The snapshot captured by `_snapshot`.
+
+        """
+        for name, property_snapshot in snapshot.items():
+            self._properties[name]._restore(property_snapshot)
+
+    @override
+    def _remote_value(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Return every property snapshot in the unit of the property.
+
+        Args:
+            snapshot (dict[str, Any]):
+                The snapshot captured by `_snapshot`.
+
+        Returns:
+            dict[str, Any]:
+                The value to send to the remote server, by property name.
+
+        """
+        return {
+            name: self._properties[name]._remote_value(property_snapshot)
+            for name, property_snapshot in snapshot.items()
+        }
 
     @override
     def _write_remote(self, value: dict[str, Any]) -> bool:

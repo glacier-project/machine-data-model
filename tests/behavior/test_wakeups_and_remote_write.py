@@ -448,3 +448,97 @@ class TestCachedReadsDoNotDrift:
         assert forced == {"len": 5}
         assert length._read_internal_value() == pytest.approx(0.005)
         assert cached == [{"len": pytest.approx(0.005)}] * 3
+
+
+def sent_values(variable: VariableNode) -> list[Any]:
+    connector = variable._connector
+    assert isinstance(connector, MagicMock)
+    return [c.args[1] for c in connector.write_node_value.call_args_list]
+
+
+class TestSnapshotRestore:
+    @pytest.mark.parametrize(
+        "unit, initial, base",
+        [
+            (LengthUnits.Millimeter, 1, 0.001),
+            (TemperatureUnits.DegreeCelsius, 25, 298.15),
+        ],
+    )
+    def test_remote_restore_sends_the_original_magnitude(
+        self, unit: Any, initial: float, base: float
+    ) -> None:
+        variable = remote_unit_variable(unit, initial, True)
+        original = variable._value
+        variable.set_post_update_value_callback(lambda prev, curr: False)
+
+        assert variable.write(initial + 4) is False
+
+        sent = sent_values(variable)
+        # The new value, then the original one in the unit of the variable.
+        assert sent == [initial + 4, pytest.approx(initial)]
+        assert variable._read_internal_value() == pytest.approx(base)
+        assert variable._value is original
+
+    @pytest.mark.parametrize(
+        "unit, initial, base",
+        [
+            (LengthUnits.Millimeter, 1, 0.001),
+            (TemperatureUnits.DegreeCelsius, 25, 298.15),
+        ],
+    )
+    def test_local_restore_is_exact_for_non_base_units(
+        self, unit: Any, initial: float, base: float
+    ) -> None:
+        variable = NumericalVariableNode(
+            name="v", value=initial, measure_unit=unit
+        )
+        original = variable._value
+        variable.set_post_update_value_callback(lambda prev, curr: False)
+
+        assert variable.write(initial + 4) is False
+
+        assert variable._read_internal_value() == pytest.approx(base)
+        assert variable._value is original
+
+    def test_restore_for_a_variable_without_unit(self) -> None:
+        variable, connector = remote_variable(True, value=3)
+        variable.set_post_update_value_callback(lambda prev, curr: False)
+
+        assert variable.write(9) is False
+
+        sent = [c.args[1] for c in connector.write_node_value.call_args_list]
+        assert sent == [9, 3]
+        assert variable._read_internal_value() == 3
+
+    def test_object_restore_uses_each_property_unit(self) -> None:
+        unit = LengthUnits.Millimeter
+        length = remote_unit_variable(unit, 2, True)
+        length._name = "len"
+        flag = BooleanVariableNode(name="flag", value=True)
+        flag_connector = MagicMock()
+        flag_connector.write_node_value.return_value = True
+        flag.set_connector(flag_connector)
+        flag._remote_resource = RemoteResource("ns=2")
+        obj = ObjectVariableNode(
+            name="o",
+            properties={"len": length, "flag": flag},
+            connector_name="c",
+        )
+        obj.set_connector(MagicMock())
+        obj._remote_resource = RemoteResource("ns=1")
+        original = length._value
+        obj.set_post_update_value_callback(lambda prev, curr: False)
+
+        assert obj.write({"len": 0.5, "flag": False}) is False
+
+        sent = sent_values(length)
+        # The constructor of the object already converted its property once
+        # (unit semantics, issue #67): the machine must get back whatever the
+        # property held before the write, in the unit of the property.
+        assert sent == [0.5, pytest.approx(original.convert(unit))]
+        assert length._value is original
+        assert flag._read_internal_value() is True
+        flag_sent = [
+            c.args[1] for c in flag_connector.write_node_value.call_args_list
+        ]
+        assert flag_sent == [False, True]
