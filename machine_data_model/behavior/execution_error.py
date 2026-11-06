@@ -6,6 +6,35 @@ imported from anywhere without creating import cycles.
 
 from dataclasses import dataclass
 from enum import Enum
+import re
+
+# Whitespace and control characters (C0, DEL, C1) in a text.
+_CONTROL_RUNS = re.compile(r"[\s\x00-\x1f\x7f-\x9f]+")
+
+
+def sanitize_detail(text: str, max_length: int) -> str:
+    """Make a text safe and bounded to be shown to a peer or written to a log.
+
+    Runs of whitespace and control characters (newlines, carriage returns,
+    escape sequences, ...) become one space, the text is stripped and cut to
+    `max_length` characters (on the string, never in the middle of a
+    character) with "..." appended when it was cut.
+
+    Args:
+        text (str):
+            The text.
+        max_length (int):
+            The longest text kept, in characters.
+
+    Returns:
+        str:
+            The sanitized text.
+
+    """
+    result = _CONTROL_RUNS.sub(" ", text).strip()
+    if len(result) > max_length:
+        result = result[:max_length].rstrip() + "..."
+    return result
 
 
 class ExecutionErrorCode(str, Enum):

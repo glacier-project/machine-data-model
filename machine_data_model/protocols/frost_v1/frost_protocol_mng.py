@@ -6,7 +6,6 @@ including variable operations, method invocations, and protocol management.
 """
 
 import logging
-import re
 from typing import Any
 
 from typing_extensions import override
@@ -14,6 +13,7 @@ from typing_extensions import override
 from machine_data_model.behavior.execution_error import (
     ExecutionError,
     ExecutionErrorCode,
+    sanitize_detail,
 )
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
@@ -84,17 +84,9 @@ _EXECUTION_ERROR_RESPONSES: dict[
 # error. Longer details are cut and end with "...".
 _MAX_ERROR_DETAIL = 256
 
-# Whitespace and control characters (C0, DEL, C1) in a detail text.
-_CONTROL_RUNS = re.compile(r"[\s\x00-\x1f\x7f-\x9f]+")
-
 
 def _sanitize_detail(detail: str) -> str:
     """Make a detail text safe and bounded for the Frost boundary.
-
-    Runs of whitespace and control characters become one space, the text is
-    stripped and cut to `_MAX_ERROR_DETAIL` characters (never in the middle of
-    a character: the cut is on the string, not on bytes) with "..." appended
-    when it was cut.
 
     Args:
         detail (str):
@@ -102,13 +94,11 @@ def _sanitize_detail(detail: str) -> str:
 
     Returns:
         str:
-            The sanitized text.
+            The text without control characters, at most
+            `_MAX_ERROR_DETAIL` characters long (see `sanitize_detail`).
 
     """
-    text = _CONTROL_RUNS.sub(" ", detail).strip()
-    if len(text) > _MAX_ERROR_DETAIL:
-        text = text[:_MAX_ERROR_DETAIL].rstrip() + "..."
-    return text
+    return sanitize_detail(detail, _MAX_ERROR_DETAIL)
 
 
 # Codes whose detail is never sent to the peer (it may carry paths, values or

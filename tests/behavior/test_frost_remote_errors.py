@@ -8,7 +8,10 @@ import pytest
 from machine_data_model.behavior.condition import WaitConditionOperator
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
-from machine_data_model.behavior.execution_error import ExecutionErrorCode
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+)
 from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.behavior.remote_execution_node import (
     CallRemoteMethodNode,
@@ -324,6 +327,83 @@ def test_long_remote_text_is_truncated() -> None:
     assert error is not None
     assert len(error.message) < 400
     assert error.message.endswith("...")
+
+
+class TestRemoteTextSanitized:
+    """The remote text and code are cleaned where they enter the error."""
+
+    def run(
+        self,
+        text: str = SECRET,
+        code: object = None,
+        remote_id: str = "remote_dm",
+    ) -> ExecutionError | None:
+        node = CallRemoteMethodNode(
+            method_node="remote_method",
+            remote_id=remote_id,
+            args=[],
+            kwargs={},
+        )
+        node.set_message_builder(FrostMessageBuilder(sender="dm"))
+        context = new_context()
+        request = node.execute(context).messages[0]
+        answer = remote_error(request, sender=remote_id, text=text)
+        if code is not None:
+            assert isinstance(answer.payload, ErrorPayload)
+            answer.payload.error_code = code  # type: ignore[assignment]
+        return node.handle_error(context, answer)
+
+    def test_control_characters_are_removed(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        text = "line1\nline2\r\x1b[31mred\x1b[0m\x00end"
+        with caplog.at_level(logging.DEBUG):
+            error = self.run(text=text)
+
+        assert error is not None
+        for char in ("\n", "\r", "\x1b", "\x00"):
+            assert char not in error.message
+        assert "line1 line2" in error.message
+        for record in caplog.records:
+            rendered = record.getMessage()
+            for char in ("\n", "\r", "\x1b"):
+                assert char not in rendered
+
+    def test_known_code_is_formatted_as_name(self) -> None:
+        error = self.run()
+
+        assert error is not None
+        assert "NOT_ALLOWED" in error.message
+        assert "ErrorCode." not in error.message
+        assert "<" not in error.message
+
+    def test_unknown_integer_code_is_formatted_as_number(self) -> None:
+        error = self.run(code=987654)
+
+        assert error is not None
+        assert "error 987654:" in error.message
+
+    def test_non_integer_code_is_bounded_and_clean(self) -> None:
+        error = self.run(code="bad\ncode" + "z" * 500)
+
+        assert error is not None
+        assert "\n" not in error.message
+        assert len(error.message) < 400
+
+    def test_long_text_is_cut(self) -> None:
+        error = self.run(text="y" * 5000)
+
+        assert error is not None
+        assert error.message.endswith("...")
+        assert len(error.message) < 400
+
+    def test_remote_id_is_sanitized(self) -> None:
+        error = self.run(remote_id="remote\ndm\x1b[1m" + "r" * 200)
+
+        assert error is not None
+        assert "\n" not in error.message
+        assert "\x1b" not in error.message
+        assert len(error.message) < 400
 
 
 def remote_nodes() -> list[tuple[str, RemoteExecutionNode, tuple[object, ...]]]:

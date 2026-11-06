@@ -24,6 +24,7 @@ from machine_data_model.behavior.execution_context import (
 from machine_data_model.behavior.execution_error import (
     ExecutionError,
     ExecutionErrorCode,
+    sanitize_detail,
 )
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionOperator,
@@ -40,6 +41,7 @@ from machine_data_model.protocols.frost_v1.frost_message_builder import (
     FrostMessageBuilder,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
+    ErrorCode,
     ErrorPayload,
     MethodPayload,
     VariablePayload,
@@ -49,6 +51,27 @@ from machine_data_model.tracing.events import trace_control_flow_step
 # The text of a remote error is controlled by the remote party: keep only the
 # beginning of it.
 _MAX_REMOTE_ERROR_TEXT = 200
+
+
+def _format_error_code(code: object) -> str:
+    """Format the error code of a remote error as its name or its number.
+
+    Args:
+        code (object):
+            The code as sent by the remote party.
+
+    Returns:
+        str:
+            The name of a known code (for example "NOT_ALLOWED"), the integer
+            for an unknown one, or a bounded text for anything else.
+
+    """
+    if isinstance(code, int):
+        try:
+            return ErrorCode(code).name
+        except ValueError:
+            return str(int(code))
+    return sanitize_detail(str(code), 32)
 
 
 class RemoteExecutionNode(ControlFlowNode):
@@ -252,13 +275,17 @@ class RemoteExecutionNode(ControlFlowNode):
             or not isinstance(error_message.payload, ErrorPayload)
         ):
             return None
-        text = str(error_message.payload.error_message)
-        if len(text) > _MAX_REMOTE_ERROR_TEXT:
-            text = text[:_MAX_REMOTE_ERROR_TEXT] + "..."
+        # The text and the code come from the remote party: sanitize them where
+        # they enter the error, so no log line or answer can carry control
+        # characters or an unbounded text.
+        text = sanitize_detail(
+            str(error_message.payload.error_message), _MAX_REMOTE_ERROR_TEXT
+        )
         return ExecutionError(
             ExecutionErrorCode.REMOTE_ERROR,
-            f"remote '{self.remote_id}' answered with error "
-            f"{error_message.payload.error_code}: {text}",
+            f"remote '{sanitize_detail(self.remote_id, 64)}' answered with "
+            f"error {_format_error_code(error_message.payload.error_code)}: "
+            f"{text}",
             node=resolve_string_in_context(self.node, context),
         )
 
