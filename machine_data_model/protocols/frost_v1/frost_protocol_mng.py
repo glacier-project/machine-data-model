@@ -450,6 +450,11 @@ class FrostProtocolMng(ProtocolMng):
         """
         assert isinstance(msg.payload, MethodPayload)
         ret = method_node(*args, **kwargs)
+        # The messages produced while running (remote requests, cleanup,
+        # release) must leave whatever the outcome is: completed, failed or
+        # still running.
+        if ret.messages:
+            self._update_messages.extend(ret.messages)
         if ret.error is not None:
             return self._create_execution_error_message(msg, ret.error)
         ret_values = ret.return_values
@@ -462,10 +467,6 @@ class FrostProtocolMng(ProtocolMng):
             )
             self._running_methods[context_id] = (method_node, msg)
             # here we should return the accepted message
-
-            # If there are any update messages, extend the list.
-            if ret.messages:
-                self._update_messages.extend(ret.messages)
             return self._trace_and_return_response(
                 self._message_builder.build_method_started_message(
                     target=msg.sender,
