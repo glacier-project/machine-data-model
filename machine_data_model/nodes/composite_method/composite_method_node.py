@@ -11,8 +11,10 @@ import uuid
 
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import (
+    ControlFlowStatus,
     ExecutionContext,
 )
+from machine_data_model.behavior.execution_error import ExecutionError
 from machine_data_model.behavior.remote_execution_node import (
     RemoteExecutionNode,
 )
@@ -29,6 +31,27 @@ from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_message_builder import (
     FrostMessageBuilder,
 )
+
+
+class ContextNotFoundError(ValueError):
+    """Raised when an execution context id is unknown to a composite method.
+
+    Attributes:
+        context_id (str):
+            The id that was not found.
+
+    """
+
+    def __init__(self, context_id: str) -> None:
+        """Initialize a new ContextNotFoundError.
+
+        Args:
+            context_id (str):
+                The id that was not found.
+
+        """
+        super().__init__(f"context '{context_id}' not found")
+        self.context_id = context_id
 
 
 class CompositeMethodNode(MethodNode):
@@ -129,7 +152,8 @@ class CompositeMethodNode(MethodNode):
         """Terminate the execution of the method with the specified context.
 
         It returns the return values of the method if the method is completed,
-        otherwise it returns the context id.
+        an empty dictionary if the method failed (nothing is cached and the
+        post-call function is not called), otherwise it returns the context id.
 
         Args:
             context (ExecutionContext):
@@ -141,6 +165,9 @@ class CompositeMethodNode(MethodNode):
         """
         if context.is_active():
             return {"@context_id": context.id()}
+
+        if context.status is ControlFlowStatus.FAILED:
+            return {}
 
         ret_t = tuple(context.get_value(node.name) for node in self.returns)
         ret = self._build_return_dict(ret_t)
@@ -164,8 +191,41 @@ class CompositeMethodNode(MethodNode):
         """
         return self._completed_results.get(context_id)
 
+    def has_failed(self, context_id: str) -> bool:
+        """Check if the context with the specified id ended in error.
+
+        Args:
+            context_id (str):
+                The id of the context to check.
+
+        Returns:
+            bool:
+                True if the context failed, False if it is still running or
+                completed.
+
+        """
+        context = self._get_context(context_id)
+        return context.status is ControlFlowStatus.FAILED
+
+    def get_error(self, context_id: str) -> ExecutionError | None:
+        """Get the error of the context with the specified id.
+
+        Args:
+            context_id (str):
+                The id of the context.
+
+        Returns:
+            ExecutionError | None:
+                The error if the context failed, otherwise None.
+
+        """
+        return self._get_context(context_id).error
+
     def is_terminated(self, context_id: str) -> bool:
         """Check if the context with the specified id is terminated.
+
+        Terminated means completed or failed: use `has_failed` to tell them
+        apart before reading the return values.
 
         Args:
             context_id (str):
@@ -187,12 +247,12 @@ class CompositeMethodNode(MethodNode):
                 The id of the context to delete.
 
         Raises:
-            ValueError:
+            ContextNotFoundError:
                 If the context with the specified id is not found.
 
         """
         if context_id not in self._contexts:
-            raise ValueError(f"context '{context_id}' not found")
+            raise ContextNotFoundError(context_id)
         del self._contexts[context_id]
         self._completed_results.pop(context_id, None)
         self._notified_parent_contexts.discard(context_id)
@@ -241,11 +301,14 @@ class CompositeMethodNode(MethodNode):
         if not isinstance(parent_method, CompositeMethodNode):
             return []
 
-        self._notified_parent_contexts.add(context.id())
-        try:
-            parent_result = parent_method.resume_execution(parent_context_id)
-        except ValueError:
+        if parent_context_id not in parent_method._contexts:
+            # The parent was already collected or deleted: nothing to resume.
             return []
+
+        self._notified_parent_contexts.add(context.id())
+        # Errors raised inside the parent control flow propagate to the caller:
+        # only a missing parent context is ignored, and it is checked above.
+        parent_result = parent_method.resume_execution(parent_context_id)
 
         return list(parent_result.messages or [])
 
@@ -333,20 +396,34 @@ class CompositeMethodNode(MethodNode):
                 The result of resuming the execution of the method.
 
         Raises:
-            ValueError:
+            ContextNotFoundError:
                 If the context with the specified id is not found.
 
         """
         context = self._get_context(context_id)
-        if context is None:
-            raise ValueError(f"context '{context_id}' not found")
+        if not context.is_active():
+            # Idempotent: a terminal context returns its stored outcome and is
+            # neither executed nor post-processed again.
+            return MethodExecutionResult(
+                messages=[],
+                return_values=(
+                    {}
+                    if context.error is not None
+                    else dict(self._completed_results.get(context_id, {}))
+                ),
+                error=context.error,
+            )
         remote_messages = self.cfg.execute(context)
         return_values = self._terminate_execution(context)
         if not context.is_active():
             remote_messages.extend(self._notify_nested_parent(context))
+        # A terminal context is NOT released here: the consumer that resumed
+        # it (the nested parent, the protocol manager) still has to collect the
+        # return values or the error and then calls `delete_context`.
         return MethodExecutionResult(
             messages=remote_messages,
             return_values=return_values,
+            error=context.error,
         )
 
     def _start_execution(
@@ -357,6 +434,11 @@ class CompositeMethodNode(MethodNode):
         It creates a new context and executes the control flow graph
         of the method until a wait condition is reached or the method is
         completed. A context id is returned if the method is not completed.
+
+        If the method is already terminal (completed or failed) when this
+        returns, the caller receives the outcome in the result and the context
+        is released before returning. A context that is still running is kept
+        until it terminates and its consumer calls `delete_context`.
 
         Args:
             **kwargs (dict[str, Any]):
@@ -370,11 +452,16 @@ class CompositeMethodNode(MethodNode):
         context = self._create_context(**kwargs)
         remote_messages = self.cfg.execute(context)
         return_values = self._terminate_execution(context)
-        if not context.is_active():
-            remote_messages.extend(self._notify_nested_parent(context))
+        try:
+            if not context.is_active():
+                remote_messages.extend(self._notify_nested_parent(context))
+        finally:
+            if not context.is_active():
+                self.delete_context(context.id())
         return MethodExecutionResult(
             messages=remote_messages,
             return_values=return_values,
+            error=context.error,
         )
 
     def _get_context(self, context_id: str) -> ExecutionContext:
@@ -389,7 +476,10 @@ class CompositeMethodNode(MethodNode):
                 The context with the specified id.
 
         """
-        return self._contexts[context_id]
+        try:
+            return self._contexts[context_id]
+        except KeyError:
+            raise ContextNotFoundError(context_id) from None
 
     def _create_context(self, **kwargs: dict[str, Any]) -> ExecutionContext:
         """Create a new context with the specified arguments.

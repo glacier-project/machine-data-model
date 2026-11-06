@@ -11,6 +11,7 @@ from typing import Any
 
 from typing_extensions import override
 
+from machine_data_model.behavior.execution_error import ExecutionError
 from machine_data_model.nodes.connectors.abstract_connector import (
     AbstractConnector,
 )
@@ -37,10 +38,15 @@ class MethodExecutionResult:
             A list of Frost messages to be sent as a result of executing or
             resuming the method node.
 
+    Error:
+            The reason of the failure if the execution ended in error,
+            otherwise None. When set, `return_values` is empty.
+
     """
 
     return_values: dict[str, Any]
     messages: Sequence[FrostMessage] | None = None
+    error: ExecutionError | None = None
 
 
 class MethodNode(DataModelNode):

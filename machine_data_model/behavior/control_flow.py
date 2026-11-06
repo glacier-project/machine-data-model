@@ -150,6 +150,10 @@ class ControlFlow:
                 control flow graph.
 
         """
+        # A terminal context (completed or failed) is never executed again.
+        if not context.is_active():
+            return []
+
         data_model_id = self.get_data_model_id()
 
         # Trace control flow start.
@@ -174,8 +178,13 @@ class ControlFlow:
 
             if result.messages:
                 messages.extend(result.messages)
+            if result.failed:
+                assert result.error is not None
+                # The node already released what it owns (subscriptions and
+                # context keys) before returning the failure.
+                context.fail(result.error)
             if not result.success:
-                # Trace control flow end (failure)
+                # Trace control flow end (failure or not done yet)
                 trace_control_flow_end(
                     control_flow_id=context.id(),
                     success=False,

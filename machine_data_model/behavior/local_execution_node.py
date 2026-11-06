@@ -6,12 +6,17 @@ conditions.
 """
 
 from collections.abc import Callable
-from enum import Enum
 from typing import Any
 
+from machine_data_model.behavior.condition import (
+    WaitConditionOperator,
+    compare,
+    get_condition_operator,
+)
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
+    execution_error,
     execution_failure,
     execution_success,
 )
@@ -21,6 +26,7 @@ from machine_data_model.behavior.execution_context import (
     resolve_string_in_context,
     resolve_value,
 )
+from machine_data_model.behavior.execution_error import ExecutionError
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.method_node import MethodNode
 from machine_data_model.nodes.subscription.variable_subscription import (
@@ -29,6 +35,16 @@ from machine_data_model.nodes.subscription.variable_subscription import (
 from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
+
+__all__ = [
+    "CallMethodNode",
+    "LocalExecutionNode",
+    "ReadVariableNode",
+    "WaitConditionNode",
+    "WaitConditionOperator",
+    "WriteVariableNode",
+    "get_condition_operator",
+]
 
 
 class LocalExecutionNode(ControlFlowNode):
@@ -419,6 +435,31 @@ class CallMethodNode(LocalExecutionNode):
         """
         return self._kwargs
 
+    @staticmethod
+    def _wrap_error(error: ExecutionError, callee: str) -> ExecutionError:
+        """Build the error of this node from the error of the callee.
+
+        Args:
+            error (ExecutionError):
+                The error of the callee.
+            callee (str):
+                The resolved qualified name of the callee.
+
+        Returns:
+            ExecutionError:
+                An error with the same code, a message prefixed with the name
+                of the callee, the callee as the failing node and the origin
+                of the callee error preserved (or, if it has none, the node it
+                reports).
+
+        """
+        return ExecutionError(
+            code=error.code,
+            message=f"{callee}: {error.message}",
+            node=callee,
+            origin=error.origin if error.origin is not None else error.node,
+        )
+
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the call operation of the method in the machine data model.
 
@@ -428,7 +469,9 @@ class CallMethodNode(LocalExecutionNode):
 
         Returns:
             ExecutionNodeResult:
-                An ExecutionNodeResult indicating success.
+                An ExecutionNodeResult indicating success, that the callee is
+                still running, or that the callee failed (the error of the
+                callee is propagated).
 
         """
         from machine_data_model.nodes.composite_method import (
@@ -462,6 +505,25 @@ class CallMethodNode(LocalExecutionNode):
                     )
                     return execution_failure()
 
+                if ref_method.has_failed(pending_context_id):
+                    callee_error = ref_method.get_error(pending_context_id)
+                    assert callee_error is not None
+                    ref_method.delete_context(pending_context_id)
+                    context.delete_value(pending_key)
+                    trace_control_flow_step(
+                        node_id=self.node,
+                        node_type=type(self).__name__,
+                        execution_result=False,
+                        program_counter=context.get_pc(),
+                        source=context.id(),
+                        data_model_id=data_model_id,
+                    )
+                    return execution_error(
+                        self._wrap_error(
+                            callee_error, ref_method.qualified_name
+                        )
+                    )
+
                 ret = ref_method.get_completed_return_values(pending_context_id)
                 assert ret is not None
                 context.set_all_values(**ret)
@@ -492,6 +554,12 @@ class CallMethodNode(LocalExecutionNode):
         args = [resolve_value(arg, context) for arg in self._args]
         kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
         res = ref_method(*args, **kwargs)
+
+        if res.error is not None:
+            return execution_error(
+                self._wrap_error(res.error, ref_method.qualified_name),
+                list(res.messages or []),
+            )
 
         if isinstance(ref_method, composite_method_node.CompositeMethodNode):
             pending_context_id = res.return_values.get("@context_id")
@@ -540,39 +608,6 @@ class CallMethodNode(LocalExecutionNode):
             and self.args == other.args
             and self.kwargs == other.kwargs
         )
-
-
-class WaitConditionOperator(str, Enum):
-    """Enumeration of wait condition operators."""
-
-    EQ = "=="
-    NE = "!="
-    LT = "<"
-    GT = ">"
-    LE = "<="
-    GE = ">="
-
-
-def get_condition_operator(op: str) -> WaitConditionOperator:
-    """Get the wait condition operator from a string representation.
-
-    Args:
-        op (str):
-            The string representation of the operator.
-
-    Returns:
-        WaitConditionOperator:
-            The corresponding WaitConditionOperator enum value.
-
-    Raises:
-        ValueError:
-            If the operator string is invalid.
-
-    """
-    for enum_op in WaitConditionOperator:
-        if enum_op.value == op:
-            return enum_op
-    raise ValueError(f"Invalid operator: {op}")
 
 
 class WaitConditionNode(LocalExecutionNode):
@@ -674,20 +709,7 @@ class WaitConditionNode(LocalExecutionNode):
 
         rhs = resolve_value(self._rhs, context)
         lhs = ref_variable.read()
-        if self._op == WaitConditionOperator.EQ:
-            result = lhs == rhs
-        elif self._op == WaitConditionOperator.NE:
-            result = lhs != rhs
-        elif self._op == WaitConditionOperator.LT:
-            result = lhs < rhs
-        elif self._op == WaitConditionOperator.GT:
-            result = lhs > rhs
-        elif self._op == WaitConditionOperator.LE:
-            result = lhs <= rhs
-        elif self._op == WaitConditionOperator.GE:
-            result = lhs >= rhs
-        else:
-            raise ValueError(f"Invalid operator: {self._op}")
+        result = compare(self._op, lhs, rhs)
 
         # Build base keys used to store wait-related data inside the context.
         # Use a single base so derived keys are colocated and consistent.

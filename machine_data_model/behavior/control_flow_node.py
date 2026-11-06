@@ -5,43 +5,134 @@ result structure for node executions in the machine data model.
 """
 
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.behavior.execution_error import ExecutionError
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 
 if TYPE_CHECKING:
     from machine_data_model.behavior.control_flow import ControlFlow
 
 
+class NodeStatus(Enum):
+    """Enumeration of the outcomes of executing a control flow node.
+
+    Attributes:
+        SUCCESS:
+            The node completed, the program counter advances.
+        RUNNING:
+            The node is not done yet (for example it waits for an event or for
+            a response), the program counter stays and the node is executed
+            again on resume.
+        FAILURE:
+            The node failed, the execution of the control flow ends in error.
+
+    """
+
+    SUCCESS = "success"
+    RUNNING = "running"
+    FAILURE = "failure"
+
+
 class ExecutionNodeResult:
     """Represents the result of executing a control flow node.
 
     Attributes:
-        success (bool):
-            Indicates whether the execution was successful.
+        status (NodeStatus):
+            The outcome of the execution.
         messages (list[FrostMessage]):
             A list of messages generated during execution.
+        error (ExecutionError | None):
+            The reason of the failure, set if and only if the status is
+            `NodeStatus.FAILURE`.
 
     """
 
-    success: bool
     messages: list[FrostMessage]
 
     def __init__(
-        self, success: bool, messages: list[FrostMessage] | None = None
+        self,
+        success_or_status: bool | NodeStatus,
+        messages: list[FrostMessage] | None = None,
+        error: ExecutionError | None = None,
     ):
         """Initialize an ExecutionNodeResult instance.
 
         Args:
-            success (bool):
-                Indicates whether the execution was successful.
+            success_or_status (bool | NodeStatus):
+                The outcome of the execution. For backward compatibility a
+                `bool` is accepted: True is `SUCCESS`, False is `RUNNING`.
             messages (list[FrostMessage] | None):
                 A list of messages generated during execution, or None.
+            error (ExecutionError | None):
+                The reason of the failure. Required for `FAILURE`, not allowed
+                otherwise.
+
+        Raises:
+            ValueError:
+                If `error` is missing for a failure or given for another
+                status.
 
         """
-        self.success = success
+        if isinstance(success_or_status, NodeStatus):
+            status = success_or_status
+        else:
+            status = (
+                NodeStatus.SUCCESS if success_or_status else NodeStatus.RUNNING
+            )
+        if (status is NodeStatus.FAILURE) != (error is not None):
+            raise ValueError(
+                "an error must be given if and only if the status is FAILURE"
+            )
+        self._status = status
         self.messages = messages if messages is not None else []
+        self._error = error
+
+    @property
+    def status(self) -> NodeStatus:
+        """The outcome of the execution (read-only).
+
+        Returns:
+            NodeStatus:
+                The status of the result.
+
+        """
+        return self._status
+
+    @property
+    def error(self) -> ExecutionError | None:
+        """The reason of the failure (read-only).
+
+        Returns:
+            ExecutionError | None:
+                The error if the status is `FAILURE`, otherwise None.
+
+        """
+        return self._error
+
+    @property
+    def success(self) -> bool:
+        """Whether the node completed successfully.
+
+        Returns:
+            bool:
+                True if the status is `SUCCESS`.
+
+        """
+        return self._status is NodeStatus.SUCCESS
+
+    @property
+    def failed(self) -> bool:
+        """Whether the node failed.
+
+        Returns:
+            bool:
+                True if the status is `FAILURE`.
+
+        """
+        return self._status is NodeStatus.FAILURE
 
 
 def execution_success(
@@ -64,7 +155,10 @@ def execution_success(
 def execution_failure(
     messages: list[FrostMessage] | None = None,
 ) -> ExecutionNodeResult:
-    """Create a failed ExecutionNodeResult.
+    """Create a not-done ExecutionNodeResult.
+
+    Despite the name, this is not a failure: the node is `RUNNING` and is
+    executed again on resume. Use `execution_error` to fail.
 
     Args:
         messages (list[FrostMessage] | None):
@@ -72,10 +166,30 @@ def execution_failure(
 
     Returns:
         ExecutionNodeResult:
-            An ExecutionNodeResult with success set to False.
+            An ExecutionNodeResult with status `RUNNING`.
 
     """
-    return ExecutionNodeResult(False, messages)
+    return ExecutionNodeResult(NodeStatus.RUNNING, messages)
+
+
+def execution_error(
+    error: ExecutionError,
+    messages: list[FrostMessage] | None = None,
+) -> ExecutionNodeResult:
+    """Create a failed ExecutionNodeResult.
+
+    Args:
+        error (ExecutionError):
+            The reason of the failure.
+        messages (list[FrostMessage] | None):
+            A list of messages generated during execution, or None.
+
+    Returns:
+        ExecutionNodeResult:
+            An ExecutionNodeResult with status `FAILURE`.
+
+    """
+    return ExecutionNodeResult(NodeStatus.FAILURE, messages, error)
 
 
 class ControlFlowNode(ABC):

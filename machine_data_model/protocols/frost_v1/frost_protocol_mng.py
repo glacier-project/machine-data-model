@@ -9,6 +9,10 @@ from typing import Any
 
 from typing_extensions import override
 
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+)
 from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
@@ -42,6 +46,31 @@ from machine_data_model.tracing import (
     trace_message_receive,
     trace_message_send,
 )
+
+_EXECUTION_ERROR_RESPONSES: dict[
+    ExecutionErrorCode, tuple[ErrorCode, ErrorMessages]
+] = {
+    ExecutionErrorCode.PRECONDITION_NOT_MET: (
+        ErrorCode.NOT_ALLOWED,
+        ErrorMessages.PRECONDITION_NOT_MET,
+    ),
+    ExecutionErrorCode.NO_DATA: (
+        ErrorCode.NOT_ALLOWED,
+        ErrorMessages.NO_DATA,
+    ),
+    ExecutionErrorCode.TIMEOUT: (
+        ErrorCode.UNKNOWN,
+        ErrorMessages.TIMEOUT,
+    ),
+    ExecutionErrorCode.INVALID_CONFIGURATION: (
+        ErrorCode.BAD_REQUEST,
+        ErrorMessages.BAD_REQUEST,
+    ),
+    ExecutionErrorCode.REMOTE_ERROR: (
+        ErrorCode.UNKNOWN,
+        ErrorMessages.REMOTE_ERROR,
+    ),
+}
 
 
 class FrostProtocolMng(ProtocolMng):
@@ -379,6 +408,8 @@ class FrostProtocolMng(ProtocolMng):
         """
         assert isinstance(msg.payload, MethodPayload)
         ret = method_node(*args, **kwargs)
+        if ret.error is not None:
+            return self._create_execution_error_message(msg, ret.error)
         ret_values = ret.return_values
         if "@context_id" in ret_values:
             context_id = ret_values["@context_id"]
@@ -645,9 +676,13 @@ class FrostProtocolMng(ProtocolMng):
         if not cm.is_terminated(context_id):
             return None
 
-        # append response message
+        failure = (
+            cm.get_error(context_id) if cm.has_failed(context_id) else None
+        )
         cm.delete_context(context_id)
         del self._running_methods[context_id]
+        if failure is not None:
+            return self._create_execution_error_message(msg, failure)
         # append response message
         assert isinstance(msg.payload, MethodPayload)
         return self._trace_and_return_response(
@@ -705,10 +740,33 @@ class FrostProtocolMng(ProtocolMng):
             )
         )
 
+    def _create_execution_error_message(
+        self,
+        msg: FrostMessage,
+        error: ExecutionError,
+    ) -> FrostMessage:
+        """Create an error response for a failed method execution.
+
+        Args:
+            msg (FrostMessage):
+                The request that started the method.
+            error (ExecutionError):
+                The reason of the failure.
+
+        Returns:
+            FrostMessage:
+                An error message with the code and text mapped from the error.
+        """
+        error_code, error_message = _EXECUTION_ERROR_RESPONSES[error.code]
+        return self._create_error_message(
+            msg, f"{error_message.value}: {error.message}", error_code
+        )
+
     def _create_error_message(
         self,
         msg: FrostMessage,
-        error_message: ErrorMessages,
+        error_message: ErrorMessages | str,
+        error_code: ErrorCode = ErrorCode.BAD_REQUEST,
     ) -> FrostMessage:
         """Create a response message based on the provided message.
 
@@ -716,8 +774,12 @@ class FrostProtocolMng(ProtocolMng):
             msg (FrostMessage):
                 The original FrostMessage that will be used to create the
                 response.
-            error_message (ErrorMessages | None):
-                The error message to include in the response, if any.
+            error_message (ErrorMessages | str):
+                The error message to include in the response. A plain string
+                carries extra detail after the generic text.
+            error_code (ErrorCode):
+                The error code to include in the response. Defaults to
+                `ErrorCode.BAD_REQUEST`.
 
         Returns:
             FrostMessage:
@@ -727,7 +789,7 @@ class FrostProtocolMng(ProtocolMng):
         return self._trace_and_return_response(
             self._message_builder.build_error_message(
                 message=msg,
-                error_code=ErrorCode.BAD_REQUEST,
+                error_code=error_code,
                 error_message=error_message,
             ),
             msg,

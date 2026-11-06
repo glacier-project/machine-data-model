@@ -835,7 +835,7 @@ class FrostMessageBuilder(MessageBuilder):
         self,
         message: FrostMessage,
         error_code: ErrorCode,
-        error_message: ErrorMessages,
+        error_message: ErrorMessages | str,
     ) -> FrostMessage:
         """Build a FrostMessage for an error message.
 
@@ -844,8 +844,8 @@ class FrostMessageBuilder(MessageBuilder):
                 The original message that caused the error.
             error_code (ErrorCode):
                 The error code.
-            error_message (ErrorMessages):
-                The error message.
+            error_message (ErrorMessages | str):
+                The error message. A plain string carries extra detail.
 
         Returns:
             FrostMessage:
