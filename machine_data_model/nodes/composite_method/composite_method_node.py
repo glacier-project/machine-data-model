@@ -265,10 +265,28 @@ class CompositeMethodNode(MethodNode):
                 If the context with the specified id is not found.
 
         """
-        if self._contexts.pop(context_id, None) is None:
+        if not self._drop_context(context_id):
             raise ContextNotFoundError(context_id)
+
+    def _drop_context(self, context_id: str) -> bool:
+        """Remove a context everywhere it is tracked.
+
+        Args:
+            context_id (str):
+                The id of the context to remove.
+
+        Returns:
+            bool:
+                True if the context existed.
+
+        """
+        context = self._contexts.pop(context_id, None)
         self._completed_results.pop(context_id, None)
         self._notified_parent_contexts.discard(context_id)
+        data_model = self.data_model
+        if data_model is not None:
+            data_model.unregister_context(context_id)
+        return context is not None
 
     def abort_context(self, context_id: str) -> None:
         """Release a context that will never be resumed, best effort.
@@ -290,9 +308,7 @@ class CompositeMethodNode(MethodNode):
             if node is not None:
                 node.release(context)
         finally:
-            self._contexts.pop(context_id, None)
-            self._completed_results.pop(context_id, None)
-            self._notified_parent_contexts.discard(context_id)
+            self._drop_context(context_id)
 
     def set_context_subscription_callback(
         self,
@@ -534,6 +550,9 @@ class CompositeMethodNode(MethodNode):
         context = ExecutionContext(context_id, **kwargs)
         assert context_id not in self._contexts
         self._contexts[context_id] = context
+        data_model = self.data_model
+        if data_model is not None:
+            data_model.register_context(self, context)
         return context
 
     def __str__(self) -> str:

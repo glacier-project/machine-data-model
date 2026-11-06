@@ -3,6 +3,7 @@ import logging
 from typing import Any
 import weakref
 
+from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.behavior.remote_execution_node import (
     RemoteExecutionNode,
@@ -77,6 +78,12 @@ class DataModel:
         )
         self._closed = False
         self._connector_finalizer: weakref.finalize | None = None
+        # Index of the live execution contexts of the composite methods of this
+        # model, by context id, so that a trigger carrying only a context id
+        # (a subscription, a response) can find the context that waits.
+        self._contexts: dict[
+            str, tuple[CompositeMethodNode, ExecutionContext]
+        ] = {}
 
         self._connectors: dict[str, AbstractConnector] = (
             self._initialize_connectors(connectors)
@@ -320,6 +327,49 @@ class DataModel:
         if connector is None:
             raise KeyError(f"Connector with name '{name}' not found")
         return connector
+
+    def register_context(
+        self, composite: CompositeMethodNode, context: ExecutionContext
+    ) -> None:
+        """Index a live execution context of a composite method.
+
+        Called by the composite method when it creates a context.
+
+        Args:
+            composite (CompositeMethodNode):
+                The composite method that owns the context.
+            context (ExecutionContext):
+                The execution context.
+
+        """
+        self._contexts[context.id()] = (composite, context)
+
+    def unregister_context(self, context_id: str) -> None:
+        """Remove an execution context from the index, if it is there.
+
+        Args:
+            context_id (str):
+                The id of the context.
+
+        """
+        self._contexts.pop(context_id, None)
+
+    def find_context(
+        self, context_id: str
+    ) -> tuple[CompositeMethodNode, ExecutionContext] | None:
+        """Find a live execution context by id, at any nesting level.
+
+        Args:
+            context_id (str):
+                The id of the context.
+
+        Returns:
+            tuple[CompositeMethodNode, ExecutionContext] | None:
+                The composite method that owns the context and the context, or
+                None if the id is unknown (never created, or already deleted).
+
+        """
+        return self._contexts.get(context_id)
 
     def _register_node(self, node: DataModelNode) -> None:
         """Register a node in the data model for id-based access.
