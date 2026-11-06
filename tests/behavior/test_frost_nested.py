@@ -1,7 +1,5 @@
 """Frost handling of nested composite contexts (a composite calling one)."""
 
-from machine_data_model.behavior.control_flow import ControlFlow
-from machine_data_model.behavior.control_flow_node import ControlFlowNode
 from machine_data_model.behavior.local_execution_node import CallMethodNode
 from machine_data_model.data_model import DataModel
 from machine_data_model.nodes.composite_method.composite_method_node import (
@@ -18,19 +16,14 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
 from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
     FrostProtocolMng,
 )
-from tests.behavior.test_execution_failure import (
+from tests.behavior import (
     ERROR,
+    composite,
     failing_stub,
     frost_request,
     frost_setup,
     wait_for_nonzero,
 )
-
-
-def composite(name: str, nodes: list[ControlFlowNode]) -> CompositeMethodNode:
-    return CompositeMethodNode(
-        id=name, name=name, cfg=ControlFlow(nodes=list(nodes))
-    )
 
 
 def call(name: str) -> CallMethodNode:
