@@ -423,11 +423,32 @@ class VariableNode(DataModelNode):
         """
         # a connector could be set only after reading the full yaml file
         if self.is_remote() and self.has_connector():
-            value = self._read_remote_value(force_remote_read=force_remote_read)
-            self._update_internal_value(value)
-            return value
+            # The cache is only written when a value really came from the
+            # connector. Feeding the cached (base unit) value back through
+            # `_update_internal_value` would convert it again on every read.
+            # A forced read returns the connector value as it always did (in
+            # the unit of the variable, see issue #67); a cached read returns
+            # the cache untouched.
+            if force_remote_read:
+                value = self._fetch_remote_value()
+                if value is not None:
+                    self._update_internal_value(value)
+                    return value
+            return self._read_internal_value()
         else:
             return self._read_internal_value()
+
+    def _fetch_remote_value(self) -> Any:
+        """Read the raw value from the remote server.
+
+        Returns:
+            Any:
+                The value as sent by the connector (in the unit of the
+                variable), or None if the server has no value.
+
+        """
+        connector = self._require_remote_connector()
+        return connector.read_node_value(self._require_remote_resource())
 
     def _require_remote_connector(self) -> AbstractConnector:
         """Return the connector or fail with a runtime exception."""
@@ -452,24 +473,6 @@ class VariableNode(DataModelNode):
             Any:
                 Variable's internal value.
         """
-
-    def _read_remote_value(self, force_remote_read: bool = False) -> Any:
-        """Return the cached value or read the latest value from remote server.
-
-        Args:
-            force_remote_read (bool, optional):
-                If True, use the connector to read the variable's latest value.
-                If False, return the cached value.
-                Default is False.
-
-        Returns:
-            Any:
-                Variable's remote (or its cached) value.
-        """
-        connector = self._require_remote_connector()
-        if force_remote_read:
-            return connector.read_node_value(self._require_remote_resource())
-        return self._read_internal_value()
 
     def _is_remote_with_connector(self) -> bool:
         """Whether writes go through a connector."""
@@ -721,26 +724,6 @@ class NumericalVariableNode(VariableNode):
         return self._value.base_value  # type: ignore[no-any-return]
 
     @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> float:
-        """Return the cached or latest numerical value from the remote server.
-
-        Args:
-            force_remote_read (bool, optional):
-                If True, use the connector to read the variable's latest value.
-                If False, returns the cached value.
-                Defaults to False.
-
-        Returns:
-            float:
-                The value of the numerical variable.
-        """
-        result = super()._read_remote_value(force_remote_read)
-        if result is None:
-            return self._read_internal_value()
-        assert isinstance(result, int | float)
-        return result
-
-    @override
     def _update_internal_value(self, value: float) -> float:
         """Update the value of the numerical variable.
 
@@ -849,25 +832,6 @@ class StringVariableNode(VariableNode):
 
         """
         return self._value
-
-    @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> str:
-        """Return the cached or latest string value from the remote server.
-
-        Args:
-            force_remote_read (bool):
-                If True, use the connector to read the variable's latest value.
-                If False, returns the cached value. Defaults to False.
-
-        Returns:
-            str:
-                The value of the string variable.
-        """
-        result = super()._read_remote_value(force_remote_read)
-        if result is None:
-            return self._read_internal_value()
-        assert isinstance(result, str)
-        return result
 
     @override
     def _update_internal_value(self, value: str) -> str:
@@ -1001,27 +965,6 @@ class BooleanVariableNode(VariableNode):
 
         """
         return self._value
-
-    @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> bool:
-        """Return the cached or latest boolean value from the remote server.
-
-        Args:
-            force_remote_read (bool, optional):
-                If True, use the connector to read the variable's latest value.
-                If False, returns the cached value.
-                Defaults to False.
-
-        Returns:
-            bool:
-                The value of the boolean variable when the operation was
-                successful.Otherwise, returns the previous value.
-        """
-        result = super()._read_remote_value(force_remote_read)
-        if result is None:
-            return self._read_internal_value()
-        assert isinstance(result, bool)
-        return result
 
     @override
     def _update_internal_value(self, value: bool) -> bool:
@@ -1253,30 +1196,30 @@ class ObjectVariableNode(VariableNode):
         return value
 
     @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> Any:
-        """Return the object value from remote server or cache.
+    def _read_value(self, force_remote_read: bool = False) -> Any:
+        """Get the value of the object variable.
 
-        If force_remote_read is True, reads all property values from remote.
+        A forced read of a remote object reads each property through its own
+        forced read (each one writes its own cache only when it really received
+        a value) and returns the values as they were returned, so the result
+        has the same domain as the property reads.
 
         Args:
             force_remote_read (bool, optional):
-                If True, use the connector to read the properties latest values.
-                If False, returns the cached value.
-                Defaults to False.
+                If True, refresh the properties from the remote server.
 
         Returns:
             Any:
                 The value of the object variable.
         """
-        self._require_remote_connector()
-        self._require_remote_resource()
-        value = {}
-        for property_name, property_node in self._properties.items():
-            if isinstance(property_node, VariableNode):
-                value[property_name] = property_node._read_remote_value(
-                    force_remote_read=force_remote_read
-                )
-        return value
+        if self.is_remote() and self.has_connector():
+            self._require_remote_resource()
+            if force_remote_read:
+                return {
+                    name: property_node._read_value(force_remote_read=True)
+                    for name, property_node in self._properties.items()
+                }
+        return self._read_internal_value()
 
     @override
     def _update_internal_value(self, value: dict[str, Any]) -> dict[str, Any]:

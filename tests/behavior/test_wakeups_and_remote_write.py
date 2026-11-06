@@ -202,12 +202,7 @@ def remote_unit_variable(
 
 
 class TestRemoteWriteWithUnits:
-    """The cache holds the base unit value: never infer success from it.
-
-    The cache is inspected with `_read_internal_value`: `read(False)` on a
-    remote variable with a non-base unit feeds the base value back through the
-    unit conversion on every call (pre-existing bug, not covered here).
-    """
+    """The cache holds the base unit value: never infer success from it."""
 
     @pytest.mark.parametrize(
         "unit, written, base",
@@ -239,11 +234,6 @@ class TestRemoteWriteWithUnits:
     def test_failed_write_with_unit(self, unit: Any) -> None:
         variable = remote_unit_variable(unit, 1, False)
         before = variable._read_internal_value()
-        # Bypass the cached read of `write()` (pre-existing unit drift bug) so
-        # only the effect of the failed remote write is observed.
-        variable._read_value = (  # type: ignore[method-assign]
-            lambda force_remote_read=False: variable._read_internal_value()
-        )
         notified: list[Any] = []
         variable.subscribe(
             VariableSubscription(
@@ -391,3 +381,70 @@ class TestObjectRemoteWrite:
         assert obj.read(force_remote_read=False) == {"a": 1, "b": 2}
         # "a" was written, then restored.
         assert connector_a.write_node_value.call_count == 2
+
+
+class TestCachedReadsDoNotDrift:
+    def test_cached_reads_of_a_non_base_unit_variable_are_stable(self) -> None:
+        variable = remote_unit_variable(LengthUnits.Millimeter, 1, True)
+
+        reads = [variable.read(force_remote_read=False) for _ in range(5)]
+
+        assert reads == [pytest.approx(0.001)] * 5
+        assert variable._read_internal_value() == pytest.approx(0.001)
+
+    def test_forced_read_returns_raw_and_leaves_the_cache_correct(self) -> None:
+        variable = remote_unit_variable(LengthUnits.Millimeter, 1, True)
+        variable._connector.read_node_value.return_value = 5  # type: ignore[union-attr]
+
+        forced = variable.read(force_remote_read=True)
+        cached = [variable.read(force_remote_read=False) for _ in range(3)]
+
+        # A forced read returns the connector value as it always did (unit of
+        # the variable, issue #67); the cache holds the converted value.
+        assert forced == 5
+        assert variable._read_internal_value() == pytest.approx(0.005)
+        assert cached == [pytest.approx(0.005)] * 3
+
+    def test_forced_read_without_a_value_keeps_the_cache(self) -> None:
+        variable = remote_unit_variable(LengthUnits.Millimeter, 1, True)
+        variable._connector.read_node_value.return_value = None  # type: ignore[union-attr]
+
+        forced = [variable.read(force_remote_read=True) for _ in range(3)]
+
+        assert forced == [pytest.approx(0.001)] * 3
+
+    def test_base_unit_variable_unchanged(self) -> None:
+        variable, connector = remote_variable(True, value=1)
+        connector.read_node_value.return_value = 7
+
+        assert variable.read(force_remote_read=True) == 7
+        assert variable.read(force_remote_read=False) == 7
+
+    def test_string_and_bool_forced_reads(self) -> None:
+        text = StringVariableNode(name="s", value="a", connector_name="c")
+        flag = BooleanVariableNode(name="b", value=True, connector_name="c")
+        for variable, raw in ((text, "z"), (flag, False)):
+            connector = MagicMock()
+            connector.read_node_value.return_value = raw
+            variable.set_connector(connector)
+            variable._remote_resource = RemoteResource("ns=1")
+
+            assert variable.read(force_remote_read=True) == raw
+            assert variable.read(force_remote_read=False) == raw
+
+    def test_remote_object_refreshes_properties_without_drift(self) -> None:
+        length = remote_unit_variable(LengthUnits.Millimeter, 1, True)
+        length._name = "len"
+        obj = ObjectVariableNode(
+            name="o", properties={"len": length}, connector_name="c"
+        )
+        obj.set_connector(MagicMock())
+        obj._remote_resource = RemoteResource("ns=1")
+        length._connector.read_node_value.return_value = 5  # type: ignore[union-attr]
+
+        forced = obj.read(force_remote_read=True)
+        cached = [obj.read(force_remote_read=False) for _ in range(3)]
+
+        assert forced == {"len": 5}
+        assert length._read_internal_value() == pytest.approx(0.005)
+        assert cached == [{"len": pytest.approx(0.005)}] * 3

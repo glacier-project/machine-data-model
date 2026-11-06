@@ -175,7 +175,7 @@ class TestEvaluate:
 
         A remote variable that never received a value from its connector still
         reads its internal default (for numerical variables, see
-        `_read_remote_value` in variable_node.py) instead of `None`, so the
+        `_read_value` in variable_node.py) instead of `None`, so the
         condition evaluates to OK/FAILED and never to NO_DATA. Connection state
         is not observable today.
         """
