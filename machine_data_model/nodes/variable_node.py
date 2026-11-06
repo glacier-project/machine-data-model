@@ -779,6 +779,10 @@ class NumericalVariableNode(VariableNode):
                 value, self._measure_unit
             )
         )
+        # The value as it was last given, in the unit of the variable.
+        # Converting the measure back can differ in the last digits (offset
+        # units such as degrees Celsius), so a restore sends this one.
+        self._raw_value: float = value
 
     @override
     def _read_internal_value(self) -> float:
@@ -805,49 +809,52 @@ class NumericalVariableNode(VariableNode):
 
         """
         self._value = self._value.__class__(value, self._measure_unit)
+        self._raw_value = value
         return self._value.base_value  # type: ignore[no-any-return]
 
     @override
-    def _snapshot(self) -> AbstractMeasure:
-        """Capture the measure (value and unit) of the variable.
+    def _snapshot(self) -> tuple[AbstractMeasure, float]:
+        """Capture the measure of the variable and the raw value it came from.
 
         The measure is replaced, never mutated, by an update, so keeping the
-        reference is a faithful snapshot.
+        reference is a faithful snapshot of the cache. The raw value is what
+        was last given to the variable, in its unit.
 
         Returns:
-            AbstractMeasure:
-                The current measure.
+            tuple[AbstractMeasure, float]:
+                The current measure and the raw value.
 
         """
-        return self._value
+        return self._value, self._raw_value
 
     @override
-    def _restore(self, snapshot: AbstractMeasure) -> None:
-        """Restore the exact measure captured by `_snapshot`.
+    def _restore(self, snapshot: tuple[AbstractMeasure, float]) -> None:
+        """Restore the exact measure and raw value captured by `_snapshot`.
 
         Args:
-            snapshot (AbstractMeasure):
-                The measure to restore.
+            snapshot (tuple[AbstractMeasure, float]):
+                The snapshot to restore.
 
         """
-        self._value = snapshot
+        self._value, self._raw_value = snapshot
 
     @override
-    def _remote_value(self, snapshot: AbstractMeasure) -> float:
-        """Return the snapshot in the unit of the variable.
+    def _remote_value(self, snapshot: tuple[AbstractMeasure, float]) -> float:
+        """Return the value the machine originally had, in the variable unit.
+
+        The raw value is returned as it was, so offset units (degrees Celsius,
+        Fahrenheit) round-trip exactly instead of picking up conversion noise.
 
         Args:
-            snapshot (AbstractMeasure):
-                The measure captured by `_snapshot`.
+            snapshot (tuple[AbstractMeasure, float]):
+                The snapshot captured by `_snapshot`.
 
         Returns:
             float:
-                The value in the unit of the variable, as the machine had it.
+                The value in the unit of the variable.
 
         """
-        if self._measure_unit == NoneMeasureUnits.NONE:
-            return snapshot.base_value  # type: ignore[no-any-return]
-        return snapshot.convert(self._measure_unit)  # type: ignore[no-any-return]
+        return snapshot[1]
 
     def get_measure_unit(self) -> Enum:
         """Get the measure unit of the numerical variable.

@@ -734,3 +734,50 @@ class TestRemovedHookGuard:
 
                 def _snapshot(self) -> Any:
                     return super()._snapshot()
+
+
+class TestOffsetUnitRestore:
+    @pytest.mark.parametrize(
+        "unit, initial",
+        [
+            (TemperatureUnits.DegreeCelsius, 20.1),
+            (TemperatureUnits.DegreeFahrenheit, 68.18),
+            (TemperatureUnits.DegreeCelsius, 0.1),
+            (LengthUnits.Millimeter, 3.3),
+        ],
+    )
+    def test_restore_sends_exactly_the_original(
+        self, unit: Any, initial: float
+    ) -> None:
+        variable = remote_unit_variable(unit, initial, True)
+        original = variable._value
+        variable.set_post_update_value_callback(lambda prev, curr: False)
+
+        assert variable.write(initial + 5) is False
+
+        # Exactly, not approximately: converting the measure back would pick
+        # up noise (20.1 C -> 20.100000000000023).
+        assert sent_values(variable) == [initial + 5, initial]
+        assert variable._value is original
+
+    def test_raw_value_follows_updates_and_internal_writes(self) -> None:
+        variable = NumericalVariableNode(
+            name="v", value=20.1, measure_unit=TemperatureUnits.DegreeCelsius
+        )
+        assert variable._remote_value(variable._snapshot()) == 20.1
+
+        variable._update_internal_value(21.3)
+
+        assert variable._remote_value(variable._snapshot()) == 21.3
+
+    def test_noise_exists_without_the_raw_value(self) -> None:
+        # Documents why the raw value is kept: the converted measure is not
+        # an exact round trip for offset units.
+        variable = NumericalVariableNode(
+            name="v", value=20.1, measure_unit=TemperatureUnits.DegreeCelsius
+        )
+
+        converted = variable._value.convert(TemperatureUnits.DegreeCelsius)
+
+        assert converted != 20.1
+        assert variable._remote_value(variable._snapshot()) == 20.1
