@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from machine_data_model.nodes.connectors.remote_resource import RemoteResource
+from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import (
     BooleanVariableNode,
     NumericalVariableNode,
@@ -210,3 +211,57 @@ class TestObject:
         obj.subscribe_to_remote_changes()
 
         assert obj.has_received_value()
+
+
+class TestDataModelWiring:
+    """How a real `DataModel` wires the properties of a remote object."""
+
+    def test_property_inherits_connector_and_is_remote(self) -> None:
+        from machine_data_model.data_model import DataModel
+
+        connector = MagicMock()
+        connector.name = "c"
+        connector.connect.return_value = True
+        connector.read_node_value.return_value = None
+        obj = ObjectVariableNode(
+            name="obj",
+            properties={"prop": NumericalVariableNode(name="prop", value=0)},
+            connector_name="c",
+        )
+        root = FolderNode(name="root")
+        root.add_child(obj)
+        DataModel(name="dm", root=root, connectors=[connector])
+
+        prop = obj._properties["prop"]
+        assert prop.is_remote()
+        assert prop.has_connector()
+        # Each property subscribes on its own; the object does not.
+        assert connector.subscribe_to_node_changes.call_count == 1
+        assert not prop.has_received_value()
+        assert not obj.has_received_value()
+
+        prop._remote_subscription_callback(5, MagicMock())
+
+        assert prop.has_received_value()
+        assert obj.has_received_value()
+
+
+class TestWalkUp:
+    def test_local_property_follows_the_remote_object(self) -> None:
+        prop = NumericalVariableNode(name="prop", value=0)
+        obj = ObjectVariableNode(
+            name="obj", properties={"prop": prop}, connector_name="c"
+        )
+
+        assert not prop.has_received_value()
+
+        obj._mark_received()
+
+        assert prop.has_received_value()
+        assert obj.has_received_value()
+
+    def test_local_variable_outside_any_remote_object(self) -> None:
+        prop = NumericalVariableNode(name="prop", value=0)
+        ObjectVariableNode(name="obj", properties={"prop": prop})
+
+        assert prop.has_received_value()

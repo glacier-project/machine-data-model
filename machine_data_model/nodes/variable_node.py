@@ -576,7 +576,8 @@ class VariableNode(DataModelNode):
 
         A remote variable starts with the default given to its constructor and
         keeps it until the remote side sends a value. A local variable always
-        holds its own value.
+        holds its own value, unless it is a property of a remote object, in
+        which case it follows the object.
 
         Returns:
             bool:
@@ -584,7 +585,31 @@ class VariableNode(DataModelNode):
                 value from the remote side.
 
         """
-        return not self.is_remote() or self._received_at is not None
+        if self._is_remote_or_in_remote_variable():
+            return self._received_at is not None
+        return True
+
+    def _is_remote_or_in_remote_variable(self) -> bool:
+        """Whether this node or a variable above it is remote.
+
+        A `DataModel` gives every property of a remote object the connector of
+        the object, so each property is remote itself. For a model wired by
+        hand a property can be a plain local node under a remote object: it
+        then follows the object, which marks its properties when it receives
+        a value.
+
+        Returns:
+            bool:
+                True if the node is remote, or if the nearest remote ancestor
+                that is a variable exists.
+
+        """
+        node: DataModelNode | None = self
+        while isinstance(node, VariableNode):
+            if node.is_remote():
+                return True
+            node = node.parent
+        return False
 
     def _mark_received(self) -> None:
         """Record that a value just arrived from the remote side."""
@@ -1420,7 +1445,7 @@ class ObjectVariableNode(VariableNode):
                 value.
 
         """
-        if not self.is_remote():
+        if not self._is_remote_or_in_remote_variable():
             return True
         return all(
             node.received_at is not None

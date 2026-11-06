@@ -366,7 +366,8 @@ class Condition:
 
         Returns:
             ConditionOutcome:
-                `NO_DATA` if the variable has no value, cannot
+                `NO_DATA` if the variable has no value, a remote variable never
+                received one, the variable cannot
                 be read (`OSError`, including `ConnectionError` and
                 `TimeoutError`) or cannot be compared with the right-hand
                 side. Otherwise `OK` or `FAILED`.
@@ -395,6 +396,14 @@ class Condition:
             return ConditionOutcome(
                 ConditionResult.NO_DATA,
                 f"{text}: read failed ({type(error).__name__})",
+                path,
+            )
+        if not variable.has_received_value():
+            # The cached value is still the default of the constructor: a
+            # guard must not pass (or fail) on a value nobody ever sent.
+            return ConditionOutcome(
+                ConditionResult.NO_DATA,
+                f"{text}: no value received yet",
                 path,
             )
         if lhs is None:

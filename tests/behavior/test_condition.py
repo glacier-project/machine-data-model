@@ -28,6 +28,7 @@ from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.folder_node import FolderNode
 from machine_data_model.nodes.variable_node import (
     NumericalVariableNode,
+    ObjectVariableNode,
     StringVariableNode,
     VariableNode,
 )
@@ -211,17 +212,8 @@ class TestEvaluate:
         assert info.value.variable == "mode"
         assert "no connector" in info.value.message
 
-    def test_remote_variable_without_value_reads_internal_default(
-        self,
-    ) -> None:
-        """KNOWN LIMIT, pinned as-is.
-
-        A remote variable that never received a value from its connector still
-        reads its internal default (for numerical variables, see
-        `_read_value` in variable_node.py) instead of `None`, so the
-        condition evaluates to OK/FAILED and never to NO_DATA. Connection state
-        is not observable today.
-        """
+    def test_remote_variable_without_value_is_no_data(self) -> None:
+        """A guard must not pass on the constructor default."""
         var = NumericalVariableNode(name="mode", value=0, connector_name="c")
         var.set_connector(MagicMock())
         assert var.is_remote()
@@ -230,12 +222,71 @@ class TestEvaluate:
         same = Condition("mode", WaitConditionOperator.EQ, 0)
         other = Condition("mode", WaitConditionOperator.EQ, 2)
 
-        assert same.evaluate(resolver_for(var), None).result is (
+        for cond in (same, other):
+            outcome = cond.evaluate(resolver_for(var), None)
+            assert outcome.result is ConditionResult.NO_DATA
+            assert outcome.message.endswith(": no value received yet")
+            assert outcome.observed is None
+
+    def test_remote_variable_is_evaluated_after_a_callback(self) -> None:
+        var = NumericalVariableNode(name="mode", value=0, connector_name="c")
+        var.set_connector(MagicMock())
+        var._remote_subscription_callback(2, MagicMock())
+
+        ok = Condition("mode", WaitConditionOperator.EQ, 2)
+        failed = Condition("mode", WaitConditionOperator.EQ, 0)
+
+        assert ok.evaluate(resolver_for(var), None).result is (
             ConditionResult.OK
         )
-        assert other.evaluate(resolver_for(var), None).result is (
+        assert failed.evaluate(resolver_for(var), None).result is (
             ConditionResult.FAILED
         )
+
+    def test_forced_read_that_receives_a_value_is_evaluated(self) -> None:
+        var = NumericalVariableNode(name="mode", value=0, connector_name="c")
+        connector = MagicMock()
+        connector.read_node_value.return_value = 2
+        var.set_connector(connector)
+        var.set_remote_path("ns=1")
+        cond = Condition("mode", WaitConditionOperator.EQ, 2)
+
+        cached = cond.evaluate(resolver_for(var), None)
+        forced = cond.evaluate(resolver_for(var), None, force_remote_read=True)
+        after = cond.evaluate(resolver_for(var), None)
+
+        assert cached.result is ConditionResult.NO_DATA
+        assert forced.result is ConditionResult.OK
+        assert after.result is ConditionResult.OK
+
+    def test_forced_read_without_value_stays_no_data(self) -> None:
+        var = NumericalVariableNode(name="mode", value=0, connector_name="c")
+        connector = MagicMock()
+        connector.read_node_value.return_value = None
+        var.set_connector(connector)
+        var.set_remote_path("ns=1")
+
+        outcome = Condition("mode", WaitConditionOperator.EQ, 0).evaluate(
+            resolver_for(var), None, force_remote_read=True
+        )
+
+        assert outcome.result is ConditionResult.NO_DATA
+
+    def test_property_of_remote_object_never_passes_on_default(self) -> None:
+        prop = NumericalVariableNode(name="prop", value=0)
+        obj = ObjectVariableNode(
+            name="obj", properties={"prop": prop}, connector_name="c"
+        )
+        obj.set_connector(MagicMock())
+        assert not prop.is_remote()
+        cond = Condition("prop", WaitConditionOperator.EQ, 0)
+
+        before = cond.evaluate(resolver_for(prop), None)
+        obj._remote_subscription_callback({"prop": 0}, MagicMock())
+        after = cond.evaluate(resolver_for(prop), None)
+
+        assert before.result is ConditionResult.NO_DATA
+        assert after.result is ConditionResult.OK
 
     def test_cached_value_used_unless_remote_read_is_forced(self) -> None:
         reads: list[bool] = []
