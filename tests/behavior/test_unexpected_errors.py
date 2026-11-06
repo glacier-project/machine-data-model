@@ -12,6 +12,8 @@ from machine_data_model.behavior.condition import WaitConditionOperator
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import (
     ExecutionNodeResult,
+    execution_error,
+    execution_failure,
     execution_success,
 )
 from machine_data_model.behavior.execution_context import (
@@ -376,3 +378,103 @@ class TestTerminalStatesAreFinal:
         assert active.is_active()
         assert completed.status is ControlFlowStatus.FAILED
         assert completed.error is error
+
+
+class Reentrant(LocalExecutionNode):
+    """Node whose context is terminated while it runs, then it returns."""
+
+    def __init__(
+        self,
+        terminate: Any,
+        result: ExecutionNodeResult,
+    ) -> None:
+        super().__init__(node="")
+        self._terminate = terminate
+        self._result = result
+
+    def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
+        self._terminate(context)
+        return self._result
+
+
+class TestReentrantTermination:
+    def test_failure_after_reentrant_completion_does_not_fail(self) -> None:
+        msg: Any = object()
+        node = Reentrant(
+            lambda ctx: ctx.deactivate(),
+            execution_error(
+                ExecutionError(ExecutionErrorCode.TIMEOUT, "late"), [msg]
+            ),
+        )
+        later = Ok()
+        context = new_context()
+
+        messages = ControlFlow(nodes=[node, later]).execute(context)
+
+        assert messages == [msg]
+        assert context.status is ControlFlowStatus.COMPLETED
+        assert context.error is None
+        assert later.runs == 0
+
+    def test_success_after_reentrant_completion_stops_the_loop(self) -> None:
+        node = Reentrant(lambda ctx: ctx.deactivate(), execution_success())
+        later = Ok()
+        context = new_context()
+
+        ControlFlow(nodes=[node, later]).execute(context)
+
+        assert context.status is ControlFlowStatus.COMPLETED
+        assert context.get_pc() == 0
+        assert later.runs == 0
+
+    def test_reentrant_failure_is_kept_when_the_node_returns_running(
+        self,
+    ) -> None:
+        first = ExecutionError(ExecutionErrorCode.NO_DATA, "first")
+        node = Reentrant(lambda ctx: ctx.fail(first), execution_failure())
+        context = new_context()
+
+        ControlFlow(nodes=[node]).execute(context)
+
+        assert context.status is ControlFlowStatus.FAILED
+        assert context.error is first
+
+    def test_reentrant_failure_wins_over_a_later_failure(self) -> None:
+        first = ExecutionError(ExecutionErrorCode.NO_DATA, "first")
+        node = Reentrant(
+            lambda ctx: ctx.fail(first),
+            execution_error(ExecutionError(ExecutionErrorCode.TIMEOUT, "2nd")),
+        )
+        context = new_context()
+
+        ControlFlow(nodes=[node]).execute(context)
+
+        assert context.error is first
+
+    def test_no_second_trace_end_event(self) -> None:
+        from machine_data_model.tracing import (
+            TraceEventType,
+            TraceLevel,
+            clear_traces,
+            get_global_collector,
+            set_global_trace_level,
+        )
+
+        clear_traces()
+        set_global_trace_level(TraceLevel.FULL)
+        try:
+            node = Reentrant(
+                lambda ctx: ctx.deactivate(),
+                execution_error(
+                    ExecutionError(ExecutionErrorCode.TIMEOUT, "x")
+                ),
+            )
+            ControlFlow(nodes=[node]).execute(new_context())
+
+            ends = get_global_collector().get_events(
+                TraceEventType.CONTROL_FLOW_END
+            )
+            assert ends == []
+        finally:
+            set_global_trace_level(TraceLevel.NONE)
+            clear_traces()

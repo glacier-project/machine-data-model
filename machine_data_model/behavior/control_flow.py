@@ -270,6 +270,12 @@ class ControlFlow:
 
             if result.messages:
                 messages.extend(result.messages)
+            if not context.is_active():
+                # A re-entrant resume (for example a notification triggered by
+                # the node itself) already completed or failed this context
+                # while the node was running: that outcome is final, and its
+                # execution already traced the end of the graph.
+                return messages
             if result.failed:
                 assert result.error is not None
                 # The node already released what it owns (subscriptions and
