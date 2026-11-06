@@ -123,3 +123,25 @@ class TestFrostAnswer:
         text = answer_text("/plant/mode == 2 not met")
 
         assert text.endswith(": /plant/mode == 2 not met")
+
+    def test_observed_value_is_never_sent(self) -> None:
+        method = composite(
+            "m",
+            [
+                failing_stub(
+                    ExecutionError(
+                        ExecutionErrorCode.PRECONDITION_NOT_MET,
+                        "mode == 2 not met",
+                        observed="'hunter2-secret'",
+                    )
+                )
+            ],
+        )
+        manager, _ = frost_setup(method)
+
+        response = manager.handle_request(frost_request("dm", "m"))
+
+        assert isinstance(response, FrostMessage)
+        assert isinstance(response.payload, ErrorPayload)
+        assert "hunter2" not in str(response.payload.error_message)
+        assert "hunter2" not in repr(response)

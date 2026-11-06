@@ -21,6 +21,7 @@ from machine_data_model.behavior.execution_context import (
     resolve_string_in_context,
     resolve_value,
 )
+from machine_data_model.behavior.execution_error import sanitize_detail
 
 if TYPE_CHECKING:
     from machine_data_model.nodes.data_model_node import DataModelNode
@@ -37,6 +38,9 @@ class WaitConditionOperator(str, Enum):
     LE = "<="
     GE = ">="
 
+
+# Longest observed value kept, in characters.
+_MAX_OBSERVED = 256
 
 _OPERATORS: dict[WaitConditionOperator, Callable[[Any, Any], Any]] = {
     WaitConditionOperator.EQ: operator.eq,
@@ -156,16 +160,22 @@ class ConditionOutcome:
         result (ConditionResult):
             The result of the evaluation.
         message (str):
-            A human-readable description of the evaluation, for example
-            "/plant/conveyor/mode == 2 (observed 1)".
+            A human-readable description of what must hold and what failed,
+            for example "/plant/conveyor/mode == 2 not met". It never contains
+            the observed value, so it is safe to send to a peer.
         variable (str):
             The resolved path of the variable.
+        observed (str | None):
+            The value read from the variable as a bounded `repr`, or None if
+            no value was read. For logs and traces only: it is never sent over
+            Frost.
 
     """
 
     result: ConditionResult
     message: str
     variable: str
+    observed: str | None = None
 
 
 @dataclass(frozen=True)
@@ -368,25 +378,32 @@ class Condition:
         if variable.is_remote() and not variable.has_connector():
             return ConditionOutcome(
                 ConditionResult.NO_DATA,
-                f"{text} (no connector)",
+                f"{text}: no connector",
                 path,
             )
 
         lhs = variable.read(force_remote_read=force_remote_read)
         if lhs is None:
             return ConditionOutcome(
-                ConditionResult.NO_DATA, f"{text} (no value)", path
+                ConditionResult.NO_DATA, f"{text}: no value", path
             )
+        observed = sanitize_detail(repr(lhs), _MAX_OBSERVED)
         try:
             holds = compare(self.operator, lhs, rhs)
         except TypeError:
             return ConditionOutcome(
                 ConditionResult.NO_DATA,
-                f"{text} (observed {lhs!r}, not comparable)",
+                f"{text}: not comparable",
                 path,
+                observed,
             )
-        result = ConditionResult.OK if holds else ConditionResult.FAILED
-        return ConditionOutcome(result, f"{text} (observed {lhs})", path)
+        if holds:
+            return ConditionOutcome(
+                ConditionResult.OK, f"{text} met", path, observed
+            )
+        return ConditionOutcome(
+            ConditionResult.FAILED, f"{text} not met", path, observed
+        )
 
     def variables(
         self,

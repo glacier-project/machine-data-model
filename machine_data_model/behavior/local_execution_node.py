@@ -478,7 +478,7 @@ class CallMethodNode(LocalExecutionNode):
                 An error with the same code, a message prefixed with the name
                 of the callee, the callee as the failing node and the origin
                 of the callee error preserved (or, if it has none, the node it
-                reports).
+                reports) and the observed value of the callee error kept.
 
         """
         return ExecutionError(
@@ -486,6 +486,7 @@ class CallMethodNode(LocalExecutionNode):
             message=f"{callee}: {error.message}",
             node=callee,
             origin=error.origin if error.origin is not None else error.node,
+            observed=error.observed,
         )
 
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:

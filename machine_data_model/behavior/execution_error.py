@@ -80,6 +80,9 @@ class ExecutionError:
             The node where the error was first raised. It is preserved when
             the error is propagated through callers, while `node` and
             `message` describe the node that reports it.
+        observed (str | None):
+            The value observed when a condition failed, as a bounded `repr`.
+            For logs and traces only: it is never sent over Frost.
 
     """
 
@@ -87,3 +90,4 @@ class ExecutionError:
     message: str
     node: str | None = None
     origin: str | None = None
+    observed: str | None = None

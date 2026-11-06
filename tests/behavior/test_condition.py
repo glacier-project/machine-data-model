@@ -108,16 +108,54 @@ class TestEvaluate:
 
         assert outcome.result is ConditionResult.OK
         assert outcome.variable == "mode"
-        assert outcome.message == "mode == 2 (observed 2)"
+        assert outcome.message == "mode == 2 met"
+        assert outcome.observed == "2"
 
-    def test_failed_message_has_observed_value(self) -> None:
+    def test_failed_message_has_no_observed_value(self) -> None:
         var = NumericalVariableNode(name="mode", value=1)
         cond = Condition("mode", WaitConditionOperator.EQ, 2)
 
         outcome = cond.evaluate(resolver_for(var), None)
 
         assert outcome.result is ConditionResult.FAILED
-        assert outcome.message == "mode == 2 (observed 1)"
+        assert outcome.message == "mode == 2 not met"
+        assert "1" not in outcome.message.replace("mode == 2", "")
+        assert outcome.observed == "1"
+
+    def test_no_data_has_no_observed_value(self) -> None:
+        var = NumericalVariableNode(name="mode", value=0)
+        var._update_internal_value(None)  # type: ignore[arg-type]
+
+        outcome = Condition("mode", WaitConditionOperator.EQ, 2).evaluate(
+            resolver_for(var), None
+        )
+
+        assert outcome.message == "mode == 2: no value"
+        assert outcome.observed is None
+
+    def test_not_comparable_keeps_value_out_of_message(self) -> None:
+        var = StringVariableNode(name="mode", value="secret-abc")
+
+        outcome = Condition("mode", WaitConditionOperator.GT, 3).evaluate(
+            resolver_for(var), None
+        )
+
+        assert outcome.result is ConditionResult.NO_DATA
+        assert outcome.message == "mode > 3: not comparable"
+        assert outcome.observed == "'secret-abc'"
+
+    def test_observed_is_bounded_and_clean(self) -> None:
+        var = StringVariableNode(name="mode", value="a\nb" + "z" * 5000)
+
+        outcome = Condition("mode", WaitConditionOperator.EQ, "x").evaluate(
+            resolver_for(var), None
+        )
+
+        assert outcome.observed is not None
+        assert len(outcome.observed) <= 256 + 3
+        assert outcome.observed.endswith("...")
+        assert "\n" not in outcome.observed
+        assert len(outcome.message) < 100
 
     def test_no_data_for_none_value(self) -> None:
         var = NumericalVariableNode(name="mode", value=0)
@@ -407,7 +445,7 @@ class TestResolveAndEvaluateOn:
         )
 
         assert outcome.result is ConditionResult.NO_DATA
-        assert outcome.message.endswith("(no connector)")
+        assert outcome.message == "r == 1: no connector"
 
 
 class TestDataclasses:

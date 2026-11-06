@@ -583,6 +583,31 @@ class TestErrorOrigin:
     def test_origin_defaults_to_none(self) -> None:
         assert ExecutionError(ExecutionErrorCode.TIMEOUT, "t").origin is None
 
+    def test_observed_defaults_to_none(self) -> None:
+        assert ExecutionError(ExecutionErrorCode.TIMEOUT, "t").observed is None
+
+    def test_chain_keeps_the_observed_value(self) -> None:
+        inner = ExecutionError(
+            ExecutionErrorCode.PRECONDITION_NOT_MET,
+            "mode == 2 not met",
+            node="stub",
+            observed="1",
+        )
+        c = composite("c", [failing_stub(inner)])
+        call_c = CallMethodNode(method_node="c", args=[], kwargs={})
+        call_c.set_ref_node(c)
+        b = composite("b", [call_c])
+        call_b = CallMethodNode(method_node="b", args=[], kwargs={})
+        call_b.set_ref_node(b)
+        a = composite("a", [call_b])
+
+        error = a().error
+
+        assert error is not None
+        assert error.message == "/b: /c: mode == 2 not met"
+        assert error.observed == "1"
+        assert error.origin == "stub"
+
     def test_chain_keeps_the_root_cause(self) -> None:
         c = composite("c", [failing_stub()])
         call_c = CallMethodNode(method_node="c", args=[], kwargs={})
