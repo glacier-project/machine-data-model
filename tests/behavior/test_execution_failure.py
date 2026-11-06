@@ -417,7 +417,18 @@ class TestFrost:
         assert isinstance(response, FrostMessage)
         assert isinstance(response.payload, ErrorPayload)
         assert response.payload.error_code is expected_code
-        assert response.payload.error_message == f"{expected_message.value}: x"
+        # The detail of codes whose text can carry remote-controlled or
+        # internal data never leaves (see _ERRORS_WITHOUT_DETAIL).
+        without_detail = code in (
+            ExecutionErrorCode.REMOTE_ERROR,
+            ExecutionErrorCode.UNEXPECTED_ERROR,
+        )
+        expected_text = (
+            expected_message.value
+            if without_detail
+            else f"{expected_message.value}: x"
+        )
+        assert response.payload.error_message == expected_text
 
     def test_failure_after_wait_is_sent_as_update_error(self) -> None:
         trigger = NumericalVariableNode(id="t", name="t", value=0)

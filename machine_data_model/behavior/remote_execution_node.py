@@ -21,6 +21,10 @@ from machine_data_model.behavior.execution_context import (
     resolve_string_in_context,
     resolve_value,
 )
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+)
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionOperator,
 )
@@ -35,10 +39,15 @@ from machine_data_model.protocols.frost_v1.frost_message_builder import (
     FrostMessageBuilder,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
+    ErrorPayload,
     MethodPayload,
     VariablePayload,
 )
 from machine_data_model.tracing.events import trace_control_flow_step
+
+# The text of a remote error is controlled by the remote party: keep only the
+# beginning of it.
+_MAX_REMOTE_ERROR_TEXT = 200
 
 
 class RemoteExecutionNode(ControlFlowNode):
@@ -199,6 +208,48 @@ class RemoteExecutionNode(ControlFlowNode):
         context.status = ControlFlowStatus.RESPONSE_RECEIVED
         context.active_request = None
         return True
+
+    def handle_error(
+        self, context: ExecutionContext, error_message: FrostMessage
+    ) -> ExecutionError | None:
+        """Handle an error message received from the remote node.
+
+        The message is only accepted if it answers the request this node is
+        waiting for: same correlation id as the active request, sent by the
+        remote node, addressed to this one. Anything else (stale, duplicate or
+        foreign) is ignored.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            error_message (FrostMessage):
+                The error message received from the remote node.
+
+        Returns:
+            ExecutionError | None:
+                A `REMOTE_ERROR` carrying the (truncated) text of the remote
+                error, or None if the message does not answer the request.
+
+        """
+        if (
+            context.active_request is None
+            or error_message.header.type is not MsgType.ERROR
+            or error_message.correlation_id != context.active_request
+            or error_message.sender
+            != resolve_string_in_context(self.remote_id, context)
+            or self.sender_id != error_message.target
+            or not isinstance(error_message.payload, ErrorPayload)
+        ):
+            return None
+        text = str(error_message.payload.error_message)
+        if len(text) > _MAX_REMOTE_ERROR_TEXT:
+            text = text[:_MAX_REMOTE_ERROR_TEXT] + "..."
+        return ExecutionError(
+            ExecutionErrorCode.REMOTE_ERROR,
+            f"remote '{self.remote_id}' answered with error "
+            f"{error_message.payload.error_code}: {text}",
+            node=resolve_string_in_context(self.node, context),
+        )
 
     @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:

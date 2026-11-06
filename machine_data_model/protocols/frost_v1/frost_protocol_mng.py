@@ -81,7 +81,9 @@ _EXECUTION_ERROR_RESPONSES: dict[
 
 # Codes whose detail is never sent to the peer (it may carry paths, values or
 # internals); the detail goes to the log instead.
-_ERRORS_WITHOUT_DETAIL = frozenset({ExecutionErrorCode.UNEXPECTED_ERROR})
+_ERRORS_WITHOUT_DETAIL = frozenset(
+    {ExecutionErrorCode.UNEXPECTED_ERROR, ExecutionErrorCode.REMOTE_ERROR}
+)
 
 
 class FrostProtocolMng(ProtocolMng):
@@ -313,9 +315,53 @@ class FrostProtocolMng(ProtocolMng):
             return self.handle_request(msg)
         elif msg.header.type == MsgType.RESPONSE:
             return self.handle_response(msg)
-        elif msg.header.type == MsgType.ERROR:
-            assert isinstance(msg.payload, ErrorPayload)
-        return None
+        return self.handle_error(msg)
+
+    def handle_error(self, msg: FrostMessage) -> Message | None:
+        """Route an error message to the context that sent the request.
+
+        A remote rejection (for example a remote method that refuses a call)
+        fails the waiting context with `REMOTE_ERROR`, which fails its parents
+        and ends the request that started them. Unknown, stale, duplicate and
+        foreign messages are ignored.
+
+        Args:
+            msg (FrostMessage):
+                The error message.
+
+        Returns:
+            Message | None:
+                The answer to the request that ended, if any.
+
+        """
+        if not isinstance(msg.payload, ErrorPayload):
+            _logger.warning("Ignoring an error message without error payload")
+            return None
+        context_id = msg.correlation_id
+        owner = self._owner_of_context(context_id)
+        if owner is None:
+            _logger.debug(
+                "Ignoring an error for unknown context '%s'", context_id
+            )
+            return None
+        root_id = self._root_context_id(context_id)
+        try:
+            ret = owner.handle_error(context_id, msg)
+        except Exception:
+            response = self._finish_if_terminated(root_id)
+            if response is not None:
+                self._update_messages.append(response)
+            raise
+        if ret is None:
+            _logger.debug(
+                "Ignoring an error that does not answer a request of context "
+                "'%s'",
+                context_id,
+            )
+            return None
+        if ret.messages:
+            self._update_messages.extend(ret.messages)
+        return self._finish_if_terminated(root_id)
 
     def drain_update_messages(self) -> list[FrostMessage]:
         """Take all the pending update messages.

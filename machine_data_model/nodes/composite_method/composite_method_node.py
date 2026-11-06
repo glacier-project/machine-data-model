@@ -499,6 +499,52 @@ class CompositeMethodNode(MethodNode):
 
         return node.handle_response(context=context, response=message)
 
+    def handle_error(
+        self, context_id: str, message: FrostMessage
+    ) -> MethodExecutionResult | None:
+        """Fail a context whose remote request was answered with an error.
+
+        The error message is only accepted if the node the context is waiting
+        on is a remote node and the message answers its active request
+        (stale, duplicate and foreign messages are ignored). The context then
+        fails with `REMOTE_ERROR` and its nested parent, if any, is notified.
+
+        Args:
+            context_id (str):
+                The id of the context the message is addressed to.
+            message (FrostMessage):
+                The error message received from the remote node.
+
+        Returns:
+            MethodExecutionResult | None:
+                The result of failing the context (messages produced by the
+                parent cascade, the error), or None if the message was ignored.
+
+        Raises:
+            ContextNotFoundError:
+                If the context with the specified id is not found.
+
+        """
+        context = self._get_context(context_id)
+        node = self.cfg.get_current_node(context)
+        if not isinstance(node, RemoteExecutionNode):
+            return None
+        error = node.handle_error(context, message)
+        if error is None:
+            return None
+        _logger.error(
+            "Remote error in method '%s' (context %s): %s",
+            self.qualified_name,
+            context_id,
+            error.message,
+        )
+        context.fail(error)
+        self._terminate_execution(context)
+        messages = self._notify_nested_parent(context)
+        return MethodExecutionResult(
+            messages=messages, return_values={}, error=context.error
+        )
+
     def resume_execution(self, context_id: str) -> MethodExecutionResult:
         """Resume the execution of the method with the specified context id.
 

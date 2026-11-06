@@ -1,0 +1,322 @@
+"""Remote Frost ERROR messages reach the context that sent the request."""
+
+from dataclasses import replace
+import logging
+
+import pytest
+
+from machine_data_model.behavior.condition import WaitConditionOperator
+from machine_data_model.behavior.control_flow import ControlFlow
+from machine_data_model.behavior.control_flow_node import ControlFlowNode
+from machine_data_model.behavior.execution_error import ExecutionErrorCode
+from machine_data_model.behavior.local_execution_node import CallMethodNode
+from machine_data_model.behavior.remote_execution_node import (
+    CallRemoteMethodNode,
+    WaitRemoteEventNode,
+)
+from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
+from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.protocols.frost_v1.frost_header import (
+    FrostHeader,
+    MethodMsgName,
+    MsgNamespace,
+    MsgType,
+    VariableMsgName,
+)
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
+from machine_data_model.protocols.frost_v1.frost_message_builder import (
+    FrostMessageBuilder,
+)
+from machine_data_model.protocols.frost_v1.frost_payload import (
+    ErrorCode,
+    ErrorMessages,
+    ErrorPayload,
+    MethodPayload,
+)
+from machine_data_model.protocols.frost_v1.frost_protocol_mng import (
+    FrostProtocolMng,
+)
+from tests.behavior import (
+    assert_no_contexts,
+    frost_request,
+    frost_setup,
+    new_context,
+    wait_for_nonzero,
+)
+
+SECRET = "internal path /etc/plant/secret.yml"
+
+
+def composite(name: str, nodes: list[ControlFlowNode]) -> CompositeMethodNode:
+    return CompositeMethodNode(
+        id=name, name=name, cfg=ControlFlow(nodes=list(nodes))
+    )
+
+
+def call(name: str) -> CallMethodNode:
+    return CallMethodNode(method_node=name, args=[], kwargs={})
+
+
+def remote_call() -> CallRemoteMethodNode:
+    return CallRemoteMethodNode(
+        method_node="remote_method", remote_id="remote_dm", args=[], kwargs={}
+    )
+
+
+def remote_error(
+    request: FrostMessage,
+    sender: str = "remote_dm",
+    text: str = SECRET,
+) -> FrostMessage:
+    message = FrostMessageBuilder(sender=sender).build_error_message(
+        message=request,
+        error_code=ErrorCode.NOT_ALLOWED,
+        error_message=text,
+    )
+    return message
+
+
+def start(
+    *composites: CompositeMethodNode, root: str
+) -> tuple[FrostProtocolMng, DataModel, FrostMessage, FrostMessage]:
+    manager, data_model = frost_setup(*composites)
+    started = manager.handle_request(frost_request("dm", root))
+    assert isinstance(started, FrostMessage)
+    sent = [
+        m
+        for m in manager.drain_update_messages()
+        if m.header.type is MsgType.REQUEST
+    ]
+    assert len(sent) == 1
+    return manager, data_model, started, sent[0]
+
+
+def assert_remote_error_answer(
+    answer: object, started: FrostMessage
+) -> FrostMessage:
+    assert isinstance(answer, FrostMessage)
+    assert answer.header.type is MsgType.ERROR
+    assert answer.correlation_id == started.correlation_id
+    assert isinstance(answer.payload, ErrorPayload)
+    assert answer.payload.error_code is ErrorCode.UNKNOWN
+    # Only the generic text goes on: the remote text is remote-controlled.
+    assert answer.payload.error_message == ErrorMessages.REMOTE_ERROR.value
+    assert SECRET not in answer.payload.error_message
+    return answer
+
+
+class TestRouting:
+    def test_top_level_remote_call_error_ends_the_request(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        m = composite("m", [remote_call()])
+        manager, data_model, started, request = start(m, root="m")
+
+        with caplog.at_level(logging.ERROR):
+            answer = manager.handle_message(remote_error(request))
+
+        assert_remote_error_answer(answer, started)
+        # The detail stays in the log with the request correlation id.
+        assert SECRET in caplog.text
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+        assert_no_contexts(m)
+
+    def test_nested_child_error_fails_the_parent_and_the_request(self) -> None:
+        child = composite("child", [remote_call()])
+        parent = composite("parent", [call("child")])
+        manager, data_model, started, request = start(
+            child, parent, root="parent"
+        )
+        assert request.correlation_id in data_model._contexts
+
+        answer = manager.handle_message(remote_error(request))
+
+        assert_remote_error_answer(answer, started)
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+        assert_no_contexts(parent, child)
+        assert manager.drain_update_messages() == []
+
+    def test_chain_answers_exactly_once(self) -> None:
+        c = composite("c", [remote_call()])
+        b = composite("b", [call("c")])
+        a = composite("a", [call("b")])
+        manager, data_model, started, request = start(c, b, a, root="a")
+
+        answer = manager.handle_message(remote_error(request))
+
+        assert_remote_error_answer(answer, started)
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+        assert_no_contexts(a, b, c)
+
+    def test_error_code_is_remote_error_in_the_context(self) -> None:
+        child = composite("child", [remote_call()])
+        parent = composite("parent", [call("child")])
+        manager, data_model, started, request = start(
+            child, parent, root="parent"
+        )
+        (root_id,) = manager._running_methods
+        root = parent._get_context(root_id)
+
+        owner_result = child.handle_error(
+            str(request.correlation_id), remote_error(request)
+        )
+
+        assert owner_result is not None
+        assert owner_result.error is not None
+        assert owner_result.error.code is ExecutionErrorCode.REMOTE_ERROR
+        assert owner_result.error.node == "remote_method"
+        assert root.error is not None
+        assert root.error.code is ExecutionErrorCode.REMOTE_ERROR
+        assert root.error.message.startswith(f"{child.qualified_name}: ")
+
+    def test_rejected_event_subscription_fails_without_unsubscribe(
+        self,
+    ) -> None:
+        wait = WaitRemoteEventNode(
+            variable_node="remote/var",
+            remote_id="remote_dm",
+            rhs=1,
+            op=WaitConditionOperator.EQ,
+        )
+        m = composite("m", [wait])
+        manager, data_model, started, request = start(m, root="m")
+        assert request.header.msg_name is VariableMsgName.SUBSCRIBE
+
+        answer = manager.handle_message(remote_error(request))
+
+        assert_remote_error_answer(answer, started)
+        # The remote refused the subscription: nothing to unsubscribe.
+        assert manager.drain_update_messages() == []
+
+
+class TestIgnored:
+    def setup_method(self) -> None:
+        self.child = composite("child", [remote_call()])
+        self.parent = composite("parent", [call("child")])
+        (
+            self.manager,
+            self.data_model,
+            self.started,
+            self.request,
+        ) = start(self.child, self.parent, root="parent")
+
+    def assert_untouched(self) -> None:
+        assert len(self.manager._running_methods) == 1
+        assert len(self.data_model._contexts) == 2
+        assert self.manager.drain_update_messages() == []
+
+    def test_unknown_correlation_id(self) -> None:
+        error = FrostMessageBuilder(sender="remote_dm").build_error_message(
+            message=frost_request("remote_dm", "x"),
+            error_code=ErrorCode.NOT_ALLOWED,
+            error_message="nope",
+        )
+
+        assert self.manager.handle_message(error) is None
+
+        self.assert_untouched()
+
+    def test_wrong_sender(self) -> None:
+        assert (
+            self.manager.handle_message(
+                remote_error(self.request, sender="intruder")
+            )
+            is None
+        )
+
+        self.assert_untouched()
+
+    def test_wrong_target(self) -> None:
+        error = replace(remote_error(self.request), target="somebody_else")
+
+        assert self.manager.handle_message(error) is None
+
+        self.assert_untouched()
+
+    def test_error_header_with_a_non_error_payload(self) -> None:
+        message = FrostMessage(
+            sender="remote_dm",
+            target="dm",
+            identifier="x",
+            correlation_id=self.request.correlation_id,
+            header=FrostHeader(
+                type=MsgType.ERROR,
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE,
+            ),
+            payload=MethodPayload(node="remote_method"),
+        )
+
+        assert self.manager.handle_message(message) is None
+
+        self.assert_untouched()
+
+    def test_context_not_waiting_on_a_remote_node(self) -> None:
+        trigger = NumericalVariableNode(id="t", name="t", value=0)
+        waiting = composite("waiting", [wait_for_nonzero(trigger)])
+        manager, data_model = frost_setup(waiting, variables=(trigger,))
+        started = manager.handle_request(frost_request("dm", "waiting"))
+        assert isinstance(started, FrostMessage)
+        manager.drain_update_messages()
+        (root_id,) = manager._running_methods
+        error = FrostMessageBuilder(sender="remote_dm").build_error_message(
+            message=FrostMessage(
+                sender="dm",
+                target="remote_dm",
+                identifier="x",
+                correlation_id=root_id,
+                header=FrostHeader(
+                    type=MsgType.REQUEST,
+                    namespace=MsgNamespace.METHOD,
+                    msg_name=MethodMsgName.INVOKE,
+                ),
+                payload=MethodPayload(node="remote_method"),
+            ),
+            error_code=ErrorCode.NOT_ALLOWED,
+            error_message="nope",
+        )
+
+        assert manager.handle_message(error) is None
+
+        assert len(manager._running_methods) == 1
+
+    def test_duplicate_error_is_a_no_op(self) -> None:
+        first = self.manager.handle_message(remote_error(self.request))
+        assert isinstance(first, FrostMessage)
+
+        assert self.manager.handle_message(remote_error(self.request)) is None
+
+        assert self.manager._running_methods == {}
+        assert self.data_model._contexts == {}
+
+    def test_late_response_after_the_error_is_ignored(self) -> None:
+        self.manager.handle_message(remote_error(self.request))
+        response = FrostMessageBuilder(
+            sender="remote_dm"
+        ).build_method_completed_message(
+            target="dm",
+            correlation_id=str(self.request.correlation_id),
+            ret={},
+            node="remote_method",
+        )
+
+        assert self.manager.handle_message(response) is None
+
+
+def test_long_remote_text_is_truncated() -> None:
+    node = remote_call()
+    node.set_message_builder(FrostMessageBuilder(sender="dm"))
+    context = new_context()
+    request = node.execute(context).messages[0]
+
+    error = node.handle_error(context, remote_error(request, text="x" * 5000))
+
+    assert error is not None
+    assert len(error.message) < 400
+    assert error.message.endswith("...")
