@@ -444,6 +444,68 @@ class TestFinishOwnership:
         assert manager._running_methods == {}
         assert data_model._contexts == {}
 
+    def test_no_lost_wakeup_when_the_request_ends_during_the_check(
+        self,
+    ) -> None:
+        m = composite("m", [remote_call()])
+        manager, data_model, started, _ = start(m, root="m")
+        (root_id,) = manager._running_methods
+        context = m._contexts[root_id]
+        answers: list[FrostMessage | None] = []
+        real_is_terminated = m.is_terminated
+        calls = 0
+
+        def is_terminated(context_id: str) -> bool:
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                return real_is_terminated(context_id)
+            # Still running when A looks; then another trigger ends it and
+            # answers before A goes on.
+            running = real_is_terminated(context_id)
+            context.fail(ExecutionError(ExecutionErrorCode.TIMEOUT, "late"))
+            answers.append(manager._finish_if_terminated(root_id))
+            return running
+
+        m.is_terminated = is_terminated  # type: ignore[method-assign]
+
+        first = manager._finish_if_terminated(root_id)
+
+        assert first is None
+        (second,) = answers
+        assert isinstance(second, FrostMessage)
+        assert second.correlation_id == started.correlation_id
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+
+    def test_exception_while_answering_keeps_the_request(self) -> None:
+        m = composite("m", [remote_call()])
+        manager, data_model, started, _ = start(m, root="m")
+        (root_id,) = manager._running_methods
+        m._contexts[root_id].fail(
+            ExecutionError(ExecutionErrorCode.TIMEOUT, "late")
+        )
+        real = m.get_completed_return_values
+        failures = [True]
+
+        def flaky(context_id: str) -> dict[str, object] | None:
+            if failures:
+                failures.pop()
+                raise RuntimeError("boom")
+            return real(context_id)
+
+        m.get_completed_return_values = flaky  # type: ignore[method-assign]
+
+        with pytest.raises(RuntimeError, match="boom"):
+            manager._finish_if_terminated(root_id)
+
+        assert root_id in manager._running_methods
+        answer = manager._finish_if_terminated(root_id)
+        assert isinstance(answer, FrostMessage)
+        assert answer.correlation_id == started.correlation_id
+        assert manager._running_methods == {}
+        assert data_model._contexts == {}
+
     def test_non_error_payload_is_logged_at_debug(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:

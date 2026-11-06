@@ -880,10 +880,13 @@ class FrostProtocolMng(ProtocolMng):
         """Answer and release a request whose outermost context ended.
 
         Idempotent: it does nothing unless `root_id` is still a running
-        request, so a second call (a duplicate trigger) is a no-op. The entry
-        is claimed (popped) before anything else, so of two concurrent callers
-        only one answers; the entry is put back if the request is still
-        running.
+        request, so a second call (a duplicate trigger) is a no-op. The request
+        is first checked and only then claimed: it is claimed (popped) just
+        when its context is already over (or gone), so a request that is still
+        running is never taken out of the registry, and of two concurrent
+        callers on an ended request only one wins the pop and answers. If
+        building the answer raises, the entry is put back so that the request
+        is not lost, and the exception goes on.
 
         Args:
             root_id (str):
@@ -895,9 +898,37 @@ class FrostProtocolMng(ProtocolMng):
                 released now, otherwise None.
 
         """
-        entry = self._running_methods.pop(root_id, None)
+        entry = self._running_methods.get(root_id)
         if entry is None:
             return None
+        cm, _ = entry
+        if root_id in cm._contexts and not cm.is_terminated(root_id):
+            return None
+        if self._running_methods.pop(root_id, None) is None:
+            # Another caller claimed it between the check and the pop.
+            return None
+        try:
+            return self._answer_ended_request(root_id, entry)
+        except BaseException:
+            self._running_methods.setdefault(root_id, entry)
+            raise
+
+    def _answer_ended_request(
+        self, root_id: str, entry: tuple[CompositeMethodNode, FrostMessage]
+    ) -> FrostMessage:
+        """Build the answer of a claimed request and release its context.
+
+        Args:
+            root_id (str):
+                The id of the context of the request.
+            entry (tuple[CompositeMethodNode, FrostMessage]):
+                The composite method and the request that started it.
+
+        Returns:
+            FrostMessage:
+                The completed or error response.
+
+        """
         cm, msg = entry
         if root_id not in cm._contexts:
             # Released elsewhere: the request must not stay unanswered.
@@ -914,10 +945,6 @@ class FrostProtocolMng(ProtocolMng):
                     node=cm.qualified_name,
                 ),
             )
-        if not cm.is_terminated(root_id):
-            self._running_methods[root_id] = entry
-            return None
-
         failure = cm.get_error(root_id) if cm.has_failed(root_id) else None
         return_values = cm.get_completed_return_values(root_id) or {}
         cm.delete_context(root_id)
