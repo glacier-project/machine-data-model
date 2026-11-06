@@ -79,12 +79,34 @@ class ControlFlow:
         """
         self._nodes = nodes if nodes is not None else []
         self._composite_method_node = composite_method_node
-        self.strict = self.default_strict if strict is None else strict
+        self._strict = strict
 
         # Set parent CFG reference on all nodes
         for node in self._nodes:
             if node._parent_cfg is None:
                 node._parent_cfg = self
+
+    @property
+    def strict(self) -> bool:
+        """Whether unexpected exceptions are re-raised (resolved lazily).
+
+        If no value was given at construction, `ControlFlow.default_strict` is
+        read each time, so graphs built before the default changed (for
+        example at import time) follow it.
+
+        Returns:
+            bool:
+                True if an unexpected exception is re-raised.
+
+        """
+        if self._strict is None:
+            return ControlFlow.default_strict
+        return self._strict
+
+    @strict.setter
+    def strict(self, value: bool | None) -> None:
+        """Set the strict mode, or None to follow the default."""
+        self._strict = value
 
     def nodes(self) -> Sequence[ControlFlowNode]:
         """Get the list of control flow nodes in the control flow graph.

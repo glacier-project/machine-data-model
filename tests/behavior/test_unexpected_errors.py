@@ -1,6 +1,8 @@
 """Tests for unexpected exceptions in nodes becoming FAILURE."""
 
 import logging
+import subprocess
+import sys
 from typing import Any
 import uuid
 
@@ -16,7 +18,10 @@ from machine_data_model.behavior.execution_context import (
     ControlFlowStatus,
     ExecutionContext,
 )
-from machine_data_model.behavior.execution_error import ExecutionErrorCode
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+)
 from machine_data_model.behavior.local_execution_node import (
     CallMethodNode,
     LocalExecutionNode,
@@ -276,3 +281,98 @@ def test_drain_update_messages_is_atomic_swap() -> None:
     assert drained is live
     assert manager.get_update_messages() == []
     assert manager.drain_update_messages() == []
+
+
+class TestStrictResolvedAtExecuteTime:
+    def test_graph_built_before_the_default_changed_follows_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(ControlFlow, "default_strict", False)
+        cfg = ControlFlow(nodes=[Boom(KeyError("k"))])
+        before = cfg.strict
+
+        monkeypatch.setattr(ControlFlow, "default_strict", True)
+
+        after = cfg.strict
+        assert (before, after) == (False, True)
+        with pytest.raises(KeyError):
+            cfg.execute(new_context())
+
+    def test_explicit_value_wins_over_the_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(ControlFlow, "default_strict", True)
+        cfg = ControlFlow(nodes=[Boom(KeyError("k"))], strict=False)
+        context = new_context()
+
+        cfg.execute(context)
+
+        assert cfg.strict is False
+        assert context.status is ControlFlowStatus.FAILED
+
+    def test_setting_none_follows_the_default_again(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cfg = ControlFlow(nodes=[], strict=False)
+
+        cfg.strict = None
+        monkeypatch.setattr(ControlFlow, "default_strict", True)
+
+        assert cfg.strict is True
+
+    def test_production_default_is_not_strict(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-c",
+                "from machine_data_model.behavior.control_flow import "
+                "ControlFlow; assert ControlFlow.default_strict is False; "
+                "assert ControlFlow().strict is False",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+
+
+class TestTerminalStatesAreFinal:
+    def test_fail_on_a_completed_context_raises(self) -> None:
+        context = new_context()
+        context.deactivate()
+
+        with pytest.raises(ValueError):
+            context.fail(ExecutionError(ExecutionErrorCode.TIMEOUT, "t"))
+
+        assert context.status is ControlFlowStatus.COMPLETED
+        assert context.error is None
+
+    def test_fail_on_a_failed_context_keeps_the_first_error(self) -> None:
+        context = new_context()
+        first = ExecutionError(ExecutionErrorCode.TIMEOUT, "first")
+        context.fail(first)
+
+        with pytest.raises(ValueError):
+            context.fail(ExecutionError(ExecutionErrorCode.NO_DATA, "second"))
+
+        assert context.error is first
+
+    def test_reject_completion_only_from_completed(self) -> None:
+        error = ExecutionError(ExecutionErrorCode.INVALID_CONFIGURATION, "x")
+        active = new_context()
+        failed = new_context()
+        failed.fail(error)
+        completed = new_context()
+        completed.deactivate()
+
+        with pytest.raises(ValueError):
+            active.reject_completion(error)
+        with pytest.raises(ValueError):
+            failed.reject_completion(error)
+        completed.reject_completion(error)
+
+        assert active.is_active()
+        assert completed.status is ControlFlowStatus.FAILED
+        assert completed.error is error

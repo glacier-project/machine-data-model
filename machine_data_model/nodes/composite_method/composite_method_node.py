@@ -174,7 +174,7 @@ class CompositeMethodNode(MethodNode):
 
         for return_value in self.returns:
             if not context.has_value(return_value.name):
-                context.fail(
+                context.reject_completion(
                     ExecutionError(
                         ExecutionErrorCode.INVALID_CONFIGURATION,
                         f"return value '{return_value.name}' was not set by "

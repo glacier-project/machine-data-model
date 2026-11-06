@@ -326,16 +326,54 @@ class ExecutionContext:
             self._status = ControlFlowStatus.COMPLETED
 
     def fail(self, error: ExecutionError) -> None:
-        """Terminate the context in error.
+        """Terminate an active context in error.
 
         The context becomes inactive with status `FAILED`, the error is stored
-        and the pending request, if any, is cleared.
+        and the pending request, if any, is cleared. Terminal states are final:
+        a completed or failed context cannot be failed (see `reject_completion`
+        for the completion check).
 
         Args:
             error (ExecutionError):
                 The reason of the failure.
 
+        Raises:
+            ValueError:
+                If the context is already terminal.
+
         """
+        if not self.is_active():
+            raise ValueError(
+                f"cannot fail context {self._context_id}: it is already "
+                f"{self._status.name}"
+            )
+        self._set_failed(error)
+
+    def reject_completion(self, error: ExecutionError) -> None:
+        """Turn a just-completed context into a failed one.
+
+        Used by the completion check of a composite method (for example a
+        return value that the control flow never set), which can only be done
+        after the graph ran to its end. Only a `COMPLETED` context is accepted.
+
+        Args:
+            error (ExecutionError):
+                The reason of the failure.
+
+        Raises:
+            ValueError:
+                If the context is not `COMPLETED`.
+
+        """
+        if self._status is not ControlFlowStatus.COMPLETED:
+            raise ValueError(
+                f"cannot reject the completion of context {self._context_id}: "
+                f"it is {self._status.name}"
+            )
+        self._set_failed(error)
+
+    def _set_failed(self, error: ExecutionError) -> None:
+        """Set the failed state."""
         self._status = ControlFlowStatus.FAILED
         self._error = error
         self.active_request = None
