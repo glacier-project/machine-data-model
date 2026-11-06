@@ -366,6 +366,7 @@ class TestDataclasses:
             "timeout",
             "invalid_configuration",
             "remote_error",
+            "unexpected_error",
         }
 
 

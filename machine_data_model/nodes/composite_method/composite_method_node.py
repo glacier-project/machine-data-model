@@ -14,7 +14,10 @@ from machine_data_model.behavior.execution_context import (
     ControlFlowStatus,
     ExecutionContext,
 )
-from machine_data_model.behavior.execution_error import ExecutionError
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+)
 from machine_data_model.behavior.remote_execution_node import (
     RemoteExecutionNode,
 )
@@ -169,6 +172,17 @@ class CompositeMethodNode(MethodNode):
         if context.status is ControlFlowStatus.FAILED:
             return {}
 
+        for return_value in self.returns:
+            if not context.has_value(return_value.name):
+                context.fail(
+                    ExecutionError(
+                        ExecutionErrorCode.INVALID_CONFIGURATION,
+                        f"return value '{return_value.name}' was not set by "
+                        "the control flow",
+                        node=self.qualified_name,
+                    )
+                )
+                return {}
         ret_t = tuple(context.get_value(node.name) for node in self.returns)
         ret = self._build_return_dict(ret_t)
         self._completed_results[context.id()] = ret
@@ -251,11 +265,34 @@ class CompositeMethodNode(MethodNode):
                 If the context with the specified id is not found.
 
         """
-        if context_id not in self._contexts:
+        if self._contexts.pop(context_id, None) is None:
             raise ContextNotFoundError(context_id)
-        del self._contexts[context_id]
         self._completed_results.pop(context_id, None)
         self._notified_parent_contexts.discard(context_id)
+
+    def abort_context(self, context_id: str) -> None:
+        """Release a context that will never be resumed, best effort.
+
+        The node the context is waiting on releases what it owns (for example
+        its subscriptions), then the context is deleted. Unknown ids are
+        ignored.
+
+        Args:
+            context_id (str):
+                The id of the context to abort.
+
+        """
+        context = self._contexts.get(context_id)
+        if context is None:
+            return
+        try:
+            node = self.cfg.get_current_node(context)
+            if node is not None:
+                node.release(context)
+        finally:
+            self._contexts.pop(context_id, None)
+            self._completed_results.pop(context_id, None)
+            self._notified_parent_contexts.discard(context_id)
 
     def set_context_subscription_callback(
         self,

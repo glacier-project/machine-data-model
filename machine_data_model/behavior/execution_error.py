@@ -23,6 +23,8 @@ class ExecutionErrorCode(str, Enum):
             The model is not configured correctly for the requested operation.
         REMOTE_ERROR:
             A remote party reported an error. Reserved, not produced yet.
+        UNEXPECTED_ERROR:
+            A node raised an exception that is not part of its contract.
 
     """
 
@@ -31,6 +33,7 @@ class ExecutionErrorCode(str, Enum):
     TIMEOUT = "timeout"
     INVALID_CONFIGURATION = "invalid_configuration"
     REMOTE_ERROR = "remote_error"
+    UNEXPECTED_ERROR = "unexpected_error"
 
 
 @dataclass(frozen=True)

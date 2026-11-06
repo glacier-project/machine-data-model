@@ -271,6 +271,19 @@ class ControlFlowNode(ABC):
             return self._parent_cfg.get_composite_method_id()
         return self.node
 
+    def release(self, context: ExecutionContext) -> None:  # noqa: B027
+        """Release what this node owns in the context.
+
+        Called, best effort, on the node that raised an unexpected exception,
+        so that it can remove its subscriptions and context keys. The default
+        implementation does nothing.
+
+        Args:
+            context (ExecutionContext):
+                The execution context of the control flow graph.
+
+        """
+
     @abstractmethod
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the control flow node in the given execution context.

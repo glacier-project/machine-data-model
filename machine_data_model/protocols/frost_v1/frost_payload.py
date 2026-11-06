@@ -245,6 +245,8 @@ class ErrorMessages(str, Enum):
             Error message for an operation that timed out.
         REMOTE_ERROR:
             Error message for an operation that failed on a remote party.
+        UNEXPECTED_ERROR:
+            Error message for an unexpected internal error.
 
     """
 
@@ -265,6 +267,7 @@ class ErrorMessages(str, Enum):
     NO_DATA = "The data required by the operation is not available"
     TIMEOUT = "The operation timed out"
     REMOTE_ERROR = "The operation failed on a remote party"
+    UNEXPECTED_ERROR = "An unexpected error occurred during the operation"
 
 
 @dataclass(init=True, slots=True)

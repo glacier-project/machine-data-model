@@ -5,6 +5,7 @@ Frost protocol messages, managing communication with the machine data model
 including variable operations, method invocations, and protocol management.
 """
 
+import logging
 from typing import Any
 
 from typing_extensions import override
@@ -47,6 +48,8 @@ from machine_data_model.tracing import (
     trace_message_send,
 )
 
+_logger = logging.getLogger(__name__)
+
 _EXECUTION_ERROR_RESPONSES: dict[
     ExecutionErrorCode, tuple[ErrorCode, ErrorMessages]
 ] = {
@@ -70,7 +73,15 @@ _EXECUTION_ERROR_RESPONSES: dict[
         ErrorCode.UNKNOWN,
         ErrorMessages.REMOTE_ERROR,
     ),
+    ExecutionErrorCode.UNEXPECTED_ERROR: (
+        ErrorCode.UNKNOWN,
+        ErrorMessages.UNEXPECTED_ERROR,
+    ),
 }
+
+# Codes whose detail is never sent to the peer (it may carry paths, values or
+# internals); the detail goes to the log instead.
+_ERRORS_WITHOUT_DETAIL = frozenset({ExecutionErrorCode.UNEXPECTED_ERROR})
 
 
 class FrostProtocolMng(ProtocolMng):
@@ -299,12 +310,36 @@ class FrostProtocolMng(ProtocolMng):
             assert isinstance(msg.payload, ErrorPayload)
         return None
 
+    def drain_update_messages(self) -> list[FrostMessage]:
+        """Take all the pending update messages.
+
+        The list is swapped for an empty one in a single assignment, so
+        messages appended by another thread between reading and clearing are
+        not lost (unlike `get_update_messages` followed by
+        `clear_update_messages`). This is a swap, not a lock: it makes the
+        common race harmless, it does not make the manager thread safe.
+
+        Returns:
+            list[FrostMessage]:
+                The pending update messages, in order.
+
+        """
+        messages, self._update_messages = self._update_messages, []
+        return messages
+
     def clear_update_messages(self) -> None:
-        """Clear the list of update messages."""
+        """Clear the list of update messages.
+
+        Prefer `drain_update_messages`: reading with `get_update_messages` and
+        then clearing can lose messages appended in between.
+        """
         self._update_messages.clear()
 
     def get_update_messages(self) -> list[FrostMessage]:
-        """Return the list of update messages.
+        """Return the live list of update messages.
+
+        Prefer `drain_update_messages`: reading then clearing can lose messages
+        appended in between.
 
         Returns:
             - List[FrostMessage]: The list of update messages.
@@ -758,6 +793,14 @@ class FrostProtocolMng(ProtocolMng):
                 An error message with the code and text mapped from the error.
         """
         error_code, error_message = _EXECUTION_ERROR_RESPONSES[error.code]
+        if error.code in _ERRORS_WITHOUT_DETAIL:
+            _logger.error(
+                "Request %s failed with %s: %s",
+                msg.correlation_id,
+                error.code.value,
+                error.message,
+            )
+            return self._create_error_message(msg, error_message, error_code)
         return self._create_error_message(
             msg, f"{error_message.value}: {error.message}", error_code
         )

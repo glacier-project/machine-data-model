@@ -781,13 +781,43 @@ class TestParentErrorsPropagate:
         child = composite("child", [wait_for_nonzero(trigger)])
         call = CallMethodNode(method_node="child", args=[], kwargs={})
         call.set_ref_node(child)
-        parent = composite("parent", [call, RaisingNode(exc)])
+        parent = CompositeMethodNode(
+            id="parent",
+            name="parent",
+            cfg=ControlFlow(nodes=[call, RaisingNode(exc)], strict=True),
+        )
         parent()
         child_ctx_id = next(iter(child._contexts))
         trigger.write(1)
 
         with pytest.raises(type(exc)):
             child.resume_execution(child_ctx_id)
+
+    @pytest.mark.parametrize(
+        "exc",
+        [KeyError("missing"), ValueError("bad"), ContextNotFoundError("x")],
+    )
+    def test_error_in_parent_cfg_fails_the_parent(self, exc: Exception) -> None:
+        trigger = NumericalVariableNode(id="t", name="t", value=0)
+        child = composite("child", [wait_for_nonzero(trigger)])
+        call = CallMethodNode(method_node="child", args=[], kwargs={})
+        call.set_ref_node(child)
+        parent = CompositeMethodNode(
+            id="parent",
+            name="parent",
+            cfg=ControlFlow(nodes=[call, RaisingNode(exc)], strict=False),
+        )
+        parent_ctx_id = parent().return_values["@context_id"]
+        child_ctx_id = next(iter(child._contexts))
+        trigger.write(1)
+
+        child.resume_execution(child_ctx_id)
+
+        assert parent.has_failed(parent_ctx_id)
+        error = parent.get_error(parent_ctx_id)
+        assert error is not None
+        assert error.code is ExecutionErrorCode.UNEXPECTED_ERROR
+        assert error.message.startswith(type(exc).__name__)
 
     def test_unknown_parent_id_is_ignored(self) -> None:
         trigger = NumericalVariableNode(id="t", name="t", value=0)
@@ -835,3 +865,68 @@ class TestIdempotentResumeCopy:
 
         assert method.get_completed_return_values(context.id()) == {"r": 7}
         assert method.resume_execution(context.id()).return_values == {"r": 7}
+
+
+def composite_with_return(
+    name: str, nodes: list[ControlFlowNode]
+) -> CompositeMethodNode:
+    return CompositeMethodNode(
+        id=name,
+        name=name,
+        returns=[NumericalVariableNode(name="r", value=0)],
+        cfg=ControlFlow(nodes=list(nodes)),
+    )
+
+
+class TestUnsetReturnValue:
+    def test_start_fails_with_invalid_configuration(self) -> None:
+        method = composite_with_return("m", [StubNode(execution_success)])
+        post_calls: list[dict[str, Any]] = []
+        method.post_callback = post_calls.append
+
+        result = method()
+
+        assert result.return_values == {}
+        assert result.error is not None
+        assert result.error.code is ExecutionErrorCode.INVALID_CONFIGURATION
+        assert result.error.message == (
+            "return value 'r' was not set by the control flow"
+        )
+        assert result.error.node == method.qualified_name
+        assert post_calls == []
+        assert_no_contexts(method)
+
+    def test_resume_fails_with_invalid_configuration(self) -> None:
+        trigger = NumericalVariableNode(id="t", name="t", value=0)
+        method = composite_with_return("m", [wait_for_nonzero(trigger)])
+        ctx_id = method().return_values["@context_id"]
+        trigger.write(1)
+
+        resumed = method.resume_execution(ctx_id)
+
+        assert resumed.return_values == {}
+        assert resumed.error is not None
+        assert resumed.error.code is ExecutionErrorCode.INVALID_CONFIGURATION
+        assert method.has_failed(ctx_id)
+        assert method._completed_results == {}
+        method.delete_context(ctx_id)
+        assert_no_contexts(method)
+
+    def test_nested_parent_receives_the_failure(self) -> None:
+        trigger = NumericalVariableNode(id="t", name="t", value=0)
+        child = composite_with_return("child", [wait_for_nonzero(trigger)])
+        call = CallMethodNode(method_node="child", args=[], kwargs={})
+        call.set_ref_node(child)
+        parent = composite("parent", [call])
+        parent_ctx_id = parent().return_values["@context_id"]
+        child_ctx_id = next(iter(child._contexts))
+        trigger.write(1)
+
+        child.resume_execution(child_ctx_id)
+
+        error = parent.get_error(parent_ctx_id)
+        assert error is not None
+        assert error.code is ExecutionErrorCode.INVALID_CONFIGURATION
+        assert error.message.startswith("/child: return value 'r'")
+        parent.delete_context(parent_ctx_id)
+        assert_no_contexts(parent, child)

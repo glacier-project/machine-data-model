@@ -8,6 +8,7 @@ object variables with subscription and notification capabilities.
 from abc import abstractmethod
 from collections.abc import Callable, Generator
 from enum import Enum
+import logging
 from typing import Any
 
 from typing_extensions import override
@@ -38,6 +39,8 @@ from .measurement_unit.measure_builder import (
 from .subscription.variable_subscription import (
     VariableSubscription,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class VariableNode(DataModelNode):
@@ -164,9 +167,25 @@ class VariableNode(DataModelNode):
         prev_value = self._read_value()
         # Apply the pre-update callback to the new value.
         value = self._pre_update_value(value)
-        # Update the value of the variable with the new value.
-        value = self._update_value(value)
-        # Perform the post-update operations and get the success status.
+        remote = self._is_remote_with_connector()
+        # For a remote variable the remote write comes first and the cache only
+        # changes if the connector confirmed it. Success is never inferred from
+        # comparing values: the cache can hold a converted (base unit) value.
+        if remote and not self._write_remote(value):
+            trace_variable_write(
+                variable_id=self.id,
+                old_value=prev_value,
+                new_value=value,
+                success=False,
+                source=self.qualified_name,
+                data_model_id=self.data_model.name if self.data_model else "",
+            )
+            return False
+        # Update the cached value of the variable with the new value.
+        value = self._update_internal_value(value)
+        # Perform the post-update operations and get the success status. For a
+        # remote variable this runs AFTER the machine was written: validators
+        # belong in `_pre_update_value`.
         success = self._post_update_value(prev_value, value)
         # Trace the variable write operation.
         trace_variable_write(
@@ -181,9 +200,16 @@ class VariableNode(DataModelNode):
         # previous value.
         if success:
             self.notify_subscribers()
+        elif remote and not self._write_remote(prev_value):
+            # The restore is a second remote write and can fail too: the
+            # machine keeps the new value, so does the cache.
+            _logger.error(
+                "Failed to restore the previous value of '%s' on the remote "
+                "server after a rejected update",
+                self.qualified_name,
+            )
         else:
-            value = self._update_value(prev_value)
-            assert value == prev_value
+            self._update_internal_value(prev_value)
         return success
 
     @property
@@ -214,6 +240,25 @@ class VariableNode(DataModelNode):
 
         """
         return self._subscriptions
+
+    def find_subscription_by_subscriber(
+        self, subscriber_id: str
+    ) -> VariableSubscription | None:
+        """Find the first subscription of a subscriber.
+
+        Args:
+            subscriber_id (str):
+                The id of the subscriber.
+
+        Returns:
+            VariableSubscription | None:
+                The subscription, or None if the subscriber has none.
+
+        """
+        for subscription in self._subscriptions:
+            if subscription.subscriber_id == subscriber_id:
+                return subscription
+        return None
 
     def subscribe(self, subscription: VariableSubscription) -> bool:
         """Subscribe a subscriber to the variable node.
@@ -340,7 +385,9 @@ class VariableNode(DataModelNode):
         """
         # Get the current value of the node.
         value = self._read_internal_value()
-        for subscription in self._subscriptions:
+        # Iterate over a copy: a callback can resume a context that
+        # unsubscribes, which mutates the live list and would skip a waiter.
+        for subscription in list(self._subscriptions):
             if not subscription.should_notify(value):
                 continue
             # Trace the notification operation.
@@ -424,35 +471,26 @@ class VariableNode(DataModelNode):
             return connector.read_node_value(self._require_remote_resource())
         return self._read_internal_value()
 
-    def _update_value(self, value: Any) -> Any:
-        """Update the value of the variable."""
-        if self.is_remote() and self.has_connector():
-            self._update_internal_value(value)
-            res = self._update_remote_value(value)
-            return res
-        else:
-            return self._update_internal_value(value)
+    def _is_remote_with_connector(self) -> bool:
+        """Whether writes go through a connector."""
+        return self.is_remote() and self.has_connector()
 
-    def _update_remote_value(self, value: Any) -> Any:
-        """Update the value of the variable remotely.
+    def _write_remote(self, value: Any) -> bool:
+        """Write the value to the remote server.
 
         Args:
-            value:
-                New value which is written to the remote server.
+            value (Any):
+                The value to write.
 
         Returns:
-            Any:
-                New value when the update action is successful.
-                Otherwise, it returns the previous value.
+            bool:
+                True only if the connector confirmed the write.
+
         """
         connector = self._require_remote_connector()
-        prev_value = self._read_internal_value()
-        write_successful = connector.write_node_value(
-            self._require_remote_resource(), value
+        return bool(
+            connector.write_node_value(self._require_remote_resource(), value)
         )
-        if write_successful:
-            return value
-        return prev_value
 
     @abstractmethod
     def _update_internal_value(self, value: Any) -> Any:
@@ -505,6 +543,13 @@ class VariableNode(DataModelNode):
         self, callback: Callable[..., bool]
     ) -> None:
         """Set a callback to be executed after updating the value.
+
+        The callback receives the previous and the new value and returns False
+        to reject the update, which then restores the previous value. For a
+        remote variable it runs AFTER the machine was written, so the restore
+        is a second remote write that can fail (the failure is logged and the
+        cache keeps the new value). Validators belong in the pre-update
+        callback.
 
         Args:
             callback (Callable[..., bool]):
@@ -721,23 +766,6 @@ class NumericalVariableNode(VariableNode):
         """
         return self._measure_unit
 
-    @override
-    def _update_remote_value(self, value: float) -> float:
-        """Update the value of the numerical variable remotely.
-
-        Args:
-            value (float):
-                New value.
-
-        Returns:
-            float:
-                The updated value of the numerical variable if the operation was
-                successful. Otherwise, it returns the previous value.
-        """
-        result = super()._update_remote_value(value)
-        assert isinstance(result, int | float)
-        return result
-
     def __str__(self) -> str:
         """Returns a string representation of the NumericalVariableNode.
 
@@ -857,23 +885,6 @@ class StringVariableNode(VariableNode):
         assert isinstance(value, str)
         self._value = value
         return self._value
-
-    @override
-    def _update_remote_value(self, value: str) -> str:
-        """Update the value of the string variable remotely.
-
-        Args:
-            value (str):
-                New value.
-
-        Returns:
-            str:
-                The updated value of the string variable if the operation was
-                successful. Otherwise, it returns the previous value.
-        """
-        result = super()._update_remote_value(value)
-        assert isinstance(result, str)
-        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """Raise NotImplementedError.
@@ -1028,23 +1039,6 @@ class BooleanVariableNode(VariableNode):
         assert isinstance(value, bool)
         self._value = value
         return self._value
-
-    @override
-    def _update_remote_value(self, value: bool) -> bool:
-        """Update the value of the boolean variable remotely.
-
-        Args:
-            value (bool):
-                New value.
-
-        Returns:
-            bool:
-                The updated value of the boolean variable if the operation was
-                successful. Otherwise, returns the previous value.
-        """
-        result = super()._update_remote_value(value)
-        assert isinstance(result, bool)
-        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """Raise NotImplementedError.
@@ -1307,36 +1301,35 @@ class ObjectVariableNode(VariableNode):
         return self._read_internal_value()
 
     @override
-    def _update_remote_value(self, value: dict[str, Any]) -> dict[str, Any]:
-        """Update the value of the object variable remotely.
+    def _write_remote(self, value: dict[str, Any]) -> bool:
+        """Write the properties of the object variable to the remote server.
+
+        If a property write is not confirmed the properties already written
+        are restored to their previous values.
 
         Args:
-            value:
-                New value.
+            value (dict[str, Any]):
+                The new value of the object variable.
 
         Returns:
-            dict[str, Any]:
-                The updated value if the operation was successful.
-                Otherwise, returns the previous value.
+            bool:
+                True only if every property write was confirmed.
+
         """
         self._require_remote_connector()
         self._require_remote_resource()
         prev_value = self._read_internal_value()
-        write_successful = True
+        confirmed = True
         for property_name, property_value in value.items():
-            write_successful = self._properties[
-                property_name
-            ]._update_remote_value(property_value)
-            if not write_successful:
+            confirmed = self._properties[property_name]._write_remote(
+                property_value
+            )
+            if not confirmed:
                 break
-
-        if not write_successful:
+        if not confirmed:
             for property_name, property_value in prev_value.items():
-                self._properties[property_name]._update_remote_value(
-                    property_value
-                )
-            return prev_value
-        return value
+                self._properties[property_name]._write_remote(property_value)
+        return confirmed
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """Get a property of the object variable.

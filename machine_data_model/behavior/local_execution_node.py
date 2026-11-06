@@ -435,6 +435,27 @@ class CallMethodNode(LocalExecutionNode):
         """
         return self._kwargs
 
+    def release(self, context: ExecutionContext) -> None:
+        """Drop the pending callee of this node and release its context.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        from machine_data_model.nodes.composite_method import (
+            composite_method_node,
+        )
+
+        pending_key = f"call_method_pending_{context.get_pc()}"
+        if not context.has_value(pending_key):
+            return
+        pending_context_id = context.get_value(pending_key)
+        context.delete_value(pending_key)
+        ref_method = self._get_ref_node(context)
+        if isinstance(ref_method, composite_method_node.CompositeMethodNode):
+            ref_method.abort_context(pending_context_id)
+
     @staticmethod
     def _wrap_error(error: ExecutionError, callee: str) -> ExecutionError:
         """Build the error of this node from the error of the callee.
@@ -760,6 +781,19 @@ class WaitConditionNode(LocalExecutionNode):
         ):
             subscription.subscription_callback = subscription_callback
 
+        # One wait subscription per (variable, context): adopt the one that is
+        # already there instead of adding a second that would wake the context
+        # twice.
+        existing = ref_variable.find_subscription_by_subscriber(context.id())
+        if existing is not None and existing is not subscription:
+            if (
+                existing.subscription_callback is None
+                and subscription_callback is not None
+            ):
+                existing.subscription_callback = subscription_callback
+            subscription = existing
+            context.set_value(sub_key, existing)
+
         # Condition not met - start waiting
         if not result:
             if subscription not in ref_variable.get_subscriptions():
@@ -801,6 +835,30 @@ class WaitConditionNode(LocalExecutionNode):
 
         # Return the outcome.
         return outcome
+
+    def release(self, context: ExecutionContext) -> None:
+        """Remove the wait subscription and the context keys of this node.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        base_wait_key = f"wait_{self.node}_{context.id()}"
+        sub_key = f"{base_wait_key}_subscription"
+        wait_key = f"{base_wait_key}_start"
+        subscription = None
+        if context.has_value(sub_key):
+            subscription = context.get_value(sub_key)
+        try:
+            if subscription is not None:
+                ref_variable = self._get_ref_node(context)
+                assert isinstance(ref_variable, VariableNode)
+                ref_variable.unsubscribe(subscription)
+        finally:
+            for key in (sub_key, wait_key):
+                if context.has_value(key):
+                    context.delete_value(key)
 
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.
