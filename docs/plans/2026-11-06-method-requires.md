@@ -1,14 +1,18 @@
 # Plan: `requires` (preconditions) on method nodes
 
-Status: approved decisions (D1-D5, P1-P4); implementation in progress (phases 1
-and 2 done and reviewed, phase 3 implemented, its review fixes being applied by
-the worker). Author: researcher. Date: 2026-11-06. Revision 3 folded in the
-phase 2 review (ConditionError, `evaluate_on` split, load-time check of
-`requires` paths, "has received a value" mechanism, read exceptions). Revision
-4 folds in the phase 3 review (terminal states are final, limits 9.5 and 9.6,
-follow-up design in section 11).
-Paths are relative to the repository root. Line numbers refer to `dev` at
-`d9f2c59` and may drift.
+Status: approved decisions (D1-D5, P1-P6); phases 1-3 implemented, reviewed and
+committed (`34308ce` docs, `fabab64` feat). **Order of the remaining work:
+phase 4.5 -> phase 4 -> phase 5** (section 7). Author: researcher.
+Date: 2026-11-06. Revisions: 3 folded in the phase 2 review; 4 the phase 3 review
+(terminal states are final, limits 9.5 and 9.6, section 11); **5 folds in an
+independent adversarial review of the phase 4/4.5/5 proposals**: phase 4.5
+corrected and extended (section 11), `received_at` instead of a write-based
+timestamp (4.F), no authorization-based disclosure argument (4.H replaced),
+load warning instead of load error for a missing `on_unmet` (P5), no `RLock`
+(limit 9.8 replaced), section 12 needed by section 11.
+
+Paths are relative to the repository root. Line numbers refer to `dev` and may
+drift.
 
 ## 1. Goal and scope
 
@@ -31,8 +35,9 @@ Out of scope (documented, not done here):
 
 - `IfNode`, `Fallback`, retries, branching of any kind;
 - a real timer (only a deadline checked on resume);
-- `CallRemoteMethodNode` / `WaitRemoteEventNode` semantics and routing of
-  remote Frost `ERROR` messages (see 9.3);
+- `CallRemoteMethodNode` / `WaitRemoteEventNode` semantics (routing of remote
+  Frost `ERROR` messages to the waiting context **is** in scope, phase 4.5,
+  section 11.3);
 - connection-state API on connectors;
 - OPC UA `Executable` attribute exposure (the `is_executable()` helper is the
   hook for it).
@@ -41,7 +46,7 @@ Out of scope (documented, not done here):
 
 | Id | Decision |
 |----|----------|
-| D1 | `CallMethodNode` gets `on_unmet: wait \| fail`, with **no implicit default**. Load fails if the callee has `requires` and `on_unmet` is missing. `wait` is an atomic attempt-call (no `WaitCondition` + call race). Optional `timeout`, checked on resume against a deadline stored in the context. |
+| D1 | `CallMethodNode` gets `on_unmet: wait \| fail`, with **no implicit default**. A missing `on_unmet` on a callee that has `requires` is a load **warning** (a strict mode raises) and a run-time `INVALID_CONFIGURATION` failure (P5). `wait` is an atomic attempt-call (no `WaitCondition` + call race). Optional `timeout`, checked on resume against a deadline stored in the context. |
 | D2 | `ExecutionNodeResult.status` in `{SUCCESS, RUNNING, FAILURE}` plus optional `ExecutionError(code, message, node)`. `.success` stays (`== SUCCESS`). `execution_failure()` keeps meaning RUNNING. New `execution_error(...)`. Codes: `PRECONDITION_NOT_MET`, `NO_DATA`, `TIMEOUT`, room for remote errors. |
 | D3 | `Condition` evaluates to `ok \| failed \| no_data`. `no_data` behaves like `failed` for flow but has a distinct code. Not configurable yet. |
 | D4 | Field name `requires`: list of `{variable, operator, rhs}` mappings, AND semantics, no new YAML tag. Dumper emits it only when non-empty. Name `pre_call` is avoided (already an attribute). `MethodNode.__call__` never waits. Expose `evaluate_requires()` and `is_executable()`. |
@@ -53,9 +58,23 @@ Decisions taken by this plan, approved by the user (see section 10):
   keys before returning, instead of the run loop doing it (the loop does not
   know which keys a node owns).
 - P2. Callee not statically resolvable (templated path) and `on_unmet` missing:
-  runtime `FAILURE` with code `INVALID_CONFIGURATION`, not a load error.
+  runtime `FAILURE` with code `INVALID_CONFIGURATION`, not a load error. Since
+  P5 the same run-time rule applies to every callee, static or templated.
 - P3. `requires` is evaluated with cached values (`force_remote_read=False`).
 - P4. Remote callees (`CallRemoteMethodNode`) are untouched.
+- P5 (revised by the adversarial review, approved). A `CallMethodNode` whose
+  callee has `requires` and whose `on_unmet` is missing: **load warning**
+  (module logger, naming composite, call index and callee; a strict-mode option,
+  name to be chosen, raises `ValueError` instead) and, at run time, **always**
+  `FAILURE(INVALID_CONFIGURATION)` before the call, whether the requires hold
+  or not (deterministic, independent of data). A condition that cannot be
+  evaluated for a static configuration reason (a remote variable without a
+  connector) is `INVALID_CONFIGURATION` as well, never `NO_DATA`, never waited
+  on (4.I).
+- P6 (approved). Work order: phase 4.5 (nested contexts, remote `ERROR`
+  routing, lost-wakeup and write fixes, section 11), then phase 4, then
+  phase 5. Phase 4 makes remote rejections and nested waits normal, so 4.5 must
+  exist first.
 
 ## 3. Facts the plan relies on
 
@@ -171,11 +190,11 @@ split lets phase 5 resolve once and use the result both to subscribe
 - `resolve_node: Callable[[str], DataModelNode | None]`, `scope` is an
   `ExecutionContext` (or `None`). Template resolution reuses
   `resolve_string_in_context` / `resolve_value`.
-- `no_data` when: the value is `None`; a remote variable has no connector; a
-  remote variable has never received a value (phase 4, item 4.F); the read
-  fails with a connection-type error (phase 4, item 4.G); the comparison raises
-  `TypeError` (e.g. `None < 5`). A missing or non-variable node is **not**
-  `no_data`: it raises `ConditionError` (configuration error). Connection state
+- `no_data` when: the value is `None`; a remote variable has never received a
+  value (phase 4, item 4.F); the read fails with a connection-type error (phase
+  4, item 4.G); the comparison raises `TypeError` (e.g. `None < 5`). A missing
+  or non-variable node, and a remote variable without a connector, are **not**
+  `no_data`: they raise `ConditionError` (configuration error, 4.I). Connection state
   is not observable today (connectors only have `connect/disconnect`).
 - Import cycle check: `condition.py` imports `nodes.variable_node` only under
   `TYPE_CHECKING` plus a local import inside functions if needed.
@@ -241,12 +260,16 @@ successors=None)`; `on_unmet: OnUnmet | None`, `OnUnmet(str, Enum)` =
 `execute` flow (new part only):
 
 1. Resolve callee, args (unchanged).
-2. Try the call. `MethodPreconditionError` caught:
+2. If the callee has `requires` and `on_unmet is None`: return
+   `execution_error(INVALID_CONFIGURATION)` **before** calling, whether the
+   requires hold or not (P5). Otherwise try the call. `MethodPreconditionError`
+   caught:
+   - code `INVALID_CONFIGURATION` -> `execution_error(...)` whatever `on_unmet`
+     says (a configuration error is never waited on).
    - `on_unmet is fail` -> `execution_error(err.error)`.
    - `on_unmet is wait` -> deadline check (timeout), subscribe to
      `Condition.variables(...)` of the callee with the per-context
      subscription (same keys pattern as `WaitConditionNode`), return RUNNING.
-   - `on_unmet is None` -> `execution_error(INVALID_CONFIGURATION)`.
 3. On a later resume the same node re-attempts at the same pc. On success the
    subscriptions and keys are removed (same cleanup as the wait branch).
 4. Deadline: first `wait` stores `call_method_deadline_<pc>` (epoch seconds from
@@ -461,6 +484,17 @@ code assigning it (grep found none in `machine_data_model/` or `tests/`).
 Tracing events have no error field; reuse `success=False` and put the message
 in `source`/log, a new trace field is a separate change.
 
+### Phase 4.5 - Nested contexts, remote errors, wakeups, write fix (runs BEFORE phase 4)
+
+Details, options and tests are in section 11. Summary: `DataModel.find_context`
+index; Frost resolves subscriber and correlation ids through it; the root
+context id is found **before** resuming and the request is finished
+idempotently afterwards; remote Frost `ERROR` messages reach the waiting
+context as `REMOTE_ERROR`; `notify_subscribers` iterates a copy and
+subscriptions are deduplicated; `drain_update_messages()` replaces
+`get_update_messages()` + `clear_update_messages()`; `delete_context` via
+`pop`; remote write confirms before the cache changes.
+
 ### Phase 4 - `MethodNode.requires` and direct-call rejection
 
 Goal: declarative `requires`, enforced on direct calls and Frost invoke.
@@ -558,7 +592,8 @@ for a templated one; `Condition(op="==")` with a raw string is rejected at
 construction.
 
 4.F **"Has received a value" mechanism (DECIDED by the user: option B, the
-timestamp; safety relevant).**
+timestamp; revised by the adversarial review: it is `received_at`, with three
+origin sites; safety relevant).**
 Problem: a remote variable that never received data reads its initial default
 value, not `None` (`NumericalVariableNode._read_remote_value` returns
 `_read_internal_value()` when the connector gives `None`, and the same pattern
@@ -569,49 +604,53 @@ value** before the first real update. Facts that constrain the design:
 `VariableNode.read()` itself calls `_update_internal_value(value)` after every
 remote read, so a flag set inside `_update_internal_value` would be set by the
 first cached read of the default: the flag must be set only where a value
-really originates from the remote side:
+really originates from the remote side. There are **three** such sites:
 
 - `_remote_subscription_callback` (remote change);
 - `subscribe_to_remote_changes`, the initial `connector.read_node_value` when
   its result is not `None`;
 - the `force_remote_read=True` branch of `VariableNode._read_remote_value`
   (base class, which the subclasses call through `super()`) when the connector
-  result is not `None`;
-- a successful remote write (`_update_remote_value` returned the new value): we
-  then know the value.
+  result is not `None`.
+
+A successful remote **write is not a site** (dropped in revision 5): for MQTT
+the publish topic can differ from the state topic, and a confirmed publish does
+not prove that the state the variable mirrors has that value.
 
 Options:
 
-- **A. Boolean flag** `_remote_value_received` set at those four places;
-  `has_received_value()` is `True` for local variables, the flag for remote
-  ones. Smallest change. Cannot express staleness; never resets when the
-  connection drops.
-- **B. Timestamp** `_last_remote_update: float | None` (epoch seconds) set at
-  the same four places; `has_received_value()` = local or timestamp is not
-  `None`; also exposes `last_update` (age, "since"). Same change size as A plus
-  one float, and it is the base for a later `max_age` / staleness guard
-  (OPC UA `SourceTimestamp` analogue, the `since` of the tree-thinking checks).
-- **C. Make unreceived reads return `None`** (change `_read_remote_value`).
-  Rejected: changes the public `read()` contract and the declared return types
-  (`float`, `str`, `bool`) of every node, large blast radius.
-- **D. Quality object** (`Good/Uncertain/Bad` + timestamp, OPC UA StatusCode
-  style) carried by connectors' callbacks. Most future-proof, largest change
-  (connector API and `SubscriptionArguments`); a later step on top of B.
+- **A. Boolean flag** set at the three sites; `has_received_value()` is `True`
+  for local variables, the flag for remote ones. Smallest change. Cannot
+  express staleness; never resets when the connection drops.
+- **B. Timestamp (chosen).** `_received_at: float | None` (epoch seconds,
+  `time.time()`) set at the three sites; `has_received_value()` = local
+  variable, or `_received_at` is not `None`; exposes `received_at`.
+  **Name and meaning:** this is the time the value *arrived in this process*,
+  not the time the source produced it. A retained MQTT message or the initial
+  read at start-up looks fresh. It proves "a value was received", never "the
+  value is recent". A separate `source_timestamp` (OPC UA `SourceTimestamp`,
+  MQTT payload time) is a later addition and the only basis for a `max_age`
+  staleness guard.
+- **C. Make unreceived reads return `None`.** Rejected: changes the public
+  `read()` contract and the declared return types of every node.
+- **D. Quality object** (`Good/Uncertain/Bad` + timestamps, OPC UA StatusCode
+  style) carried by connectors' callbacks. Largest change (connector API and
+  `SubscriptionArguments`); a later step on top of B.
 
-Recommendation: **B**, implemented in the base class
-(`machine_data_model/nodes/variable_node.py`), with `Condition.evaluate_on`
-returning `NO_DATA` ("(no value received yet)") for a remote variable whose
-`has_received_value()` is `False`. `ObjectVariableNode`: received when every
-property is received (empty object: `True`). Not in this phase: reset on
-disconnect (needs a connector hook such as `mark_stale()`, follow-up) and
-`max_age`. Tests: fake connector whose initial read is `None` -> `NO_DATA`;
-after a subscription callback -> `OK`/`FAILED`; after a forced read returning a
-value -> `OK`/`FAILED`; after a successful remote write; local variable always
-has a value; a cached read of the default does not set the flag (regression
-for the `read()` write-back); the same through `requires` on a method (call
-rejected with `NO_DATA`) and `CallMethodNode` wait mode (stays RUNNING).
-The phase 2 test that pins today's weakness (guard passes on the default) is
-flipped by this change.
+Implemented in the base class (`machine_data_model/nodes/variable_node.py`),
+with `Condition.evaluate_on` returning `NO_DATA` ("(no value received yet)")
+for a remote variable whose `has_received_value()` is `False`.
+`ObjectVariableNode`: received when every property is received (empty object:
+`True`). Not in this phase: reset on disconnect (needs a connector hook such as
+`mark_stale()`), `source_timestamp`, `max_age`. Tests: fake connector whose
+initial read is `None` -> `NO_DATA`; after a subscription callback ->
+`OK`/`FAILED`; after a forced read returning a value -> `OK`/`FAILED`; a
+successful remote write does **not** set `received_at`; local variable always
+has a value; a cached read of the default does not set it (regression for the
+`read()` write-back); the same through `requires` on a method (call rejected
+with `NO_DATA`) and `CallMethodNode` wait mode (stays RUNNING). The phase 2
+test that pins today's weakness (guard passes on the default) is flipped by
+this change.
 
 4.G **Exceptions raised by `variable.read()` (DECIDED by the user: `OSError` ->
 `NO_DATA`, every other exception propagates, connector exception audit
@@ -627,52 +666,49 @@ failures into `ConnectionError`/`TimeoutError` at the connector boundary, so
 the `OSError` catch is sufficient. Tests: stub variable whose read raises
 `ConnectionError`/`TimeoutError`/`RuntimeError` -> `NO_DATA`/`NO_DATA`/raises.
 
-4.H **Frost boundary: size of the detail and disclosure of observed values
-(user decision needed).** Since phase 3 the Frost error text is
-`"<enum text>: <error.message>"`. From phase 4 on, `error.message` is built from
-`ConditionOutcome.message`, which contains `(observed <value>)`: the current
-value of a data model variable, of any type and size (a text variable can hold
-megabytes or newlines), sent to the remote caller of the method, who may not be
-allowed to read that variable. Nothing in the data model has an authorization
-model, so "send it only if the caller may read it" is not available.
-Facts: the Frost `error_message` field is a free `str`; messages also flow
-through traces and logs, where the observed value is wanted for diagnosis.
+4.H **Frost boundary: detail text, observed values, size (REPLACED in
+revision 5; user approved).** Since phase 3 the Frost error text is
+`"<enum text>: <error.message>"`. From phase 4 on, `error.message` is built
+from the condition. Decision:
 
-Options:
+- **One message, without the observed value.** `ConditionOutcome.message` and
+  therefore `ExecutionError.message` say what must hold and what failed
+  (`"/plant/conveyor/mode == 2 not met"`, `"/plant/conveyor/mode == 2: no value
+  received yet"`), never the current value.
+- **The observed value goes in a structured field**:
+  `ConditionOutcome.observed: str | None` and `ExecutionError.observed:
+  str | None` (a bounded `repr`, at most 256 characters), carried through
+  `MethodPreconditionError` and `CallMethodNode._wrap_error` (like `origin`) and
+  used by logs and traces. **It is never sent over Frost.**
+- **Truncation at the Frost boundary**, needed with any message: one helper
+  used by `_create_execution_error_message` collapses whitespace and control
+  characters to single spaces, cuts the detail to 256 characters and appends
+  `...`; cut on `str`, never on bytes; the enum text is never cut; the limit is
+  a module constant. It can ship with the phase 3 fixes (the Frost detail path
+  already exists).
 
-- **A. Send the full message, truncated.** Simplest; discloses the observed
-  value. Not recommended.
-- **B. Two texts (recommended).** `ExecutionError.message` stays the internal,
-  full text (traces, logs, direct-API callers). Add
-  `ExecutionError.public_message: str | None = None`, the text that may leave
-  the process: the failing condition without the observed value (for example
-  `"/plant/conveyor/mode == 2"`, so the caller learns what must hold, not what
-  the state is). `ConditionOutcome` gets a matching `detail` field and
-  `MethodPreconditionError` / `_wrap_error` carry and prefix `public_message`
-  the same way as `message`. Frost sends only `public_message`; when it is
-  `None` it sends only the generic enum text (safe default: a new error source
-  discloses nothing until it opts in).
-- **C. Code only.** Safest, least useful: the client cannot tell which
-  condition failed.
-- **D. Configurable per data model** (`expose_error_details: true|false`).
-  More flexible, one more switch to get wrong; can be added on top of B later.
+Why not the earlier proposal (a separate `public_message`, default `None`
+sending only the generic text): the Frost protocol has **no authorization**
+(see limit 9.9: any caller can already `READ` any variable), so hiding the
+observed value in the error text is cosmetic, and a `None` default would
+regress the detail that phase 3 already sends. The structured `observed` field
+keeps the diagnostic value for the operator without growing the remote text.
 
-Truncation (needed with any option, ships now because the Frost detail path
-already exists since phase 3): one helper at the Frost boundary
-(`FrostProtocolMng`, used by `_create_execution_error_message`) that collapses
-whitespace and control characters to single spaces, cuts the detail to 256
-characters and appends an ellipsis (`...`). Keep the limit a module constant.
-The enum text is never truncated.
+Tests: a 10 000-character detail is cut to the limit; newlines, tabs and
+control characters never appear in the sent text; the observed value appears
+in `error.observed` (and in the log/trace) but not in the Frost message;
+a nested failure prefixes callee paths and keeps `observed`/`origin`; non-ASCII
+text survives; a condition on a huge text variable produces a bounded
+`observed`.
 
-Tests: a 10 000-character detail is cut to the limit; newlines/tabs/control
-characters never appear in the sent text; with B the observed value is absent
-from the Frost message but present in `error.message`; `public_message=None`
-gives the generic text only; a nested failure (`_wrap_error`) prefixes callee
-paths in `public_message` and never copies the observed value; non-ASCII text
-survives and the cut never splits a surrogate pair/multi-byte sequence (cut on
-`str`, not `bytes`).
-
-Recommendation: truncation now (with the phase 3 fixes), option B in phase 4.
+4.I **Static configuration problems are `INVALID_CONFIGURATION`, never
+`NO_DATA` (P5).** `Condition.evaluate_on` raises `ConditionError` for a remote
+variable without a connector (today it returns `NO_DATA`, phase 2 test
+`test_no_data_for_remote_variable_without_connector` is flipped): the model
+has nothing to wait for. `NO_DATA` stays for conditions that can change by
+themselves (`None`, never received, read failed, uncomparable). Consumers: the
+direct call rejects with `INVALID_CONFIGURATION`; `CallMethodNode` never waits
+on it.
 
 Acceptance: all earlier tests green with no edits; new tests green; `mypy`
 clean; dumper output for every existing example under `examples/` and
@@ -698,9 +734,12 @@ Files / changes:
 2. `data_model.py`: after `_register_nodes` and `_setup_inheritable_specs`
    (all nodes registered), a validation pass over every `CompositeMethodNode`
    CFG: for each `CallMethodNode` whose callee resolves statically to a
-   `MethodNode` with non-empty `requires` and `on_unmet is None`, raise
-   `ValueError` naming composite, call index and callee. Run it inside the
-   existing `try` so connectors are cleaned up on failure. Not applied to
+   `MethodNode` with non-empty `requires` and `on_unmet is None`, log a
+   **warning** naming composite, call index and callee (P5); with the
+   strict-mode option, raise `ValueError` instead. Run it inside the existing
+   `try` so connectors are cleaned up on failure. At run time the node fails
+   with `INVALID_CONFIGURATION` whenever `on_unmet` is missing and the callee
+   has `requires` (4.4 step 2). Not applied to
    `CallRemoteMethodNode` (P4). The pass already exists from phase 4 (static
    `requires` paths, 4.C); this phase adds the `on_unmet` rule to it. In wait
    mode `Condition.resolve` is called once per attempt and its result feeds both
@@ -724,11 +763,15 @@ Tests:
    `test_wait_subscription_bug`).
 3. `timeout`: deadline set on first wait; a resume after the deadline gives
    `TIMEOUT` and removes subscriptions; no timeout means no deadline key.
-4. Load-time: callee with `requires` and no `on_unmet` raises at
-   `DataModelBuilder` load with the composite and callee names; callee without
-   `requires` and no `on_unmet` loads; callee added later in YAML order still
-   detected (validation runs after full registration); templated callee path
-   skipped at load and gives `INVALID_CONFIGURATION` at run time (P2).
+4. Load-time and run-time (P5): callee with `requires` and no `on_unmet` logs
+   a warning at `DataModelBuilder` load with the composite and callee names
+   (and raises in strict mode); callee without `requires` and no `on_unmet`
+   loads silently; callee added later in YAML order still detected (validation
+   runs after full registration); at run time the call fails with
+   `INVALID_CONFIGURATION` whenever `on_unmet` is missing and the callee has
+   `requires`, **also when the requires hold** and for a templated callee path
+   (P2); a remote variable without a connector fails with
+   `INVALID_CONFIGURATION` in both modes and is never waited on.
 5. Nested composite callee with `requires` (check happens at the callee's
    `__call__`, pending-branch behavior unchanged).
 6. Builder/dumper round trip with and without the new fields.
@@ -757,9 +800,10 @@ subscription object must be stored in the context exactly like
 
 ## 7. Suggested commit/PR split
 
-One PR per phase, in order. Phases 1-2 are pure refactor/tests (no behavior
-change) and can merge without product review. Phase 3 is invisible to YAML
-users. Phases 4 and 5 add the feature.
+One PR per phase. Order: 1, 2, 3 (done), **4.5, 4, 5** (P6). Phases 1-2 are
+pure refactor/tests (no behavior change) and can merge without product review.
+Phase 3 is invisible to YAML users. Phase 4.5 fixes Frost routing and two
+variable bugs (no YAML change). Phases 4 and 5 add the feature.
 
 ## 8. Rollback
 
@@ -780,10 +824,11 @@ the existing, clear failure mode.
    read failed with a connection error, or an uncomparable value. A value that
    was received and then went stale (connection lost later) is still treated
    as valid until a disconnect hook or `max_age` exists (follow-up).
-3. Remote Frost `ERROR` messages are still dropped by
-   `FrostProtocolMng.handle_message` and a `CallRemoteMethodNode` still waits
-   forever on them. `ExecutionErrorCode.REMOTE_ERROR` is reserved; routing the
-   error to the waiting context is a follow-up.
+3. Remote Frost `ERROR` messages are dropped by
+   `FrostProtocolMng.handle_message` and a `CallRemoteMethodNode` waits forever
+   on them (until phase 4.5, section 11.3, which routes them to the waiting
+   context as `REMOTE_ERROR`; revision 5 moved this from "follow-up" into
+   phase 4.5 because phase 4 makes remote rejections normal).
 4. `requires` are a permissive (checked when the call starts). Conditions that
    must keep holding while a composite runs (interlocks) are not modeled.
 5. **Nested composites that wait are never resumed under Frost (pre-existing,
@@ -813,21 +858,29 @@ the existing, clear failure mode.
    nested-parent notification the parent stays stuck (status `READY`, pc
    unchanged) and its subscriptions and context keys stay. Hardening design:
    section 12.
-8. **Composite contexts are not thread-safe** (pre-existing, noted in the phase 3
-   recheck). Variable-change callbacks run on connector threads
-   (`abstract_async_connector.py` runs an asyncio loop thread; OPC UA and MQTT
-   callbacks call `notify_subscribers` there), while method invocations and
-   Frost requests run on other threads. `CompositeMethodNode._contexts`,
-   `_completed_results`, `_notified_parent_contexts` and
-   `FrostProtocolMng._running_methods` are plain dicts with no lock, and
-   `delete_context` is check-then-`del`. Two concurrent resumes of the same
-   context can execute a node twice; a context deleted between a pre-check and
-   a resume raises from the second step. Cheap hardening: one `RLock` in
-   `FrostProtocolMng` around request handling and every resume callback (single
-   choke point), `delete_context` via `dict.pop` with a sentinel (atomic), and
-   `_notify_nested_parent` tolerating a `ContextNotFoundError` whose id is the
-   parent's. Not scheduled; the contract until then: callers serialize resumes
-   of the same composite.
+8. **Composite state is not thread-safe, and a lock is not the answer**
+   (pre-existing; revised in revision 5). Variable-change callbacks run on
+   connector threads (`abstract_async_connector.py` runs an asyncio loop
+   thread; OPC UA and MQTT callbacks call `notify_subscribers` there), while
+   method invocations and Frost requests run on other threads.
+   `CompositeMethodNode._contexts`, `_completed_results`,
+   `_notified_parent_contexts` and `FrostProtocolMng._running_methods` are plain
+   dicts; two concurrent resumes of the same context can execute a node twice.
+   **No `RLock` in `FrostProtocolMng`**: callbacks run on the connector loop
+   thread, and a locked method doing a remote read or write waits for that same
+   loop, which is blocked on the lock: deadlock. Phase 4.5 only makes the
+   individual operations safe (atomic `drain_update_messages()`,
+   `delete_context` via `dict.pop`, copy-iteration in `notify_subscribers`).
+   Follow-up, unscheduled: a **single executor thread owns all composite
+   state**; connector callbacks and Frost handlers only enqueue
+   `resume(ctx_id)` and never touch contexts. Contract until then: callers
+   serialize resumes of one composite.
+9. **The Frost protocol has no authorization** (known limit). Any caller can
+   `READ`, `WRITE`, `SUBSCRIBE` and `INVOKE` any node. Consequences for this
+   work: error texts cannot be "access controlled" (4.H does not try), and a
+   remote caller can invoke methods whose `requires` expose model structure
+   through the failing condition text. Out of scope here; an authorization
+   layer would sit in `FrostProtocolMng` in front of every namespace handler.
 
 ## 10. Decisions on the open questions, and what is still open
 
@@ -841,7 +894,9 @@ Decided (user approved, 2026-11-06):
    (`force_remote_read=False`); `WaitConditionNode` keeps its forced remote
    read.
 4. P4 - **decided**: `CallRemoteMethodNode` is untouched; remote `ERROR`
-   messages stay dropped (limit 9.3, `REMOTE_ERROR` code reserved).
+   messages stay dropped (limit 9.3). **Superseded in part by revision 5:**
+   the callee node stays untouched, but the remote `ERROR` routing itself is
+   done in phase 4.5 (section 11.3).
 5. `TIMEOUT` over Frost - **decided**: no protocol change now. It is sent with
    the generic `ErrorCode.UNKNOWN` and a dedicated `ErrorMessages.TIMEOUT`
    text. A dedicated Frost `ErrorCode` can be added later without changing the
@@ -855,134 +910,208 @@ Decided by the phase 2 review (manager, applied by the worker):
    (configuration error) instead of `NO_DATA`; `ConditionResult` stays
    tri-state; mapped to `INVALID_CONFIGURATION` (4.B).
 
-Decided by the user for phase 4:
+Decided by the user for phase 4 (revision 5 changes marked):
 
-8. "Has received a value": option B, `_last_remote_update` timestamp in the
-   `VariableNode` base class (4.F).
+8. "Has received a value": option B, a timestamp in the `VariableNode` base
+   class, **renamed `received_at`, three origin sites, no write site** (4.F).
 9. `read()` exceptions: `OSError` (so `ConnectionError`, `TimeoutError`) ->
    `NO_DATA`; all other exceptions propagate; audit of connector exceptions is
    part of phase 4 (4.G).
 10. The `DataModel` validation pass of static `requires` paths starts in phase 4
     (4.C), phase 5 extends it.
+11. **Work order 4.5 -> 4 -> 5** and the revised phase 4.5 content (section 11):
+    approved (P6).
+12. **4.H replaced:** one message without the observed value, observed value in
+    a structured field never sent over Frost, truncation to one line of 256
+    characters; the `public_message` proposal is dropped (approved).
+13. **P5:** missing `on_unmet` on a callee with `requires` is a load warning
+    (strict mode raises) and a run-time `INVALID_CONFIGURATION` failure always;
+    static configuration problems are never `NO_DATA` and never waited on
+    (approved).
+14. **No `RLock`** in `FrostProtocolMng`; limit 9.8 replaced (approved).
 
 Still open:
 
-11. Should `on_unmet`/`timeout` also be accepted on `CallRemoteMethodNode`
+15. Should `on_unmet`/`timeout` also be accepted on `CallRemoteMethodNode`
     later, once remote `requires` can be discovered?
-12. Follow-up (not scheduled): `WaitConditionNode` through `evaluate_on` (4.A),
-    disconnect hook / `max_age`, quality object (option D of 4.F).
-13. **User decision needed:** pull the nested-context routing fix (section 11)
-    in before phase 5, or ship phase 5 with the limit documented. Recommended:
-    before phase 5.
-14. **User decision needed (phase 4):** disclosure of observed values in remote
-    error text, option B of 4.H (separate `public_message`, observed value never
-    sent) recommended; truncation of the detail (256 characters, one line) is
-    not in question.
-15. Follow-up, not scheduled: unexpected exceptions become `FAILURE`
-    (section 12), priority medium.
+16. Follow-ups, not scheduled: `WaitConditionNode` through `evaluate_on` (4.A),
+    disconnect hook, `source_timestamp` and `max_age`, quality object (option D
+    of 4.F), unexpected exceptions become `FAILURE` (section 12; **required by
+    section 11**, see there), single executor thread (limit 9.8), Frost
+    authorization (limit 9.9).
+17. Name of the strict-validation option of P5 (a `DataModel`/builder
+    constructor flag).
 
-## 11. Follow-up design: nested composite contexts under Frost
+## 11. Phase 4.5: nested composite contexts under Frost, remote errors, wakeups
 
-Problem (limit 9.5): only top-level composite contexts are registered in
+Runs before phase 4 (P6). Revision 5: the first design (copy the parent's
+subscription callback to the child; resume the child, then walk up to the root)
+was wrong in two places, found by the adversarial review with probes, and the
+scope grew by four related defects.
+
+### 11.1 Problem (limit 9.5)
+
+Only top-level composite contexts are registered in
 `FrostProtocolMng._running_methods`; resumption triggers (variable change of a
 wait subscription, remote response) carry the id of the context that is
 actually waiting, which for a nested child is not registered. Facts:
 
 - Wait subscription: `WaitConditionNode` creates
   `VariableSubscription(subscriber_id=context.id(), subscription_callback=
-  context.get_subscription_callback())`; the callback is set only on top-level
-  contexts (`set_context_subscription_callback` in `_invoke_method`), so a
-  nested child gets `None` and the node-level callback installed by
-  `ProtocolMng` runs: `_update_variable_callback` -> no match -> update message.
+  context.get_subscription_callback())`. A nested child has no context
+  callback, so the node-level callback installed by `ProtocolMng` runs:
+  `_update_variable_callback`, which finds no match and emits an update message.
 - Remote call: `CallRemoteMethodNode._create_request` uses
   `correlation_id=context.id()`; `handle_response` looks the id up in
   `_running_methods`.
 - Resuming the parent does not drive the child: the pending branch of
   `CallMethodNode` only checks `is_terminated`. The existing up-cascade is
-  child -> `_notify_nested_parent` -> parent `resume_execution`, so the **child
-  must be resumed itself** and the cascade does the rest.
-- After the cascade the top-level context may be terminal without Frost
-  having been involved (limit 9.6): someone must answer the original request
-  and release the context.
+  child -> `_notify_nested_parent` -> parent `resume_execution`, so **the child
+  itself must be resumed** and the cascade does the rest.
+- After the cascade the root context may be terminal without Frost having
+  been involved (limit 9.6): someone must answer the original request and
+  release the context.
 
-Needed pieces, in any option: (P1) the child context gets its parent's
-subscription callback; (P2) a way to find "the composite and context for an
-arbitrary context id"; (P3) after resuming a (nested) context, finish the
-top-level request if it became terminal.
+### 11.2 Design (O1, corrected)
 
-### Options
+1. **Do not copy the parent's subscription callback to the child.** The child
+   context is created during the parent's first run, inside `method_node(*args)`;
+   Frost sets the parent's callback only afterwards
+   (`set_context_subscription_callback`, `frost_protocol_mng.py` ~410-418), so
+   the copy would copy `None` (probe: scratchpad `probe1.py` of the review).
+   Not needed: the node-level callback already runs for nested subscriptions.
+2. **Context index.** `CompositeMethodNode._create_context` and
+   `delete_context` (the only two sites; `delete_context` via `dict.pop` with a
+   sentinel, raising `ContextNotFoundError`) register and unregister the id in
+   `DataModel`: `DataModel.find_context(ctx_id) -> tuple[CompositeMethodNode,
+   ExecutionContext] | None`, O(1); composites with no data model skip it.
+   `_update_variable_callback` and `handle_response` (and the ERROR routing of
+   11.3) resolve `subscriber_id` / `correlation_id` through it, then act on the
+   owning composite.
+3. **Find the root before resuming.** Walking up after the resume fails: the
+   parent's `CallMethodNode` deletes the child context during the cascade
+   (`local_execution_node.py` ~530), so the walk-up raises
+   `ContextNotFoundError` (probe `probe2.py`). Therefore:
+   `root_id = self._root_context_id(ctx_id)` (follow `__nested_parent_*` keys
+   upward, across composites) **before** `owner.resume_execution(ctx_id)`; then
+   `_finish_if_terminated(root_id)`.
+4. **`_finish_if_terminated(root_id)`**: idempotent (keyed on presence in
+   `_running_methods`); if the root context is terminal: build the completed or
+   error response (`_create_execution_error_message`), `delete_context`, remove
+   from `_running_methods`. It is the tail of today's
+   `_resume_composite_method`, which now calls it too. Messages produced by
+   the cascade are already in the resumed result (`_notify_nested_parent`
+   extends them) and are appended to `_update_messages`.
 
-- **O1 - Frost-side routing (recommended).**
-  P1: in `CallMethodNode`, where the pending child is registered
-  (`__nested_parent_*` keys), also call
-  `child_context.set_subscription_callback(context.get_subscription_callback())`
-  (one line, no-op when the parent has none).
-  P2: a context index. `CompositeMethodNode` registers/unregisters context ids
-  in `DataModel` (`_create_context` and `delete_context` are the only two
-  sites): `DataModel.find_context(ctx_id) -> tuple[CompositeMethodNode,
-  ExecutionContext] | None`, O(1); composites with no data model skip it.
-  Frost uses it in both `_update_variable_callback` (match on
-  `subscriber_id` / `correlation_id`) and `handle_response`
-  (`cm.handle_message(ctx_id, msg)` on the owning composite).
-  P3: `_resume_composite_method` is split: `_resume_context(ctx_id)` resumes
-  the owning composite's context (collecting `ret.messages`, which already
-  include the messages produced by the parent cascade), then walks up
-  `__nested_parent_context_id__` to the root id and calls an idempotent
-  `_finish_if_terminated(root_id)` (the current tail of
-  `_resume_composite_method`: error/completed response, `delete_context`,
-  `del _running_methods[...]`; keyed on presence in `_running_methods` so a
-  second call is a no-op).
-  Effort: small-medium (about 1 day): 1 line in `CallMethodNode`, about 30
-  lines in `DataModel`/`CompositeMethodNode`, about 60 in `FrostProtocolMng`,
-  about 10 tests. Touches no YAML, no public node API.
-  Risks: re-entrancy (resume runs inside the variable `write()` stack of the
-  trigger; already true for top-level); the behavior change that a nested wait
-  no longer emits the spurious update message (that message was a symptom;
-  check no test relies on it); index entries must be dropped in
-  `delete_context` and when a composite is removed from the model.
-- **O2 - Node-side termination listener.** `CompositeMethodNode` keeps
-  `set_termination_callback(ctx_id, cb)` invoked from `resume_execution` when a
-  context becomes terminal; Frost registers one for each top-level context and
-  answers/releases from the callback. P1 and P2 as in O1. Cleaner layering and
-  it also fixes the release asymmetry for direct-API users, but it runs
-  Frost code in the middle of the notify cascade (the callback deletes a
-  context while grandparents are still unwinding) and adds a new public
-  concept. Effort: medium (about 1.5 days).
-- **O3 - Register nested contexts in `_running_methods`.** Composites call back
-  into the manager when they create a child context. Needs the manager
-  reference inside nodes (the model must not depend on the protocol layer);
-  rejected.
-- **O4 - Inline nested composites** (macro-expand the callee CFG into the
-  caller). Changes semantics (separate contexts, return values, per-callee
-  `requires`); rejected.
-- **O5 - Forbid waits in nested composites** (reject at load, or document).
-  Cheapest, but blocks the main use of phase 5 (`on_unmet: wait` on a method
-  called from a composite that is itself called from another composite);
-  acceptable only as a temporary limit.
+### 11.3 Remote Frost `ERROR` messages reach the waiting context
 
-### Recommendation
+`FrostProtocolMng.handle_message` today asserts an `ErrorPayload` and drops it
+(`MsgType.ERROR` branch), so a composite waiting for a remote response hangs.
+Phase 4 makes remote rejections (a remote method with its own `requires`
+answering `NOT_ALLOWED`) a normal event, so the error must be routed:
 
-O1. Do it before phase 5, as its own PR ("phase 4.5"), because phase 5 adds
-wait subscriptions and a deadline that are only checked on resume, and both
-depend on the child actually being resumed. Keep O2 as a later refactor if the
-release asymmetry matters outside Frost.
+- `handle_message` for `MsgType.ERROR`: look the `correlation_id` up with
+  `find_context`; validate sender/target like `handle_response` does
+  (`RemoteExecutionNode` gets a `handle_error(context, msg)` that checks
+  `correlation_id == context.active_request`, `sender` and `target`).
+- On a valid error: `CompositeMethodNode.handle_error(ctx_id, error)` does
+  `context.fail(ExecutionError(REMOTE_ERROR, <ErrorPayload text, truncated>,
+  node=<remote node>))`, `_terminate_execution`, `_notify_nested_parent`; then
+  Frost applies 11.2 items 3-4 (root id first, `_finish_if_terminated`).
+- `REMOTE_ERROR` (reserved so far) is produced here; Frost maps it to
+  `ErrorCode.UNKNOWN` plus `ErrorMessages.REMOTE_ERROR` as already implemented.
+- An error that matches no waiting context is ignored (and logged), as today.
 
-### Tests (O1)
+### 11.4 Lost wakeups and duplicate subscriptions
 
-1. The strict `xfail` test of the phase 3 review turns into a normal passing
-   test (nested wait completes: one response to the original request, no
-   contexts, no subscriptions, `_running_methods` empty).
+`VariableNode.notify_subscribers` iterates the live `self._subscriptions`
+(`variable_node.py` ~343) while the resumes it triggers call `unsubscribe` and
+mutate that list: with three waiters on one variable and one write, an element
+is skipped and one waiter stays stuck (reproduced by the review).
+
+- Iterate `list(self._subscriptions)`.
+- Deduplicate: one wait subscription per (variable, subscriber) so a single
+  write wakes a context once (`subscribe` today dedups only by object identity;
+  a context that re-subscribes in a later attempt creates a second object).
+- Tests: three waiters, one write, all three resume; unsubscribe during
+  notification does not skip; two subscriptions of one context on one variable
+  produce one resume.
+
+### 11.5 Safe concurrency fixes (no lock, see limit 9.8)
+
+- `FrostProtocolMng.drain_update_messages()`: atomically swaps the list
+  (`messages, self._update_messages = self._update_messages, []`) and returns
+  the old one. `get_update_messages()` returns the live list today, which races
+  with `clear_update_messages()` (messages lost between the two calls). Keep the
+  old methods, document them as unsafe, and move internal callers and tests to
+  the new one.
+- `CompositeMethodNode.delete_context` via `dict.pop` with a sentinel
+  (atomic under the GIL), raising `ContextNotFoundError`; `_notify_nested_parent`
+  keeps its pre-check and additionally tolerates a `ContextNotFoundError` whose
+  id is the parent's.
+
+### 11.6 Pre-existing bug: remote write confirms before caching
+
+`VariableNode._update_value` (`variable_node.py` ~430) writes the cache first
+(`_update_internal_value(value)`) and then calls `_update_remote_value`, which
+reads `prev_value` from the **already updated** cache. A failed remote write
+therefore returns the new value as "previous", `write()` reports success and
+notifies subscribers of an unconfirmed value (probe `probe3.py`); a guard
+reading the cache then sees a value the machine never accepted.
+
+Fix: for remote variables with a connector, perform the remote write first;
+update the cache and notify only when it is confirmed; on failure leave the
+cache unchanged, `write()` returns `False`, no notification. Keep the
+`_pre_update_value` / `_post_update_value` hooks and the existing
+"`_post_update_value` returns `False` restores the previous value" behavior.
+Tests: failing connector write -> `write()` is `False`, `read(False)` is the old
+value, no subscriber called; successful write unchanged; local variables
+unchanged.
+
+### 11.7 Dependency on section 12
+
+If a node raises while a nested cascade runs (`_notify_nested_parent` no longer
+swallows it), the exception propagates out of the Frost callback and the root
+request is never answered, its context and subscriptions stay. Section 12
+(unexpected exceptions become `FAILURE`) is therefore **required** for this
+phase to be end-to-end safe: either it lands first, or 4.5 includes at least
+the `ControlFlow.execute` conversion (11.2 item 3 then always finds a failed
+root to finish).
+
+### 11.8 Effort, risks
+
+Effort: about 2-3 days (index and Frost routing about 1, ERROR routing about
+0.5, notify/dedupe/drain/pop fixes about 0.5, remote write fix about 0.5, tests
+about 0.5-1, plus section 12 if bundled). Touches no YAML and no public node
+API except the new `DataModel.find_context`, `CompositeMethodNode.handle_error`
+and `drain_update_messages`.
+Risks: re-entrancy (resume runs inside the trigger's `write()` stack, already
+true for top-level); a nested wait no longer emits the spurious update message
+(check no test relies on it); index entries must be removed in
+`delete_context` and when a composite leaves the model; the write fix changes
+`write()` results for failing remote writes (callers that ignored the return
+value now see `False`).
+
+### 11.9 Tests
+
+1. The strict `xfail` test of the phase 3 review becomes a normal passing test
+   (nested wait completes: one response, no contexts, no subscriptions,
+   `_running_methods` empty).
 2. Nested wait that ends in `FAILURE`: one error update with the request's
    correlation id, same cleanup.
-3. Grandparent chain A -> B -> C with the wait in C: C resumed, B and A
-   cascade, A answered exactly once.
+3. Grandparent chain A -> B -> C with the wait in C: the root id is computed
+   before the resume, B and A cascade, A is answered exactly once, the cascade
+   deleting the child context does not break `_finish_if_terminated`.
 4. Nested remote call: the response with the child's correlation id is routed
-   to the child and the request finishes.
-5. Duplicate trigger (two writes in a row): the second one is a no-op, no
+   to the child; a Frost `ERROR` with the child's correlation id fails the
+   child with `REMOTE_ERROR` and the request ends with an error response; an
+   `ERROR` with an unknown correlation id is ignored.
+5. Duplicate trigger (two writes in a row): the second is a no-op, no
    exception, no second response.
-6. Direct-API path unchanged (no Frost, no data model index: composites work
-   as before).
-7. Phase 5 prerequisite: `on_unmet: wait` in a composite called from another
+6. Direct-API path unchanged (no Frost, no index: composites work as before).
+7. Wakeup fixes of 11.4 and the drain/pop fixes of 11.5.
+8. Remote write fix of 11.6.
+9. Phase 5 prerequisite: `on_unmet: wait` in a composite called from another
    composite completes over Frost.
 
 ## 12. Follow-up design: unexpected exceptions become FAILURE
@@ -1014,8 +1143,7 @@ Design:
 4. Frost: `UNEXPECTED_ERROR` -> `ErrorCode.UNKNOWN` with the generic text
    `ErrorMessages.UNEXPECTED_ERROR` and **no exception text** (it can carry
    paths, values and internals; the detail goes to the log together with the
-   request correlation id). With option B of 4.H this is the `public_message=None`
-   default.
+   request correlation id), consistent with 4.H.
 5. Optional strict mode for development and tests: `ControlFlow(strict=True)`
    or a module switch that re-raises, so a failing test shows the traceback
    instead of an error result.
@@ -1035,8 +1163,11 @@ enum value and Frost mapping, about 8 tests (exception in the first node, in a
 node after a wait with the subscription removed, in a nested parent during a
 child's resume, `BaseException` still propagates, strict mode, Frost response
 carries no exception text).
-Priority: medium. Not a blocker for phase 5; do it before production use,
-because stuck contexts and leaked subscriptions are silent.
+Priority: raised in revision 5. It is **required by phase 4.5** (section
+11.7): without it an exception raised during a nested cascade leaves the root
+request unanswered, and the root `FAILED` state that `_finish_if_terminated`
+relies on never exists. Land it before 4.5, or include the `ControlFlow.execute`
+conversion and the `release` hook in 4.5.
 Open questions: strict mode as a constructor flag or a global switch; whether
 `AssertionError` should be excluded (it normally marks a bug and is useful
 when it propagates in development).
