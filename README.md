@@ -300,6 +300,9 @@ integer 16, `010` is 8, `1_000` is 1000, `12:30:00` is an integer (sexagesimal),
 `2024-01-31` is a date, and `null` or `~` is `None`. Quote the value
 (`rhs: "yes"`) when you mean a string. A `${name}` template is only resolved
 when `rhs` is a string; it is rejected inside a list or a mapping.
+In a string `rhs` (or `variable`) every `${...}` is a template: there is no
+escape for a literal `${x}`. Writing `$${x}` or `\${x}` still resolves the
+template and keeps the extra character (`$` or `\`) in front of the value.
 
 A rejected call raises `MethodPreconditionError`. Its `error` is an
 `ExecutionError` with one of these codes, its `outcomes` lists the outcome of
