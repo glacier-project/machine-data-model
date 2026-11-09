@@ -5,6 +5,7 @@ by sending messages and waiting for responses.
 """
 
 from abc import abstractmethod
+import logging
 from typing import Any, ClassVar
 
 from typing_extensions import override
@@ -47,6 +48,8 @@ from machine_data_model.protocols.frost_v1.frost_payload import (
     VariablePayload,
 )
 from machine_data_model.tracing.events import trace_control_flow_step
+
+_logger = logging.getLogger(__name__)
 
 # The text of a remote error is controlled by the remote party: keep only the
 # beginning of it.
@@ -97,6 +100,31 @@ class RemoteExecutionNode(ControlFlowNode):
     # message is only accepted as the answer to that kind of request. A node
     # that does not declare it never accepts an error (fails closed).
     request_kind: ClassVar[tuple[MsgNamespace, MsgName] | None] = None
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Warn about a concrete subclass that does not declare its kind.
+
+        Without `request_kind` every remote error is ignored, so a node that
+        waits for an answer would wait forever when the remote party fails.
+
+        Args:
+            **kwargs (Any):
+                Class keyword arguments, passed on.
+
+        """
+        super().__init_subclass__(**kwargs)
+        # `ABCMeta` has not computed `__abstractmethods__` yet: look for the
+        # abstract methods that are still unimplemented.
+        is_abstract = any(
+            getattr(getattr(cls, name, None), "__isabstractmethod__", False)
+            for name in dir(cls)
+        )
+        if cls.request_kind is None and not is_abstract:
+            _logger.warning(
+                "%s does not declare request_kind: errors sent by the remote "
+                "party are ignored and the node can wait forever",
+                cls.__qualname__,
+            )
 
     def __init__(
         self,
@@ -261,9 +289,14 @@ class RemoteExecutionNode(ControlFlowNode):
 
         """
         kind = self.request_kind
+        if kind is None:
+            _logger.debug(
+                "%s declares no request_kind: ignoring an error message",
+                type(self).__qualname__,
+            )
+            return None
         if (
-            kind is None
-            or not error_message.header.matches(
+            not error_message.header.matches(
                 _type=MsgType.ERROR, _namespace=kind[0], _msg_name=kind[1]
             )
             or context.active_request is None

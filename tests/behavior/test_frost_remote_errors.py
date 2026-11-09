@@ -647,18 +647,94 @@ class TestRequestKind:
             assert node.handle_error(context, message) is None  # type: ignore[arg-type]
 
 
-def test_a_node_without_a_declared_kind_never_accepts_an_error() -> None:
-    class Undeclared(CallRemoteMethodNode):
-        request_kind = None  # type: ignore[assignment]
+def test_a_node_without_a_declared_kind_never_accepts_an_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.DEBUG):
 
-    node = Undeclared(
-        method_node="remote_method", remote_id="remote_dm", args=[], kwargs={}
-    )
-    node.set_message_builder(FrostMessageBuilder(sender="dm"))
-    context = new_context()
-    request = node.execute(context).messages[0]
+        class Undeclared(CallRemoteMethodNode):
+            request_kind = None  # type: ignore[assignment]
 
-    assert node.handle_error(context, remote_error(request)) is None
+        node = Undeclared(
+            method_node="remote_method",
+            remote_id="remote_dm",
+            args=[],
+            kwargs={},
+        )
+        node.set_message_builder(FrostMessageBuilder(sender="dm"))
+        context = new_context()
+        request = node.execute(context).messages[0]
+        caplog.clear()
+
+        assert node.handle_error(context, remote_error(request)) is None
+
+    # The ignore site names the class, at DEBUG.
+    ignored = [r for r in caplog.records if "Undeclared" in r.getMessage()]
+    assert len(ignored) == 1
+    assert ignored[0].levelno == logging.DEBUG
+
+
+class TestUndeclaredKindWarning:
+    def warnings(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> list[logging.LogRecord]:
+        return [r for r in caplog.records if r.levelno == logging.WARNING]
+
+    def test_concrete_subclass_without_kind_warns_at_definition(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING):
+
+            class Silent(RemoteExecutionNode):
+                def _create_request(self, context):  # type: ignore[no-untyped-def]
+                    raise NotImplementedError
+
+                def _validate_response(self, context, response):  # type: ignore[no-untyped-def]
+                    raise NotImplementedError
+
+        (record,) = self.warnings(caplog)
+        assert "Silent" in record.getMessage()
+        assert "request_kind" in record.getMessage()
+
+    def test_subclass_that_declares_a_kind_does_not_warn(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING):
+
+            class Declared(CallRemoteMethodNode):
+                request_kind = (MsgNamespace.METHOD, MethodMsgName.INVOKE)
+
+        assert self.warnings(caplog) == []
+
+    def test_abstract_subclass_does_not_warn(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING):
+
+            class Base(RemoteExecutionNode):
+                pass
+
+        assert self.warnings(caplog) == []
+
+    def test_builtin_nodes_do_not_warn_on_import(self) -> None:
+        import subprocess
+        import sys
+
+        code = (
+            "import logging, io;"
+            "s=io.StringIO();"
+            "logging.basicConfig(stream=s, level=logging.WARNING);"
+            "import machine_data_model.behavior.remote_execution_node;"
+            "print(repr(s.getvalue()))"
+        )
+        out = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        assert out == "''"
 
 
 def test_every_remote_node_declares_its_request_kind() -> None:
