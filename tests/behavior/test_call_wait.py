@@ -644,3 +644,113 @@ def test_fractional_timeout_is_written_compactly(clock: FakeClock) -> None:
 
     assert result.error is not None
     assert "timed out after 2.5 s" in result.error.message
+
+
+@kinds
+class TestRelease:
+    """A wait is released wherever the context ends."""
+
+    def test_abort_mid_wait_removes_everything(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+        assert setup.subscribers(setup.mode) == [context_id]
+        assert deadline_keys(setup, context_id)
+
+        messages = setup.parent.abort_context(context_id)
+
+        assert messages == []
+        assert setup.subscribers(setup.mode) == []
+        assert setup.subscribers(setup.level) == []
+        assert setup.parent._contexts == {}
+        assert setup.data_model._contexts == {}
+
+    def test_abort_leaves_the_other_context_waiting(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(composite_callee, requires=[Condition("mode", EQ, 2)])
+        first = setup.start()
+        second = setup.start()
+
+        setup.parent.abort_context(first)
+
+        assert setup.subscribers(setup.mode) == [second]
+        setup.mode.write(2)
+        setup.resume(second)
+        assert setup.callee_runs() == 1
+
+    def test_release_can_be_repeated(self, composite_callee: bool) -> None:
+        setup = Setup(composite_callee)
+        context_id = setup.start()
+        context = setup.parent._contexts[context_id]
+
+        assert setup.call.release(context) == []
+        assert setup.call.release(context) == []
+
+        assert setup.subscribers(setup.mode) == []
+        assert setup.wait_keys(context_id) == []
+
+    def test_release_without_a_wait_is_a_no_op(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(composite_callee, mode=2, level=1)
+        result = setup.parent()
+        assert result.error is None
+
+        from machine_data_model.behavior.execution_context import (
+            ExecutionContext,
+        )
+
+        fresh = ExecutionContext("fresh")
+        assert setup.call.release(fresh) == []
+
+    def test_an_unexpected_error_after_waiting_releases_the_wait(
+        self, composite_callee: bool, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(ControlFlow, "default_strict", False)
+        setup = Setup(composite_callee, requires=[Condition("mode", EQ, 2)])
+        context_id = setup.start()
+        assert setup.subscribers(setup.mode) == [context_id]
+
+        def boom(**kwargs: Any) -> None:
+            raise RuntimeError("callee exploded")
+
+        if composite_callee:
+            setup.callee_stub._make = boom  # type: ignore[assignment]
+        else:
+            setup.callee._callback = boom
+        setup.mode.write(2)
+        result = setup.resume(context_id)
+
+        assert result.error is not None
+        assert result.error.code is ExecutionErrorCode.UNEXPECTED_ERROR
+        assert setup.subscribers(setup.mode) == []
+        assert setup.wait_keys(context_id) == []
+
+
+class TestNestedRelease:
+    def test_aborting_the_grandparent_releases_the_inner_wait(self) -> None:
+        setup = Setup()
+        outer = CallMethodNode(
+            method_node="parent", args=[], kwargs={}, on_unmet="fail"
+        )
+        outer.set_ref_node(setup.parent)
+        grandparent = CompositeMethodNode(
+            id="gp", name="gp", cfg=ControlFlow(nodes=[outer])
+        )
+        setup.data_model.root.add_child(grandparent)
+        setup.data_model._register_nodes(setup.data_model.root)
+
+        result = grandparent()
+        gp_context = result.return_values["@context_id"]
+        assert len(setup.subscribers(setup.mode)) == 1
+        assert len(setup.parent._contexts) == 1
+
+        grandparent.abort_context(gp_context)
+
+        assert setup.subscribers(setup.mode) == []
+        assert setup.subscribers(setup.level) == []
+        assert setup.parent._contexts == {}
+        assert grandparent._contexts == {}
+        assert setup.data_model._contexts == {}

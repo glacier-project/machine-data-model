@@ -574,7 +574,11 @@ class CallMethodNode(LocalExecutionNode):
         return self._kwargs
 
     def release(self, context: ExecutionContext) -> list[FrostMessage]:
-        """Drop the pending callee of this node and release its context.
+        """Release what this node holds: a wait and a pending callee.
+
+        The subscriptions of a wait on the `requires` of the callee (and its
+        deadline) are removed, then the pending callee context, if any, is
+        dropped and released. Safe to call more than once.
 
         Args:
             context (ExecutionContext):
@@ -590,15 +594,20 @@ class CallMethodNode(LocalExecutionNode):
             composite_method_node,
         )
 
-        pending_key = f"call_method_pending_{context.get_pc()}"
-        if not context.has_value(pending_key):
+        try:
+            pending_key = f"call_method_pending_{context.get_pc()}"
+            if not context.has_value(pending_key):
+                return []
+            pending_context_id = context.get_value(pending_key)
+            context.delete_value(pending_key)
+            ref_method = self._get_ref_node(context)
+            if isinstance(
+                ref_method, composite_method_node.CompositeMethodNode
+            ):
+                return ref_method.abort_context(pending_context_id)
             return []
-        pending_context_id = context.get_value(pending_key)
-        context.delete_value(pending_key)
-        ref_method = self._get_ref_node(context)
-        if isinstance(ref_method, composite_method_node.CompositeMethodNode):
-            return ref_method.abort_context(pending_context_id)
-        return []
+        finally:
+            self._clear_wait(context)
 
     def _deadline_key(self, context: ExecutionContext) -> str:
         """Return the context key that holds the deadline of the wait."""
