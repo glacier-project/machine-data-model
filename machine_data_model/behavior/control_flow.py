@@ -17,6 +17,7 @@ from machine_data_model.behavior.execution_context import ExecutionContext
 from machine_data_model.behavior.execution_error import (
     ExecutionError,
     ExecutionErrorCode,
+    sanitize_detail,
 )
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import (
@@ -32,6 +33,9 @@ if TYPE_CHECKING:
     CompositeMethodNode = composite_method_node.CompositeMethodNode
 
 _logger = logging.getLogger(__name__)
+
+# Longest exception text kept in the error of a node that raised, in characters.
+_MAX_EXCEPTION_TEXT = 256
 
 
 class ControlFlow:
@@ -222,7 +226,10 @@ class ControlFlow:
             return execution_error(
                 ExecutionError(
                     ExecutionErrorCode.UNEXPECTED_ERROR,
-                    f"{type(exc).__name__}: {exc}",
+                    # The text of an exception can carry data of a peer (a
+                    # keyword name, a path): keep it on one line and bounded.
+                    f"{type(exc).__name__}: "
+                    f"{sanitize_detail(str(exc), _MAX_EXCEPTION_TEXT)}",
                     node=node_name,
                 ),
                 released,

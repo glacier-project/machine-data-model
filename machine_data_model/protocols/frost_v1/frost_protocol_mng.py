@@ -1078,7 +1078,7 @@ class FrostProtocolMng(ProtocolMng):
                 "Request %s failed with %s: %s",
                 _log_id(msg.correlation_id),
                 error.code.value,
-                error.message,
+                _sanitize_detail(error.message),
             )
             return self._create_error_message(msg, error_message, error_code)
         return self._create_error_message(

@@ -479,3 +479,86 @@ class TestReentrantTermination:
         finally:
             set_global_trace_level(TraceLevel.NONE)
             clear_traces()
+
+
+class TestPeerTextInErrors:
+    """Exception and error text is kept on one line and bounded."""
+
+    EVIL = "line1\nFORGED\r\n\x1b[31mred"
+
+    def test_exception_text_is_sanitized_in_the_error(self) -> None:
+        boom = Boom(RuntimeError(self.EVIL))
+        context = new_context()
+
+        ControlFlow(strict=False, nodes=[boom]).execute(context)
+
+        assert context.error is not None
+        message = context.error.message
+        assert message == "RuntimeError: line1 FORGED [31mred"
+        for char in ("\n", "\r", "\x1b"):
+            assert char not in message
+
+    def test_exception_text_is_bounded(self) -> None:
+        boom = Boom(ValueError("x" * 5000))
+        context = new_context()
+
+        ControlFlow(strict=False, nodes=[boom]).execute(context)
+
+        assert context.error is not None
+        message = context.error.message
+        assert message.startswith("ValueError: xxx")
+        assert message.endswith("...")
+        assert len(message) == len("ValueError: ") + 256
+
+    def test_short_plain_text_is_unchanged(self) -> None:
+        boom = Boom(KeyError("k"))
+        context = new_context()
+
+        ControlFlow(strict=False, nodes=[boom]).execute(context)
+
+        assert context.error is not None
+        assert context.error.message == "KeyError: 'k'"
+
+    def test_empty_exception_text(self) -> None:
+        boom = Boom(RuntimeError())
+        context = new_context()
+
+        ControlFlow(strict=False, nodes=[boom]).execute(context)
+
+        assert context.error is not None
+        assert context.error.message == "RuntimeError: "
+
+    @pytest.mark.parametrize(
+        "code",
+        [ExecutionErrorCode.UNEXPECTED_ERROR, ExecutionErrorCode.REMOTE_ERROR],
+    )
+    def test_frost_log_of_a_detail_free_error_is_sanitized(
+        self, code: ExecutionErrorCode, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        manager = FrostProtocolMng(DataModel(name="dm"))
+        request = FrostMessage(
+            sender="client",
+            target="dm",
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE,
+            ),
+            payload=MethodPayload(node="m"),
+        )
+
+        with caplog.at_level(logging.DEBUG):
+            response = manager._create_execution_error_message(
+                request, ExecutionError(code, self.EVIL + "z" * 1000)
+            )
+
+        assert isinstance(response.payload, ErrorPayload)
+        failed = [r for r in caplog.records if "failed with" in r.getMessage()]
+        assert len(failed) == 1
+        text = failed[0].getMessage()
+        for char in ("\n", "\r", "\x1b"):
+            assert char not in text
+        assert "line1 FORGED" in text
+        assert len(text) < 400
+        # Nothing of it goes to the peer.
+        assert "FORGED" not in str(response.payload.error_message)
