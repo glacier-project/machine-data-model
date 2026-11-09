@@ -944,6 +944,15 @@ the existing, clear failure mode.
    remote caller can invoke methods whose `requires` expose model structure
    through the failing condition text. Out of scope here; an authorization
    layer would sit in `FrostProtocolMng` in front of every namespace handler.
+   Also (C1 review): a `requires` whose variable path or right-hand side uses
+   `${param}` lets the caller choose what is tested, since the argument comes
+   from the request. The result (met / not met) is visible in the error text
+   and so is a value oracle: a caller that controls the right-hand side can
+   bisect the value of the fixed variable, and one that controls the path can
+   probe any variable. The observed value itself never leaves the process.
+   Same trust level as the missing authorization: the caller can already `READ`
+   those nodes. Keep it in mind if authorization is added (the check must then
+   run before `requires`).
 
 10. **All remote requests of a context share one correlation id** (known
     limit, found in the phase 4.5 review). `CallRemoteMethodNode._create_request`
