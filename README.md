@@ -349,8 +349,10 @@ invoked. In a control flow graph, a `CallMethodNode` that calls a method with
 `requires` must set `on_unmet`; without it the node fails with
 `INVALID_CONFIGURATION` before the call, whether the requires hold or not.
 With `on_unmet: fail` a callee that rejects the call fails the node with the
-error code of the rejection. `on_unmet: wait` is accepted but does not wait
-yet: until it is implemented it ends the call like `fail`.
+error code of the rejection. With `on_unmet: wait` the node keeps running and
+subscribes to the variables the `requires` of the callee read; when one of them
+changes the call is tried again, and it happens only if the requires hold at
+that moment. A misconfigured condition (`INVALID_CONFIGURATION`) never waits.
 
 Limits to keep in mind:
 

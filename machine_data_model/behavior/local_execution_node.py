@@ -596,6 +596,90 @@ class CallMethodNode(LocalExecutionNode):
             return ref_method.abort_context(pending_context_id)
         return []
 
+    def _wait_key(self, context: ExecutionContext) -> str:
+        """Return the context key that holds the variables being watched."""
+        return f"call_method_wait_{context.get_pc()}"
+
+    def _watch(
+        self, context: ExecutionContext, variables: tuple[VariableNode, ...]
+    ) -> bool:
+        """Subscribe the context to the variables the callee reads.
+
+        One subscription object per context is shared by all the variables, as
+        `WaitConditionNode` does for its one variable, so that concurrent
+        contexts never share a subscription. A variable the context is already
+        subscribed to is left alone; one that is no longer needed is dropped.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            variables (tuple[VariableNode, ...]):
+                The variables the `requires` of the callee read.
+
+        Returns:
+            bool:
+                True if at least one new subscription was added.
+
+        """
+        key = self._wait_key(context)
+        watched: list[tuple[VariableNode, VariableSubscription]] = (
+            list(context.get_value(key)) if context.has_value(key) else []
+        )
+        callback = context.get_subscription_callback()
+        shared = (
+            watched[0][1]
+            if watched
+            else VariableSubscription(
+                subscriber_id=context.id(), subscription_callback=callback
+            )
+        )
+        if callback is not None and shared.subscription_callback is None:
+            shared.subscription_callback = callback
+
+        wanted = {id(variable) for variable in variables}
+        kept: list[tuple[VariableNode, VariableSubscription]] = []
+        for variable, subscription in watched:
+            if id(variable) in wanted:
+                kept.append((variable, subscription))
+            else:
+                variable.unsubscribe(subscription)
+
+        added = False
+        known = {id(variable) for variable, _ in kept}
+        for variable in variables:
+            if id(variable) in known:
+                continue
+            existing = variable.find_subscription_by_subscriber(context.id())
+            if existing is not None and existing is not shared:
+                if (
+                    existing.subscription_callback is None
+                    and callback is not None
+                ):
+                    existing.subscription_callback = callback
+                kept.append((variable, existing))
+                continue
+            if variable.subscribe(shared):
+                added = True
+            kept.append((variable, shared))
+        context.set_value(key, kept)
+        return added
+
+    def _clear_wait(self, context: ExecutionContext) -> None:
+        """Unsubscribe from the watched variables and forget them.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        key = self._wait_key(context)
+        if not context.has_value(key):
+            return
+        watched = context.get_value(key)
+        context.delete_value(key)
+        for variable, subscription in watched:
+            variable.unsubscribe(subscription)
+
     @staticmethod
     def _wrap_error(error: ExecutionError, callee: str) -> ExecutionError:
         """Build the error of this node from the error of the callee.
@@ -730,16 +814,34 @@ class CallMethodNode(LocalExecutionNode):
                     node=ref_method.qualified_name,
                 )
             )
-        try:
-            res = ref_method(*args, **kwargs)
-        except MethodPreconditionError as exp:
-            # The callee's `requires` do not hold: nothing started. This is the
-            # behavior of `on_unmet = fail`. The `wait` mode is added in a later
-            # step and, until then, ends the call the same way. It is an
-            # ordinary failure of the call, not an unexpected one.
-            return execution_error(
-                self._wrap_error(exp.error, ref_method.qualified_name)
-            )
+        res = None
+        for attempt in (1, 2):
+            try:
+                res = ref_method(*args, **kwargs)
+                break
+            except MethodPreconditionError as exp:
+                # The callee's `requires` do not hold: nothing started, and
+                # this is an ordinary failure of the call, not an unexpected
+                # one.
+                if (
+                    self._on_unmet is not OnUnmet.WAIT
+                    or exp.error.code
+                    is ExecutionErrorCode.INVALID_CONFIGURATION
+                ):
+                    # `fail`, or a configuration error: never waited on.
+                    self._clear_wait(context)
+                    return execution_error(
+                        self._wrap_error(exp.error, ref_method.qualified_name)
+                    )
+                newly_subscribed = self._watch(context, exp.variables)
+                if newly_subscribed and attempt == 1:
+                    # The values could have changed between the check that
+                    # rejected the call and the subscription: look once more,
+                    # now that a change would wake the context.
+                    continue
+                return execution_failure()
+        assert res is not None
+        self._clear_wait(context)
 
         if res.error is not None:
             return execution_error(
