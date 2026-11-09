@@ -289,7 +289,17 @@ call never reads a remote variable to decide whether it can go on. When the
 data model is built, the path of every condition without a `${...}` must name
 a variable of the model, otherwise building fails with a `ValueError` that
 names the method and the path. A templated path depends on the arguments of
-the call and is checked when the method is called.
+the call and is checked when the method is called. The check runs once, when
+the `DataModel` is built: a method added to the model afterwards (or a
+parameter added or removed afterwards) is only checked when it is called, and a
+problem is then reported as `INVALID_CONFIGURATION`.
+
+The `rhs` is read by the YAML parser, which applies the YAML 1.1 rules of
+PyYAML: an unquoted `yes`, `no`, `on` or `off` becomes a boolean, `0x10` is the
+integer 16, `010` is 8, `1_000` is 1000, `12:30:00` is an integer (sexagesimal),
+`2024-01-31` is a date, and `null` or `~` is `None`. Quote the value
+(`rhs: "yes"`) when you mean a string. A `${name}` template is only resolved
+when `rhs` is a string; it is rejected inside a list or a mapping.
 
 A rejected call raises `MethodPreconditionError`. Its `error` is an
 `ExecutionError` with one of these codes, its `outcomes` lists the outcome of
