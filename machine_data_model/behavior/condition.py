@@ -42,6 +42,9 @@ class WaitConditionOperator(str, Enum):
 # Longest observed value kept, in characters.
 _MAX_OBSERVED = 256
 
+# Longest path or right-hand side shown in a message, in characters.
+_MAX_TEXT = 80
+
 _OPERATORS: dict[WaitConditionOperator, Callable[[Any, Any], Any]] = {
     WaitConditionOperator.EQ: operator.eq,
     WaitConditionOperator.NE: operator.ne,
@@ -406,7 +409,12 @@ class Condition:
         """
         if path is None:
             path = variable.qualified_name
-        text = f"{path} {self.operator.value} {rhs}"
+        # The path and the right-hand side can come from templates or from the
+        # model: keep the message on one line and short.
+        text = (
+            f"{sanitize_detail(path, _MAX_TEXT)} {self.operator.value} "
+            f"{sanitize_detail(str(rhs), _MAX_TEXT)}"
+        )
 
         _require_connector(path, variable)
 

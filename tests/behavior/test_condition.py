@@ -123,6 +123,29 @@ class TestEvaluate:
         assert "1" not in outcome.message.replace("mode == 2", "")
         assert outcome.observed == "1"
 
+    def test_message_sanitizes_the_right_hand_side(self) -> None:
+        var = StringVariableNode(name="mode", value="a")
+        rhs = "x\ny\x1b[0m" + "z" * 500
+        cond = Condition("mode", WaitConditionOperator.EQ, rhs)
+
+        outcome = cond.evaluate(resolver_for(var), None)
+
+        assert "\n" not in outcome.message
+        assert "\x1b" not in outcome.message
+        assert outcome.message.startswith("mode == x y [0m")
+        assert outcome.message.endswith("... not met")
+        assert len(outcome.message) < 120
+
+    def test_message_sanitizes_the_path(self) -> None:
+        var = StringVariableNode(name="mo\nde", value="a")
+        cond = Condition("mo\nde", WaitConditionOperator.EQ, "a")
+
+        outcome = cond.evaluate(resolver_for(var), None)
+
+        assert outcome.message == "mo de == a met"
+        # The path field stays the real identifier.
+        assert outcome.variable == "mo\nde"
+
     def test_no_data_has_no_observed_value(self) -> None:
         var = NumericalVariableNode(name="mode", value=0)
         var._update_internal_value(None)  # type: ignore[arg-type]
@@ -153,7 +176,7 @@ class TestEvaluate:
         )
 
         assert outcome.observed is not None
-        assert len(outcome.observed) <= 256 + 3
+        assert len(outcome.observed) == 256
         assert outcome.observed.endswith("...")
         assert "\n" not in outcome.observed
         assert len(outcome.message) < 100

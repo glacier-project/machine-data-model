@@ -5,6 +5,7 @@ import pytest
 from machine_data_model.behavior.execution_error import (
     ExecutionError,
     ExecutionErrorCode,
+    sanitize_detail,
 )
 from machine_data_model.protocols.frost_v1 import frost_protocol_mng
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
@@ -53,7 +54,8 @@ class TestSanitizeDetail:
     def test_longer_text_is_cut_and_marked(self) -> None:
         result = _sanitize_detail("x" * 10_000)
 
-        assert result == "x" * _MAX_ERROR_DETAIL + "..."
+        assert result == "x" * (_MAX_ERROR_DETAIL - 3) + "..."
+        assert len(result) == _MAX_ERROR_DETAIL
 
     @pytest.mark.parametrize(
         "raw",
@@ -92,8 +94,51 @@ class TestSanitizeDetail:
 
         result = _sanitize_detail(text)
 
-        assert result == "🙂" * _MAX_ERROR_DETAIL + "..."
+        assert result == "🙂" * (_MAX_ERROR_DETAIL - 3) + "..."
         result.encode("utf-8")
+
+    def test_lone_surrogates_are_removed(self) -> None:
+        result = _sanitize_detail("a" + chr(0xD800) + "b" + chr(0xDFFF))
+
+        assert result == "ab"
+        result.encode("utf-8")
+
+    @pytest.mark.parametrize(
+        "char",
+        [
+            chr(0x202E),  # right-to-left override
+            chr(0x2066),  # left-to-right isolate
+            chr(0x200B),  # zero-width space
+            chr(0x200D),  # zero-width joiner
+            chr(0xFEFF),  # byte order mark
+        ],
+    )
+    def test_format_characters_are_removed(self, char: str) -> None:
+        assert _sanitize_detail(f"gnp{char}.exe") == "gnp.exe"
+
+    @pytest.mark.parametrize("limit", [3, 4, 10, 50])
+    def test_result_never_exceeds_the_limit(self, limit: int) -> None:
+        result = sanitize_detail("y" * 1000, limit)
+
+        assert len(result) == limit
+        assert result.endswith("...")
+
+    @pytest.mark.parametrize("limit", [0, 1, 2])
+    def test_tiny_limit_cuts_without_ellipsis(self, limit: int) -> None:
+        assert sanitize_detail("abcdef", limit) == "abcdef"[:limit]
+
+    def test_text_at_a_small_limit_is_not_cut(self) -> None:
+        assert sanitize_detail("abc", 3) == "abc"
+
+    def test_cut_keeps_a_base_with_its_combining_marks(self) -> None:
+        acute = chr(0x301)
+        text = "ab" + "e" + acute + "cdef"
+
+        # Budget keeps "abe" and would leave the accent behind: drop the base.
+        result = sanitize_detail(text, 6)
+
+        assert result == "ab..."
+        assert acute not in result
 
     def test_empty_text(self) -> None:
         assert _sanitize_detail("") == ""
@@ -107,7 +152,8 @@ class TestFrostAnswer:
         generic = ErrorMessages.PRECONDITION_NOT_MET.value
         assert text.startswith(f"{generic}: ")
         detail = text[len(generic) + 2 :]
-        assert detail == "x" * _MAX_ERROR_DETAIL + "..."
+        assert detail == "x" * (_MAX_ERROR_DETAIL - 3) + "..."
+        assert len(detail) == _MAX_ERROR_DETAIL
 
     def test_control_characters_never_reach_the_peer(self) -> None:
         text = answer_text("line1\nline2\r\n\tline3\x1b[0m")

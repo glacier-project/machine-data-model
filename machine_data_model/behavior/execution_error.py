@@ -7,34 +7,58 @@ imported from anywhere without creating import cycles.
 from dataclasses import dataclass
 from enum import Enum
 import re
+import unicodedata
 
 # Whitespace and control characters (C0, DEL, C1) in a text.
 _CONTROL_RUNS = re.compile(r"[\s\x00-\x1f\x7f-\x9f]+")
+
+# Unicode categories removed from a text: lone surrogates (Cs), which cannot be
+# encoded, and format characters (Cf: bidi overrides, zero-width characters),
+# which can hide or reorder text.
+_REMOVED_CATEGORIES = frozenset({"Cs", "Cf"})
+
+_ELLIPSIS = "..."
 
 
 def sanitize_detail(text: str, max_length: int) -> str:
     """Make a text safe and bounded to be shown to a peer or written to a log.
 
-    Runs of whitespace and control characters (newlines, carriage returns,
-    escape sequences, ...) become one space, the text is stripped and cut to
-    `max_length` characters (on the string, never in the middle of a
-    character) with "..." appended when it was cut.
+    Lone surrogates and format characters (bidi controls, zero-width
+    characters) are removed. Runs of whitespace and control characters
+    (newlines, carriage returns, escape sequences, ...) become one space and
+    the text is stripped. If it is longer than `max_length` characters it is
+    cut on the string, never in the middle of a character or between a
+    character and its combining marks, and "..." is appended: the ellipsis is
+    part of the budget, so the result is never longer than `max_length` (for
+    `max_length` below 3 the text is cut without an ellipsis).
 
     Args:
         text (str):
             The text.
         max_length (int):
-            The longest text kept, in characters.
+            The longest result, in characters.
 
     Returns:
         str:
-            The sanitized text.
+            The sanitized text, at most `max_length` characters long.
 
     """
-    result = _CONTROL_RUNS.sub(" ", text).strip()
-    if len(result) > max_length:
-        result = result[:max_length].rstrip() + "..."
-    return result
+    kept = "".join(
+        char
+        for char in text
+        if unicodedata.category(char) not in _REMOVED_CATEGORIES
+    )
+    result = _CONTROL_RUNS.sub(" ", kept).strip()
+    if len(result) <= max_length:
+        return result
+    keep = (
+        max(max_length - len(_ELLIPSIS), 0) if max_length >= 3 else max_length
+    )
+    # Do not leave a base character without the combining marks that follow.
+    while keep > 0 and unicodedata.category(result[keep]).startswith("M"):
+        keep -= 1
+    cut = result[:keep].rstrip()
+    return cut + _ELLIPSIS if max_length >= 3 else cut
 
 
 class ExecutionErrorCode(str, Enum):
