@@ -7,6 +7,7 @@ import pytest
 
 from machine_data_model.behavior.condition import (
     Condition,
+    ConditionError,
     WaitConditionOperator,
 )
 from machine_data_model.behavior.execution_error import ExecutionErrorCode
@@ -288,8 +289,22 @@ class TestInvalidConfiguration:
             ExecutionErrorCode.INVALID_CONFIGURATION
         )
 
+    @staticmethod
+    def without_parameter(requires: list[Condition], name: str) -> "Model":
+        """A model whose method lost the parameter the requires names.
+
+        The constructor rejects a reference to an unknown name, so the
+        parameter is removed afterwards.
+        """
+        parameter = NumericalVariableNode(id=name, name=name, value=1)
+        model = Model(requires, parameters=[parameter])
+        model.method.remove_parameter(parameter)
+        return model
+
     def test_unknown_template_name(self) -> None:
-        model = Model([cond("mode", EQ, "${missing}")])
+        model = self.without_parameter(
+            [cond("mode", EQ, "${missing}")], "missing"
+        )
 
         with pytest.raises(MethodPreconditionError) as info:
             model.method()
@@ -299,12 +314,12 @@ class TestInvalidConfiguration:
         assert "missing" in error.message
 
     def test_only_the_precondition_error_escapes(self) -> None:
-        for conditions in (
-            [cond("nope", EQ, 1)],
-            [cond("${p}", EQ, 1)],
-            [cond("mode", EQ, "${p}")],
-        ):
-            model = Model(conditions)
+        models = [
+            Model([cond("nope", EQ, 1)]),
+            self.without_parameter([cond("${p}", EQ, 1)], "p"),
+            self.without_parameter([cond("mode", EQ, "${p}")], "p"),
+        ]
+        for model in models:
             with pytest.raises(MethodPreconditionError):
                 model.method()
 
@@ -363,4 +378,141 @@ class TestParameters:
 
         model.method()
 
+        assert len(model.calls) == 1
+
+
+class TestConstructionCheck:
+    def test_unknown_template_in_variable_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match=r"\$\{which\}.*not a parameter"):
+            MethodNode(name="m", requires=[cond("${which}", EQ, 1)])
+
+    def test_unknown_template_in_rhs_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match=r"\$\{want\}.*not a parameter"):
+            MethodNode(name="m", requires=[cond("mode", EQ, "${want}")])
+
+    def test_message_names_the_method_and_the_condition(self) -> None:
+        with pytest.raises(ValueError) as info:
+            MethodNode(name="start", requires=[cond("mode", EQ, "${want}")])
+
+        assert "start" in str(info.value)
+        assert "mode == ${want}" in str(info.value)
+
+    def test_template_embedded_in_a_longer_text_is_checked(self) -> None:
+        with pytest.raises(ValueError, match="which"):
+            MethodNode(name="m", requires=[cond("/plant/${which}/mode", EQ, 1)])
+
+    def test_known_parameters_are_accepted(self) -> None:
+        params = [
+            StringVariableNode(id="which", name="which", value="mode"),
+            NumericalVariableNode(id="want", name="want", value=1),
+        ]
+
+        method = MethodNode(
+            name="m",
+            parameters=params,
+            requires=[cond("${which}", EQ, "${want}")],
+        )
+
+        assert len(method.requires) == 1
+
+    def test_async_method_checks_too(self) -> None:
+        with pytest.raises(ValueError):
+            AsyncMethodNode(name="m", requires=[cond("${x}", EQ, 1)])
+
+    def test_non_string_rhs_and_plain_paths_are_fine(self) -> None:
+        MethodNode(
+            name="m",
+            requires=[cond("mode", EQ, 3), cond("level", EQ, "plain")],
+        )
+
+
+class TestEvaluateRequires:
+    def test_returns_every_outcome_without_side_effects(self) -> None:
+        model = Model([cond("mode", EQ, 1), cond("level", GT, 10)])
+        with patch(
+            "machine_data_model.nodes.method_node.trace_method_start"
+        ) as start:
+            outcomes = model.method.evaluate_requires()
+
+        assert [o.result.value for o in outcomes] == ["ok", "failed"]
+        assert model.calls == []
+        assert model.pre == []
+        assert model.post == []
+        start.assert_not_called()
+        assert model.mode.read() == 1
+
+    def test_empty_requires_gives_an_empty_list(self) -> None:
+        assert MethodNode(name="m").evaluate_requires() == []
+
+    def test_arguments_come_from_keywords_or_parameter_defaults(self) -> None:
+        params = [
+            StringVariableNode(id="which", name="which", value="mode"),
+            NumericalVariableNode(id="want", name="want", value=1),
+        ]
+        model = Model([cond("${which}", EQ, "${want}")], parameters=params)
+
+        default = model.method.evaluate_requires()
+        other = model.method.evaluate_requires(want=2)
+
+        assert default[0].result.value == "ok"
+        assert other[0].result.value == "failed"
+
+    def test_configuration_errors_propagate(self) -> None:
+        model = Model([cond("nope", EQ, 1)])
+
+        with pytest.raises(ConditionError):
+            model.method.evaluate_requires()
+
+
+class TestIsExecutable:
+    def test_true_when_every_condition_holds(self) -> None:
+        model = Model([cond("mode", EQ, 1), cond("level", GT, 2)])
+
+        assert model.method.is_executable() is True
+
+    def test_false_when_one_fails(self) -> None:
+        model = Model([cond("mode", EQ, 1), cond("level", GT, 10)])
+
+        assert model.method.is_executable() is False
+
+    def test_false_on_no_data(self) -> None:
+        model = Model([cond("mode", EQ, 1)])
+        model.mode._update_internal_value(None)  # type: ignore[arg-type]
+
+        assert model.method.is_executable() is False
+
+    def test_false_on_a_configuration_error_without_raising(self) -> None:
+        model = Model([cond("nope", EQ, 1)])
+
+        assert model.method.is_executable() is False
+
+    def test_true_without_requires(self) -> None:
+        assert MethodNode(name="m").is_executable() is True
+
+    def test_does_not_call_the_callbacks(self) -> None:
+        model = Model([cond("mode", EQ, 1)])
+
+        model.method.is_executable()
+
+        assert model.calls == []
+        assert model.pre == []
+        assert model.post == []
+
+    def test_follows_the_arguments(self) -> None:
+        params = [NumericalVariableNode(id="want", name="want", value=1)]
+        model = Model([cond("mode", EQ, "${want}")], parameters=params)
+
+        assert model.method.is_executable() is True
+        assert model.method.is_executable(want=2) is False
+
+    def test_agrees_with_the_call(self) -> None:
+        model = Model([cond("mode", EQ, 2)])
+        assert model.method.is_executable() is False
+        with pytest.raises(MethodPreconditionError):
+            model.method()
+
+        model.mode.write(2)
+
+        assert model.method.is_executable() is True
+        model.method()
         assert len(model.calls) == 1

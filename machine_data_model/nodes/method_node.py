@@ -17,7 +17,10 @@ from machine_data_model.behavior.condition import (
     ConditionOutcome,
     ConditionResult,
 )
-from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.behavior.execution_context import (
+    ExecutionContext,
+    template_re,
+)
 from machine_data_model.behavior.execution_error import (
     ExecutionError,
     ExecutionErrorCode,
@@ -187,6 +190,31 @@ class MethodNode(DataModelNode):
             assert isinstance(
                 return_value, VariableNode
             ), "Return value must be a VariableNode"
+        self._validate_requires_templates()
+
+    def _validate_requires_templates(self) -> None:
+        """Check that every `${name}` in `requires` is a parameter.
+
+        Raises:
+            ValueError:
+                If a condition refers to a name that is not a parameter of the
+                method: the call could never provide it.
+
+        """
+        names = {parameter.name for parameter in self._parameters}
+        for condition in self._requires:
+            texts = [condition.variable]
+            if isinstance(condition.rhs, str):
+                texts.append(condition.rhs)
+            for text in texts:
+                for name in template_re.findall(text):
+                    if name not in names:
+                        raise ValueError(
+                            f"requires of method '{self.name}': "
+                            f"'${{{name}}}' in '{condition.variable} "
+                            f"{condition.operator.value} {condition.rhs}' is "
+                            f"not a parameter of the method"
+                        )
 
     @property
     def parameters(self) -> list[VariableNode]:
@@ -481,6 +509,82 @@ class MethodNode(DataModelNode):
 
         return MethodExecutionResult(return_values=ret)
 
+    def _requires_scope(
+        self, kwargs: dict[str, Any]
+    ) -> tuple[ExecutionContext, Callable[[str], DataModelNode | None]]:
+        """Build what a condition of `requires` is evaluated with.
+
+        Args:
+            kwargs (dict[str, Any]):
+                The resolved arguments of the call.
+
+        Returns:
+            tuple[ExecutionContext, Callable[[str], DataModelNode | None]]:
+                A throwaway context holding the arguments (set with
+                `set_all_values`, so a parameter called `context_id` does not
+                collide; it is registered nowhere) and the function that
+                resolves a path in the data model of the method.
+
+        """
+        scope = ExecutionContext("requires")
+        scope.set_all_values(**kwargs)
+        data_model = self.data_model
+
+        def resolve_node(path: str) -> DataModelNode | None:
+            return data_model.get_node(path) if data_model else None
+
+        return scope, resolve_node
+
+    def evaluate_requires(self, **kwargs: Any) -> list[ConditionOutcome]:
+        """Evaluate the `requires` without calling the method.
+
+        A diagnostic helper: it calls neither the callback nor the pre and post
+        callbacks, traces nothing and changes no variable.
+
+        Args:
+            **kwargs (Any):
+                The arguments of the call. A parameter that is not given takes
+                the value of the parameter node.
+
+        Returns:
+            list[ConditionOutcome]:
+                The outcome of every condition, in order.
+
+        Raises:
+            ConditionError:
+                If a condition is misconfigured (unknown variable, not a
+                variable, remote without a connector).
+            KeyError:
+                If a condition uses a name that is not in the arguments.
+
+        """
+        resolved = self._resolve_arguments(**kwargs)
+        scope, resolve_node = self._requires_scope(resolved)
+        return [
+            condition.evaluate(resolve_node, scope)
+            for condition in self._requires
+        ]
+
+    def is_executable(self, **kwargs: Any) -> bool:
+        """Tell whether a call with these arguments would pass `requires`.
+
+        Args:
+            **kwargs (Any):
+                The arguments of the call. A parameter that is not given takes
+                the value of the parameter node.
+
+        Returns:
+            bool:
+                True only if every condition holds. False if one does not hold,
+                has no data or is misconfigured. The callbacks are not called.
+
+        """
+        try:
+            outcomes = self.evaluate_requires(**kwargs)
+        except (ConditionError, KeyError):
+            return False
+        return all(o.result is ConditionResult.OK for o in outcomes)
+
     def _check_requires(self, kwargs: dict[str, Any]) -> None:
         """Raise if the `requires` of the method are not satisfied.
 
@@ -503,12 +607,7 @@ class MethodNode(DataModelNode):
         """
         if not self._requires:
             return
-        scope = ExecutionContext("requires")
-        scope.set_all_values(**kwargs)
-        data_model = self.data_model
-
-        def resolve_node(path: str) -> DataModelNode | None:
-            return data_model.get_node(path) if data_model else None
+        scope, resolve_node = self._requires_scope(kwargs)
 
         outcomes: list[ConditionOutcome] = []
         for condition in self._requires:
