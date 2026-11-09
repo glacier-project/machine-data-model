@@ -999,6 +999,17 @@ the existing, clear failure mode.
     the protocol owners (a dedicated code, or a machine-readable reason in the
     payload) before adding `on_unmet` for remote methods or authorization.
 
+14. **Follow-up, not part of this work: an exception from a plain `MethodNode`
+    over Frost is not answered** (J1-J7 review, nit 2). `_invoke_method` only
+    catches `MethodPreconditionError`. A request with a bad argument (for
+    example a keyword the callback does not accept: `TypeError` from
+    `_callback(**kwargs)`) or a callback that raises escapes
+    `FrostProtocolMng.handle_message`, and the peer gets no answer. Composite
+    methods are safe (their errors become `UNEXPECTED_ERROR`). Fix idea: catch
+    `Exception` in `_invoke_method`, log it (sanitized) and answer with
+    `UNEXPECTED_ERROR` (or `BAD_REQUEST` for a `TypeError` of the call
+    signature).
+
 ## 10. Decisions on the open questions, and what is still open
 
 Decided (user approved, 2026-11-06):
