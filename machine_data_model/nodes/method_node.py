@@ -11,7 +11,18 @@ from typing import Any
 
 from typing_extensions import override
 
-from machine_data_model.behavior.execution_error import ExecutionError
+from machine_data_model.behavior.condition import (
+    Condition,
+    ConditionError,
+    ConditionOutcome,
+    ConditionResult,
+)
+from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+    sanitize_detail,
+)
 from machine_data_model.nodes.connectors.abstract_connector import (
     AbstractConnector,
 )
@@ -49,6 +60,39 @@ class MethodExecutionResult:
     error: ExecutionError | None = None
 
 
+# Longest condition text and observed text kept in a requires error message.
+_MAX_REQUIRES_TEXT = 256
+
+
+class MethodPreconditionError(Exception):
+    """Raised when a method is called while its `requires` are not satisfied.
+
+    Attributes:
+        error (ExecutionError):
+            The reason of the rejection: `PRECONDITION_NOT_MET`, `NO_DATA` or
+            `INVALID_CONFIGURATION`.
+        outcomes (list[ConditionOutcome]):
+            The outcome of every condition that was evaluated.
+
+    """
+
+    def __init__(
+        self, error: ExecutionError, outcomes: list[ConditionOutcome]
+    ) -> None:
+        """Initialize a new MethodPreconditionError.
+
+        Args:
+            error (ExecutionError):
+                The reason of the rejection.
+            outcomes (list[ConditionOutcome]):
+                The outcome of every condition that was evaluated.
+
+        """
+        super().__init__(error.message)
+        self.error = error
+        self.outcomes = outcomes
+
+
 class MethodNode(DataModelNode):
     """Represent a synchronous method in the machine data model.
 
@@ -66,6 +110,9 @@ class MethodNode(DataModelNode):
             The function to run before the method is called.
         _post_call (Callable[..., None]):
             The function to run after the method is called.
+        _requires (list[Condition]):
+            The conditions on variables of the data model that must all hold
+            for the method to be called.
 
     """
 
@@ -74,6 +121,7 @@ class MethodNode(DataModelNode):
     _callback: Callable[..., Any]
     _pre_call: Callable[..., None]
     _post_call: Callable[..., None]
+    _requires: list[Condition]
 
     def __init__(
         self,
@@ -85,6 +133,7 @@ class MethodNode(DataModelNode):
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
         remote_resource_spec: AbstractRemoteResourceSpec | None = None,
+        requires: Sequence[Condition] | None = None,
     ):
         """Initialize a new MethodNode instance.
 
@@ -107,6 +156,10 @@ class MethodNode(DataModelNode):
                 variable.
             remote_resource_spec (AbstractRemoteResourceSpec | None):
                 Protocol-specific properties for remote nodes.
+            requires (Sequence[Condition] | None):
+                Conditions on variables that must all hold for the method to
+                be called. A condition can use `${name}` for a parameter of
+                the method.
         """
         super().__init__(
             id=id,
@@ -115,6 +168,7 @@ class MethodNode(DataModelNode):
             connector_name=connector_name,
             remote_resource_spec=remote_resource_spec,
         )
+        self._requires = list(requires) if requires is not None else []
         self._parameters = parameters if parameters is not None else []
         self._returns = returns if returns is not None else []
         self._callback = (
@@ -145,6 +199,18 @@ class MethodNode(DataModelNode):
 
         """
         return self._parameters
+
+    @property
+    def requires(self) -> list[Condition]:
+        """Returns the conditions that must hold for the method to be called.
+
+        Returns:
+            list[Condition]:
+                The conditions, combined with AND. Empty if the method has no
+                preconditions.
+
+        """
+        return self._requires
 
     def add_parameter(self, parameter: VariableNode) -> None:
         """Add a parameter to the method.
@@ -381,6 +447,9 @@ class MethodNode(DataModelNode):
 
         kwargs = self._resolve_arguments(*args, **kwargs)
 
+        # Reject the call before anything is traced or run.
+        self._check_requires(kwargs)
+
         # Trace method start
         start_time = trace_method_start(
             method_id=self.id,
@@ -411,6 +480,107 @@ class MethodNode(DataModelNode):
         )
 
         return MethodExecutionResult(return_values=ret)
+
+    def _check_requires(self, kwargs: dict[str, Any]) -> None:
+        """Raise if the `requires` of the method are not satisfied.
+
+        Conditions are evaluated with cached values, in a scope made of the
+        arguments of the call. Every condition is evaluated so that the error
+        lists all that are unmet, except that a misconfigured condition stops
+        the check at once.
+
+        Args:
+            kwargs (dict[str, Any]):
+                The resolved arguments of the call.
+
+        Raises:
+            MethodPreconditionError:
+                If a condition does not hold (`PRECONDITION_NOT_MET`), cannot
+                be evaluated for lack of data (`NO_DATA`) or is misconfigured
+                (`INVALID_CONFIGURATION`). This is the only exception raised
+                for a requires problem.
+
+        """
+        if not self._requires:
+            return
+        scope = ExecutionContext("requires")
+        scope.set_all_values(**kwargs)
+        data_model = self.data_model
+
+        def resolve_node(path: str) -> DataModelNode | None:
+            return data_model.get_node(path) if data_model else None
+
+        outcomes: list[ConditionOutcome] = []
+        for condition in self._requires:
+            try:
+                outcomes.append(condition.evaluate(resolve_node, scope))
+            except ConditionError as exp:
+                raise MethodPreconditionError(
+                    self._invalid_requires(condition, exp.message), outcomes
+                ) from exp
+            except KeyError as exp:
+                name = exp.args[0] if exp.args else "?"
+                raise MethodPreconditionError(
+                    self._invalid_requires(
+                        condition, f"unknown value '{name}' in the call"
+                    ),
+                    outcomes,
+                ) from exp
+
+        failed = [o for o in outcomes if o.result is ConditionResult.FAILED]
+        no_data = [o for o in outcomes if o.result is ConditionResult.NO_DATA]
+        if not failed and not no_data:
+            return
+        code = (
+            ExecutionErrorCode.PRECONDITION_NOT_MET
+            if failed
+            else ExecutionErrorCode.NO_DATA
+        )
+        unmet = failed + no_data
+        observed = "; ".join(
+            f"{o.variable} = {o.observed}" for o in unmet if o.observed
+        )
+        raise MethodPreconditionError(
+            ExecutionError(
+                code,
+                f"method '{self.qualified_name}' requires not met: "
+                + "; ".join(o.message for o in unmet),
+                node=self.qualified_name,
+                observed=sanitize_detail(observed, _MAX_REQUIRES_TEXT)
+                if observed
+                else None,
+            ),
+            outcomes,
+        )
+
+    def _invalid_requires(
+        self, condition: Condition, problem: str
+    ) -> ExecutionError:
+        """Build the error of a condition that cannot be evaluated.
+
+        Args:
+            condition (Condition):
+                The misconfigured condition.
+            problem (str):
+                What is wrong with it.
+
+        Returns:
+            ExecutionError:
+                An `INVALID_CONFIGURATION` error naming the method, the
+                condition and the problem.
+
+        """
+        text = sanitize_detail(
+            f"{condition.variable} {condition.operator.value} "
+            f"{condition.rhs}",
+            _MAX_REQUIRES_TEXT,
+        )
+        return ExecutionError(
+            ExecutionErrorCode.INVALID_CONFIGURATION,
+            f"method '{self.qualified_name}' has an invalid requires "
+            f"'{text}': {sanitize_detail(problem, _MAX_REQUIRES_TEXT)}",
+            node=self.qualified_name,
+        )
 
     def _resolve_arguments(
         self, *args: list[Any], **kwargs: dict[str, Any]
@@ -525,6 +695,7 @@ class AsyncMethodNode(MethodNode):
         callback: Callable[..., Any] | None = None,
         connector_name: str | None = None,
         remote_resource_spec: AbstractRemoteResourceSpec | None = None,
+        requires: Sequence[Condition] | None = None,
     ):
         """Initialize a new AsyncMethodNode instance.
 
@@ -547,6 +718,10 @@ class AsyncMethodNode(MethodNode):
                 variable.
             remote_resource_spec (AbstractRemoteResourceSpec | None):
                 Protocol-specific properties for remote nodes.
+            requires (Sequence[Condition] | None):
+                Conditions on variables that must all hold for the method to
+                be called. A condition can use `${name}` for a parameter of
+                the method.
         """
         super().__init__(
             id=id,
@@ -557,6 +732,7 @@ class AsyncMethodNode(MethodNode):
             callback=callback,
             connector_name=connector_name,
             remote_resource_spec=remote_resource_spec,
+            requires=requires,
         )
 
     def is_async(self) -> bool:
