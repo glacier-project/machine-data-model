@@ -6,6 +6,8 @@ conditions.
 """
 
 from collections.abc import Callable
+from enum import Enum
+import math
 from typing import Any
 
 from machine_data_model.behavior.condition import (
@@ -26,7 +28,10 @@ from machine_data_model.behavior.execution_context import (
     resolve_string_in_context,
     resolve_value,
 )
-from machine_data_model.behavior.execution_error import ExecutionError
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    sanitize_detail,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
 from machine_data_model.nodes.method_node import (
     MethodNode,
@@ -43,12 +48,29 @@ from machine_data_model.tracing.events import trace_control_flow_step
 __all__ = [
     "CallMethodNode",
     "LocalExecutionNode",
+    "OnUnmet",
     "ReadVariableNode",
     "WaitConditionNode",
     "WaitConditionOperator",
     "WriteVariableNode",
     "get_condition_operator",
 ]
+
+
+class OnUnmet(str, Enum):
+    """What a `CallMethodNode` does when the callee rejects the call.
+
+    Attributes:
+        WAIT:
+            Keep the node running and try again when a variable that the
+            `requires` of the callee read changes.
+        FAIL:
+            Fail the node with the error of the callee.
+
+    """
+
+    WAIT = "wait"
+    FAIL = "fail"
 
 
 class LocalExecutionNode(ControlFlowNode):
@@ -391,6 +413,8 @@ class CallMethodNode(LocalExecutionNode):
 
     _args: list[Any]
     _kwargs: dict[str, Any]
+    _on_unmet: OnUnmet | None
+    _timeout: float | None
 
     def __init__(
         self,
@@ -398,6 +422,8 @@ class CallMethodNode(LocalExecutionNode):
         args: list[Any],
         kwargs: dict[str, Any],
         successors: list["ControlFlowNode"] | None = None,
+        on_unmet: OnUnmet | str | None = None,
+        timeout: float | None = None,
     ):
         """Initialize a new CallMethodNode instance.
 
@@ -411,11 +437,114 @@ class CallMethodNode(LocalExecutionNode):
             successors (list["ControlFlowNode"] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+            on_unmet (OnUnmet | str | None):
+                What to do when the callee has `requires` that do not hold:
+                `wait` or `fail`. There is no default: a callee that has
+                `requires` must be called by a node that says which.
+            timeout (float | None):
+                Seconds to wait for the `requires` of the callee to hold. Only
+                meaningful with `on_unmet = wait`.
+
+        Raises:
+            ValueError:
+                If `on_unmet` is not `wait` or `fail`, if `timeout` is not a
+                positive finite number, or if `timeout` is given without
+                `on_unmet = wait`.
 
         """
         super().__init__(node=method_node, successors=successors)
         self._args = args
         self._kwargs = kwargs
+        self._on_unmet = self._validate_on_unmet(on_unmet)
+        self._timeout = self._validate_timeout(timeout, self._on_unmet)
+
+    @staticmethod
+    def _validate_on_unmet(on_unmet: OnUnmet | str | None) -> OnUnmet | None:
+        """Convert and check the `on_unmet` argument.
+
+        Args:
+            on_unmet (OnUnmet | str | None):
+                The value given to the constructor.
+
+        Returns:
+            OnUnmet | None:
+                The enum member, or None if not given.
+
+        Raises:
+            ValueError:
+                If the value is not `wait` or `fail`.
+
+        """
+        if on_unmet is None or isinstance(on_unmet, OnUnmet):
+            return on_unmet
+        try:
+            return OnUnmet(on_unmet)
+        except ValueError:
+            valid = ", ".join(member.value for member in OnUnmet)
+            raise ValueError(
+                f"Invalid on_unmet: {sanitize_detail(str(on_unmet), 32)}. "
+                f"Valid values: {valid}"
+            ) from None
+
+    @staticmethod
+    def _validate_timeout(
+        timeout: float | None, on_unmet: OnUnmet | None
+    ) -> float | None:
+        """Check the `timeout` argument.
+
+        Args:
+            timeout (float | None):
+                The value given to the constructor.
+            on_unmet (OnUnmet | None):
+                The validated `on_unmet`.
+
+        Returns:
+            float | None:
+                The timeout in seconds, or None.
+
+        Raises:
+            ValueError:
+                If it is not a positive finite number (a bool is not a
+                number here) or `on_unmet` is not `wait`.
+
+        """
+        if timeout is None:
+            return None
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, int | float)
+            or not math.isfinite(timeout)
+            or timeout <= 0
+        ):
+            raise ValueError(
+                f"timeout must be a positive number of seconds, got "
+                f"{sanitize_detail(repr(timeout), 32)}"
+            )
+        if on_unmet is not OnUnmet.WAIT:
+            raise ValueError("timeout is only meaningful with on_unmet: wait")
+        return timeout
+
+    @property
+    def on_unmet(self) -> OnUnmet | None:
+        """Get what the node does when the callee rejects the call.
+
+        Returns:
+            OnUnmet | None:
+                `wait`, `fail` or None if not specified.
+
+        """
+        return self._on_unmet
+
+    @property
+    def timeout(self) -> float | None:
+        """Get the seconds to wait for the `requires` of the callee.
+
+        Returns:
+            float | None:
+                The timeout in seconds, or None for no timeout.
+
+        """
+        return self._timeout
 
     @property
     def args(self) -> list[Any]:
@@ -647,6 +776,8 @@ class CallMethodNode(LocalExecutionNode):
             super().__eq__(other)
             and self.args == other.args
             and self.kwargs == other.kwargs
+            and self.on_unmet == other.on_unmet
+            and self.timeout == other.timeout
         )
 
 

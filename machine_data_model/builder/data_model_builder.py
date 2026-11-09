@@ -475,16 +475,20 @@ def _get_call_method_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "method": "",
         "args": [],
         "kwargs": {},
+        "on_unmet": None,
+        "timeout": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     return CallMethodNode(
         method_node=kwargs["method"],
         args=kwargs["args"],
         kwargs=kwargs["kwargs"],
+        on_unmet=kwargs["on_unmet"],
+        timeout=kwargs["timeout"],
     )
 
 

@@ -567,14 +567,17 @@ def _call_method_node_representer(
             A YAML mapping node representing the CallMethodNode.
 
     """
-    return dumper.represent_mapping(
-        "tag:yaml.org,2002:CallMethodNode",
-        {
-            "method": node.node,
-            "args": node.args,
-            "kwargs": node.kwargs,
-        },
-    )
+    fields: dict[str, Any] = {
+        "method": node.node,
+        "args": node.args,
+        "kwargs": node.kwargs,
+    }
+    # Only what was set, so a model without them dumps as it always did.
+    if node.on_unmet is not None:
+        fields["on_unmet"] = node.on_unmet.value
+    if node.timeout is not None:
+        fields["timeout"] = node.timeout
+    return dumper.represent_mapping("tag:yaml.org,2002:CallMethodNode", fields)
 
 
 def _call_remote_method_node_representer(
