@@ -263,8 +263,23 @@ class AbstractAsyncConnector(AbstractConnector):
         Returns:
             Any:
                 Node's value.
+
+        Raises:
+            ConnectionError:
+                If the connector was shut down (its event loop is closed): the
+                value is unavailable, which a caller treats as a transient
+                lack of data. Writes, calls and subscriptions keep raising
+                `RuntimeError` in that case.
         """
-        return self._handle_task(self._async_read_node_value(resource))
+        try:
+            return self._handle_task(self._async_read_node_value(resource))
+        except RuntimeError as exp:
+            if self._event_loop.is_closed():
+                raise ConnectionError(
+                    f"Cannot read '{resource.path}' using '{self.name}' "
+                    "connector: the connector is closed"
+                ) from exp
+            raise
 
     @abstractmethod
     async def _async_read_node_value(self, resource: RemoteResource) -> Any:

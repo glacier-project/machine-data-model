@@ -173,3 +173,57 @@ class TestNodeResolution:
 
         with pytest.raises(ValueError, match="doesn't exist"):
             connector.read_node_value(RESOURCE)
+
+
+class TestClosedConnector:
+    """Reading through a connector that was shut down (mocks only)."""
+
+    def closed(self, connector: OpcuaConnector) -> None:
+        connector._stop_owned_event_loop()
+        assert connector._event_loop.is_closed()
+
+    def test_read_is_a_connection_error(
+        self, connector: OpcuaConnector
+    ) -> None:
+        self.closed(connector)
+
+        with pytest.raises(ConnectionError, match="closed") as info:
+            connector.read_node_value(RESOURCE)
+
+        assert isinstance(info.value.__cause__, RuntimeError)
+
+    def test_write_keeps_raising_runtime_error(
+        self, connector: OpcuaConnector
+    ) -> None:
+        self.closed(connector)
+
+        with pytest.raises(RuntimeError, match="event loop is closed"):
+            connector.write_node_value(RESOURCE, 1)
+
+    def test_other_runtime_errors_on_a_live_loop_propagate(
+        self, connector: OpcuaConnector
+    ) -> None:
+        node = MagicMock()
+        node.get_value = AsyncMock(side_effect=RuntimeError("bug"))
+        with_node(connector, node)
+
+        with pytest.raises(RuntimeError, match="bug"):
+            connector.read_node_value(RESOURCE)
+
+    def test_condition_sees_no_data_for_a_closed_connector(
+        self, connector: OpcuaConnector
+    ) -> None:
+        variable = NumericalVariableNode(
+            name="v", value=1, connector_name="opc"
+        )
+        variable.set_connector(connector)
+        variable.set_remote_path("ns=2;s=var")
+        variable.configure_remote_resource()
+        self.closed(connector)
+
+        outcome = Condition("v", WaitConditionOperator.EQ, 1).evaluate_on(
+            variable, 1, force_remote_read=True
+        )
+
+        assert outcome.result is ConditionResult.NO_DATA
+        assert "read failed (ConnectionError)" in outcome.message
