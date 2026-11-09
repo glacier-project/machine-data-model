@@ -737,3 +737,67 @@ class TestInvalidOperatorMessage:
         assert "\n" not in message
         assert "\x1b" not in message
         assert len(message) < 150
+
+
+class TestTemplatesInContainerRhs:
+    @pytest.mark.parametrize(
+        "rhs",
+        [
+            ["${a}"],
+            ("x", "${a}"),
+            {"k": "${a}"},
+            {"${a}": 1},
+            {"nested": [1, {"deep": "pre ${a} post"}]},
+            {"${a}"},
+        ],
+        ids=["list", "tuple", "dict-value", "dict-key", "nested", "set"],
+    )
+    def test_template_inside_a_container_is_rejected(self, rhs: Any) -> None:
+        with pytest.raises(ValueError) as info:
+            Condition("v", WaitConditionOperator.EQ, rhs)
+
+        message = str(info.value)
+        assert "template" in message
+        assert "only resolved in a string rhs" in message
+
+    @pytest.mark.parametrize(
+        "rhs",
+        [1, 2.5, None, True, [], {}, [1, 2], {"k": "v"}, ("a", "b"), "${a}"],
+        ids=repr,
+    )
+    def test_other_values_are_accepted(self, rhs: Any) -> None:
+        Condition("v", WaitConditionOperator.EQ, rhs)
+
+    def test_message_is_sanitized_and_bounded(self) -> None:
+        with pytest.raises(ValueError) as info:
+            Condition("v\n", WaitConditionOperator.EQ, ["${a}\n" + "z" * 500])
+
+        message = str(info.value)
+        assert "\n" not in message
+        assert len(message) < 400
+
+    def test_method_requires_rejects_it_at_construction(self) -> None:
+        from machine_data_model.nodes.method_node import MethodNode
+
+        with pytest.raises(ValueError, match="template"):
+            MethodNode(
+                name="m",
+                requires=[
+                    Condition("v", WaitConditionOperator.EQ, ["${a}"]),
+                ],
+            )
+
+    def test_yaml_builder_rejects_it(self) -> None:
+        import yaml
+
+        from machine_data_model.builder.data_model_builder import (
+            _register_yaml_constructors,
+        )
+
+        _register_yaml_constructors()
+
+        with pytest.raises(ValueError, match=r"requires\[0\].*template"):
+            yaml.safe_load(
+                '!!MethodNode\nname: "m"\nrequires:\n'
+                '  - {variable: "v", operator: "==", rhs: ["${a}"]}\n'
+            )

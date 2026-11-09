@@ -9,7 +9,7 @@ behavior package, so it can be imported from anywhere without creating import
 cycles.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum
 import operator
@@ -223,6 +223,34 @@ class ConditionOutcome:
     observed: str | None = None
 
 
+def _find_template(value: Any) -> str | None:
+    """Find a `${name}` template inside a container value.
+
+    Args:
+        value (Any):
+            A list, tuple, set or dict (searched recursively, keys included).
+
+    Returns:
+        str | None:
+            The first string that contains a template, or None.
+
+    """
+    if isinstance(value, str):
+        return value if contains_template_variables(value) else None
+    items: Iterable[Any]
+    if isinstance(value, dict):
+        items = [*value.keys(), *value.values()]
+    elif isinstance(value, list | tuple | set | frozenset):
+        items = value
+    else:
+        return None
+    for item in items:
+        found = _find_template(item)
+        if found is not None:
+            return found
+    return None
+
+
 @dataclass(frozen=True)
 class ResolvedCondition:
     """A condition whose templates and variable path were resolved.
@@ -261,16 +289,31 @@ class Condition:
     rhs: Any
 
     def __post_init__(self) -> None:
-        """Validate the operator, converting a string to the enum.
+        """Validate the operator and the right-hand side.
+
+        A string operator is converted to the enum.
 
         Raises:
             ValueError:
-                If the operator is not valid.
+                If the operator is not valid, or the right-hand side is a
+                container (list, tuple, set, dict) that holds a `${name}`
+                template: only a string right-hand side is resolved.
 
         """
         op: Any = self.operator
         if not isinstance(op, WaitConditionOperator):
             object.__setattr__(self, "operator", get_condition_operator(op))
+        if not isinstance(self.rhs, str):
+            template = _find_template(self.rhs)
+            if template is not None:
+                # Only a plain string rhs is resolved: a template inside a
+                # container would be compared as literal text.
+                raise ValueError(
+                    f"rhs of '{sanitize_detail(self.variable, 80)}' contains "
+                    f"the template '{sanitize_detail(template, 80)}' inside a "
+                    f"{type(self.rhs).__name__}: templates are only resolved "
+                    "in a string rhs"
+                )
 
     def _resolve_path(self, scope: ExecutionContext | None) -> str:
         """Resolve the variable path using the scope."""
