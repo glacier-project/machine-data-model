@@ -697,3 +697,43 @@ def test_module_imports_first_in_fresh_interpreter(module: str) -> None:
     )
 
     assert result.returncode == 0, result.stderr
+
+
+class TestInvalidOperatorMessage:
+    VALID = "==, !=, <, >, <=, >="
+
+    def test_get_condition_operator_lists_the_valid_ones(self) -> None:
+        with pytest.raises(ValueError) as info:
+            get_condition_operator("~=")
+
+        assert str(info.value) == (
+            f"Invalid operator: ~=. Valid operators: {self.VALID}"
+        )
+
+    def test_condition_constructor_lists_the_valid_ones(self) -> None:
+        with pytest.raises(ValueError, match="Valid operators: =="):
+            Condition("v", "=>", 1)  # type: ignore[arg-type]
+
+    def test_compare_lists_the_valid_ones(self) -> None:
+        with pytest.raises(ValueError) as info:
+            compare("??", 1, 2)  # type: ignore[arg-type]
+
+        assert f"Valid operators: {self.VALID}" in str(info.value)
+
+    def test_every_valid_operator_is_listed(self) -> None:
+        with pytest.raises(ValueError) as info:
+            get_condition_operator("x")
+
+        for operator in WaitConditionOperator:
+            assert operator.value in str(info.value)
+
+    def test_bad_operator_text_is_sanitized_and_bounded(self) -> None:
+        bad = "a\nb\x1b" + "z" * 500
+
+        with pytest.raises(ValueError) as info:
+            get_condition_operator(bad)
+
+        message = str(info.value)
+        assert "\n" not in message
+        assert "\x1b" not in message
+        assert len(message) < 150

@@ -55,6 +55,25 @@ _OPERATORS: dict[WaitConditionOperator, Callable[[Any, Any], Any]] = {
 }
 
 
+def _invalid_operator_message(op: object) -> str:
+    """Build the error text for an operator that is not valid.
+
+    Args:
+        op (object):
+            The invalid operator, as given.
+
+    Returns:
+        str:
+            The text, which lists the valid operators.
+
+    """
+    valid = ", ".join(member.value for member in WaitConditionOperator)
+    return (
+        f"Invalid operator: {sanitize_detail(str(op), 32)}. "
+        f"Valid operators: {valid}"
+    )
+
+
 def get_condition_operator(op: str) -> WaitConditionOperator:
     """Get the condition operator from a string representation.
 
@@ -74,7 +93,7 @@ def get_condition_operator(op: str) -> WaitConditionOperator:
     for enum_op in WaitConditionOperator:
         if enum_op.value == op:
             return enum_op
-    raise ValueError(f"Invalid operator: {op}")
+    raise ValueError(_invalid_operator_message(op))
 
 
 def compare(op: WaitConditionOperator, lhs: Any, rhs: Any) -> bool:
@@ -102,7 +121,7 @@ def compare(op: WaitConditionOperator, lhs: Any, rhs: Any) -> bool:
     try:
         func = _OPERATORS[op]
     except KeyError:
-        raise ValueError(f"Invalid operator: {op}") from None
+        raise ValueError(_invalid_operator_message(op)) from None
     return bool(func(lhs, rhs))
 
 

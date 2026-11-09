@@ -170,7 +170,9 @@ class TestInvalidRequires:
         assert f"Missing keys: {missing}" in message
 
     def test_invalid_operator(self) -> None:
-        with pytest.raises(ValueError, match="Invalid operator: ~="):
+        with pytest.raises(
+            ValueError, match="Invalid operator: ~=. Valid operators: =="
+        ):
             self.load('  - {variable: "v", operator: "~=", rhs: 1}\n')
 
     def test_non_string_variable(self) -> None:
