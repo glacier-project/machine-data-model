@@ -28,7 +28,10 @@ from machine_data_model.behavior.execution_context import (
 )
 from machine_data_model.behavior.execution_error import ExecutionError
 from machine_data_model.nodes.data_model_node import DataModelNode
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import (
+    MethodNode,
+    MethodPreconditionError,
+)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
@@ -582,7 +585,15 @@ class CallMethodNode(LocalExecutionNode):
         # resolve variables in the context
         args = [resolve_value(arg, context) for arg in self._args]
         kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
-        res = ref_method(*args, **kwargs)
+        try:
+            res = ref_method(*args, **kwargs)
+        except MethodPreconditionError as exp:
+            # The callee's `requires` do not hold: nothing started. This is the
+            # behavior of `on_unmet = fail` (a wait mode is a later addition).
+            # It is an ordinary failure of the call, not an unexpected one.
+            return execution_error(
+                self._wrap_error(exp.error, ref_method.qualified_name)
+            )
 
         if res.error is not None:
             return execution_error(
