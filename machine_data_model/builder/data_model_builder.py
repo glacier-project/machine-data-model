@@ -803,9 +803,42 @@ class DataModelBuilder:
 
     cache: dict[str, DataModel]
 
-    def __init__(self) -> None:
-        """Initialize a new DataModelBuilder instance."""
+    def __init__(self, strict_requires: bool = False) -> None:
+        """Initialize a new DataModelBuilder instance.
+
+        Args:
+            strict_requires (bool):
+                If True, building a data model fails when a call node calls a
+                method with `requires` without setting `on_unmet`; otherwise
+                that only logs a warning. It is an argument of the builder,
+                not a key of the YAML file.
+
+        """
         self.cache = {}
+        self.strict_requires = strict_requires
+
+    def _create_data_model(self, data: Any) -> DataModel:
+        """Create the data model from the loaded YAML mapping.
+
+        Args:
+            data (Any):
+                The mapping read from the YAML file or string.
+
+        Returns:
+            DataModel:
+                The data model.
+
+        Raises:
+            ValueError:
+                If the file sets `strict_requires` itself.
+
+        """
+        if isinstance(data, dict) and "strict_requires" in data:
+            raise ValueError(
+                "'strict_requires' is not a key of the data model file: set "
+                "it on the DataModelBuilder"
+            )
+        return DataModel(**data, strict_requires=self.strict_requires)
 
     def from_string(self, data_model_string: str) -> DataModel:
         """Create a data model from a YAML string.
@@ -823,9 +856,7 @@ class DataModelBuilder:
         data = yaml.load(data_model_string, Loader=yaml.SafeLoader)
 
         # Create the data model
-        data_model = DataModel(**data)
-
-        return data_model
+        return self._create_data_model(data)
 
     def _load_data_model(self, data_model_path: str) -> DataModel:
         """Create a data model from a yaml file.
@@ -841,9 +872,8 @@ class DataModelBuilder:
         """
         with open(data_model_path) as file:
             data = yaml.load(file, Loader=yaml.SafeLoader)
-        data_model = DataModel(**data)
 
-        return data_model
+        return self._create_data_model(data)
 
     def get_data_model(self, data_model_path: str) -> DataModel:
         """Get a data model from a yaml file.

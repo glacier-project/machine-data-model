@@ -7,7 +7,10 @@ from machine_data_model.behavior.execution_context import (
     ExecutionContext,
     contains_template_variables,
 )
-from machine_data_model.behavior.local_execution_node import LocalExecutionNode
+from machine_data_model.behavior.local_execution_node import (
+    CallMethodNode,
+    LocalExecutionNode,
+)
 from machine_data_model.behavior.remote_execution_node import (
     RemoteExecutionNode,
 )
@@ -46,6 +49,7 @@ class DataModel:
         description: str = "",
         root: FolderNode | None = None,
         connectors: list[AbstractConnector] | None = None,
+        strict_requires: bool = False,
     ):
         """Initialize the data model.
 
@@ -66,7 +70,13 @@ class DataModel:
             connectors (list[AbstractConnector] | None, optional):
                 A list of connectors used to connect to remote servers.
                 Defaults to None.
+            strict_requires (bool, optional):
+                If True, a call node that calls a method with `requires`
+                without setting `on_unmet` makes building the data model fail
+                with a `ValueError`; otherwise it only logs a warning (the
+                node fails at run time either way). Defaults to False.
         """
+        self._strict_requires = strict_requires
         self._name = name
         self._machine_category = machine_category
         self._machine_type = machine_type
@@ -105,6 +115,7 @@ class DataModel:
 
             # fail at load on a requires condition that can never be evaluated
             self._validate_requires()
+            self._validate_call_nodes()
 
             # set up the connector and resolved remote resource for each node
             self._setup_inheritable_specs(self._root)
@@ -155,6 +166,42 @@ class DataModel:
                         f"requires of method '{node.qualified_name}': "
                         f"node '{condition.variable}' is not a variable"
                     )
+
+    def _validate_call_nodes(self) -> None:
+        """Report call nodes that miss `on_unmet` for a callee with `requires`.
+
+        Such a node fails at run time with `INVALID_CONFIGURATION`, whether the
+        requires hold or not. It is reported once, when the data model is
+        built (after every node is registered, so the order in the file does
+        not matter): as a warning, or as a `ValueError` if `strict_requires` is
+        set. A callee that is not known statically (a templated path) is only
+        checked at run time. Remote call nodes are not concerned.
+
+        Raises:
+            ValueError:
+                If `strict_requires` is set and a call node misses `on_unmet`.
+
+        """
+        for node in list(self._nodes.values()):
+            if not isinstance(node, CompositeMethodNode):
+                continue
+            for index, cf_node in enumerate(node.cfg.nodes()):
+                if not isinstance(cf_node, CallMethodNode):
+                    continue
+                if cf_node.on_unmet is not None or not cf_node.is_node_static():
+                    continue
+                callee = cf_node.get_ref_node()
+                if not isinstance(callee, MethodNode) or not callee.requires:
+                    continue
+                message = (
+                    f"call node #{index} of '{node.qualified_name}' calls "
+                    f"'{callee.qualified_name}', which has requires, without "
+                    "on_unmet: it fails at run time with "
+                    "INVALID_CONFIGURATION; set on_unmet to 'wait' or 'fail'"
+                )
+                if self._strict_requires:
+                    raise ValueError(message)
+                _logger.warning(message)
 
     def _validate_requires_connectors(self) -> None:
         """Check that the static `requires` variables have their connector.
