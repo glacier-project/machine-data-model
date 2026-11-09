@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from machine_data_model.behavior import local_execution_node
 from machine_data_model.behavior.condition import (
     Condition,
     WaitConditionOperator,
@@ -42,6 +43,7 @@ class Setup:
         callee_parameters: list[Any] | None = None,
         call_kwargs: dict[str, Any] | None = None,
         parent_parameters: list[Any] | None = None,
+        timeout: float | None = None,
     ) -> None:
         self.calls: list[dict[str, Any]] = []
         self.callee_stub = StubNode(lambda: execution_success())
@@ -81,6 +83,7 @@ class Setup:
             args=[],
             kwargs=call_kwargs or {},
             on_unmet=on_unmet,
+            timeout=timeout,
         )
         self.call.set_ref_node(self.callee)
         self.parent = CompositeMethodNode(
@@ -122,7 +125,9 @@ class Setup:
         if context is None:
             return []
         return [
-            key for key in context._locals if key.startswith("call_method_wait")
+            key
+            for key in context._locals
+            if key.startswith(("call_method_wait", "call_method_deadline"))
         ]
 
 
@@ -440,3 +445,202 @@ class TestCompositeCalleeThatPends:
             k for k in context._locals if k.startswith("call_method_wait")
         ]
         assert mode.get_subscriptions() == []
+
+
+class FakeClock:
+    """A clock that only moves when the test says so."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def clock(monkeypatch: pytest.MonkeyPatch) -> FakeClock:
+    fake = FakeClock()
+    monkeypatch.setattr(local_execution_node, "time", fake)
+    return fake
+
+
+def deadline_keys(setup: Setup, context_id: str) -> list[str]:
+    return [k for k in setup.wait_keys(context_id) if "deadline" in k]
+
+
+@kinds
+class TestTimeout:
+    def test_the_first_wait_stores_the_deadline(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+
+        context_id = setup.start()
+
+        context = setup.parent._contexts[context_id]
+        (key,) = deadline_keys(setup, context_id)
+        assert context.get_value(key) == 1030.0
+
+    def test_without_a_timeout_there_is_no_deadline(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee)
+
+        context_id = setup.start()
+        clock.now += 10**9
+        setup.mode.write(2)
+        setup.resume(context_id)
+
+        assert deadline_keys(setup, context_id) == []
+        assert setup.parent._contexts[context_id].is_active()
+        assert setup.callee_runs() == 0
+
+    def test_before_the_deadline_it_keeps_waiting_and_does_not_extend_it(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+        (key,) = deadline_keys(setup, context_id)
+
+        clock.now += 29
+        setup.mode.write(2)
+        setup.resume(context_id)
+
+        context = setup.parent._contexts[context_id]
+        assert context.is_active()
+        assert context.get_value(key) == 1030.0
+        assert setup.subscribers(setup.mode) == [context_id]
+
+    def test_after_the_deadline_it_fails_with_timeout(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+
+        clock.now += 31
+        result = setup.resume(context_id)
+
+        assert result.error is not None
+        error = result.error
+        assert error.code is ExecutionErrorCode.TIMEOUT
+        assert error.node == setup.callee.qualified_name
+        assert setup.callee.qualified_name in error.message
+        assert "timed out after 30 s" in error.message
+        # The last unmet conditions are named, the observed value is not.
+        assert "mode == 2 not met" in error.message
+        assert "level >= 1 not met" in error.message
+        assert error.observed is None
+        assert setup.callee_runs() == 0
+        assert setup.after.runs == 0
+
+    def test_timeout_removes_every_subscription_and_key(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+
+        clock.now += 31
+        setup.resume(context_id)
+
+        assert setup.subscribers(setup.mode) == []
+        assert setup.subscribers(setup.level) == []
+        assert setup.wait_keys(context_id) == []
+
+    def test_exactly_at_the_deadline_is_a_timeout(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+
+        clock.now += 30
+        result = setup.resume(context_id)
+
+        assert result.error is not None
+        assert result.error.code is ExecutionErrorCode.TIMEOUT
+
+    def test_one_last_attempt_wins_over_the_deadline(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+        # The requires came true without any event; nobody resumed in time.
+        setup.mode._update_internal_value(2)
+        setup.level._update_internal_value(1)
+
+        clock.now += 500
+        result = setup.resume(context_id)
+
+        assert result.error is None
+        assert setup.callee_runs() == 1
+        assert setup.after.runs == 1
+        assert setup.wait_keys(context_id) == []
+
+    def test_a_met_requires_clears_the_deadline(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+        assert deadline_keys(setup, context_id)
+
+        setup.mode.write(2)
+        setup.level.write(1)
+        setup.resume(context_id)
+
+        assert setup.wait_keys(context_id) == []
+
+    def test_contexts_have_their_own_deadlines(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        first = setup.start()
+        clock.now += 20
+        second = setup.start()
+
+        clock.now += 15
+        late = setup.resume(first)
+        early = setup.resume(second)
+
+        assert late.error is not None
+        assert late.error.code is ExecutionErrorCode.TIMEOUT
+        assert early.error is None
+        assert setup.parent._contexts[second].is_active()
+
+    def test_configuration_error_after_waiting_is_not_a_timeout(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+        setup.callee._requires = (Condition("nope", EQ, 1),)
+
+        clock.now += 31
+        result = setup.resume(context_id)
+
+        assert result.error is not None
+        assert result.error.code is ExecutionErrorCode.INVALID_CONFIGURATION
+        assert setup.wait_keys(context_id) == []
+
+    def test_the_message_is_bounded_with_many_unmet_conditions(
+        self, composite_callee: bool, clock: FakeClock
+    ) -> None:
+        many = [Condition("mode", EQ, 100 + i) for i in range(300)]
+        setup = Setup(composite_callee, requires=many, timeout=30)
+        context_id = setup.start()
+
+        clock.now += 31
+        result = setup.resume(context_id)
+
+        assert result.error is not None
+        assert result.error.code is ExecutionErrorCode.TIMEOUT
+        assert len(result.error.message) <= 768
+        assert "\n" not in result.error.message
+
+
+def test_fractional_timeout_is_written_compactly(clock: FakeClock) -> None:
+    setup = Setup(timeout=2.5)
+    context_id = setup.start()
+
+    clock.now += 3
+    result = setup.resume(context_id)
+
+    assert result.error is not None
+    assert "timed out after 2.5 s" in result.error.message

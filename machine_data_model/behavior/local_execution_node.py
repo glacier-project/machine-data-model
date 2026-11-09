@@ -8,6 +8,7 @@ conditions.
 from collections.abc import Callable
 from enum import Enum
 import math
+import time
 from typing import Any
 
 from machine_data_model.behavior.condition import (
@@ -45,6 +46,9 @@ from machine_data_model.nodes.variable_node import VariableNode
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
+
+# Longest message of a `TIMEOUT` error, in characters.
+_MAX_TIMEOUT_MESSAGE = 768
 
 __all__ = [
     "CallMethodNode",
@@ -596,6 +600,66 @@ class CallMethodNode(LocalExecutionNode):
             return ref_method.abort_context(pending_context_id)
         return []
 
+    def _deadline_key(self, context: ExecutionContext) -> str:
+        """Return the context key that holds the deadline of the wait."""
+        return f"call_method_deadline_{context.get_pc()}"
+
+    def _deadline_passed(self, context: ExecutionContext) -> bool:
+        """Start the deadline at the first wait and tell whether it is over.
+
+        The deadline is stored on the first rejection and compared on the
+        following ones. It uses `time.monotonic()`, which clock changes do not
+        move; contexts are not serialized, so the value never leaves the
+        process. Nothing wakes the context by itself when the deadline comes:
+        it is noticed when something resumes the context.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            bool:
+                True if the node has a timeout and its deadline is over. Always
+                False on the first wait and when there is no timeout.
+
+        """
+        if self._timeout is None:
+            return False
+        key = self._deadline_key(context)
+        if not context.has_value(key):
+            context.set_value(key, time.monotonic() + self._timeout)
+            return False
+        return bool(time.monotonic() >= context.get_value(key))
+
+    def _timeout_error(
+        self, ref_method: MethodNode, last: ExecutionError
+    ) -> ExecutionError:
+        """Build the error of a wait whose deadline passed.
+
+        Args:
+            ref_method (MethodNode):
+                The callee.
+            last (ExecutionError):
+                The rejection of the last attempt, which says what was unmet.
+
+        Returns:
+            ExecutionError:
+                A `TIMEOUT` error naming the callee, the timeout and the last
+                unmet conditions (bounded; the observed value is left out).
+
+        """
+        assert self._timeout is not None
+        return ExecutionError(
+            ExecutionErrorCode.TIMEOUT,
+            sanitize_detail(
+                f"call of '{ref_method.qualified_name}' timed out after "
+                f"{self._timeout:g} s: {last.message}",
+                _MAX_TIMEOUT_MESSAGE,
+            ),
+            node=ref_method.qualified_name,
+            origin=last.node,
+        )
+
     def _wait_key(self, context: ExecutionContext) -> str:
         """Return the context key that holds the variables being watched."""
         return f"call_method_wait_{context.get_pc()}"
@@ -665,13 +729,18 @@ class CallMethodNode(LocalExecutionNode):
         return added
 
     def _clear_wait(self, context: ExecutionContext) -> None:
-        """Unsubscribe from the watched variables and forget them.
+        """Unsubscribe from the watched variables and forget the wait.
+
+        The deadline is forgotten too.
 
         Args:
             context (ExecutionContext):
                 The context of the control flow graph.
 
         """
+        deadline_key = self._deadline_key(context)
+        if context.has_value(deadline_key):
+            context.delete_value(deadline_key)
         key = self._wait_key(context)
         if not context.has_value(key):
             return
@@ -832,6 +901,14 @@ class CallMethodNode(LocalExecutionNode):
                     self._clear_wait(context)
                     return execution_error(
                         self._wrap_error(exp.error, ref_method.qualified_name)
+                    )
+                if self._deadline_passed(context):
+                    # This was the last attempt: the call was tried again
+                    # now, after the deadline, and the requires still do not
+                    # hold.
+                    self._clear_wait(context)
+                    return execution_error(
+                        self._timeout_error(ref_method, exp.error)
                     )
                 newly_subscribed = self._watch(context, exp.variables)
                 if newly_subscribed and attempt == 1:
