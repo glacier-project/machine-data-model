@@ -989,6 +989,16 @@ the existing, clear failure mode.
     is a best effort and an unlisted transient code surfaces as
     `UNEXPECTED_ERROR` rather than `NO_DATA`.
 
+13. **`NOT_ALLOWED` conflates an unmet precondition with a permission failure**
+    (C2-C6 review, nit 7). Frost maps `PRECONDITION_NOT_MET` and `NO_DATA` to
+    `NOT_ALLOWED`. A caller cannot tell "the machine is not in the right state"
+    from "you are not authorized", and once an authorization layer exists (9.9)
+    both would use the same code. For a `CallRemoteMethodNode` it is worse: the
+    remote error is only seen as `REMOTE_ERROR` with the code name in the text.
+    Acceptable now because remote calls have no `on_unmet` (P4); revisit with
+    the protocol owners (a dedicated code, or a machine-readable reason in the
+    payload) before adding `on_unmet` for remote methods or authorization.
+
 ## 10. Decisions on the open questions, and what is still open
 
 Decided (user approved, 2026-11-06):
