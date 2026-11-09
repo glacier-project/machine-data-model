@@ -7,11 +7,19 @@ conditions.
 
 from collections.abc import Callable
 from enum import Enum
+import math
+import time
 from typing import Any
 
+from machine_data_model.behavior.condition import (
+    WaitConditionOperator,
+    compare,
+    get_condition_operator,
+)
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
+    execution_error,
     execution_failure,
     execution_success,
 )
@@ -21,14 +29,60 @@ from machine_data_model.behavior.execution_context import (
     resolve_string_in_context,
     resolve_value,
 )
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+    sanitize_detail,
+)
 from machine_data_model.nodes.data_model_node import DataModelNode
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import (
+    MethodNode,
+    MethodPreconditionError,
+)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
 from machine_data_model.nodes.variable_node import VariableNode
+from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
+
+# Most times a call is tried again in one step because the values changed
+# between the check that rejected it and the subscription.
+_MAX_WAIT_CYCLES = 5
+
+# Longest condition text written to the trace of a wait, in characters.
+_MAX_TRACED_CONDITION = 256
+
+# Longest message of a `TIMEOUT` error, in characters.
+_MAX_TIMEOUT_MESSAGE = 768
+
+__all__ = [
+    "CallMethodNode",
+    "LocalExecutionNode",
+    "OnUnmet",
+    "ReadVariableNode",
+    "WaitConditionNode",
+    "WaitConditionOperator",
+    "WriteVariableNode",
+    "get_condition_operator",
+]
+
+
+class OnUnmet(str, Enum):
+    """What a `CallMethodNode` does when the callee rejects the call.
+
+    Attributes:
+        WAIT:
+            Keep the node running and try again when a variable that the
+            `requires` of the callee read changes.
+        FAIL:
+            Fail the node with the error of the callee.
+
+    """
+
+    WAIT = "wait"
+    FAIL = "fail"
 
 
 class LocalExecutionNode(ControlFlowNode):
@@ -371,6 +425,8 @@ class CallMethodNode(LocalExecutionNode):
 
     _args: list[Any]
     _kwargs: dict[str, Any]
+    _on_unmet: OnUnmet | None
+    _timeout: float | None
 
     def __init__(
         self,
@@ -378,6 +434,8 @@ class CallMethodNode(LocalExecutionNode):
         args: list[Any],
         kwargs: dict[str, Any],
         successors: list["ControlFlowNode"] | None = None,
+        on_unmet: OnUnmet | str | None = None,
+        timeout: float | None = None,
     ):
         """Initialize a new CallMethodNode instance.
 
@@ -391,11 +449,114 @@ class CallMethodNode(LocalExecutionNode):
             successors (list["ControlFlowNode"] | None):
                 A list of control flow nodes that are successors of the current
                 node.
+            on_unmet (OnUnmet | str | None):
+                What to do when the callee has `requires` that do not hold:
+                `wait` or `fail`. There is no default: a callee that has
+                `requires` must be called by a node that says which.
+            timeout (float | None):
+                Seconds to wait for the `requires` of the callee to hold. Only
+                meaningful with `on_unmet = wait`.
+
+        Raises:
+            ValueError:
+                If `on_unmet` is not `wait` or `fail`, if `timeout` is not a
+                positive finite number, or if `timeout` is given without
+                `on_unmet = wait`.
 
         """
         super().__init__(node=method_node, successors=successors)
         self._args = args
         self._kwargs = kwargs
+        self._on_unmet = self._validate_on_unmet(on_unmet)
+        self._timeout = self._validate_timeout(timeout, self._on_unmet)
+
+    @staticmethod
+    def _validate_on_unmet(on_unmet: OnUnmet | str | None) -> OnUnmet | None:
+        """Convert and check the `on_unmet` argument.
+
+        Args:
+            on_unmet (OnUnmet | str | None):
+                The value given to the constructor.
+
+        Returns:
+            OnUnmet | None:
+                The enum member, or None if not given.
+
+        Raises:
+            ValueError:
+                If the value is not `wait` or `fail`.
+
+        """
+        if on_unmet is None or isinstance(on_unmet, OnUnmet):
+            return on_unmet
+        try:
+            return OnUnmet(on_unmet)
+        except ValueError:
+            valid = ", ".join(member.value for member in OnUnmet)
+            raise ValueError(
+                f"Invalid on_unmet: {sanitize_detail(str(on_unmet), 32)}. "
+                f"Valid values: {valid}"
+            ) from None
+
+    @staticmethod
+    def _validate_timeout(
+        timeout: float | None, on_unmet: OnUnmet | None
+    ) -> float | None:
+        """Check the `timeout` argument.
+
+        Args:
+            timeout (float | None):
+                The value given to the constructor.
+            on_unmet (OnUnmet | None):
+                The validated `on_unmet`.
+
+        Returns:
+            float | None:
+                The timeout in seconds, or None.
+
+        Raises:
+            ValueError:
+                If it is not a positive finite number (a bool is not a
+                number here) or `on_unmet` is not `wait`.
+
+        """
+        if timeout is None:
+            return None
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, int | float)
+            or not math.isfinite(timeout)
+            or timeout <= 0
+        ):
+            raise ValueError(
+                f"timeout must be a positive number of seconds, got "
+                f"{sanitize_detail(repr(timeout), 32)}"
+            )
+        if on_unmet is not OnUnmet.WAIT:
+            raise ValueError("timeout is only meaningful with on_unmet: wait")
+        return timeout
+
+    @property
+    def on_unmet(self) -> OnUnmet | None:
+        """Get what the node does when the callee rejects the call.
+
+        Returns:
+            OnUnmet | None:
+                `wait`, `fail` or None if not specified.
+
+        """
+        return self._on_unmet
+
+    @property
+    def timeout(self) -> float | None:
+        """Get the seconds to wait for the `requires` of the callee.
+
+        Returns:
+            float | None:
+                The timeout in seconds, or None for no timeout.
+
+        """
+        return self._timeout
 
     @property
     def args(self) -> list[Any]:
@@ -419,6 +580,310 @@ class CallMethodNode(LocalExecutionNode):
         """
         return self._kwargs
 
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
+        """Release what this node holds: a wait and a pending callee.
+
+        The subscriptions of a wait on the `requires` of the callee (and its
+        deadline) are removed, then the pending callee context, if any, is
+        dropped and released. Safe to call more than once.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            list[FrostMessage]:
+                The messages produced by releasing the callee context (for
+                example a remote unsubscribe).
+
+        """
+        from machine_data_model.nodes.composite_method import (
+            composite_method_node,
+        )
+
+        try:
+            pending_key = f"call_method_pending_{context.get_pc()}"
+            if not context.has_value(pending_key):
+                return []
+            pending_context_id = context.get_value(pending_key)
+            context.delete_value(pending_key)
+            ref_method = self._get_ref_node(context)
+            if isinstance(
+                ref_method, composite_method_node.CompositeMethodNode
+            ):
+                return ref_method.abort_context(pending_context_id)
+            return []
+        finally:
+            self._clear_wait(context)
+
+    def _deadline_key(self, context: ExecutionContext) -> str:
+        """Return the context key that holds the deadline of the wait."""
+        return f"call_method_deadline_{context.get_pc()}"
+
+    def _deadline_passed(self, context: ExecutionContext) -> bool:
+        """Start the deadline at the first wait and tell whether it is over.
+
+        The deadline is stored on the first rejection and compared on the
+        following ones. It uses `time.monotonic()`, which clock changes do not
+        move; contexts are not serialized, so the value never leaves the
+        process. Nothing wakes the context by itself when the deadline comes:
+        it is noticed when something resumes the context.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            bool:
+                True if the node has a timeout and its deadline is over. Always
+                False on the first wait and when there is no timeout.
+
+        """
+        if self._timeout is None:
+            return False
+        key = self._deadline_key(context)
+        if not context.has_value(key):
+            context.set_value(key, time.monotonic() + self._timeout)
+            return False
+        return bool(time.monotonic() >= context.get_value(key))
+
+    def _timeout_error(
+        self, ref_method: MethodNode, last: ExecutionError
+    ) -> ExecutionError:
+        """Build the error of a wait whose deadline passed.
+
+        Args:
+            ref_method (MethodNode):
+                The callee.
+            last (ExecutionError):
+                The rejection of the last attempt, which says what was unmet.
+
+        Returns:
+            ExecutionError:
+                A `TIMEOUT` error naming the callee, the timeout and the last
+                unmet conditions (bounded; the observed value is left out).
+
+        """
+        assert self._timeout is not None
+        return ExecutionError(
+            ExecutionErrorCode.TIMEOUT,
+            sanitize_detail(
+                f"call of '{ref_method.qualified_name}' timed out after "
+                f"{self._timeout:g} s: {last.message}",
+                _MAX_TIMEOUT_MESSAGE,
+            ),
+            node=ref_method.qualified_name,
+            origin=last.node,
+        )
+
+    def _wait_key(self, context: ExecutionContext) -> str:
+        """Return the context key that holds the variables being watched."""
+        return f"call_method_wait_{context.get_pc()}"
+
+    def _watch(
+        self, context: ExecutionContext, variables: tuple[VariableNode, ...]
+    ) -> bool:
+        """Subscribe the context to the variables the callee reads.
+
+        One subscription object per context is shared by all the variables, as
+        `WaitConditionNode` does for its one variable, so that concurrent
+        contexts never share a subscription. A variable the context is already
+        subscribed to is left alone; one that is no longer needed is dropped.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            variables (tuple[VariableNode, ...]):
+                The variables the `requires` of the callee read.
+
+        Returns:
+            bool:
+                True if at least one new subscription was added.
+
+        """
+        key = self._wait_key(context)
+        watched: list[tuple[VariableNode, VariableSubscription]] = (
+            list(context.get_value(key)) if context.has_value(key) else []
+        )
+        callback = context.get_subscription_callback()
+        shared = (
+            watched[0][1]
+            if watched
+            else VariableSubscription(
+                subscriber_id=context.id(), subscription_callback=callback
+            )
+        )
+        if callback is not None and shared.subscription_callback is None:
+            shared.subscription_callback = callback
+
+        wanted = {id(variable) for variable in variables}
+        kept: list[tuple[VariableNode, VariableSubscription]] = []
+        for variable, subscription in watched:
+            if id(variable) in wanted:
+                kept.append((variable, subscription))
+            else:
+                variable.unsubscribe(subscription)
+
+        added = False
+        known = {id(variable) for variable, _ in kept}
+        for variable in variables:
+            if id(variable) in known:
+                continue
+            existing = variable.find_subscription_by_subscriber(context.id())
+            if existing is not None and existing is not shared:
+                if (
+                    existing.subscription_callback is None
+                    and callback is not None
+                ):
+                    existing.subscription_callback = callback
+                kept.append((variable, existing))
+                continue
+            if variable.subscribe(shared):
+                added = True
+            kept.append((variable, shared))
+        context.set_value(key, kept)
+        return added
+
+    def _wait_trace_key(self, context: ExecutionContext) -> str:
+        """Return the context key that holds the trace data of the wait."""
+        return f"call_method_wait_trace_{context.get_pc()}"
+
+    def _trace_wait_start(
+        self,
+        context: ExecutionContext,
+        ref_method: MethodNode,
+        last: ExecutionError,
+    ) -> None:
+        """Trace the start of the wait, once, at the first rejection.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            ref_method (MethodNode):
+                The callee.
+            last (ExecutionError):
+                The rejection that makes the node wait.
+
+        """
+        key = self._wait_trace_key(context)
+        if context.has_value(key):
+            return
+        data_model_id = ""
+        if ref_method.data_model is not None:
+            data_model_id = ref_method.data_model.name
+        source = f"{ref_method.qualified_name} (context: {context.id()})"
+        start_time = trace_wait_start(
+            variable_id=ref_method.id,
+            condition=sanitize_detail(last.message, _MAX_TRACED_CONDITION),
+            expected_value=None,
+            source=source,
+            data_model_id=data_model_id,
+        )
+        context.set_value(
+            key, (start_time, ref_method.id, source, data_model_id)
+        )
+
+    def _trace_wait_end(self, context: ExecutionContext) -> None:
+        """Trace the end of the wait, if one was traced and not ended yet.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        key = self._wait_trace_key(context)
+        if not context.has_value(key):
+            return
+        start_time, variable_id, source, data_model_id = context.get_value(key)
+        context.delete_value(key)
+        trace_wait_end(
+            variable_id=variable_id,
+            start_time=start_time,
+            source=source,
+            data_model_id=data_model_id,
+        )
+
+    def _would_pass(
+        self, ref_method: MethodNode, resolved: dict[str, Any]
+    ) -> bool:
+        """Tell whether the `requires` of the callee hold now, without calling.
+
+        Args:
+            ref_method (MethodNode):
+                The callee.
+            resolved (dict[str, Any]):
+                The resolved arguments of the call, as the callee would get
+                them.
+
+        Returns:
+            bool:
+                True if a call made now would pass the check.
+
+        """
+        try:
+            ref_method._check_requires(resolved)
+        except MethodPreconditionError:
+            return False
+        return True
+
+    def _unwatch(self, context: ExecutionContext) -> None:
+        """Unsubscribe from the watched variables, keeping the deadline.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        key = self._wait_key(context)
+        if not context.has_value(key):
+            return
+        watched = context.get_value(key)
+        context.delete_value(key)
+        for variable, subscription in watched:
+            variable.unsubscribe(subscription)
+
+    def _clear_wait(self, context: ExecutionContext) -> None:
+        """Unsubscribe from the watched variables and forget the wait.
+
+        The deadline is forgotten too.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        deadline_key = self._deadline_key(context)
+        if context.has_value(deadline_key):
+            context.delete_value(deadline_key)
+        self._unwatch(context)
+        self._trace_wait_end(context)
+
+    @staticmethod
+    def _wrap_error(error: ExecutionError, callee: str) -> ExecutionError:
+        """Build the error of this node from the error of the callee.
+
+        Args:
+            error (ExecutionError):
+                The error of the callee.
+            callee (str):
+                The resolved qualified name of the callee.
+
+        Returns:
+            ExecutionError:
+                An error with the same code, a message prefixed with the name
+                of the callee, the callee as the failing node and the origin
+                of the callee error preserved (or, if it has none, the node it
+                reports) and the observed value of the callee error kept.
+
+        """
+        return ExecutionError(
+            code=error.code,
+            message=f"{callee}: {error.message}",
+            node=callee,
+            origin=error.origin if error.origin is not None else error.node,
+            observed=error.observed,
+        )
+
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
         """Execute the call operation of the method in the machine data model.
 
@@ -428,7 +893,9 @@ class CallMethodNode(LocalExecutionNode):
 
         Returns:
             ExecutionNodeResult:
-                An ExecutionNodeResult indicating success.
+                An ExecutionNodeResult indicating success, that the callee is
+                still running, or that the callee failed (the error of the
+                callee is propagated).
 
         """
         from machine_data_model.nodes.composite_method import (
@@ -462,6 +929,25 @@ class CallMethodNode(LocalExecutionNode):
                     )
                     return execution_failure()
 
+                if ref_method.has_failed(pending_context_id):
+                    callee_error = ref_method.get_error(pending_context_id)
+                    assert callee_error is not None
+                    ref_method.delete_context(pending_context_id)
+                    context.delete_value(pending_key)
+                    trace_control_flow_step(
+                        node_id=self.node,
+                        node_type=type(self).__name__,
+                        execution_result=False,
+                        program_counter=context.get_pc(),
+                        source=context.id(),
+                        data_model_id=data_model_id,
+                    )
+                    return execution_error(
+                        self._wrap_error(
+                            callee_error, ref_method.qualified_name
+                        )
+                    )
+
                 ret = ref_method.get_completed_return_values(pending_context_id)
                 assert ret is not None
                 context.set_all_values(**ret)
@@ -491,7 +977,78 @@ class CallMethodNode(LocalExecutionNode):
         # resolve variables in the context
         args = [resolve_value(arg, context) for arg in self._args]
         kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
-        res = ref_method(*args, **kwargs)
+        if ref_method.requires and self._on_unmet is None:
+            # A callee with `requires` must be called by a node that says what
+            # to do when they do not hold. Failing here, before the call and
+            # whether they hold or not, keeps the result independent of the
+            # data: a model that is wrong fails every time, not only when a
+            # condition happens to be unmet.
+            return execution_error(
+                ExecutionError(
+                    ExecutionErrorCode.INVALID_CONFIGURATION,
+                    f"call of '{ref_method.qualified_name}': the method has "
+                    "requires, so the call node must set on_unmet to 'wait' "
+                    "or 'fail'",
+                    node=ref_method.qualified_name,
+                )
+            )
+        # Resolve the arguments once: every attempt of this step (the real
+        # calls and the checks between them) uses the same values, and a
+        # parameter that has to be read (it can be a remote variable) is read
+        # once, not once per attempt.
+        resolved = ref_method._resolve_arguments(*args, **kwargs)
+        res = None
+        for cycle in range(_MAX_WAIT_CYCLES):
+            # The wait is dropped while the callee runs: a callee that writes
+            # a variable it watches would otherwise wake this very context in
+            # the middle of its own call and be called again.
+            self._unwatch(context)
+            try:
+                res = ref_method(**resolved)
+                break
+            except MethodPreconditionError as exp:
+                # The callee's `requires` do not hold: nothing started, and
+                # this is an ordinary failure of the call, not an unexpected
+                # one.
+                if (
+                    self._on_unmet is not OnUnmet.WAIT
+                    or exp.error.code
+                    is ExecutionErrorCode.INVALID_CONFIGURATION
+                ):
+                    # `fail`, or a configuration error: never waited on.
+                    self._clear_wait(context)
+                    return execution_error(
+                        self._wrap_error(exp.error, ref_method.qualified_name)
+                    )
+                if self._deadline_passed(context):
+                    # This was the last attempt: the call was tried again
+                    # now, after the deadline, and the requires still do not
+                    # hold.
+                    self._clear_wait(context)
+                    return execution_error(
+                        self._timeout_error(ref_method, exp.error)
+                    )
+                self._trace_wait_start(context, ref_method, exp.error)
+                self._watch(context, exp.variables)
+                if cycle == _MAX_WAIT_CYCLES - 1 or not self._would_pass(
+                    ref_method, resolved
+                ):
+                    # Waiting. The last cycle is authoritative: its real call
+                    # was rejected, so the node waits for the next change
+                    # instead of looking again and leaving with a check that
+                    # passed and nobody to act on it.
+                    return execution_failure()
+                # The values changed between the check that rejected the call
+                # and the subscription (no event reached us): try again, with
+                # the wait dropped as for any call.
+        assert res is not None
+        self._clear_wait(context)
+
+        if res.error is not None:
+            return execution_error(
+                self._wrap_error(res.error, ref_method.qualified_name),
+                list(res.messages or []),
+            )
 
         if isinstance(ref_method, composite_method_node.CompositeMethodNode):
             pending_context_id = res.return_values.get("@context_id")
@@ -539,40 +1096,9 @@ class CallMethodNode(LocalExecutionNode):
             super().__eq__(other)
             and self.args == other.args
             and self.kwargs == other.kwargs
+            and self.on_unmet == other.on_unmet
+            and self.timeout == other.timeout
         )
-
-
-class WaitConditionOperator(str, Enum):
-    """Enumeration of wait condition operators."""
-
-    EQ = "=="
-    NE = "!="
-    LT = "<"
-    GT = ">"
-    LE = "<="
-    GE = ">="
-
-
-def get_condition_operator(op: str) -> WaitConditionOperator:
-    """Get the wait condition operator from a string representation.
-
-    Args:
-        op (str):
-            The string representation of the operator.
-
-    Returns:
-        WaitConditionOperator:
-            The corresponding WaitConditionOperator enum value.
-
-    Raises:
-        ValueError:
-            If the operator string is invalid.
-
-    """
-    for enum_op in WaitConditionOperator:
-        if enum_op.value == op:
-            return enum_op
-    raise ValueError(f"Invalid operator: {op}")
 
 
 class WaitConditionNode(LocalExecutionNode):
@@ -674,20 +1200,7 @@ class WaitConditionNode(LocalExecutionNode):
 
         rhs = resolve_value(self._rhs, context)
         lhs = ref_variable.read()
-        if self._op == WaitConditionOperator.EQ:
-            result = lhs == rhs
-        elif self._op == WaitConditionOperator.NE:
-            result = lhs != rhs
-        elif self._op == WaitConditionOperator.LT:
-            result = lhs < rhs
-        elif self._op == WaitConditionOperator.GT:
-            result = lhs > rhs
-        elif self._op == WaitConditionOperator.LE:
-            result = lhs <= rhs
-        elif self._op == WaitConditionOperator.GE:
-            result = lhs >= rhs
-        else:
-            raise ValueError(f"Invalid operator: {self._op}")
+        result = compare(self._op, lhs, rhs)
 
         # Build base keys used to store wait-related data inside the context.
         # Use a single base so derived keys are colocated and consistent.
@@ -738,6 +1251,19 @@ class WaitConditionNode(LocalExecutionNode):
         ):
             subscription.subscription_callback = subscription_callback
 
+        # One wait subscription per (variable, context): adopt the one that is
+        # already there instead of adding a second that would wake the context
+        # twice.
+        existing = ref_variable.find_subscription_by_subscriber(context.id())
+        if existing is not None and existing is not subscription:
+            if (
+                existing.subscription_callback is None
+                and subscription_callback is not None
+            ):
+                existing.subscription_callback = subscription_callback
+            subscription = existing
+            context.set_value(sub_key, existing)
+
         # Condition not met - start waiting
         if not result:
             if subscription not in ref_variable.get_subscriptions():
@@ -779,6 +1305,35 @@ class WaitConditionNode(LocalExecutionNode):
 
         # Return the outcome.
         return outcome
+
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
+        """Remove the wait subscription and the context keys of this node.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            list[FrostMessage]:
+                Always empty: the subscription is local.
+
+        """
+        base_wait_key = f"wait_{self.node}_{context.id()}"
+        sub_key = f"{base_wait_key}_subscription"
+        wait_key = f"{base_wait_key}_start"
+        subscription = None
+        if context.has_value(sub_key):
+            subscription = context.get_value(sub_key)
+        try:
+            if subscription is not None:
+                ref_variable = self._get_ref_node(context)
+                assert isinstance(ref_variable, VariableNode)
+                ref_variable.unsubscribe(subscription)
+        finally:
+            for key in (sub_key, wait_key):
+                if context.has_value(key):
+                    context.delete_value(key)
+        return []
 
     def __eq__(self, other: object) -> bool:
         """Check equality with another object.

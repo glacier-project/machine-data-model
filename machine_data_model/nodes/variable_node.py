@@ -8,7 +8,10 @@ object variables with subscription and notification capabilities.
 from abc import abstractmethod
 from collections.abc import Callable, Generator
 from enum import Enum
+import logging
+import time
 from typing import Any
+import warnings
 
 from typing_extensions import override
 from unitsnet_py.abstract_unit import AbstractMeasure
@@ -38,6 +41,17 @@ from .measurement_unit.measure_builder import (
 from .subscription.variable_subscription import (
     VariableSubscription,
 )
+
+_logger = logging.getLogger(__name__)
+
+# Hooks that earlier versions called and that no longer exist: a subclass that
+# still overrides one of them is silently ignored, so warn about it.
+_REMOVED_HOOKS = {
+    "_update_remote_value": "implement _write_remote(value) -> bool",
+    "_update_value": "implement _write_remote(value) -> bool",
+    "_read_remote_value": "the raw remote value comes from "
+    "_fetch_remote_value()",
+}
 
 
 class VariableNode(DataModelNode):
@@ -72,6 +86,33 @@ class VariableNode(DataModelNode):
     _subscription_callback: Callable[
         [VariableSubscription, "VariableNode", Any], None
     ]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Warn about overrides of hooks that were removed.
+
+        Args:
+            **kwargs (Any):
+                Class keyword arguments, passed on.
+
+        """
+        super().__init_subclass__(**kwargs)
+        for hook, advice in _REMOVED_HOOKS.items():
+            # The hook can come from the class itself or from a mixin. Warn
+            # once: at the first variable class that has it, not again in its
+            # subclasses (which already warned).
+            already_warned = any(
+                issubclass(base, VariableNode) and hasattr(base, hook)
+                for base in cls.__bases__
+            )
+            if hasattr(cls, hook) and not already_warned:
+                # Level 3: ABCMeta.__new__ sits between the class statement of
+                # the subclass and this hook.
+                warnings.warn(
+                    f"{cls.__qualname__} defines or inherits {hook}(), which "
+                    f"was removed and is never called; {advice}",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
 
     def __init__(
         self,
@@ -112,6 +153,8 @@ class VariableNode(DataModelNode):
         self._post_update_value: Callable[[Any, Any], bool] = (
             lambda prev, curr: True
         )
+        # Epoch seconds at which a value last arrived from the remote side.
+        self._received_at: float | None = None
         # List of subscribers and related callbacks.
         self._subscriptions: list[VariableSubscription] = []
         self._subscription_callback: Callable[
@@ -160,13 +203,31 @@ class VariableNode(DataModelNode):
                 True if the value was updated successfully, False otherwise.
 
         """
-        # Read the current value of the variable before the update.
+        # Read the current value of the variable before the update, and keep a
+        # snapshot of its state to restore it exactly if the update is rejected.
         prev_value = self._read_value()
+        snapshot = self._snapshot()
         # Apply the pre-update callback to the new value.
         value = self._pre_update_value(value)
-        # Update the value of the variable with the new value.
-        value = self._update_value(value)
-        # Perform the post-update operations and get the success status.
+        remote = self._is_remote_with_connector()
+        # For a remote variable the remote write comes first and the cache only
+        # changes if the connector confirmed it. Success is never inferred from
+        # comparing values: the cache can hold a converted (base unit) value.
+        if remote and not self._write_remote(value):
+            trace_variable_write(
+                variable_id=self.id,
+                old_value=prev_value,
+                new_value=value,
+                success=False,
+                source=self.qualified_name,
+                data_model_id=self.data_model.name if self.data_model else "",
+            )
+            return False
+        # Update the cached value of the variable with the new value.
+        value = self._update_internal_value(value)
+        # Perform the post-update operations and get the success status. For a
+        # remote variable this runs AFTER the machine was written: validators
+        # belong in `_pre_update_value`.
         success = self._post_update_value(prev_value, value)
         # Trace the variable write operation.
         trace_variable_write(
@@ -181,9 +242,27 @@ class VariableNode(DataModelNode):
         # previous value.
         if success:
             self.notify_subscribers()
+        elif remote and not self.has_received_value():
+            # The snapshot is the default given to the constructor, which the
+            # machine never held: writing it back would be a spurious write.
+            # Only the cache is restored; the machine keeps the new value.
+            _logger.error(
+                "Cannot restore '%s' on the remote server after a rejected "
+                "update: the previous value is unknown (no value was ever "
+                "received)",
+                self.qualified_name,
+            )
+            self._restore(snapshot)
+        elif remote and not self._write_remote(self._remote_value(snapshot)):
+            # The restore is a second remote write and can fail too: the
+            # machine keeps the new value, so does the cache.
+            _logger.error(
+                "Failed to restore the previous value of '%s' on the remote "
+                "server after a rejected update",
+                self.qualified_name,
+            )
         else:
-            value = self._update_value(prev_value)
-            assert value == prev_value
+            self._restore(snapshot)
         return success
 
     @property
@@ -214,6 +293,25 @@ class VariableNode(DataModelNode):
 
         """
         return self._subscriptions
+
+    def find_subscription_by_subscriber(
+        self, subscriber_id: str
+    ) -> VariableSubscription | None:
+        """Find the first subscription of a subscriber.
+
+        Args:
+            subscriber_id (str):
+                The id of the subscriber.
+
+        Returns:
+            VariableSubscription | None:
+                The subscription, or None if the subscriber has none.
+
+        """
+        for subscription in self._subscriptions:
+            if subscription.subscriber_id == subscriber_id:
+                return subscription
+        return None
 
     def subscribe(self, subscription: VariableSubscription) -> bool:
         """Subscribe a subscriber to the variable node.
@@ -340,7 +438,9 @@ class VariableNode(DataModelNode):
         """
         # Get the current value of the node.
         value = self._read_internal_value()
-        for subscription in self._subscriptions:
+        # Iterate over a copy: a callback can resume a context that
+        # unsubscribes, which mutates the live list and would skip a waiter.
+        for subscription in list(self._subscriptions):
             if not subscription.should_notify(value):
                 continue
             # Trace the notification operation.
@@ -376,11 +476,33 @@ class VariableNode(DataModelNode):
         """
         # a connector could be set only after reading the full yaml file
         if self.is_remote() and self.has_connector():
-            value = self._read_remote_value(force_remote_read=force_remote_read)
-            self._update_internal_value(value)
-            return value
+            # The cache is only written when a value really came from the
+            # connector. Feeding the cached (base unit) value back through
+            # `_update_internal_value` would convert it again on every read.
+            # A forced read returns the connector value as it always did (in
+            # the unit of the variable, see issue #67); a cached read returns
+            # the cache untouched.
+            if force_remote_read:
+                value = self._fetch_remote_value()
+                if value is not None:
+                    self._update_internal_value(value)
+                    self._mark_received()
+                    return value
+            return self._read_internal_value()
         else:
             return self._read_internal_value()
+
+    def _fetch_remote_value(self) -> Any:
+        """Read the raw value from the remote server.
+
+        Returns:
+            Any:
+                The value as sent by the connector (in the unit of the
+                variable), or None if the server has no value.
+
+        """
+        connector = self._require_remote_connector()
+        return connector.read_node_value(self._require_remote_resource())
 
     def _require_remote_connector(self) -> AbstractConnector:
         """Return the connector or fail with a runtime exception."""
@@ -406,53 +528,124 @@ class VariableNode(DataModelNode):
                 Variable's internal value.
         """
 
-    def _read_remote_value(self, force_remote_read: bool = False) -> Any:
-        """Return the cached value or read the latest value from remote server.
-
-        Args:
-            force_remote_read (bool, optional):
-                If True, use the connector to read the variable's latest value.
-                If False, return the cached value.
-                Default is False.
+    def _snapshot(self) -> Any:
+        """Capture the state of the variable so that it can be restored.
 
         Returns:
             Any:
-                Variable's remote (or its cached) value.
+                An opaque snapshot, to be passed to `_restore` and
+                `_remote_value`.
+
         """
-        connector = self._require_remote_connector()
-        if force_remote_read:
-            return connector.read_node_value(self._require_remote_resource())
         return self._read_internal_value()
 
-    def _update_value(self, value: Any) -> Any:
-        """Update the value of the variable."""
-        if self.is_remote() and self.has_connector():
-            self._update_internal_value(value)
-            res = self._update_remote_value(value)
-            return res
-        else:
-            return self._update_internal_value(value)
-
-    def _update_remote_value(self, value: Any) -> Any:
-        """Update the value of the variable remotely.
+    def _restore(self, snapshot: Any) -> None:
+        """Restore the cache from a snapshot, exactly.
 
         Args:
-            value:
-                New value which is written to the remote server.
+            snapshot (Any):
+                A snapshot taken by `_snapshot`.
+
+        """
+        self._update_internal_value(snapshot)
+
+    def _remote_value(self, snapshot: Any) -> Any:
+        """Return the value to send to the remote server for a snapshot.
+
+        Args:
+            snapshot (Any):
+                A snapshot taken by `_snapshot`.
 
         Returns:
             Any:
-                New value when the update action is successful.
-                Otherwise, it returns the previous value.
+                The value in the form the machine expects (the unit of the
+                variable), which is what it held before the update.
+
+        """
+        return snapshot
+
+    @property
+    def received_at(self) -> float | None:
+        """When a value last arrived from the remote side.
+
+        This is the time (epoch seconds, `time.time()`) the value arrived in
+        this process, not the time the source produced it: a retained message
+        or the first read at start-up looks fresh. It proves that a value was
+        received, never that it is recent.
+
+        Returns:
+            float | None:
+                The time of the last value received from the remote side, or
+                None if none arrived. A successful remote write and a read of
+                the cached initial value do not count.
+
+        """
+        return self._received_at
+
+    def has_received_value(self) -> bool:
+        """Whether the variable holds a real value rather than its default.
+
+        A remote variable starts with the default given to its constructor and
+        keeps it until the remote side sends a value. A local variable always
+        holds its own value, unless it is a property of a remote object, in
+        which case it follows the object.
+
+        Returns:
+            bool:
+                True for a local variable, or for a remote one that received a
+                value from the remote side.
+
+        """
+        if self._is_remote_or_in_remote_variable():
+            return self._received_at is not None
+        return True
+
+    def _is_remote_or_in_remote_variable(self) -> bool:
+        """Whether this node or a variable above it is remote.
+
+        A `DataModel` gives every property of a remote object the connector of
+        the object, so each property is remote itself. For a model wired by
+        hand a property can be a plain local node under a remote object: it
+        then follows the object, which marks its properties when it receives
+        a value.
+
+        Returns:
+            bool:
+                True if the node is remote, or if the nearest remote ancestor
+                that is a variable exists.
+
+        """
+        node: DataModelNode | None = self
+        while isinstance(node, VariableNode):
+            if node.is_remote():
+                return True
+            node = node.parent
+        return False
+
+    def _mark_received(self) -> None:
+        """Record that a value just arrived from the remote side."""
+        self._received_at = time.time()
+
+    def _is_remote_with_connector(self) -> bool:
+        """Whether writes go through a connector."""
+        return self.is_remote() and self.has_connector()
+
+    def _write_remote(self, value: Any) -> bool:
+        """Write the value to the remote server.
+
+        Args:
+            value (Any):
+                The value to write.
+
+        Returns:
+            bool:
+                True only if the connector confirmed the write.
+
         """
         connector = self._require_remote_connector()
-        prev_value = self._read_internal_value()
-        write_successful = connector.write_node_value(
-            self._require_remote_resource(), value
+        return bool(
+            connector.write_node_value(self._require_remote_resource(), value)
         )
-        if write_successful:
-            return value
-        return prev_value
 
     @abstractmethod
     def _update_internal_value(self, value: Any) -> Any:
@@ -506,6 +699,15 @@ class VariableNode(DataModelNode):
     ) -> None:
         """Set a callback to be executed after updating the value.
 
+        The callback receives the previous and the new value and returns False
+        to reject the update, which then restores the previous value. For a
+        remote variable it runs AFTER the machine was written, so the restore
+        is a second remote write that can fail (the failure is logged and the
+        cache keeps the new value). If the variable never received a value from
+        the remote side the previous value is unknown: no restore write is
+        sent, an error is logged and only the cache is restored. Validators
+        belong in the pre-update callback.
+
         Args:
             callback (Callable[..., bool]):
                 The callback function.
@@ -532,6 +734,7 @@ class VariableNode(DataModelNode):
         value = connector.read_node_value(resource)
         if value is not None:
             self._update_internal_value(value)
+            self._mark_received()
         return None
 
     def _remote_subscription_callback(
@@ -547,6 +750,8 @@ class VariableNode(DataModelNode):
                 subscription.
         """
         self._update_internal_value(value)
+        if value is not None:
+            self._mark_received()
         self.notify_subscribers()
 
     def __getitem__(self, node_name: str) -> "VariableNode":
@@ -663,6 +868,10 @@ class NumericalVariableNode(VariableNode):
                 value, self._measure_unit
             )
         )
+        # The value as it was last given, in the unit of the variable.
+        # Converting the measure back can differ in the last digits (offset
+        # units such as degrees Celsius), so a restore sends this one.
+        self._raw_value: float = value
 
     @override
     def _read_internal_value(self) -> float:
@@ -674,26 +883,6 @@ class NumericalVariableNode(VariableNode):
 
         """
         return self._value.base_value  # type: ignore[no-any-return]
-
-    @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> float:
-        """Return the cached or latest numerical value from the remote server.
-
-        Args:
-            force_remote_read (bool, optional):
-                If True, use the connector to read the variable's latest value.
-                If False, returns the cached value.
-                Defaults to False.
-
-        Returns:
-            float:
-                The value of the numerical variable.
-        """
-        result = super()._read_remote_value(force_remote_read)
-        if result is None:
-            return self._read_internal_value()
-        assert isinstance(result, int | float)
-        return result
 
     @override
     def _update_internal_value(self, value: float) -> float:
@@ -709,7 +898,52 @@ class NumericalVariableNode(VariableNode):
 
         """
         self._value = self._value.__class__(value, self._measure_unit)
+        self._raw_value = value
         return self._value.base_value  # type: ignore[no-any-return]
+
+    @override
+    def _snapshot(self) -> tuple[AbstractMeasure, float]:
+        """Capture the measure of the variable and the raw value it came from.
+
+        The measure is replaced, never mutated, by an update, so keeping the
+        reference is a faithful snapshot of the cache. The raw value is what
+        was last given to the variable, in its unit.
+
+        Returns:
+            tuple[AbstractMeasure, float]:
+                The current measure and the raw value.
+
+        """
+        return self._value, self._raw_value
+
+    @override
+    def _restore(self, snapshot: tuple[AbstractMeasure, float]) -> None:
+        """Restore the exact measure and raw value captured by `_snapshot`.
+
+        Args:
+            snapshot (tuple[AbstractMeasure, float]):
+                The snapshot to restore.
+
+        """
+        self._value, self._raw_value = snapshot
+
+    @override
+    def _remote_value(self, snapshot: tuple[AbstractMeasure, float]) -> float:
+        """Return the value the machine originally had, in the variable unit.
+
+        The raw value is returned as it was, so offset units (degrees Celsius,
+        Fahrenheit) round-trip exactly instead of picking up conversion noise.
+
+        Args:
+            snapshot (tuple[AbstractMeasure, float]):
+                The snapshot captured by `_snapshot`.
+
+        Returns:
+            float:
+                The value in the unit of the variable.
+
+        """
+        return snapshot[1]
 
     def get_measure_unit(self) -> Enum:
         """Get the measure unit of the numerical variable.
@@ -720,23 +954,6 @@ class NumericalVariableNode(VariableNode):
 
         """
         return self._measure_unit
-
-    @override
-    def _update_remote_value(self, value: float) -> float:
-        """Update the value of the numerical variable remotely.
-
-        Args:
-            value (float):
-                New value.
-
-        Returns:
-            float:
-                The updated value of the numerical variable if the operation was
-                successful. Otherwise, it returns the previous value.
-        """
-        result = super()._update_remote_value(value)
-        assert isinstance(result, int | float)
-        return result
 
     def __str__(self) -> str:
         """Returns a string representation of the NumericalVariableNode.
@@ -823,25 +1040,6 @@ class StringVariableNode(VariableNode):
         return self._value
 
     @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> str:
-        """Return the cached or latest string value from the remote server.
-
-        Args:
-            force_remote_read (bool):
-                If True, use the connector to read the variable's latest value.
-                If False, returns the cached value. Defaults to False.
-
-        Returns:
-            str:
-                The value of the string variable.
-        """
-        result = super()._read_remote_value(force_remote_read)
-        if result is None:
-            return self._read_internal_value()
-        assert isinstance(result, str)
-        return result
-
-    @override
     def _update_internal_value(self, value: str) -> str:
         """Update the value of the string variable.
 
@@ -857,23 +1055,6 @@ class StringVariableNode(VariableNode):
         assert isinstance(value, str)
         self._value = value
         return self._value
-
-    @override
-    def _update_remote_value(self, value: str) -> str:
-        """Update the value of the string variable remotely.
-
-        Args:
-            value (str):
-                New value.
-
-        Returns:
-            str:
-                The updated value of the string variable if the operation was
-                successful. Otherwise, it returns the previous value.
-        """
-        result = super()._update_remote_value(value)
-        assert isinstance(result, str)
-        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """Raise NotImplementedError.
@@ -992,27 +1173,6 @@ class BooleanVariableNode(VariableNode):
         return self._value
 
     @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> bool:
-        """Return the cached or latest boolean value from the remote server.
-
-        Args:
-            force_remote_read (bool, optional):
-                If True, use the connector to read the variable's latest value.
-                If False, returns the cached value.
-                Defaults to False.
-
-        Returns:
-            bool:
-                The value of the boolean variable when the operation was
-                successful.Otherwise, returns the previous value.
-        """
-        result = super()._read_remote_value(force_remote_read)
-        if result is None:
-            return self._read_internal_value()
-        assert isinstance(result, bool)
-        return result
-
-    @override
     def _update_internal_value(self, value: bool) -> bool:
         """Update the value of the boolean variable.
 
@@ -1028,23 +1188,6 @@ class BooleanVariableNode(VariableNode):
         assert isinstance(value, bool)
         self._value = value
         return self._value
-
-    @override
-    def _update_remote_value(self, value: bool) -> bool:
-        """Update the value of the boolean variable remotely.
-
-        Args:
-            value (bool):
-                New value.
-
-        Returns:
-            bool:
-                The updated value of the boolean variable if the operation was
-                successful. Otherwise, returns the previous value.
-        """
-        result = super()._update_remote_value(value)
-        assert isinstance(result, bool)
-        return result
 
     def __getitem__(self, node_name: str) -> VariableNode:
         """Raise NotImplementedError.
@@ -1259,30 +1402,82 @@ class ObjectVariableNode(VariableNode):
         return value
 
     @override
-    def _read_remote_value(self, force_remote_read: bool = False) -> Any:
-        """Return the object value from remote server or cache.
+    def _read_value(self, force_remote_read: bool = False) -> Any:
+        """Get the value of the object variable.
 
-        If force_remote_read is True, reads all property values from remote.
+        A forced read of a remote object reads each property through its own
+        forced read (each one writes its own cache only when it really received
+        a value) and returns the values as they were returned, so the result
+        has the same domain as the property reads.
 
         Args:
             force_remote_read (bool, optional):
-                If True, use the connector to read the properties latest values.
-                If False, returns the cached value.
-                Defaults to False.
+                If True, refresh the properties from the remote server.
 
         Returns:
             Any:
                 The value of the object variable.
         """
-        self._require_remote_connector()
-        self._require_remote_resource()
-        value = {}
-        for property_name, property_node in self._properties.items():
-            if isinstance(property_node, VariableNode):
-                value[property_name] = property_node._read_remote_value(
-                    force_remote_read=force_remote_read
-                )
-        return value
+        if self.is_remote() and self.has_connector():
+            self._require_remote_resource()
+            if force_remote_read:
+                return {
+                    name: property_node._read_value(force_remote_read=True)
+                    for name, property_node in self._properties.items()
+                }
+        return self._read_internal_value()
+
+    @property
+    @override
+    def received_at(self) -> float | None:
+        """When the oldest property of the object last arrived.
+
+        Returns:
+            float | None:
+                The earliest `received_at` of the properties, or None if the
+                object has no property or one of them never received a value.
+
+        """
+        times = [
+            node.received_at
+            for node in self._properties.values()
+            if isinstance(node, VariableNode)
+        ]
+        if not times or any(t is None for t in times):
+            return None
+        return min(t for t in times if t is not None)
+
+    @override
+    def has_received_value(self) -> bool:
+        """Whether every property of the object received a value.
+
+        Returns:
+            bool:
+                For an object that is remote, or inside a remote variable: True
+                only if every property received a value (an object without
+                properties is True). For a local object: True only if every
+                property has a value of its own, so a local object with a
+                remote property that never received a value is False.
+
+        """
+        if self._is_remote_or_in_remote_variable():
+            return all(
+                node.received_at is not None
+                for node in self._properties.values()
+                if isinstance(node, VariableNode)
+            )
+        return all(
+            node.has_received_value()
+            for node in self._properties.values()
+            if isinstance(node, VariableNode)
+        )
+
+    @override
+    def _mark_received(self) -> None:
+        """Record that a value arrived for every property of the object."""
+        for node in self._properties.values():
+            if isinstance(node, VariableNode):
+                node._mark_received()
 
     @override
     def _update_internal_value(self, value: dict[str, Any]) -> dict[str, Any]:
@@ -1296,10 +1491,22 @@ class ObjectVariableNode(VariableNode):
             dict[str, Any]:
                 The updated value of the object variable.
 
+        Raises:
+            ValueError:
+                If the value does not contain exactly the properties of the
+                object. Nothing is updated in that case. (This is a check of
+                data that can come from a remote party, so it is not an
+                `assert`, which `python -O` removes.)
+
         """
-        assert len(value) == len(self._properties) and all(
-            prop in self._properties for prop in value
-        ), "The value must contain all properties of the object variable"
+        if set(value) != set(self._properties):
+            missing = sorted(set(self._properties) - set(value))
+            unknown = sorted(set(value) - set(self._properties))
+            raise ValueError(
+                f"The value of '{self.qualified_name}' must contain all the "
+                f"properties of the object variable: missing {missing}, "
+                f"unknown {unknown}"
+            )
         for property_name, property_value in value.items():
             self._properties[property_name]._update_internal_value(
                 property_value
@@ -1307,36 +1514,157 @@ class ObjectVariableNode(VariableNode):
         return self._read_internal_value()
 
     @override
-    def _update_remote_value(self, value: dict[str, Any]) -> dict[str, Any]:
-        """Update the value of the object variable remotely.
-
-        Args:
-            value:
-                New value.
+    def _snapshot(self) -> dict[str, Any]:
+        """Capture the state of every property.
 
         Returns:
             dict[str, Any]:
-                The updated value if the operation was successful.
-                Otherwise, returns the previous value.
+                The snapshot of each property, by name.
+
+        """
+        return {
+            name: node._snapshot() for name, node in self._properties.items()
+        }
+
+    @override
+    def _restore(self, snapshot: dict[str, Any]) -> None:
+        """Restore every property from its snapshot.
+
+        Args:
+            snapshot (dict[str, Any]):
+                The snapshot captured by `_snapshot`.
+
+        """
+        for name, property_snapshot in snapshot.items():
+            self._properties[name]._restore(property_snapshot)
+
+    @override
+    def _remote_value(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        """Return every property snapshot in the unit of the property.
+
+        Args:
+            snapshot (dict[str, Any]):
+                The snapshot captured by `_snapshot`.
+
+        Returns:
+            dict[str, Any]:
+                The value to send to the remote server, by property name.
+
+        """
+        return {
+            name: self._properties[name]._remote_value(property_snapshot)
+            for name, property_snapshot in snapshot.items()
+        }
+
+    @override
+    def _write_remote(self, value: dict[str, Any]) -> bool:
+        """Write the properties of the object variable to the remote server.
+
+        All the properties must be given: this is checked before the machine is
+        touched. If a property write is not confirmed, or raises, only the
+        properties that were confirmed are rolled back, in reverse order, to
+        the value (in the unit of the property) they had before. A rollback
+        that fails is logged with the names of the properties left unrestored.
+
+        Args:
+            value (dict[str, Any]):
+                The new value of the object variable.
+
+        Returns:
+            bool:
+                True only if every property write was confirmed.
+
+        Raises:
+            ValueError:
+                If the value does not contain exactly the properties of the
+                object.
+
         """
         self._require_remote_connector()
         self._require_remote_resource()
-        prev_value = self._read_internal_value()
-        write_successful = True
-        for property_name, property_value in value.items():
-            write_successful = self._properties[
-                property_name
-            ]._update_remote_value(property_value)
-            if not write_successful:
-                break
-
-        if not write_successful:
-            for property_name, property_value in prev_value.items():
-                self._properties[property_name]._update_remote_value(
+        if set(value) != set(self._properties):
+            missing = sorted(set(self._properties) - set(value))
+            unknown = sorted(set(value) - set(self._properties))
+            raise ValueError(
+                f"cannot write '{self.qualified_name}': missing properties "
+                f"{missing}, unknown properties {unknown}"
+            )
+        before = {
+            name: node._remote_value(node._snapshot())
+            for name, node in self._properties.items()
+        }
+        # A property that never received a value has only the default of its
+        # constructor as "previous value": the machine never held it.
+        known = {
+            name: node.has_received_value()
+            for name, node in self._properties.items()
+        }
+        written: list[str] = []
+        try:
+            for property_name, property_value in value.items():
+                if not self._properties[property_name]._write_remote(
                     property_value
+                ):
+                    self._roll_back(written, before, known)
+                    return False
+                written.append(property_name)
+        except Exception:
+            self._roll_back(written, before, known)
+            raise
+        return True
+
+    def _roll_back(
+        self,
+        written: list[str],
+        before: dict[str, Any],
+        known: dict[str, bool],
+    ) -> None:
+        """Restore the confirmed properties on the remote server.
+
+        A property whose previous value is unknown (it never received a value)
+        is not written back: that would send the default of its constructor to
+        the machine. It is logged instead.
+
+        Args:
+            written (list[str]):
+                The names of the properties whose write was confirmed.
+            before (dict[str, Any]):
+                The previous value of every property, in its own unit.
+            known (dict[str, bool]):
+                Whether the previous value of each property is a real one.
+
+        """
+        unrestored: list[str] = []
+        for property_name in reversed(written):
+            if not known[property_name]:
+                _logger.error(
+                    "Cannot roll back property '%s' of '%s': the previous "
+                    "value is unknown (no value was ever received)",
+                    property_name,
+                    self.qualified_name,
                 )
-            return prev_value
-        return value
+                unrestored.append(property_name)
+                continue
+            try:
+                restored = self._properties[property_name]._write_remote(
+                    before[property_name]
+                )
+            except Exception:
+                _logger.exception(
+                    "Rollback of property '%s' of '%s' raised",
+                    property_name,
+                    self.qualified_name,
+                )
+                restored = False
+            if not restored:
+                unrestored.append(property_name)
+        if unrestored:
+            _logger.error(
+                "Failed to roll back properties %s of '%s': the machine keeps "
+                "their new values",
+                unrestored,
+                self.qualified_name,
+            )
 
     def __getitem__(self, property_name: str) -> VariableNode:
         """Get a property of the object variable.

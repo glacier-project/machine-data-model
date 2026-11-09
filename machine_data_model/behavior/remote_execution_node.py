@@ -5,10 +5,12 @@ by sending messages and waiting for responses.
 """
 
 from abc import abstractmethod
-from typing import Any
+import logging
+from typing import Any, ClassVar
 
 from typing_extensions import override
 
+from machine_data_model.behavior.condition import _invalid_operator_message
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
@@ -21,11 +23,17 @@ from machine_data_model.behavior.execution_context import (
     resolve_string_in_context,
     resolve_value,
 )
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+    sanitize_detail,
+)
 from machine_data_model.behavior.local_execution_node import (
     WaitConditionOperator,
 )
 from machine_data_model.protocols.frost_v1.frost_header import (
     MethodMsgName,
+    MsgName,
     MsgNamespace,
     MsgType,
     VariableMsgName,
@@ -35,10 +43,39 @@ from machine_data_model.protocols.frost_v1.frost_message_builder import (
     FrostMessageBuilder,
 )
 from machine_data_model.protocols.frost_v1.frost_payload import (
+    ErrorCode,
+    ErrorPayload,
     MethodPayload,
     VariablePayload,
 )
 from machine_data_model.tracing.events import trace_control_flow_step
+
+_logger = logging.getLogger(__name__)
+
+# The text of a remote error is controlled by the remote party: keep only the
+# beginning of it.
+_MAX_REMOTE_ERROR_TEXT = 200
+
+
+def _format_error_code(code: object) -> str:
+    """Format the error code of a remote error as its name or its number.
+
+    Args:
+        code (object):
+            The code as sent by the remote party.
+
+    Returns:
+        str:
+            The name of a known code (for example "NOT_ALLOWED"), the integer
+            for an unknown one, or a bounded text for anything else.
+
+    """
+    if isinstance(code, int):
+        try:
+            return ErrorCode(code).name
+        except ValueError:
+            return str(int(code))
+    return sanitize_detail(str(code), 32)
 
 
 class RemoteExecutionNode(ControlFlowNode):
@@ -59,6 +96,36 @@ class RemoteExecutionNode(ControlFlowNode):
     sender_id: str
     remote_id: str
     _message_builder: FrostMessageBuilder
+
+    # The namespace and message name of the request this node sends. An error
+    # message is only accepted as the answer to that kind of request. A node
+    # that does not declare it never accepts an error (fails closed).
+    request_kind: ClassVar[tuple[MsgNamespace, MsgName] | None] = None
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Warn about a concrete subclass that does not declare its kind.
+
+        Without `request_kind` every remote error is ignored, so a node that
+        waits for an answer would wait forever when the remote party fails.
+
+        Args:
+            **kwargs (Any):
+                Class keyword arguments, passed on.
+
+        """
+        super().__init_subclass__(**kwargs)
+        # `ABCMeta` has not computed `__abstractmethods__` yet: look for the
+        # abstract methods that are still unimplemented.
+        is_abstract = any(
+            getattr(getattr(cls, name, None), "__isabstractmethod__", False)
+            for name in dir(cls)
+        )
+        if cls.request_kind is None and not is_abstract:
+            _logger.warning(
+                "%s does not declare request_kind: errors sent by the remote "
+                "party are ignored and the node can wait forever",
+                cls.__qualname__,
+            )
 
     def __init__(
         self,
@@ -142,6 +209,32 @@ class RemoteExecutionNode(ControlFlowNode):
 
         """
 
+    @override
+    def release(self, context: ExecutionContext) -> list[FrostMessage]:
+        """Build the cleanup message for a request that was already sent.
+
+        If the node never sent its request there is nothing to clean up on
+        the remote side. Otherwise (the request is in flight, or its response
+        was received and not yet cleaned up) the cleanup message of the node is
+        returned, for example the unsubscribe of a remote event wait.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        Returns:
+            list[FrostMessage]:
+                The cleanup message, if any.
+
+        """
+        if (
+            context.active_request is None
+            and context.status is not ControlFlowStatus.RESPONSE_RECEIVED
+        ):
+            return []
+        message = self._create_cleanup_msg(context)
+        return [message] if message is not None else []
+
     def handle_response(
         self, context: ExecutionContext, response: FrostMessage
     ) -> bool:
@@ -173,6 +266,62 @@ class RemoteExecutionNode(ControlFlowNode):
         context.status = ControlFlowStatus.RESPONSE_RECEIVED
         context.active_request = None
         return True
+
+    def handle_error(
+        self, context: ExecutionContext, error_message: FrostMessage
+    ) -> ExecutionError | None:
+        """Handle an error message received from the remote node.
+
+        The message is only accepted if it answers the request this node is
+        waiting for: same correlation id as the active request, sent by the
+        remote node, addressed to this one. Anything else (stale, duplicate or
+        foreign) is ignored.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            error_message (FrostMessage):
+                The error message received from the remote node.
+
+        Returns:
+            ExecutionError | None:
+                A `REMOTE_ERROR` carrying the (truncated) text of the remote
+                error, or None if the message does not answer the request.
+
+        """
+        kind = self.request_kind
+        if kind is None:
+            _logger.debug(
+                "%s declares no request_kind: ignoring an error message",
+                type(self).__qualname__,
+            )
+            return None
+        if (
+            not error_message.header.matches(
+                _type=MsgType.ERROR, _namespace=kind[0], _msg_name=kind[1]
+            )
+            or context.active_request is None
+            or error_message.header.type is not MsgType.ERROR
+            or error_message.correlation_id != context.active_request
+            or error_message.sender
+            != resolve_string_in_context(self.remote_id, context)
+            or self.sender_id != error_message.target
+            or not isinstance(error_message.payload, ErrorPayload)
+        ):
+            return None
+        # The text and the code come from the remote party: sanitize them where
+        # they enter the error, so no log line or answer can carry control
+        # characters or an unbounded text.
+        text = sanitize_detail(
+            str(error_message.payload.error_message), _MAX_REMOTE_ERROR_TEXT
+        )
+        return ExecutionError(
+            ExecutionErrorCode.REMOTE_ERROR,
+            f"remote '{sanitize_detail(self.remote_id, 64)}' answered with "
+            f"error {_format_error_code(error_message.payload.error_code)}: "
+            f"{text}",
+            node=resolve_string_in_context(self.node, context),
+        )
 
     @override
     def execute(self, context: ExecutionContext) -> ExecutionNodeResult:
@@ -262,6 +411,8 @@ class CallRemoteMethodNode(RemoteExecutionNode):
             The keyword arguments to pass to the remote method.
 
     """
+
+    request_kind = (MsgNamespace.METHOD, MethodMsgName.INVOKE)
 
     args: list[Any]
     kwargs: dict[str, Any]
@@ -391,6 +542,8 @@ class ReadRemoteVariableNode(RemoteExecutionNode):
 
     """
 
+    request_kind = (MsgNamespace.VARIABLE, VariableMsgName.READ)
+
     store_as: str
 
     def __init__(
@@ -511,6 +664,8 @@ class WriteRemoteVariableNode(RemoteExecutionNode):
 
     """
 
+    request_kind = (MsgNamespace.VARIABLE, VariableMsgName.WRITE)
+
     value: Any
 
     def __init__(
@@ -623,6 +778,8 @@ class WaitRemoteEventNode(RemoteExecutionNode):
 
     """
 
+    request_kind = (MsgNamespace.VARIABLE, VariableMsgName.SUBSCRIBE)
+
     rhs: Any
     op: WaitConditionOperator
 
@@ -707,7 +864,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         elif self.op == WaitConditionOperator.GE:
             res = lhs >= rhs
         else:
-            raise ValueError(f"Invalid operator: {self.op}")
+            raise ValueError(_invalid_operator_message(self.op))
 
         return res
 

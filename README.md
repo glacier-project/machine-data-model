@@ -248,6 +248,201 @@ post-callbacks.
 These callbacks enable operations to be executed **before** or **after** the method invocation,
 allowing for user-defined interactions with the data model.
 
+#### Requires (preconditions)
+
+Every method node (`MethodNode`, `AsyncMethodNode`, `CompositeMethodNode`) can
+declare `requires`: a list of conditions on variables of the data model that
+must **all** hold (AND) for the method to be called. A call that does not
+satisfy them is rejected before anything runs: no callback, no pre-call, no
+execution context.
+
+```yaml
+!!MethodNode
+  name: "start"
+  parameters:
+    - !!StringVariableNode
+      name: "unit"
+      default_value: "/plant/conveyor/mode"
+  requires:
+    - variable: "/plant/conveyor/mode"
+      operator: "=="
+      rhs: 2
+    - variable: "/plant/conveyor/speed"
+      operator: ">="
+      rhs: 10
+    - variable: "${unit}"
+      operator: "!="
+      rhs: 0
+```
+
+Each condition has exactly the keys `variable`, `operator` and `rhs`.
+`variable` is the path or the id of a variable, `operator` is one of `==`,
+`!=`, `<`, `>`, `<=`, `>=`, and `rhs` is a literal or a `${name}` template.
+A `${name}` (in `variable` or `rhs`) must be the name of a parameter of the
+method; this is checked when the method is built. **Always quote the
+operator** in YAML: an unquoted `!=` is read as a YAML tag and an unquoted `>=`
+as a block scalar indicator. The dumper writes `requires` only when it is not
+empty, so models without it are dumped as before.
+
+The conditions are evaluated with the **cached** value of the variables: a
+call never reads a remote variable to decide whether it can go on. When the
+data model is built, the path of every condition without a `${...}` must name
+a variable of the model, otherwise building fails with a `ValueError` that
+names the method and the path. A templated path depends on the arguments of
+the call and is checked when the method is called. The check runs once, when
+the `DataModel` is built: a method added to the model afterwards (or a
+parameter added or removed afterwards) is only checked when it is called, and a
+problem is then reported as `INVALID_CONFIGURATION`.
+
+The `rhs` is read by the YAML parser, which applies the YAML 1.1 rules of
+PyYAML: an unquoted `yes`, `no`, `on` or `off` becomes a boolean, `0x10` is the
+integer 16, `010` is 8, `1_000` is 1000, `12:30:00` is an integer (sexagesimal),
+`2024-01-31` is a date, and `null` or `~` is `None`. Quote the value
+(`rhs: "yes"`) when you mean a string. A `${name}` template is only resolved
+when `rhs` is a string; it is rejected inside a list or a mapping.
+In a string `rhs` (or `variable`) every `${...}` is a template: there is no
+escape for a literal `${x}`. Writing `$${x}` or `\${x}` still resolves the
+template and keeps the extra character (`$` or `\`) in front of the value.
+
+A rejected call raises `MethodPreconditionError`. Its `error` is an
+`ExecutionError` with one of these codes, its `outcomes` lists the outcome of
+every condition that was evaluated:
+
+| Code | Meaning | Frost error code |
+| --- | --- | --- |
+| `PRECONDITION_NOT_MET` | at least one condition does not hold | `NOT_ALLOWED` |
+| `NO_DATA` | no condition fails, but one cannot be evaluated: the variable has no value, a remote variable has not received a value yet, or the value cannot be compared | `NOT_ALLOWED` |
+| `INVALID_CONFIGURATION` | a condition can never be evaluated: the variable does not exist, is not a variable, is remote without a connector, or a `${name}` is missing from the call | `UNKNOWN` (a server-side fault, not a mistake of the caller) |
+
+When several conditions are unmet, the message names the first five and the
+number of the others, and the code is chosen over all of them
+(`INVALID_CONFIGURATION`, then `PRECONDITION_NOT_MET`, then `NO_DATA`).
+The message never contains the value the variable had; that value is in
+`error.observed` (bounded, for logs and diagnostics) and is **never sent over
+Frost**.
+
+```python
+from machine_data_model.nodes.method_node import MethodPreconditionError
+
+method = data_model.get_node("/plant/conveyor/start")
+
+if method.is_executable():          # True only if every condition holds
+    method()
+
+try:
+    method()
+except MethodPreconditionError as error:
+    print(error.error.code, error.error.message)
+
+for outcome in method.evaluate_requires():   # diagnostic, runs nothing
+    print(outcome.result, outcome.message)
+```
+
+`is_executable(**kwargs)` returns `False` when a condition is unmet, has no
+data or is misconfigured. `evaluate_requires(**kwargs)` returns the outcome of
+each condition and lets a misconfiguration (`ConditionError`) propagate.
+Neither of them calls the callbacks or changes a variable.
+
+Through the Frost protocol, an `INVOKE` of a method whose requires are not
+satisfied is answered with an error message (see the table); the method is not
+invoked.
+
+##### Calling a method with requires from a control flow graph
+
+A `CallMethodNode` that calls a method with `requires` must say what to do when
+they do not hold, with `on_unmet`:
+
+```yaml
+- !!CallMethodNode
+  method: "/plant/start"
+  on_unmet: "fail"        # fail the node at once
+
+- !!CallMethodNode
+  method: "/plant/start"
+  on_unmet: "wait"        # keep waiting, try again when a variable changes
+  timeout: 30.0           # optional, in seconds
+```
+
+- There is no default. Without `on_unmet` the node fails with
+  `INVALID_CONFIGURATION` **before the call, whether the requires hold or
+  not**, so a model that is wrong fails every time and not only when a
+  condition happens to be unmet. When the data model is built, every such node
+  is reported once with a warning that names the composite method, the index of
+  the node and the callee. Build the model with
+  `DataModelBuilder(strict_requires=True)` (or
+  `DataModel(..., strict_requires=True)`) to make it an error. The option is an
+  argument, not a key of the YAML file. A callee that is only known at run time
+  (a templated path) is checked when the node runs; `on_unmet` on a callee that
+  has no `requires` is accepted and has no effect. Remote call nodes
+  (`CallRemoteMethodNode`) are not concerned.
+- `fail`: the node fails with the code and message of the rejection
+  (`PRECONDITION_NOT_MET`, `NO_DATA` or `INVALID_CONFIGURATION`), prefixed with
+  the name of the callee.
+- `wait`: the node stays running and subscribes to **every** variable that the
+  requires of the callee read (a condition that holds can still stop holding).
+  When one of them changes, the call is tried again, and it is made only if the
+  requires hold at that moment: the check and the call are one step, there is
+  no separate wait followed by a call. A condition that can never be evaluated
+  (`INVALID_CONFIGURATION`: a missing variable, a remote variable without a
+  connector) is never waited on.
+- `timeout` is a number of seconds greater than zero and is only accepted with
+  `on_unmet: wait`. The clock starts at the first wait. When it runs out, the
+  call is tried one last time, and only if the requires still do not hold the
+  node fails with `TIMEOUT`, whose message names the callee and the last unmet
+  conditions. Write fractions as `1.0e-7`, not `1e-7`: PyYAML reads the latter
+  as a string.
+- The wait is removed (subscriptions, deadline) whenever the node ends, fails
+  or is aborted. It is traced like a `WaitConditionNode` (`wait_start` and
+  `wait_end`).
+
+A complete model with both modes is in `examples/requires/requires.yml`, and
+`examples/requires/requires.py` loads it in strict mode and tries it.
+
+Limits to keep in mind:
+
+- **Remote methods**: `requires` is evaluated locally, in this data model,
+  before the call is forwarded to the connector. The remote server may have
+  its own checks, which are not visible here.
+- **"Received" means "arrived", not "recent"**: a remote variable counts as
+  having a value once a value arrived from the remote side (`received_at`, the
+  time it arrived in this process). A retained MQTT message or the first read at
+  start-up looks fresh. There is no staleness limit, and `received_at` is not
+  reset when the connection drops, so a variable keeps its last value after a
+  disconnect.
+- **Cached value**: a remote variable can have changed since its last update.
+  A condition is a guard, not a lock: the state can change between the check
+  and the action.
+- **No authorization**: the Frost protocol has no authorization. Anyone who can
+  send an `INVOKE` can learn from the error text which conditions of a method
+  are not met. Do not put secrets in condition paths or right-hand sides.
+- **Nothing wakes a waiting node by itself**: there is no timer. A `wait`, and
+  its `timeout`, advance only when something resumes the context: a change of
+  one of the watched variables, or a call to `resume_execution`. A node that
+  waits on a variable that never changes is not woken at the deadline; it
+  times out the next time it is resumed.
+- **A `wait` on a remote variable that never received a value**: such a
+  variable gives `NO_DATA` ("no value received yet") until the connector
+  delivers a value, and a confirmed write does not count as one. With a
+  connector that never reports changes the wait does not end by itself:
+  its `timeout` is only checked when something resumes the context (a
+  change or `resume_execution`), and nothing does. Set a `timeout` anyway
+  and make sure something resumes the context. The mapping of connector
+  failures (connection lost, timeout, closed connector) to `NO_DATA` is
+  tested with mocks only, not against a live OPC UA server.
+- **Templated paths are chosen by the caller**: with `variable: "${unit}"`
+  the caller picks, through the argument, the variable that is tested, and the
+  error text tells whether it matched. Do not template a path over variables
+  that must stay private.
+- **No thread safety**: connector threads and the Frost handlers run
+  without a lock, so races are known (for example between a variable
+  change and a check). A single executor thread is a follow-up.
+- **One correlation id per context**: all the remote requests of one
+  context share one correlation id, so a late or duplicate answer can be
+  taken for the answer to the next request sent to the same remote.
+- **A plain `MethodNode` that raises over Frost**: if its callback raises
+  while the method is called through the Frost protocol, the request is
+  left unanswered (this was already so before `requires`).
+
 ## Connectors
 
 Connectors keep the public node API protocol-agnostic. A variable can still be

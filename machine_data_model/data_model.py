@@ -3,7 +3,14 @@ import logging
 from typing import Any
 import weakref
 
-from machine_data_model.behavior.local_execution_node import LocalExecutionNode
+from machine_data_model.behavior.execution_context import (
+    ExecutionContext,
+    contains_template_variables,
+)
+from machine_data_model.behavior.local_execution_node import (
+    CallMethodNode,
+    LocalExecutionNode,
+)
 from machine_data_model.behavior.remote_execution_node import (
     RemoteExecutionNode,
 )
@@ -42,6 +49,7 @@ class DataModel:
         description: str = "",
         root: FolderNode | None = None,
         connectors: list[AbstractConnector] | None = None,
+        strict_requires: bool = False,
     ):
         """Initialize the data model.
 
@@ -62,7 +70,13 @@ class DataModel:
             connectors (list[AbstractConnector] | None, optional):
                 A list of connectors used to connect to remote servers.
                 Defaults to None.
+            strict_requires (bool, optional):
+                If True, a call node that calls a method with `requires`
+                without setting `on_unmet` makes building the data model fail
+                with a `ValueError`; otherwise it only logs a warning (the
+                node fails at run time either way). Defaults to False.
         """
+        self._strict_requires = strict_requires
         self._name = name
         self._machine_category = machine_category
         self._machine_type = machine_type
@@ -77,6 +91,12 @@ class DataModel:
         )
         self._closed = False
         self._connector_finalizer: weakref.finalize | None = None
+        # Index of the live execution contexts of the composite methods of this
+        # model, by context id, so that a trigger carrying only a context id
+        # (a subscription, a response) can find the context that waits.
+        self._contexts: dict[
+            str, tuple[CompositeMethodNode, ExecutionContext]
+        ] = {}
 
         self._connectors: dict[str, AbstractConnector] = (
             self._initialize_connectors(connectors)
@@ -93,6 +113,10 @@ class DataModel:
             self._nodes: dict[str, DataModelNode] = {}
             self._register_nodes(self._root)
 
+            # fail at load on a requires condition that can never be evaluated
+            self._validate_requires()
+            self._validate_call_nodes()
+
             # set up the connector and resolved remote resource for each node
             self._setup_inheritable_specs(self._root)
             for node in self._nodes.values():
@@ -104,9 +128,111 @@ class DataModel:
                     node, ObjectVariableNode
                 ):
                     node.subscribe_to_remote_changes()
+
+            # connectors are set now: a requires variable that is remote but
+            # has none could never be evaluated
+            self._validate_requires_connectors()
         except Exception:
             self._cleanup_connectors(self._connectors.values())
             raise
+
+    def _validate_requires(self) -> None:
+        """Check the static variable paths of the `requires` of every method.
+
+        A condition whose `variable` has no `${...}` template must name a
+        variable of this data model. A templated path depends on the arguments
+        of the call and is checked when the method is called.
+
+        Raises:
+            ValueError:
+                If a method has a condition whose path is not found or is not
+                a variable.
+
+        """
+        for node in list(self._nodes.values()):
+            if not isinstance(node, MethodNode):
+                continue
+            for condition in node.requires:
+                if contains_template_variables(condition.variable):
+                    continue
+                target = self.get_node(condition.variable)
+                if target is None:
+                    raise ValueError(
+                        f"requires of method '{node.qualified_name}': "
+                        f"variable '{condition.variable}' not found"
+                    )
+                if not isinstance(target, VariableNode):
+                    raise ValueError(
+                        f"requires of method '{node.qualified_name}': "
+                        f"node '{condition.variable}' is not a variable"
+                    )
+
+    def _validate_call_nodes(self) -> None:
+        """Report call nodes that miss `on_unmet` for a callee with `requires`.
+
+        Such a node fails at run time with `INVALID_CONFIGURATION`, whether the
+        requires hold or not. It is reported once, when the data model is
+        built (after every node is registered, so the order in the file does
+        not matter): as a warning, or as a `ValueError` if `strict_requires` is
+        set. A callee that is not known statically (a templated path) is only
+        checked at run time. Remote call nodes are not concerned.
+
+        Raises:
+            ValueError:
+                If `strict_requires` is set and a call node misses `on_unmet`.
+
+        """
+        for node in list(self._nodes.values()):
+            if not isinstance(node, CompositeMethodNode):
+                continue
+            for index, cf_node in enumerate(node.cfg.nodes()):
+                if not isinstance(cf_node, CallMethodNode):
+                    continue
+                if cf_node.on_unmet is not None or not cf_node.is_node_static():
+                    continue
+                callee = cf_node.get_ref_node()
+                if not isinstance(callee, MethodNode) or not callee.requires:
+                    continue
+                message = (
+                    f"call node #{index} of '{node.qualified_name}' calls "
+                    f"'{callee.qualified_name}', which has requires, without "
+                    "on_unmet: it fails at run time with "
+                    "INVALID_CONFIGURATION; set on_unmet to 'wait' or 'fail'"
+                )
+                if self._strict_requires:
+                    raise ValueError(message)
+                _logger.warning(message)
+
+    def _validate_requires_connectors(self) -> None:
+        """Check that the static `requires` variables have their connector.
+
+        Run after the connectors were set up on the nodes. A condition on a
+        remote variable without a connector can never be evaluated (it would
+        fail at every call with `INVALID_CONFIGURATION`), so the load fails.
+
+        Raises:
+            ValueError:
+                If a static `requires` path names a remote variable that has
+                no connector.
+
+        """
+        for node in list(self._nodes.values()):
+            if not isinstance(node, MethodNode):
+                continue
+            for condition in node.requires:
+                if contains_template_variables(condition.variable):
+                    continue
+                target = self.get_node(condition.variable)
+                if (
+                    isinstance(target, VariableNode)
+                    and target.is_remote()
+                    and not target.has_connector()
+                ):
+                    raise ValueError(
+                        f"requires of method '{node.qualified_name}': "
+                        f"variable '{condition.variable}' is remote but has "
+                        f"no connector"
+                    )
 
     def _initialize_connectors(
         self, connectors: list[AbstractConnector] | None
@@ -320,6 +446,54 @@ class DataModel:
         if connector is None:
             raise KeyError(f"Connector with name '{name}' not found")
         return connector
+
+    def register_context(
+        self, composite: CompositeMethodNode, context: ExecutionContext
+    ) -> None:
+        """Index a live execution context of a composite method.
+
+        Called by the composite method when it creates a context.
+
+        Args:
+            composite (CompositeMethodNode):
+                The composite method that owns the context.
+            context (ExecutionContext):
+                The execution context.
+
+        """
+        self._contexts[context.id()] = (composite, context)
+
+    def unregister_context(self, context_id: str) -> None:
+        """Remove an execution context from the index, if it is there.
+
+        Args:
+            context_id (str):
+                The id of the context.
+
+        """
+        self._contexts.pop(context_id, None)
+
+    def find_context(
+        self, context_id: str
+    ) -> tuple[CompositeMethodNode, ExecutionContext] | None:
+        """Find a live execution context by id, at any nesting level.
+
+        Known limits: only contexts created while the composite was attached
+        to this model are indexed, and a composite removed with `remove_child`
+        keeps its live contexts in the index until they are deleted (the model
+        does not unregister nodes).
+
+        Args:
+            context_id (str):
+                The id of the context.
+
+        Returns:
+            tuple[CompositeMethodNode, ExecutionContext] | None:
+                The composite method that owns the context and the context, or
+                None if the id is unknown (never created, or already deleted).
+
+        """
+        return self._contexts.get(context_id)
 
     def _register_node(self, node: DataModelNode) -> None:
         """Register a node in the data model for id-based access.

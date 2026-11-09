@@ -236,6 +236,20 @@ class ErrorMessages(str, Enum):
             Error message for unsupported protocol version.
         BAD_RESPONSE:
             Error message for invalid or malformed response.
+        PRECONDITION_NOT_MET:
+            Error message for a method whose preconditions do not hold.
+        NO_DATA:
+            Error message for an operation that needs a value that is not
+            available.
+        TIMEOUT:
+            Error message for an operation that timed out.
+        REMOTE_ERROR:
+            Error message for an operation that failed on a remote party.
+        INVALID_CONFIGURATION:
+            Error message for an operation that cannot be carried out because
+            the machine data model is misconfigured (a server-side fault).
+        UNEXPECTED_ERROR:
+            Error message for an unexpected internal error.
 
     """
 
@@ -252,6 +266,15 @@ class ErrorMessages(str, Enum):
         "The requested version of the protocol is not supported"
     )
     BAD_RESPONSE = "The response is invalid or malformed"
+    PRECONDITION_NOT_MET = "The preconditions of the operation are not met"
+    NO_DATA = "The data required by the operation is not available"
+    TIMEOUT = "The operation timed out"
+    REMOTE_ERROR = "The operation failed on a remote party"
+    INVALID_CONFIGURATION = (
+        "The operation cannot be carried out: the machine data model is "
+        "misconfigured"
+    )
+    UNEXPECTED_ERROR = "An unexpected error occurred during the operation"
 
 
 @dataclass(init=True, slots=True)

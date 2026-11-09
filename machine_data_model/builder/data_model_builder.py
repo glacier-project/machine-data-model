@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+from machine_data_model.behavior.condition import Condition
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
 from machine_data_model.behavior.local_execution_node import (
@@ -81,6 +82,64 @@ def _build_kwargs(
     for key, value in data.items():
         kwargs[str(key)] = value
     return kwargs
+
+
+_REQUIRES_KEYS = ("variable", "operator", "rhs")
+
+
+def _build_requires(value: Any) -> tuple[Condition, ...]:
+    """Build the conditions of a `requires` field.
+
+    Args:
+        value (Any):
+            The value of the field: a list of mappings with exactly the keys
+            `variable`, `operator` and `rhs`, or None.
+
+    Returns:
+        tuple[Condition, ...]:
+            The conditions, in order.
+
+    Raises:
+        ValueError:
+            If the value is not a list, an item is not a mapping, a key is
+            unknown or missing, the variable is not a string or the operator
+            is not valid.
+
+    """
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(
+            f"'requires' must be a list of conditions, got "
+            f"{type(value).__name__}"
+        )
+    conditions: list[Condition] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"requires[{index}] must be a mapping with the keys "
+                f"{', '.join(_REQUIRES_KEYS)}, got {type(item).__name__}"
+            )
+        try:
+            kwargs = _build_kwargs(item, dict.fromkeys(_REQUIRES_KEYS))
+            missing = [key for key in _REQUIRES_KEYS if key not in item]
+            if missing:
+                raise ValueError(
+                    f"Missing keys: {', '.join(missing)}. "
+                    f"Required keys: {', '.join(_REQUIRES_KEYS)}"
+                )
+            if not isinstance(kwargs["variable"], str):
+                raise ValueError("'variable' must be a string")
+            conditions.append(
+                Condition(
+                    variable=kwargs["variable"],
+                    operator=get_condition_operator(str(kwargs["operator"])),
+                    rhs=kwargs["rhs"],
+                )
+            )
+        except ValueError as exp:
+            raise ValueError(f"requires[{index}]: {exp}") from exp
+    return tuple(conditions)
 
 
 def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
@@ -287,8 +346,10 @@ def _get_method_node(
         "returns": [],
         "connector_name": None,
         "remote_resource_spec": None,
+        "requires": [],
     }
     kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["requires"] = _build_requires(kwargs["requires"])
     return ctor(**kwargs)
 
 
@@ -414,16 +475,20 @@ def _get_call_method_node(
 
     """
     data = loader.construct_mapping(node, deep=True)
-    default_kwargs = {
+    default_kwargs: dict[str, Any] = {
         "method": "",
         "args": [],
         "kwargs": {},
+        "on_unmet": None,
+        "timeout": None,
     }
     kwargs = _build_kwargs(data, default_kwargs)
     return CallMethodNode(
         method_node=kwargs["method"],
         args=kwargs["args"],
         kwargs=kwargs["kwargs"],
+        on_unmet=kwargs["on_unmet"],
+        timeout=kwargs["timeout"],
     )
 
 
@@ -575,9 +640,11 @@ def _get_composite_method_node(
         "parameters": [],
         "returns": [],
         "cfg": [],
+        "requires": [],
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["cfg"] = ControlFlow(kwargs["cfg"])
+    kwargs["requires"] = _build_requires(kwargs["requires"])
     return CompositeMethodNode(**kwargs)
 
 
@@ -736,9 +803,42 @@ class DataModelBuilder:
 
     cache: dict[str, DataModel]
 
-    def __init__(self) -> None:
-        """Initialize a new DataModelBuilder instance."""
+    def __init__(self, strict_requires: bool = False) -> None:
+        """Initialize a new DataModelBuilder instance.
+
+        Args:
+            strict_requires (bool):
+                If True, building a data model fails when a call node calls a
+                method with `requires` without setting `on_unmet`; otherwise
+                that only logs a warning. It is an argument of the builder,
+                not a key of the YAML file.
+
+        """
         self.cache = {}
+        self.strict_requires = strict_requires
+
+    def _create_data_model(self, data: Any) -> DataModel:
+        """Create the data model from the loaded YAML mapping.
+
+        Args:
+            data (Any):
+                The mapping read from the YAML file or string.
+
+        Returns:
+            DataModel:
+                The data model.
+
+        Raises:
+            ValueError:
+                If the file sets `strict_requires` itself.
+
+        """
+        if isinstance(data, dict) and "strict_requires" in data:
+            raise ValueError(
+                "'strict_requires' is not a key of the data model file: set "
+                "it on the DataModelBuilder"
+            )
+        return DataModel(**data, strict_requires=self.strict_requires)
 
     def from_string(self, data_model_string: str) -> DataModel:
         """Create a data model from a YAML string.
@@ -756,9 +856,7 @@ class DataModelBuilder:
         data = yaml.load(data_model_string, Loader=yaml.SafeLoader)
 
         # Create the data model
-        data_model = DataModel(**data)
-
-        return data_model
+        return self._create_data_model(data)
 
     def _load_data_model(self, data_model_path: str) -> DataModel:
         """Create a data model from a yaml file.
@@ -774,9 +872,8 @@ class DataModelBuilder:
         """
         with open(data_model_path) as file:
             data = yaml.load(file, Loader=yaml.SafeLoader)
-        data_model = DataModel(**data)
 
-        return data_model
+        return self._create_data_model(data)
 
     def get_data_model(self, data_model_path: str) -> DataModel:
         """Get a data model from a yaml file.

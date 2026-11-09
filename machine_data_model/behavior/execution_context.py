@@ -9,6 +9,7 @@ from enum import IntEnum
 import re
 from typing import Any
 
+from machine_data_model.behavior.execution_error import ExecutionError
 from machine_data_model.nodes.subscription.variable_subscription import (
     SubscriptionCallback,
 )
@@ -170,6 +171,7 @@ class ExecutionContext:
     _status: ControlFlowStatus
     active_request: str | None
     _subscription_callback: SubscriptionCallback | None
+    _error: ExecutionError | None
 
     def __init__(self, context_id: str, **kwargs: dict[str, Any]):
         """Initialize a new ExecutionContext instance.
@@ -187,6 +189,7 @@ class ExecutionContext:
         self._status = ControlFlowStatus.READY
         self.active_request: str | None = None
         self._subscription_callback = None
+        self._error = None
         self.set_all_values(**kwargs)
 
     def set_all_values(self, **kwargs: dict[str, Any]) -> None:
@@ -314,8 +317,77 @@ class ExecutionContext:
         self._pc = pc
 
     def deactivate(self) -> None:
-        """Deactivate the context."""
-        self._status = ControlFlowStatus.COMPLETED
+        """Complete the context.
+
+        Does nothing if the context is already terminal, so that a failed
+        context is never turned into a completed one.
+        """
+        if self.is_active():
+            self._status = ControlFlowStatus.COMPLETED
+
+    def fail(self, error: ExecutionError) -> None:
+        """Terminate an active context in error.
+
+        The context becomes inactive with status `FAILED`, the error is stored
+        and the pending request, if any, is cleared. Terminal states are final:
+        a completed or failed context cannot be failed (see `reject_completion`
+        for the completion check).
+
+        Args:
+            error (ExecutionError):
+                The reason of the failure.
+
+        Raises:
+            ValueError:
+                If the context is already terminal.
+
+        """
+        if not self.is_active():
+            raise ValueError(
+                f"cannot fail context {self._context_id}: it is already "
+                f"{self._status.name}"
+            )
+        self._set_failed(error)
+
+    def reject_completion(self, error: ExecutionError) -> None:
+        """Turn a just-completed context into a failed one.
+
+        Used by the completion check of a composite method (for example a
+        return value that the control flow never set), which can only be done
+        after the graph ran to its end. Only a `COMPLETED` context is accepted.
+
+        Args:
+            error (ExecutionError):
+                The reason of the failure.
+
+        Raises:
+            ValueError:
+                If the context is not `COMPLETED`.
+
+        """
+        if self._status is not ControlFlowStatus.COMPLETED:
+            raise ValueError(
+                f"cannot reject the completion of context {self._context_id}: "
+                f"it is {self._status.name}"
+            )
+        self._set_failed(error)
+
+    def _set_failed(self, error: ExecutionError) -> None:
+        """Set the failed state."""
+        self._status = ControlFlowStatus.FAILED
+        self._error = error
+        self.active_request = None
+
+    @property
+    def error(self) -> ExecutionError | None:
+        """Get the error that terminated the context, if any.
+
+        Returns:
+            ExecutionError | None:
+                The error set by `fail`, or None if the context did not fail.
+
+        """
+        return self._error
 
     def is_active(self) -> bool:
         """Check if the context is active.

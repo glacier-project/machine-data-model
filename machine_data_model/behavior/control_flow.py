@@ -5,12 +5,20 @@ implementing the logic of a run-time method.
 """
 
 from collections.abc import Sequence
+import logging
 from typing import TYPE_CHECKING
 
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
+    ExecutionNodeResult,
+    execution_error,
 )
 from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.behavior.execution_error import (
+    ExecutionError,
+    ExecutionErrorCode,
+    sanitize_detail,
+)
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import (
     trace_control_flow_end,
@@ -23,6 +31,11 @@ if TYPE_CHECKING:
     )
 
     CompositeMethodNode = composite_method_node.CompositeMethodNode
+
+_logger = logging.getLogger(__name__)
+
+# Longest exception text kept in the error of a node that raised, in characters.
+_MAX_EXCEPTION_TEXT = 256
 
 
 class ControlFlow:
@@ -43,10 +56,16 @@ class ControlFlow:
     _nodes: Sequence[ControlFlowNode]
     _composite_method_node: "CompositeMethodNode | None"
 
+    # Default of the `strict` argument. Production code keeps False; the test
+    # suite sets it to True so that an unexpected exception shows its
+    # traceback instead of becoming an error result.
+    default_strict: bool = False
+
     def __init__(
         self,
         nodes: Sequence[ControlFlowNode] | None = None,
         composite_method_node: "CompositeMethodNode | None" = None,
+        strict: bool | None = None,
     ):
         """Initialize a new ControlFlow instance.
 
@@ -55,15 +74,43 @@ class ControlFlow:
                 A list of control flow nodes in the control flow graph.
             composite_method_node ("CompositeMethodNode | None"):
                 The composite method node that owns this control flow graph.
+            strict (bool | None):
+                If True, an unexpected exception raised by a node is re-raised
+                instead of being turned into a failure. Meant for development
+                and tests, where the traceback is more useful than an error
+                result. If None, `ControlFlow.default_strict` is used.
 
         """
         self._nodes = nodes if nodes is not None else []
         self._composite_method_node = composite_method_node
+        self._strict = strict
 
         # Set parent CFG reference on all nodes
         for node in self._nodes:
             if node._parent_cfg is None:
                 node._parent_cfg = self
+
+    @property
+    def strict(self) -> bool:
+        """Whether unexpected exceptions are re-raised (resolved lazily).
+
+        If no value was given at construction, `ControlFlow.default_strict` is
+        read each time, so graphs built before the default changed (for
+        example at import time) follow it.
+
+        Returns:
+            bool:
+                True if an unexpected exception is re-raised.
+
+        """
+        if self._strict is None:
+            return ControlFlow.default_strict
+        return self._strict
+
+    @strict.setter
+    def strict(self, value: bool | None) -> None:
+        """Set the strict mode, or None to follow the default."""
+        self._strict = value
 
     def nodes(self) -> Sequence[ControlFlowNode]:
         """Get the list of control flow nodes in the control flow graph.
@@ -134,6 +181,60 @@ class ControlFlow:
 
         return self._nodes[context.get_pc()]
 
+    def _execute_node(
+        self, node: ControlFlowNode, context: ExecutionContext
+    ) -> ExecutionNodeResult:
+        """Execute a node, turning an unexpected exception into a failure.
+
+        Only `Exception` is converted: `KeyboardInterrupt`, `SystemExit` and
+        `asyncio.CancelledError` keep propagating.
+
+        Args:
+            node (ControlFlowNode):
+                The node to execute.
+            context (ExecutionContext):
+                The execution context of the control flow graph.
+
+        Returns:
+            ExecutionNodeResult:
+                The result of the node, or a `FAILURE` with code
+                `UNEXPECTED_ERROR` if the node raised.
+
+        """
+        try:
+            return node.execute(context)
+        except Exception as exc:
+            if self.strict:
+                raise
+            node_name = node.node or type(node).__name__
+            _logger.error(
+                "Unexpected error in node '%s' (context %s)",
+                node_name,
+                context.id(),
+                exc_info=True,
+            )
+            released: list[FrostMessage] = []
+            try:
+                released = list(node.release(context) or [])
+            except Exception:
+                _logger.error(
+                    "Failed to release node '%s' (context %s)",
+                    node_name,
+                    context.id(),
+                    exc_info=True,
+                )
+            return execution_error(
+                ExecutionError(
+                    ExecutionErrorCode.UNEXPECTED_ERROR,
+                    # The text of an exception can carry data of a peer (a
+                    # keyword name, a path): keep it on one line and bounded.
+                    f"{type(exc).__name__}: "
+                    f"{sanitize_detail(str(exc), _MAX_EXCEPTION_TEXT)}",
+                    node=node_name,
+                ),
+                released,
+            )
+
     def execute(self, context: ExecutionContext) -> list[FrostMessage]:
         """Execute the control flow graph with the specified execution context.
 
@@ -150,6 +251,10 @@ class ControlFlow:
                 control flow graph.
 
         """
+        # A terminal context (completed or failed) is never executed again.
+        if not context.is_active():
+            return []
+
         data_model_id = self.get_data_model_id()
 
         # Trace control flow start.
@@ -169,13 +274,24 @@ class ControlFlow:
             # TODO: fix me here if contains_template_variables(node.node):
             # node.node = context.get_value(node.node)
 
-            result = node.execute(context)
+            result = self._execute_node(node, context)
             executed_steps += 1
 
             if result.messages:
                 messages.extend(result.messages)
+            if not context.is_active():
+                # A re-entrant resume (for example a notification triggered by
+                # the node itself) already completed or failed this context
+                # while the node was running: that outcome is final, and its
+                # execution already traced the end of the graph.
+                return messages
+            if result.failed:
+                assert result.error is not None
+                # The node already released what it owns (subscriptions and
+                # context keys) before returning the failure.
+                context.fail(result.error)
             if not result.success:
-                # Trace control flow end (failure)
+                # Trace control flow end (failure or not done yet)
                 trace_control_flow_end(
                     control_flow_id=context.id(),
                     success=False,
