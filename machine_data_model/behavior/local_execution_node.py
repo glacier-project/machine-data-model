@@ -742,20 +742,16 @@ class CallMethodNode(LocalExecutionNode):
         return added
 
     def _would_pass(
-        self,
-        ref_method: MethodNode,
-        args: list[Any],
-        kwargs: dict[str, Any],
+        self, ref_method: MethodNode, resolved: dict[str, Any]
     ) -> bool:
         """Tell whether the `requires` of the callee hold now, without calling.
 
         Args:
             ref_method (MethodNode):
                 The callee.
-            args (list[Any]):
-                The resolved positional arguments of the call.
-            kwargs (dict[str, Any]):
-                The resolved keyword arguments of the call.
+            resolved (dict[str, Any]):
+                The resolved arguments of the call, as the callee would get
+                them.
 
         Returns:
             bool:
@@ -763,9 +759,7 @@ class CallMethodNode(LocalExecutionNode):
 
         """
         try:
-            ref_method._check_requires(
-                ref_method._resolve_arguments(*args, **kwargs)
-            )
+            ref_method._check_requires(resolved)
         except MethodPreconditionError:
             return False
         return True
@@ -935,6 +929,11 @@ class CallMethodNode(LocalExecutionNode):
                     node=ref_method.qualified_name,
                 )
             )
+        # Resolve the arguments once: every attempt of this step (the real
+        # calls and the checks between them) uses the same values, and a
+        # parameter that has to be read (it can be a remote variable) is read
+        # once, not once per attempt.
+        resolved = ref_method._resolve_arguments(*args, **kwargs)
         res = None
         for cycle in range(_MAX_WAIT_CYCLES):
             # The wait is dropped while the callee runs: a callee that writes
@@ -942,7 +941,7 @@ class CallMethodNode(LocalExecutionNode):
             # the middle of its own call and be called again.
             self._unwatch(context)
             try:
-                res = ref_method(*args, **kwargs)
+                res = ref_method(**resolved)
                 break
             except MethodPreconditionError as exp:
                 # The callee's `requires` do not hold: nothing started, and
@@ -968,7 +967,7 @@ class CallMethodNode(LocalExecutionNode):
                     )
                 self._watch(context, exp.variables)
                 if cycle == _MAX_WAIT_CYCLES - 1 or not self._would_pass(
-                    ref_method, args, kwargs
+                    ref_method, resolved
                 ):
                     # Waiting. The last cycle is authoritative: its real call
                     # was rejected, so the node waits for the next change

@@ -954,3 +954,98 @@ class TestLastCycleIsAuthoritative:
 
     def test_the_cap_is_a_module_constant(self) -> None:
         assert local_execution_node._MAX_WAIT_CYCLES == 5
+
+
+class Counting(NumericalVariableNode):
+    """A parameter node that counts how often it is read."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.reads = 0
+
+    def read(self, force_remote_read: bool = True) -> Any:
+        self.reads += 1
+        return super().read(force_remote_read)
+
+
+class TestArgumentsAreResolvedOnce:
+    @staticmethod
+    def build(script: list[float] | None = None) -> tuple[Setup, Counting]:
+        parameter = Counting(id="p", name="p", value=7)
+        setup = Setup(
+            requires=[Condition("mode", EQ, 2)],
+            callee_parameters=[parameter],
+        )
+        if script is not None:
+            flapping = Scripted(script, id="mode", name="mode", value=1)
+            flapping.set_subscription_callback(setup.on_change)
+            setup.data_model.root.remove_child("mode")
+            setup.data_model.root.add_child(flapping)
+            setup.data_model._register_nodes(setup.data_model.root)
+            setup.mode = flapping
+        return setup, parameter
+
+    def test_a_call_that_holds_reads_the_parameter_once(self) -> None:
+        setup, parameter = self.build()
+        setup.mode._update_internal_value(2)
+
+        setup.parent()
+
+        assert parameter.reads == 1
+        assert setup.calls == [{"p": 7}]
+
+    def test_all_the_cycles_of_one_step_share_one_read(self) -> None:
+        # Nine looks at the condition (five calls, four checks), one read.
+        setup, parameter = self.build(FLIPPING)
+
+        setup.parent()
+
+        assert setup.mode.reads == 9  # type: ignore[attr-defined]
+        assert parameter.reads == 1
+
+    def test_each_resume_reads_it_once_more(self) -> None:
+        setup, parameter = self.build()
+        context_id = setup.start()
+        assert parameter.reads == 1
+
+        setup.mode.write(3)
+        setup.resume(context_id)
+
+        # Still unmet: one more step, one more read (not two).
+        assert parameter.reads == 2
+
+    def test_the_callee_gets_the_value_that_was_read(self) -> None:
+        setup, parameter = self.build()
+        context_id = setup.start()
+        parameter._update_internal_value(9)
+        setup.mode.write(2)
+
+        setup.resume(context_id)
+
+        assert setup.calls == [{"p": 9}]
+
+    def test_a_given_argument_is_not_read_at_all(self) -> None:
+        parameter = Counting(id="p", name="p", value=7)
+        setup = Setup(
+            requires=[Condition("mode", EQ, 2)],
+            callee_parameters=[parameter],
+            call_kwargs={"p": 42},
+            mode=2,
+        )
+
+        setup.parent()
+
+        assert parameter.reads == 0
+        assert setup.calls == [{"p": 42}]
+
+    def test_fail_mode_also_reads_once(self) -> None:
+        parameter = Counting(id="p", name="p", value=7)
+        setup = Setup(
+            requires=[Condition("mode", EQ, 2)],
+            callee_parameters=[parameter],
+            on_unmet="fail",
+        )
+
+        setup.parent()
+
+        assert parameter.reads == 1
