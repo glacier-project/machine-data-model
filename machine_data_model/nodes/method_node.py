@@ -66,6 +66,13 @@ class MethodExecutionResult:
 # Longest condition text and observed text kept in a requires error message.
 _MAX_REQUIRES_TEXT = 256
 
+# Most unmet conditions named in the message of a rejection; the others are
+# counted. The list in `MethodPreconditionError.outcomes` is complete.
+_MAX_LISTED_CONDITIONS = 5
+
+# Longest list of unmet conditions in the message, in characters.
+_MAX_REQUIRES_MESSAGE = 512
+
 
 class MethodPreconditionError(Exception):
     """Raised when a method is called while its `requires` are not satisfied.
@@ -639,11 +646,14 @@ class MethodNode(DataModelNode):
         observed = "; ".join(
             f"{o.variable} = {o.observed}" for o in unmet if o.observed
         )
+        listed = "; ".join(o.message for o in unmet[:_MAX_LISTED_CONDITIONS])
+        if len(unmet) > _MAX_LISTED_CONDITIONS:
+            listed += f" (+{len(unmet) - _MAX_LISTED_CONDITIONS} more)"
         raise MethodPreconditionError(
             ExecutionError(
                 code,
                 f"method '{self.qualified_name}' requires not met: "
-                + "; ".join(o.message for o in unmet),
+                + sanitize_detail(listed, _MAX_REQUIRES_MESSAGE),
                 node=self.qualified_name,
                 observed=sanitize_detail(observed, _MAX_REQUIRES_TEXT)
                 if observed

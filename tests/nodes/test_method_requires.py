@@ -516,3 +516,78 @@ class TestIsExecutable:
         assert model.method.is_executable() is True
         model.method()
         assert len(model.calls) == 1
+
+
+class TestMessageIsBounded:
+    @staticmethod
+    def model(count: int, variable: str = "mode") -> Model:
+        model = Model([cond(variable, EQ, 100 + i) for i in range(count)])
+        return model
+
+    def test_up_to_five_conditions_are_all_listed(self) -> None:
+        model = self.model(5)
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        message = info.value.error.message
+        for i in range(5):
+            assert f"mode == {100 + i} not met" in message
+        assert "more)" not in message
+
+    def test_the_sixth_is_counted(self) -> None:
+        model = self.model(6)
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        message = info.value.error.message
+        assert "mode == 104 not met" in message
+        assert "mode == 105" not in message
+        assert message.endswith("(+1 more)")
+
+    def test_three_hundred_unmet_conditions(self) -> None:
+        model = self.model(300)
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        error = info.value.error
+        assert "mode == 100 not met" in error.message
+        assert "mode == 104 not met" in error.message
+        assert "mode == 105" not in error.message
+        assert error.message.endswith("(+295 more)")
+        assert len(error.message) < 600
+        # The detail is not lost: every outcome is still available.
+        assert len(info.value.outcomes) == 300
+        assert error.observed is not None
+        assert len(error.observed) <= 256
+
+    def test_long_condition_texts_are_cut(self) -> None:
+        path = "a" * 70
+        model = Model([cond(path, EQ, "b" * 70) for _ in range(5)])
+        for node in (NumericalVariableNode(id=path, name=path, value=1),):
+            model.data_model.root.add_child(node)
+        model.data_model._register_nodes(model.data_model.root)
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        message = info.value.error.message
+        prefix = f"method '{model.method.qualified_name}' requires not met: "
+        assert message.startswith(prefix)
+        assert len(message) - len(prefix) <= 512
+        assert message.endswith("...")
+
+    def test_code_is_still_chosen_over_all_conditions(self) -> None:
+        model = Model(
+            [cond("mode", EQ, 100 + i) for i in range(8)]
+            + [cond("level", EQ, 5)]
+        )
+        model.level._update_internal_value(None)  # type: ignore[arg-type]
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        assert info.value.error.code is ExecutionErrorCode.PRECONDITION_NOT_MET
+        assert "(+4 more)" in info.value.error.message
