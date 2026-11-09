@@ -936,7 +936,7 @@ class CallMethodNode(LocalExecutionNode):
                 )
             )
         res = None
-        for _ in range(_MAX_WAIT_CYCLES):
+        for cycle in range(_MAX_WAIT_CYCLES):
             # The wait is dropped while the callee runs: a callee that writes
             # a variable it watches would otherwise wake this very context in
             # the middle of its own call and be called again.
@@ -967,15 +967,18 @@ class CallMethodNode(LocalExecutionNode):
                         self._timeout_error(ref_method, exp.error)
                     )
                 self._watch(context, exp.variables)
-                if not self._would_pass(ref_method, args, kwargs):
+                if cycle == _MAX_WAIT_CYCLES - 1 or not self._would_pass(
+                    ref_method, args, kwargs
+                ):
+                    # Waiting. The last cycle is authoritative: its real call
+                    # was rejected, so the node waits for the next change
+                    # instead of looking again and leaving with a check that
+                    # passed and nobody to act on it.
                     return execution_failure()
                 # The values changed between the check that rejected the call
                 # and the subscription (no event reached us): try again, with
                 # the wait dropped as for any call.
-        if res is None:
-            # Kept changing under us: stay subscribed, the next change wakes
-            # the context.
-            return execution_failure()
+        assert res is not None
         self._clear_wait(context)
 
         if res.error is not None:

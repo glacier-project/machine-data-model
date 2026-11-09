@@ -876,3 +876,81 @@ class TestCalleeThatWritesWatchedVariables:
         setup.resume(context_id)
 
         assert context.get_value(key) == deadline
+
+
+class Scripted(NumericalVariableNode):
+    """A variable whose successive reads follow a script (2 holds, 1 not)."""
+
+    def __init__(self, script: list[float], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.script = list(script)
+        self.reads = 0
+
+    def read(self, force_remote_read: bool = True) -> Any:
+        self.reads += 1
+        if self.script:
+            return self.script.pop(0)
+        return 2
+
+
+def scripted_setup(script: list[float]) -> tuple[Setup, Scripted]:
+    setup = Setup(requires=[Condition("mode", EQ, 2)])
+    flapping = Scripted(script, id="mode", name="mode", value=1)
+    flapping.set_subscription_callback(setup.on_change)
+    setup.data_model.root.remove_child("mode")
+    setup.data_model.root.add_child(flapping)
+    setup.data_model._register_nodes(setup.data_model.root)
+    setup.mode = flapping
+    return setup, flapping
+
+
+# reject, pass, reject, pass ... as many looks as the cap needs.
+FLIPPING: list[float] = [1.0, 2.0] * 4 + [1.0]
+
+
+class TestLastCycleIsAuthoritative:
+    def test_a_value_that_flips_once_is_caught_by_the_recheck(self) -> None:
+        # Rejected, then holds when looked at again: one more real call.
+        setup, flapping = scripted_setup([1.0, 2.0, 2.0])
+
+        result = setup.parent()
+
+        assert result.error is None
+        assert setup.callee_runs() == 1
+        assert setup.after.runs == 1
+        assert flapping.reads == 3
+        assert setup.subscribers(flapping) == []
+
+    def test_a_value_that_keeps_flipping_ends_with_a_real_call(self) -> None:
+        # reject, pass, reject, pass, ... : every look after a rejection says
+        # "it holds now", so the node keeps going round.
+        setup, flapping = scripted_setup(FLIPPING)
+
+        result = setup.parent()
+
+        # Five real calls and four checks: the last cycle does not check again
+        # (there would be no call left to act on a check that passed).
+        assert flapping.reads == 9
+        assert setup.callee_runs() == 0
+        context_id = result.return_values["@context_id"]
+        assert setup.parent._contexts[context_id].is_active()
+        # It waits, subscribed, for the next change.
+        assert setup.subscribers(flapping) == [context_id]
+
+    def test_after_the_cap_the_next_event_resumes_and_calls(self) -> None:
+        setup, flapping = scripted_setup(FLIPPING)
+        context_id = setup.start()
+        assert setup.callee_runs() == 0
+
+        flapping._update_internal_value(5)
+        flapping.notify_subscribers()
+        assert setup.woken == [context_id]
+        setup.resume(context_id)
+
+        # The script is exhausted: the variable holds from now on.
+        assert setup.callee_runs() == 1
+        assert setup.subscribers(flapping) == []
+        assert setup.wait_keys(context_id) == []
+
+    def test_the_cap_is_a_module_constant(self) -> None:
+        assert local_execution_node._MAX_WAIT_CYCLES == 5
