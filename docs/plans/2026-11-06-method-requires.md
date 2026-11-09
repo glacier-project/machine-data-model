@@ -770,6 +770,12 @@ and must be documented; the composite builder defaults do not accept
 
 Goal: CFG chooses wait or fail; atomic attempt-call; optional timeout.
 
+Note (limits 9.11, 9.12): a wait on a remote variable that never received a
+value (a confirmed write does not count) gives `NO_DATA` until the connector
+delivers a value, so with a connector that does not echo changes the wait only
+ends through `timeout`; document this next to `on_unmet: wait`. The connector
+error mapping it relies on is tested with mocks only.
+
 Files / changes:
 
 1. `behavior/local_execution_node.py`: `OnUnmet` enum; `CallMethodNode` new
@@ -956,6 +962,23 @@ the existing, clear failure mode.
     require the exact id of the active request. Needs agreement with the FROST
     peers (they must echo the correlation id unchanged, which the protocol
     already requires). Not scheduled.
+
+11. **A confirmed remote write is not a received value** (group B review,
+    nit 4). `received_at` / `has_received_value()` only count values that
+    arrived from the remote side (read, initial read, subscription callback).
+    A remote variable that was written successfully but never received a
+    value still gives `NO_DATA` ("no value received yet") on a cached read
+    until the subscription echoes it. Every variable of a `DataModel`
+    subscribes at construction, so the echo normally comes; with a connector
+    that does not echo changes, an `on_unmet: wait` on such a variable waits
+    forever (use `timeout`). Kept on purpose: the cache after a write is what
+    we sent, not what the machine holds.
+
+12. **Connector failure mapping is tested with mocks only** (B3 and H2: OPC UA
+    status codes -> `ConnectionError`/`TimeoutError`, closed event loop ->
+    `ConnectionError`). No live OPC UA server was used; the status-code list
+    is a best effort and an unlisted transient code surfaces as
+    `UNEXPECTED_ERROR` rather than `NO_DATA`.
 
 ## 10. Decisions on the open questions, and what is still open
 
