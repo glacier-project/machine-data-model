@@ -36,7 +36,7 @@ from asyncua.crypto.validator import (
     CertificateValidator,
     CertificateValidatorOptions,
 )
-from asyncua.ua import UaError, VariantType
+from asyncua.ua import UaError, VariantType, uaerrors
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from typing_extensions import override
 
@@ -55,6 +55,62 @@ def _require_asyncua_node(value: Any) -> asyncua.Node:
             f"Expected an asyncua.Node, but got {type(value).__name__}"
         )
     return value
+
+
+def _status_codes(*names: str) -> tuple[type[UaError], ...]:
+    """Return the asyncua status code errors with the given names."""
+    return tuple(
+        getattr(uaerrors, name) for name in names if hasattr(uaerrors, name)
+    )
+
+
+# Status codes that mean "the server cannot be reached right now", as opposed
+# to "the node is wrong".
+_CONNECTION_STATUS_ERRORS = _status_codes(
+    "BadConnectionClosed",
+    "BadNoCommunication",
+    "BadServerNotConnected",
+    "BadCommunicationError",
+    "BadSecureChannelClosed",
+    "BadNotConnected",
+    "BadServerHalted",
+    "BadSessionClosed",
+)
+_TIMEOUT_STATUS_ERRORS = _status_codes("BadTimeout", "BadRequestTimeout")
+
+
+def _connection_failure(
+    exp: UaError, path: str, name: str | None
+) -> OSError | None:
+    """Translate an OPC UA error that means "unreachable" into a builtin one.
+
+    Callers (for example a condition on a variable) tell a transient lack of
+    data (`ConnectionError`, `TimeoutError`) from a configuration problem.
+
+    Args:
+        exp (UaError):
+            The error raised by asyncua.
+        path (str):
+            The path of the node.
+        name (str | None):
+            The name of the connector.
+
+    Returns:
+        OSError | None:
+            A `TimeoutError` or a `ConnectionError`, or None if the error is
+            not about the connection.
+
+    """
+    if isinstance(exp, _TIMEOUT_STATUS_ERRORS):
+        return TimeoutError(
+            f"Timed out reading '{path}' using the '{name}' connector"
+        )
+    if isinstance(exp, _CONNECTION_STATUS_ERRORS):
+        return ConnectionError(
+            f"Lost the connection while reading '{path}' using the '{name}' "
+            "connector"
+        )
+    return None
 
 
 @dataclass(frozen=True)
@@ -482,6 +538,9 @@ class OpcuaConnector(AbstractAsyncConnector):
             return node
         except UaError as exp:
             _logger.error(exp)
+            failure = _connection_failure(exp, path, self.name)
+            if failure is not None:
+                raise failure from exp
 
         raise ValueError(
             f"Couldn't retrieve node '{path}', {remote_resource_spec}",
@@ -497,7 +556,8 @@ class OpcuaConnector(AbstractAsyncConnector):
         """Asynchronously read the node's value from the server."""
         path = resource.path
         if self.client is None:
-            raise RuntimeError(
+            # Not connected (yet, or any more): a transient lack of data.
+            raise ConnectionError(
                 f"Couldn't read remote node '{path}' using '{self.name}' "
                 f"connector: the client is not connected"
             )
@@ -507,6 +567,9 @@ class OpcuaConnector(AbstractAsyncConnector):
         try:
             value = await node.get_value()
         except UaError as exp:
+            failure = _connection_failure(exp, path, self.name)
+            if failure is not None:
+                raise failure from exp
             raise ValueError(
                 f"Couldn't read value of '{path}' using the '{self.name}' "
                 f"connector: the node does not exist"
