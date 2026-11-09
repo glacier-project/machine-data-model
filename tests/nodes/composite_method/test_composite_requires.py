@@ -56,7 +56,7 @@ class Model:
 
 class TestCompositeRequires:
     def test_defaults_to_empty(self) -> None:
-        assert CompositeMethodNode(name="c").requires == []
+        assert CompositeMethodNode(name="c").requires == ()
 
     def test_rejected_before_a_context_is_created(self) -> None:
         model = Model([cond("mode", 2)])

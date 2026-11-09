@@ -12,6 +12,9 @@ from machine_data_model.behavior.condition import (
 )
 from machine_data_model.behavior.execution_error import ExecutionErrorCode
 from machine_data_model.data_model import DataModel
+from machine_data_model.nodes.composite_method.composite_method_node import (
+    CompositeMethodNode,
+)
 from machine_data_model.nodes.method_node import (
     AsyncMethodNode,
     MethodNode,
@@ -67,16 +70,39 @@ class Model:
 
 class TestRequiresArgument:
     def test_defaults_to_empty(self) -> None:
-        assert MethodNode(name="m").requires == []
-        assert AsyncMethodNode(name="m").requires == []
+        assert MethodNode(name="m").requires == ()
+        assert AsyncMethodNode(name="m").requires == ()
 
-    def test_is_stored_as_a_list_copy(self) -> None:
-        conditions = (cond("mode", EQ, 1),)
+    def test_is_a_tuple_copy_of_the_argument(self) -> None:
+        conditions = [cond("mode", EQ, 1)]
 
         method = MethodNode(name="m", requires=conditions)
+        conditions.append(cond("level", EQ, 1))
 
-        assert method.requires == list(conditions)
-        assert isinstance(method.requires, list)
+        assert method.requires == (cond("mode", EQ, 1),)
+        assert isinstance(method.requires, tuple)
+
+    def test_cannot_be_changed_from_outside(self) -> None:
+        method = MethodNode(name="m", requires=[cond("mode", EQ, 1)])
+
+        with pytest.raises(AttributeError):
+            method.requires.append(cond("${x}", EQ, 1))  # type: ignore[attr-defined]
+        with pytest.raises(TypeError):
+            method.requires[0] = cond("level", EQ, 1)  # type: ignore[index]
+        with pytest.raises(AttributeError):
+            method.requires = ()  # type: ignore[misc]
+
+        assert method.requires == (cond("mode", EQ, 1),)
+
+    def test_composite_requires_is_a_tuple_too(self) -> None:
+        method = CompositeMethodNode(name="c", requires=[cond("mode", EQ, 1)])
+
+        assert isinstance(method.requires, tuple)
+
+    def test_accepts_any_sequence(self) -> None:
+        method = MethodNode(name="m", requires=(cond("mode", EQ, 1),))
+
+        assert len(method.requires) == 1
 
     def test_method_without_requires_is_called_as_before(self) -> None:
         model = Model([])

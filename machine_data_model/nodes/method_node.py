@@ -120,7 +120,7 @@ class MethodNode(DataModelNode):
             The function to run before the method is called.
         _post_call (Callable[..., None]):
             The function to run after the method is called.
-        _requires (list[Condition]):
+        _requires (tuple[Condition, ...]):
             The conditions on variables of the data model that must all hold
             for the method to be called.
 
@@ -131,7 +131,7 @@ class MethodNode(DataModelNode):
     _callback: Callable[..., Any]
     _pre_call: Callable[..., None]
     _post_call: Callable[..., None]
-    _requires: list[Condition]
+    _requires: tuple[Condition, ...]
 
     def __init__(
         self,
@@ -178,7 +178,7 @@ class MethodNode(DataModelNode):
             connector_name=connector_name,
             remote_resource_spec=remote_resource_spec,
         )
-        self._requires = list(requires) if requires is not None else []
+        self._requires = tuple(requires) if requires is not None else ()
         self._parameters = parameters if parameters is not None else []
         self._returns = returns if returns is not None else []
         self._callback = (
@@ -236,11 +236,14 @@ class MethodNode(DataModelNode):
         return self._parameters
 
     @property
-    def requires(self) -> list[Condition]:
+    def requires(self) -> tuple[Condition, ...]:
         """Returns the conditions that must hold for the method to be called.
 
+        A tuple, so that the conditions cannot be changed from outside after
+        the construction check (every `${name}` is a parameter) ran.
+
         Returns:
-            list[Condition]:
+            tuple[Condition, ...]:
                 The conditions, combined with AND. Empty if the method has no
                 preconditions.
 

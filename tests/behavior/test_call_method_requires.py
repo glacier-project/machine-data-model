@@ -177,7 +177,7 @@ class TestCodes:
 
     def test_invalid_configuration_code_is_kept(self) -> None:
         setup = Setup(composite_callee=False)
-        setup.callee._requires = [Condition("nope", EQ, 1)]
+        setup.callee._requires = (Condition("nope", EQ, 1),)
 
         result = setup.parent()
 
