@@ -1,0 +1,52 @@
+# Method preconditions (`requires`) and the two ways a control flow graph can
+# call a guarded method (`on_unmet: fail` and `on_unmet: wait`).
+#
+# The model has no connectors: it can be loaded and tried without a machine.
+# See examples/requires/requires.py for a script that does so.
+name: "requires_example"
+root: !!FolderNode
+  name: "plant"
+  children:
+    - !!NumericalVariableNode
+      name: "mode"
+      description: "2 means the conveyor is ready"
+      default_value: 0
+    - !!NumericalVariableNode
+      name: "state"
+      description: "1 once the conveyor was started"
+      default_value: 0
+
+    # A method that can only run while the conveyor is ready. The operator is
+    # always quoted: an unquoted != or >= is not valid YAML here.
+    - !!CompositeMethodNode
+      name: "start"
+      requires:
+        - variable: "/plant/mode"
+          operator: "=="
+          rhs: 2
+      cfg:
+        - !!WriteVariableNode
+          variable: "/plant/state"
+          value: 1
+
+    # on_unmet: fail. If the conveyor is not ready the call fails at once, with
+    # the code PRECONDITION_NOT_MET (or NO_DATA, INVALID_CONFIGURATION).
+    - !!CompositeMethodNode
+      name: "start_now"
+      cfg:
+        - !!CallMethodNode
+          method: "/plant/start"
+          on_unmet: "fail"
+
+    # on_unmet: wait. If the conveyor is not ready the call stays pending and
+    # is tried again when a variable that `start` reads changes. After 30
+    # seconds without success it fails with the code TIMEOUT. A timeout needs
+    # on_unmet: wait. Write fractions as 1.0e-7, not 1e-7: PyYAML reads the
+    # latter as a string.
+    - !!CompositeMethodNode
+      name: "start_when_ready"
+      cfg:
+        - !!CallMethodNode
+          method: "/plant/start"
+          on_unmet: "wait"
+          timeout: 30.0
