@@ -19,7 +19,10 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
-from machine_data_model.nodes.method_node import MethodNode
+from machine_data_model.nodes.method_node import (
+    MethodNode,
+    MethodPreconditionError,
+)
 from machine_data_model.nodes.subscription.variable_subscription import (
     VariableSubscription,
 )
@@ -513,11 +516,27 @@ class FrostProtocolMng(ProtocolMng):
 
         Returns:
             FrostMessage:
-                The return value of the method invocation.
+                The return value of the method invocation, or an error message
+                if the method rejected the call because its `requires` do not
+                hold.
 
         """
         assert isinstance(msg.payload, MethodPayload)
-        ret = method_node(*args, **kwargs)
+        try:
+            ret = method_node(*args, **kwargs)
+        except MethodPreconditionError as exp:
+            # The `requires` of the method (plain or composite) do not hold:
+            # nothing ran and nothing is registered. Answer the request:
+            # PRECONDITION_NOT_MET and NO_DATA map to NOT_ALLOWED and
+            # INVALID_CONFIGURATION to BAD_REQUEST (see
+            # `_EXECUTION_ERROR_RESPONSES`). The observed value is not sent.
+            _logger.info(
+                "Request %s rejected, requires of '%s' not satisfied (%s)",
+                msg.correlation_id,
+                method_node.qualified_name,
+                exp.error.code.value,
+            )
+            return self._create_execution_error_message(msg, exp.error)
         # The messages produced while running (remote requests, cleanup,
         # release) must leave whatever the outcome is: completed, failed or
         # still running.
