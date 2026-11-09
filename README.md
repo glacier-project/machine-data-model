@@ -248,6 +248,115 @@ post-callbacks.
 These callbacks enable operations to be executed **before** or **after** the method invocation,
 allowing for user-defined interactions with the data model.
 
+#### Requires (preconditions)
+
+Every method node (`MethodNode`, `AsyncMethodNode`, `CompositeMethodNode`) can
+declare `requires`: a list of conditions on variables of the data model that
+must **all** hold (AND) for the method to be called. A call that does not
+satisfy them is rejected before anything runs: no callback, no pre-call, no
+execution context.
+
+```yaml
+!!MethodNode
+  name: "start"
+  parameters:
+    - !!StringVariableNode
+      name: "unit"
+      default_value: "/plant/conveyor/mode"
+  requires:
+    - variable: "/plant/conveyor/mode"
+      operator: "=="
+      rhs: 2
+    - variable: "/plant/conveyor/speed"
+      operator: ">="
+      rhs: 10
+    - variable: "${unit}"
+      operator: "!="
+      rhs: 0
+```
+
+Each condition has exactly the keys `variable`, `operator` and `rhs`.
+`variable` is the path or the id of a variable, `operator` is one of `==`,
+`!=`, `<`, `>`, `<=`, `>=`, and `rhs` is a literal or a `${name}` template.
+A `${name}` (in `variable` or `rhs`) must be the name of a parameter of the
+method; this is checked when the method is built. **Always quote the
+operator** in YAML: an unquoted `!=` is read as a YAML tag and an unquoted `>=`
+as a block scalar indicator. The dumper writes `requires` only when it is not
+empty, so models without it are dumped as before.
+
+The conditions are evaluated with the **cached** value of the variables: a
+call never reads a remote variable to decide whether it can go on. When the
+data model is built, the path of every condition without a `${...}` must name
+a variable of the model, otherwise building fails with a `ValueError` that
+names the method and the path. A templated path depends on the arguments of
+the call and is checked when the method is called.
+
+A rejected call raises `MethodPreconditionError`. Its `error` is an
+`ExecutionError` with one of these codes, its `outcomes` lists the outcome of
+every condition that was evaluated:
+
+| Code | Meaning | Frost error code |
+| --- | --- | --- |
+| `PRECONDITION_NOT_MET` | at least one condition does not hold | `NOT_ALLOWED` |
+| `NO_DATA` | no condition fails, but one cannot be evaluated: the variable has no value, a remote variable has not received a value yet, or the value cannot be compared | `NOT_ALLOWED` |
+| `INVALID_CONFIGURATION` | a condition can never be evaluated: the variable does not exist, is not a variable, is remote without a connector, or a `${name}` is missing from the call | `BAD_REQUEST` |
+
+When several conditions are unmet, the message names the first five and the
+number of the others, and the code is chosen over all of them
+(`INVALID_CONFIGURATION`, then `PRECONDITION_NOT_MET`, then `NO_DATA`).
+The message never contains the value the variable had; that value is in
+`error.observed` (bounded, for logs and diagnostics) and is **never sent over
+Frost**.
+
+```python
+from machine_data_model.nodes.method_node import MethodPreconditionError
+
+method = data_model.get_node("/plant/conveyor/start")
+
+if method.is_executable():          # True only if every condition holds
+    method()
+
+try:
+    method()
+except MethodPreconditionError as error:
+    print(error.error.code, error.error.message)
+
+for outcome in method.evaluate_requires():   # diagnostic, runs nothing
+    print(outcome.result, outcome.message)
+```
+
+`is_executable(**kwargs)` returns `False` when a condition is unmet, has no
+data or is misconfigured. `evaluate_requires(**kwargs)` returns the outcome of
+each condition and lets a misconfiguration (`ConditionError`) propagate.
+Neither of them calls the callbacks or changes a variable.
+
+Through the Frost protocol, an `INVOKE` of a method whose requires are not
+satisfied is answered with an error message (see the table); the method is not
+invoked. In a control flow graph, a `CallMethodNode` whose callee rejects the
+call fails with the same error code (`on_unmet: fail` behavior).
+
+Limits to keep in mind:
+
+- **Remote methods**: `requires` is evaluated locally, in this data model,
+  before the call is forwarded to the connector. The remote server may have
+  its own checks, which are not visible here.
+- **"Received" means "arrived", not "recent"**: a remote variable counts as
+  having a value once a value arrived from the remote side (`received_at`, the
+  time it arrived in this process). A retained MQTT message or the first read at
+  start-up looks fresh. There is no staleness limit, and `received_at` is not
+  reset when the connection drops, so a variable keeps its last value after a
+  disconnect.
+- **Cached value**: a remote variable can have changed since its last update.
+  A condition is a guard, not a lock: the state can change between the check
+  and the action.
+- **No authorization**: the Frost protocol has no authorization. Anyone who can
+  send an `INVOKE` can learn from the error text which conditions of a method
+  are not met. Do not put secrets in condition paths or right-hand sides.
+- **Templated paths are chosen by the caller**: with `variable: "${unit}"`
+  the caller picks, through the argument, the variable that is tested, and the
+  error text tells whether it matched. Do not template a path over variables
+  that must stay private.
+
 ## Connectors
 
 Connectors keep the public node API protocol-agnostic. A variable can still be
