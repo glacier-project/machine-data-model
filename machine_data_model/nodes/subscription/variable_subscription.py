@@ -53,7 +53,8 @@ class VariableSubscription:
         subscriber_id (str):
             Identifier of the subscriber.
         correlation_id (str):
-            Correlation identifier for the subscription.
+            Correlation identifier for the subscription. A new unique id is
+            generated for each subscription when none is given.
         subscription_callback (Callable[["VariableSubscription", "VariableNode",
         Any], None] | None):
             Callback function to be called to notify the subscriber of changes.
@@ -62,11 +63,15 @@ class VariableSubscription:
     def __init__(
         self,
         subscriber_id: str,
-        correlation_id: str = str(uuid4()),
+        correlation_id: str | None = None,
         subscription_callback: SubscriptionCallback | None = None,
     ):
         self.subscriber_id = subscriber_id
-        self.correlation_id = correlation_id
+        # A fresh id per subscription: a default evaluated in the signature
+        # would be computed once and shared by every subscription.
+        self.correlation_id = (
+            correlation_id if correlation_id is not None else str(uuid4())
+        )
         self.subscription_callback = subscription_callback
 
     def get_event_type(self) -> EventType:
@@ -147,7 +152,7 @@ class DataChangeSubscription(VariableSubscription):
     def __init__(
         self,
         subscriber_id: str,
-        correlation_id: str = str(uuid4()),
+        correlation_id: str | None = None,
         subscription_callback: Callable[
             ["VariableSubscription", "VariableNode", Any], None
         ]
@@ -221,7 +226,7 @@ class RangeSubscription(VariableSubscription):
         low_limit: float,
         high_limit: float,
         check_type: EventType,
-        correlation_id: str = str(uuid4()),
+        correlation_id: str | None = None,
         subscription_callback: Callable[
             ["VariableSubscription", "VariableNode", Any], None
         ]
