@@ -345,14 +345,58 @@ Neither of them calls the callbacks or changes a variable.
 
 Through the Frost protocol, an `INVOKE` of a method whose requires are not
 satisfied is answered with an error message (see the table); the method is not
-invoked. In a control flow graph, a `CallMethodNode` that calls a method with
-`requires` must set `on_unmet`; without it the node fails with
-`INVALID_CONFIGURATION` before the call, whether the requires hold or not.
-With `on_unmet: fail` a callee that rejects the call fails the node with the
-error code of the rejection. With `on_unmet: wait` the node keeps running and
-subscribes to the variables the `requires` of the callee read; when one of them
-changes the call is tried again, and it happens only if the requires hold at
-that moment. A misconfigured condition (`INVALID_CONFIGURATION`) never waits.
+invoked.
+
+##### Calling a method with requires from a control flow graph
+
+A `CallMethodNode` that calls a method with `requires` must say what to do when
+they do not hold, with `on_unmet`:
+
+```yaml
+- !!CallMethodNode
+  method: "/plant/start"
+  on_unmet: "fail"        # fail the node at once
+
+- !!CallMethodNode
+  method: "/plant/start"
+  on_unmet: "wait"        # keep waiting, try again when a variable changes
+  timeout: 30.0           # optional, in seconds
+```
+
+- There is no default. Without `on_unmet` the node fails with
+  `INVALID_CONFIGURATION` **before the call, whether the requires hold or
+  not**, so a model that is wrong fails every time and not only when a
+  condition happens to be unmet. When the data model is built, every such node
+  is reported once with a warning that names the composite method, the index of
+  the node and the callee. Build the model with
+  `DataModelBuilder(strict_requires=True)` (or
+  `DataModel(..., strict_requires=True)`) to make it an error. The option is an
+  argument, not a key of the YAML file. A callee that is only known at run time
+  (a templated path) is checked when the node runs; `on_unmet` on a callee that
+  has no `requires` is accepted and has no effect. Remote call nodes
+  (`CallRemoteMethodNode`) are not concerned.
+- `fail`: the node fails with the code and message of the rejection
+  (`PRECONDITION_NOT_MET`, `NO_DATA` or `INVALID_CONFIGURATION`), prefixed with
+  the name of the callee.
+- `wait`: the node stays running and subscribes to **every** variable that the
+  requires of the callee read (a condition that holds can still stop holding).
+  When one of them changes, the call is tried again, and it is made only if the
+  requires hold at that moment: the check and the call are one step, there is
+  no separate wait followed by a call. A condition that can never be evaluated
+  (`INVALID_CONFIGURATION`: a missing variable, a remote variable without a
+  connector) is never waited on.
+- `timeout` is a number of seconds greater than zero and is only accepted with
+  `on_unmet: wait`. The clock starts at the first wait. When it runs out, the
+  call is tried one last time, and only if the requires still do not hold the
+  node fails with `TIMEOUT`, whose message names the callee and the last unmet
+  conditions. Write fractions as `1.0e-7`, not `1e-7`: PyYAML reads the latter
+  as a string.
+- The wait is removed (subscriptions, deadline) whenever the node ends, fails
+  or is aborted. It is traced like a `WaitConditionNode` (`wait_start` and
+  `wait_end`).
+
+A complete model with both modes is in `examples/requires/requires.yml`, and
+`examples/requires/requires.py` loads it in strict mode and tries it.
 
 Limits to keep in mind:
 
@@ -371,6 +415,18 @@ Limits to keep in mind:
 - **No authorization**: the Frost protocol has no authorization. Anyone who can
   send an `INVOKE` can learn from the error text which conditions of a method
   are not met. Do not put secrets in condition paths or right-hand sides.
+- **Nothing wakes a waiting node by itself**: there is no timer. A `wait`, and
+  its `timeout`, advance only when something resumes the context: a change of
+  one of the watched variables, or a call to `resume_execution`. A node that
+  waits on a variable that never changes is not woken at the deadline; it
+  times out the next time it is resumed.
+- **A `wait` on a remote variable that never received a value**: such a
+  variable gives `NO_DATA` ("no value received yet") until the connector
+  delivers a value, and a confirmed write does not count as one. With a
+  connector that does not report changes, an `on_unmet: wait` on it does not
+  end until its `timeout`; always set one. The mapping of connector failures
+  (connection lost, timeout, closed connector) to `NO_DATA` is tested with
+  mocks only, not against a live OPC UA server.
 - **Templated paths are chosen by the caller**: with `variable: "${unit}"`
   the caller picks, through the argument, the variable that is tested, and the
   error text tells whether it matched. Do not template a path over variables
