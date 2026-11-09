@@ -423,14 +423,25 @@ Limits to keep in mind:
 - **A `wait` on a remote variable that never received a value**: such a
   variable gives `NO_DATA` ("no value received yet") until the connector
   delivers a value, and a confirmed write does not count as one. With a
-  connector that does not report changes, an `on_unmet: wait` on it does not
-  end until its `timeout`; always set one. The mapping of connector failures
-  (connection lost, timeout, closed connector) to `NO_DATA` is tested with
-  mocks only, not against a live OPC UA server.
+  connector that never reports changes the wait does not end by itself:
+  its `timeout` is only checked when something resumes the context (a
+  change or `resume_execution`), and nothing does. Set a `timeout` anyway
+  and make sure something resumes the context. The mapping of connector
+  failures (connection lost, timeout, closed connector) to `NO_DATA` is
+  tested with mocks only, not against a live OPC UA server.
 - **Templated paths are chosen by the caller**: with `variable: "${unit}"`
   the caller picks, through the argument, the variable that is tested, and the
   error text tells whether it matched. Do not template a path over variables
   that must stay private.
+- **No thread safety**: connector threads and the Frost handlers run
+  without a lock, so races are known (for example between a variable
+  change and a check). A single executor thread is a follow-up.
+- **One correlation id per context**: all the remote requests of one
+  context share one correlation id, so a late or duplicate answer can be
+  taken for the answer to the next request sent to the same remote.
+- **A plain `MethodNode` that raises over Frost**: if its callback raises
+  while the method is called through the Frost protocol, the request is
+  left unanswered (this was already so before `requires`).
 
 ## Connectors
 
