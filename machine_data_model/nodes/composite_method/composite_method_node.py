@@ -5,11 +5,12 @@ composed of multiple asynchronous sub-methods, wait conditions, and control
 flow elements within the machine data model framework.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 import logging
 from typing import Any
 import uuid
 
+from machine_data_model.behavior.condition import Condition
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.execution_context import (
     ControlFlowStatus,
@@ -93,6 +94,7 @@ class CompositeMethodNode(MethodNode):
         parameters: list[VariableNode] | None = None,
         returns: list[VariableNode] | None = None,
         cfg: ControlFlow | None = None,
+        requires: Sequence[Condition] | None = None,
     ):
         """Initialize a new CompositeMethodNode instance.
 
@@ -105,6 +107,9 @@ class CompositeMethodNode(MethodNode):
             returns (list[VariableNode] | None): A list of return values for the
             method.
             cfg (ControlFlow | None): The control flow graph of the method.
+            requires (Sequence[Condition] | None): Conditions on variables that
+            must all hold for the method to start. A condition can use
+            `${name}` for a parameter of the method.
 
         """
         super().__init__(
@@ -113,6 +118,7 @@ class CompositeMethodNode(MethodNode):
             description=description,
             parameters=parameters,
             returns=returns,
+            requires=requires,
         )
         self._contexts = {}
         self._completed_results = {}
@@ -137,8 +143,18 @@ class CompositeMethodNode(MethodNode):
             MethodExecutionResult:
                 The return values of the method.
 
+        Raises:
+            MethodPreconditionError:
+                If the `requires` of the method are not satisfied. Nothing
+                was started: no context exists and the pre-call function was
+                not called. This method does not call `MethodNode.__call__`,
+                so it runs the check itself.
+
         """
         kwargs = self._resolve_arguments(*args, **kwargs)
+
+        # Reject the call before a context is created or anything is run.
+        self._check_requires(kwargs)
 
         self._pre_call(**kwargs)
         return self._start_execution(**kwargs)
