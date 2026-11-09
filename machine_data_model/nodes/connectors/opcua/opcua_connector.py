@@ -57,16 +57,9 @@ def _require_asyncua_node(value: Any) -> asyncua.Node:
     return value
 
 
-def _status_codes(*names: str) -> tuple[type[UaError], ...]:
-    """Return the asyncua status code errors with the given names."""
-    return tuple(
-        getattr(uaerrors, name) for name in names if hasattr(uaerrors, name)
-    )
-
-
 # Status codes that mean "the server cannot be reached right now", as opposed
 # to "the node is wrong".
-_CONNECTION_STATUS_ERRORS = _status_codes(
+_CONNECTION_STATUS_NAMES = (
     "BadConnectionClosed",
     "BadNoCommunication",
     "BadServerNotConnected",
@@ -75,8 +68,32 @@ _CONNECTION_STATUS_ERRORS = _status_codes(
     "BadNotConnected",
     "BadServerHalted",
     "BadSessionClosed",
+    "BadSessionIdInvalid",
+    "BadSessionNotActivated",
+    "BadSecureChannelIdInvalid",
+    "BadShutdown",
+    "BadDisconnect",
+    "BadConnectionRejected",
+    "BadServerTooBusy",
+    "BadTcpServerTooBusy",
+    "BadTooManySessions",
+    "BadResourceUnavailable",
+    "BadOutOfService",
 )
-_TIMEOUT_STATUS_ERRORS = _status_codes("BadTimeout", "BadRequestTimeout")
+_TIMEOUT_STATUS_NAMES = ("BadTimeout", "BadRequestTimeout")
+
+
+def _status_codes(names: tuple[str, ...]) -> tuple[type[UaError], ...]:
+    """Return the asyncua status code errors with the given names.
+
+    A name that asyncua does not define raises `AttributeError`: a silently
+    dropped name would turn a transient failure into a fault unnoticed.
+    """
+    return tuple(getattr(uaerrors, name) for name in names)
+
+
+_CONNECTION_STATUS_ERRORS = _status_codes(_CONNECTION_STATUS_NAMES)
+_TIMEOUT_STATUS_ERRORS = _status_codes(_TIMEOUT_STATUS_NAMES)
 
 
 def _connection_failure(

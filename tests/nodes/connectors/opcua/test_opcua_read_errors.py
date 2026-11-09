@@ -18,6 +18,12 @@ from machine_data_model.behavior.condition import (
     WaitConditionOperator,
 )
 from machine_data_model.nodes.connectors.opcua import OpcuaConnector
+from machine_data_model.nodes.connectors.opcua.opcua_connector import (
+    _CONNECTION_STATUS_ERRORS,
+    _CONNECTION_STATUS_NAMES,
+    _TIMEOUT_STATUS_ERRORS,
+    _TIMEOUT_STATUS_NAMES,
+)
 from machine_data_model.nodes.connectors.remote_resource import RemoteResource
 from machine_data_model.nodes.variable_node import NumericalVariableNode
 
@@ -43,17 +49,46 @@ def failing_node(error: Exception) -> MagicMock:
 RESOURCE = RemoteResource("ns=2;s=var")
 
 
-class TestReadErrors:
+class TestStatusCodeTables:
+    @pytest.mark.parametrize(
+        "name", _CONNECTION_STATUS_NAMES + _TIMEOUT_STATUS_NAMES
+    )
+    def test_every_listed_name_exists_in_asyncua(self, name: str) -> None:
+        assert issubclass(getattr(uaerrors, name), uaerrors.UaError)
+
+    def test_tables_keep_every_name(self) -> None:
+        assert len(_CONNECTION_STATUS_ERRORS) == len(_CONNECTION_STATUS_NAMES)
+        assert len(_TIMEOUT_STATUS_ERRORS) == len(_TIMEOUT_STATUS_NAMES)
+
+    def test_the_two_tables_do_not_overlap(self) -> None:
+        assert not set(_CONNECTION_STATUS_NAMES) & set(_TIMEOUT_STATUS_NAMES)
+
     @pytest.mark.parametrize(
         "name",
         [
-            "BadConnectionClosed",
-            "BadNoCommunication",
-            "BadServerNotConnected",
-            "BadSecureChannelClosed",
-            "BadSessionClosed",
+            "BadSessionIdInvalid",
+            "BadSessionNotActivated",
+            "BadSecureChannelIdInvalid",
+            "BadShutdown",
+            "BadDisconnect",
+            "BadConnectionRejected",
+            "BadServerTooBusy",
+            "BadTcpServerTooBusy",
+            "BadTooManySessions",
+            "BadResourceUnavailable",
+            "BadOutOfService",
         ],
     )
+    def test_review_listed_codes_are_connection_errors(self, name: str) -> None:
+        assert name in _CONNECTION_STATUS_NAMES
+
+    @pytest.mark.parametrize("name", ["BadNodeIdUnknown", "BadNoMatch"])
+    def test_node_errors_are_not_in_the_tables(self, name: str) -> None:
+        assert name not in _CONNECTION_STATUS_NAMES + _TIMEOUT_STATUS_NAMES
+
+
+class TestReadErrors:
+    @pytest.mark.parametrize("name", _CONNECTION_STATUS_NAMES)
     def test_lost_connection_is_a_connection_error(
         self, connector: OpcuaConnector, name: str
     ) -> None:
@@ -64,7 +99,7 @@ class TestReadErrors:
 
         assert isinstance(info.value.__cause__, uaerrors.UaError)
 
-    @pytest.mark.parametrize("name", ["BadTimeout", "BadRequestTimeout"])
+    @pytest.mark.parametrize("name", _TIMEOUT_STATUS_NAMES)
     def test_timeout_status_is_a_timeout_error(
         self, connector: OpcuaConnector, name: str
     ) -> None:
