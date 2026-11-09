@@ -51,6 +51,9 @@ from machine_data_model.tracing.events import trace_control_flow_step
 # between the check that rejected it and the subscription.
 _MAX_WAIT_CYCLES = 5
 
+# Longest condition text written to the trace of a wait, in characters.
+_MAX_TRACED_CONDITION = 256
+
 # Longest message of a `TIMEOUT` error, in characters.
 _MAX_TIMEOUT_MESSAGE = 768
 
@@ -741,6 +744,65 @@ class CallMethodNode(LocalExecutionNode):
         context.set_value(key, kept)
         return added
 
+    def _wait_trace_key(self, context: ExecutionContext) -> str:
+        """Return the context key that holds the trace data of the wait."""
+        return f"call_method_wait_trace_{context.get_pc()}"
+
+    def _trace_wait_start(
+        self,
+        context: ExecutionContext,
+        ref_method: MethodNode,
+        last: ExecutionError,
+    ) -> None:
+        """Trace the start of the wait, once, at the first rejection.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+            ref_method (MethodNode):
+                The callee.
+            last (ExecutionError):
+                The rejection that makes the node wait.
+
+        """
+        key = self._wait_trace_key(context)
+        if context.has_value(key):
+            return
+        data_model_id = ""
+        if ref_method.data_model is not None:
+            data_model_id = ref_method.data_model.name
+        source = f"{ref_method.qualified_name} (context: {context.id()})"
+        start_time = trace_wait_start(
+            variable_id=ref_method.id,
+            condition=sanitize_detail(last.message, _MAX_TRACED_CONDITION),
+            expected_value=None,
+            source=source,
+            data_model_id=data_model_id,
+        )
+        context.set_value(
+            key, (start_time, ref_method.id, source, data_model_id)
+        )
+
+    def _trace_wait_end(self, context: ExecutionContext) -> None:
+        """Trace the end of the wait, if one was traced and not ended yet.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        key = self._wait_trace_key(context)
+        if not context.has_value(key):
+            return
+        start_time, variable_id, source, data_model_id = context.get_value(key)
+        context.delete_value(key)
+        trace_wait_end(
+            variable_id=variable_id,
+            start_time=start_time,
+            source=source,
+            data_model_id=data_model_id,
+        )
+
     def _would_pass(
         self, ref_method: MethodNode, resolved: dict[str, Any]
     ) -> bool:
@@ -794,6 +856,7 @@ class CallMethodNode(LocalExecutionNode):
         if context.has_value(deadline_key):
             context.delete_value(deadline_key)
         self._unwatch(context)
+        self._trace_wait_end(context)
 
     @staticmethod
     def _wrap_error(error: ExecutionError, callee: str) -> ExecutionError:
@@ -965,6 +1028,7 @@ class CallMethodNode(LocalExecutionNode):
                     return execution_error(
                         self._timeout_error(ref_method, exp.error)
                     )
+                self._trace_wait_start(context, ref_method, exp.error)
                 self._watch(context, exp.variables)
                 if cycle == _MAX_WAIT_CYCLES - 1 or not self._would_pass(
                     ref_method, resolved

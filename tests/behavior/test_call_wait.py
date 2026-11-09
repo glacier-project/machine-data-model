@@ -24,6 +24,13 @@ from machine_data_model.nodes.variable_node import (
     StringVariableNode,
     VariableNode,
 )
+from machine_data_model.tracing import (
+    TraceEventType,
+    TraceLevel,
+    clear_traces,
+    get_global_collector,
+    set_global_trace_level,
+)
 from tests.behavior import StubNode, wait_for_nonzero
 
 EQ = WaitConditionOperator.EQ
@@ -1049,3 +1056,182 @@ class TestArgumentsAreResolvedOnce:
         setup.parent()
 
         assert parameter.reads == 1
+
+
+@pytest.fixture
+def traces() -> Any:
+    clear_traces()
+    set_global_trace_level(TraceLevel.FULL)
+    yield get_global_collector()
+    set_global_trace_level(TraceLevel.NONE)
+    clear_traces()
+
+
+def starts(collector: Any) -> list[Any]:
+    return list(collector.get_events(TraceEventType.WAIT_START))
+
+
+def ends(collector: Any) -> list[Any]:
+    return list(collector.get_events(TraceEventType.WAIT_END))
+
+
+@kinds
+class TestWaitTrace:
+    def test_one_start_at_the_first_wait(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee)
+
+        context_id = setup.start()
+
+        (event,) = starts(traces)
+        assert event.details["variable_id"] == "callee"
+        assert "mode == 2 not met" in event.details["condition"]
+        assert setup.callee.qualified_name in event.source
+        assert context_id in event.source
+        assert event.data_model_id == "dm"
+        assert ends(traces) == []
+
+    def test_resumes_that_still_wait_do_not_start_again(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee)
+        context_id = setup.start()
+
+        setup.mode.write(3)
+        setup.resume(context_id)
+        setup.level.write(1)
+        setup.resume(context_id)
+
+        assert len(starts(traces)) == 1
+        assert ends(traces) == []
+
+    def test_end_when_the_call_goes_through(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee)
+        context_id = setup.start()
+
+        setup.mode.write(2)
+        setup.level.write(1)
+        setup.resume(context_id)
+
+        (end,) = ends(traces)
+        assert end.details["variable_id"] == "callee"
+        assert end.details["wait_duration"] >= 0
+        assert setup.wait_keys(context_id) == []
+
+    def test_end_on_timeout(
+        self, composite_callee: bool, traces: Any, clock: FakeClock
+    ) -> None:
+        setup = Setup(composite_callee, timeout=30)
+        context_id = setup.start()
+
+        clock.now += 31
+        setup.resume(context_id)
+
+        assert len(starts(traces)) == 1
+        assert len(ends(traces)) == 1
+
+    def test_end_on_a_configuration_error_after_waiting(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee)
+        context_id = setup.start()
+        setup.callee._requires = (Condition("nope", EQ, 1),)
+
+        setup.resume(context_id)
+
+        assert len(starts(traces)) == 1
+        assert len(ends(traces)) == 1
+
+    def test_end_on_release(self, composite_callee: bool, traces: Any) -> None:
+        setup = Setup(composite_callee)
+        context_id = setup.start()
+
+        setup.parent.abort_context(context_id)
+
+        assert len(starts(traces)) == 1
+        assert len(ends(traces)) == 1
+
+    def test_the_end_is_traced_once(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee)
+        context_id = setup.start()
+        context = setup.parent._contexts[context_id]
+
+        setup.call.release(context)
+        setup.call.release(context)
+
+        assert len(ends(traces)) == 1
+
+    def test_requires_that_hold_trace_no_wait(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee, mode=2, level=1)
+
+        setup.parent()
+
+        assert starts(traces) == []
+        assert ends(traces) == []
+
+    def test_fail_mode_traces_no_wait(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee, on_unmet="fail")
+
+        setup.parent()
+
+        assert starts(traces) == []
+        assert ends(traces) == []
+
+    def test_each_context_has_its_own_start_and_end(
+        self, composite_callee: bool, traces: Any
+    ) -> None:
+        setup = Setup(composite_callee, requires=[Condition("mode", EQ, 2)])
+        first = setup.start()
+        second = setup.start()
+
+        setup.parent.abort_context(first)
+
+        assert len(starts(traces)) == 2
+        assert len(ends(traces)) == 1
+        assert first in ends(traces)[0].source
+        setup.parent.abort_context(second)
+        assert len(ends(traces)) == 2
+
+
+class TestWaitTraceDetails:
+    def test_nothing_is_traced_at_the_default_level(self) -> None:
+        clear_traces()
+        setup = Setup()
+        context_id = setup.start()
+        setup.mode.write(2)
+        setup.level.write(1)
+        setup.resume(context_id)
+
+        collector = get_global_collector()
+        assert collector.get_events(TraceEventType.WAIT_START) == []
+        assert collector.get_events(TraceEventType.WAIT_END) == []
+        assert setup.callee_runs() == 1
+
+    def test_the_condition_text_is_bounded(self, traces: Any) -> None:
+        many = [Condition("mode", EQ, 100 + i) for i in range(300)]
+        setup = Setup(requires=many)
+
+        setup.start()
+
+        (event,) = starts(traces)
+        assert len(event.details["condition"]) <= 256
+        assert "\n" not in event.details["condition"]
+
+    def test_the_trace_key_is_gone_after_the_end(self, traces: Any) -> None:
+        setup = Setup()
+        context_id = setup.start()
+        context = setup.parent._contexts[context_id]
+        assert any("trace" in key for key in context._locals)
+
+        setup.parent.abort_context(context_id)
+
+        assert not any("trace" in key for key in context._locals)
