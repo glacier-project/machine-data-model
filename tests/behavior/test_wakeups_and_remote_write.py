@@ -464,7 +464,10 @@ class TestObjectRemoteWrite:
             "s": "",
         }
 
-    def test_failed_property_restores_written_ones_and_fails(self) -> None:
+    @staticmethod
+    def two_properties(
+        received: bool,
+    ) -> tuple[ObjectVariableNode, MagicMock, MagicMock]:
         first = NumericalVariableNode(name="a", value=1)
         second = NumericalVariableNode(name="b", value=2)
         connector_a = MagicMock()
@@ -477,17 +480,58 @@ class TestObjectRemoteWrite:
         ):
             variable.set_connector(connector)
             variable._remote_resource = RemoteResource("ns=1")
+            if received:
+                variable._mark_received()
         obj = ObjectVariableNode(
             name="o", properties={"a": first, "b": second}, connector_name="c"
         )
         obj.set_connector(MagicMock())
         obj._remote_resource = RemoteResource("ns=1")
+        return obj, connector_a, connector_b
+
+    def test_failed_property_restores_written_ones_and_fails(self) -> None:
+        obj, connector_a, _ = self.two_properties(received=True)
 
         assert obj.write({"a": 10, "b": 20}) is False
 
         assert obj.read(force_remote_read=False) == {"a": 1, "b": 2}
         # "a" was written, then restored.
-        assert connector_a.write_node_value.call_count == 2
+        assert [
+            c.args[1] for c in connector_a.write_node_value.call_args_list
+        ] == [
+            10,
+            1,
+        ]
+
+    def test_never_received_properties_are_not_rolled_back(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        obj, connector_a, connector_b = self.two_properties(received=False)
+
+        with caplog.at_level(logging.ERROR):
+            assert obj.write({"a": 10, "b": 20}) is False
+
+        # The constructor defaults (1, 2) are never sent to the machine.
+        assert [
+            c.args[1] for c in connector_a.write_node_value.call_args_list
+        ] == [10]
+        assert [
+            c.args[1] for c in connector_b.write_node_value.call_args_list
+        ] == [20]
+        assert "previous value is unknown" in caplog.text
+
+    def test_only_received_properties_are_rolled_back(self) -> None:
+        obj, connector_a, _ = self.two_properties(received=False)
+        obj._properties["a"]._mark_received()
+
+        assert obj.write({"a": 10, "b": 20}) is False
+
+        assert [
+            c.args[1] for c in connector_a.write_node_value.call_args_list
+        ] == [
+            10,
+            1,
+        ]
 
 
 class TestCachedReadsDoNotDrift:
@@ -679,6 +723,8 @@ def object_with_properties(
         connector.write_node_value.side_effect = write
         variable.set_connector(connector)
         variable._remote_resource = RemoteResource(f"ns={name}")
+        # The machine already sent a value: there is something to roll back to.
+        variable._mark_received()
         properties[name] = variable
     obj = ObjectVariableNode(
         name="o", properties=properties, connector_name="c"
@@ -980,6 +1026,7 @@ def logging_variable(
     connector.write_node_value.side_effect = write
     variable.set_connector(connector)
     variable._remote_resource = RemoteResource(f"ns={name}")
+    variable._mark_received()
     return variable
 
 

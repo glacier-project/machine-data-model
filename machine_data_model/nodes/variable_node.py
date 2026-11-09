@@ -1575,32 +1575,58 @@ class ObjectVariableNode(VariableNode):
             name: node._remote_value(node._snapshot())
             for name, node in self._properties.items()
         }
+        # A property that never received a value has only the default of its
+        # constructor as "previous value": the machine never held it.
+        known = {
+            name: node.has_received_value()
+            for name, node in self._properties.items()
+        }
         written: list[str] = []
         try:
             for property_name, property_value in value.items():
                 if not self._properties[property_name]._write_remote(
                     property_value
                 ):
-                    self._roll_back(written, before)
+                    self._roll_back(written, before, known)
                     return False
                 written.append(property_name)
         except Exception:
-            self._roll_back(written, before)
+            self._roll_back(written, before, known)
             raise
         return True
 
-    def _roll_back(self, written: list[str], before: dict[str, Any]) -> None:
+    def _roll_back(
+        self,
+        written: list[str],
+        before: dict[str, Any],
+        known: dict[str, bool],
+    ) -> None:
         """Restore the confirmed properties on the remote server.
+
+        A property whose previous value is unknown (it never received a value)
+        is not written back: that would send the default of its constructor to
+        the machine. It is logged instead.
 
         Args:
             written (list[str]):
                 The names of the properties whose write was confirmed.
             before (dict[str, Any]):
                 The previous value of every property, in its own unit.
+            known (dict[str, bool]):
+                Whether the previous value of each property is a real one.
 
         """
         unrestored: list[str] = []
         for property_name in reversed(written):
+            if not known[property_name]:
+                _logger.error(
+                    "Cannot roll back property '%s' of '%s': the previous "
+                    "value is unknown (no value was ever received)",
+                    property_name,
+                    self.qualified_name,
+                )
+                unrestored.append(property_name)
+                continue
             try:
                 restored = self._properties[property_name]._write_remote(
                     before[property_name]
