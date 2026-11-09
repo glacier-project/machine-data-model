@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+from machine_data_model.behavior.condition import Condition
 from machine_data_model.behavior.control_flow import ControlFlow
 from machine_data_model.behavior.control_flow_node import ControlFlowNode
 from machine_data_model.behavior.local_execution_node import (
@@ -81,6 +82,64 @@ def _build_kwargs(
     for key, value in data.items():
         kwargs[str(key)] = value
     return kwargs
+
+
+_REQUIRES_KEYS = ("variable", "operator", "rhs")
+
+
+def _build_requires(value: Any) -> tuple[Condition, ...]:
+    """Build the conditions of a `requires` field.
+
+    Args:
+        value (Any):
+            The value of the field: a list of mappings with exactly the keys
+            `variable`, `operator` and `rhs`, or None.
+
+    Returns:
+        tuple[Condition, ...]:
+            The conditions, in order.
+
+    Raises:
+        ValueError:
+            If the value is not a list, an item is not a mapping, a key is
+            unknown or missing, the variable is not a string or the operator
+            is not valid.
+
+    """
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(
+            f"'requires' must be a list of conditions, got "
+            f"{type(value).__name__}"
+        )
+    conditions: list[Condition] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"requires[{index}] must be a mapping with the keys "
+                f"{', '.join(_REQUIRES_KEYS)}, got {type(item).__name__}"
+            )
+        try:
+            kwargs = _build_kwargs(item, dict.fromkeys(_REQUIRES_KEYS))
+            missing = [key for key in _REQUIRES_KEYS if key not in item]
+            if missing:
+                raise ValueError(
+                    f"Missing keys: {', '.join(missing)}. "
+                    f"Required keys: {', '.join(_REQUIRES_KEYS)}"
+                )
+            if not isinstance(kwargs["variable"], str):
+                raise ValueError("'variable' must be a string")
+            conditions.append(
+                Condition(
+                    variable=kwargs["variable"],
+                    operator=get_condition_operator(str(kwargs["operator"])),
+                    rhs=kwargs["rhs"],
+                )
+            )
+        except ValueError as exp:
+            raise ValueError(f"requires[{index}]: {exp}") from exp
+    return tuple(conditions)
 
 
 def _get_folder(loader: yaml.SafeLoader, node: yaml.MappingNode) -> FolderNode:
@@ -287,8 +346,10 @@ def _get_method_node(
         "returns": [],
         "connector_name": None,
         "remote_resource_spec": None,
+        "requires": [],
     }
     kwargs = _build_kwargs(data, default_kwargs)
+    kwargs["requires"] = _build_requires(kwargs["requires"])
     return ctor(**kwargs)
 
 
@@ -575,9 +636,11 @@ def _get_composite_method_node(
         "parameters": [],
         "returns": [],
         "cfg": [],
+        "requires": [],
     }
     kwargs = _build_kwargs(data, default_kwargs)
     kwargs["cfg"] = ControlFlow(kwargs["cfg"])
+    kwargs["requires"] = _build_requires(kwargs["requires"])
     return CompositeMethodNode(**kwargs)
 
 
