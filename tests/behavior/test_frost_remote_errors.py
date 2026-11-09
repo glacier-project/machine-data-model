@@ -746,3 +746,25 @@ def test_every_remote_node_declares_its_request_kind() -> None:
         "write": (MsgNamespace.VARIABLE, VariableMsgName.WRITE),
         "wait": (MsgNamespace.VARIABLE, VariableMsgName.SUBSCRIBE),
     }
+
+
+class TestWaitRemoteEventInvalidOperator:
+    def test_message_lists_the_valid_operators(self) -> None:
+        node = WaitRemoteEventNode(
+            variable_node="remote/var",
+            remote_id="remote_dm",
+            rhs=1,
+            op=WaitConditionOperator.EQ,
+        )
+        node.op = "??"  # type: ignore[assignment]
+        context = new_context()
+        update = FrostMessageBuilder(
+            sender="remote_dm"
+        ).build_variable_update_message(target="dm", node="remote/var", value=1)
+
+        with pytest.raises(ValueError) as info:
+            node._validate_response(context, update)
+
+        assert str(info.value) == (
+            "Invalid operator: ??. Valid operators: ==, !=, <, >, <=, >="
+        )

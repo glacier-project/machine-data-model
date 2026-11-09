@@ -10,6 +10,7 @@ from typing import Any, ClassVar
 
 from typing_extensions import override
 
+from machine_data_model.behavior.condition import _invalid_operator_message
 from machine_data_model.behavior.control_flow_node import (
     ControlFlowNode,
     ExecutionNodeResult,
@@ -863,7 +864,7 @@ class WaitRemoteEventNode(RemoteExecutionNode):
         elif self.op == WaitConditionOperator.GE:
             res = lhs >= rhs
         else:
-            raise ValueError(f"Invalid operator: {self.op}")
+            raise ValueError(_invalid_operator_message(self.op))
 
         return res
 
