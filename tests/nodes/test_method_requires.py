@@ -617,3 +617,86 @@ class TestMessageIsBounded:
 
         assert info.value.error.code is ExecutionErrorCode.PRECONDITION_NOT_MET
         assert "(+4 more)" in info.value.error.message
+
+
+class TestPreconditionErrorVariables:
+    def test_variables_are_the_ones_the_conditions_read(self) -> None:
+        model = Model([cond("mode", EQ, 2), cond("level", GT, 10)])
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        assert info.value.variables == (model.mode, model.level)
+        assert isinstance(info.value.variables, tuple)
+
+    def test_each_variable_is_listed_once(self) -> None:
+        model = Model([cond("mode", EQ, 2), cond("mode", GT, 5)])
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        assert info.value.variables == (model.mode,)
+
+    def test_satisfied_conditions_are_included(self) -> None:
+        model = Model([cond("mode", EQ, 1), cond("level", GT, 10)])
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        # Under AND any of them can flip the result, so all are listed.
+        assert info.value.variables == (model.mode, model.level)
+
+    def test_no_data_error_carries_them_too(self) -> None:
+        model = Model([cond("mode", EQ, 1)])
+        model.mode._update_internal_value(None)  # type: ignore[arg-type]
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        assert info.value.error.code is ExecutionErrorCode.NO_DATA
+        assert info.value.variables == (model.mode,)
+
+    def test_templated_path_gives_the_resolved_variable(self) -> None:
+        params = [StringVariableNode(id="which", name="which", value="mode")]
+        model = Model([cond("${which}", EQ, 2)], parameters=params)
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method(which="level")
+
+        assert info.value.variables == (model.level,)
+
+    def test_invalid_configuration_has_no_variables(self) -> None:
+        model = Model([cond("mode", EQ, 1), cond("nope", EQ, 1)])
+
+        with pytest.raises(MethodPreconditionError) as info:
+            model.method()
+
+        assert info.value.error.code is (
+            ExecutionErrorCode.INVALID_CONFIGURATION
+        )
+        assert info.value.variables == ()
+
+    def test_default_is_empty(self) -> None:
+        from machine_data_model.behavior.execution_error import ExecutionError
+
+        error = MethodPreconditionError(
+            ExecutionError(ExecutionErrorCode.TIMEOUT, "t"), []
+        )
+
+        assert error.variables == ()
+
+    def test_conditions_are_resolved_once_per_attempt(self) -> None:
+        model = Model([cond("mode", EQ, 2)])
+        lookups: list[str] = []
+        real = model.data_model.get_node
+
+        def counting(path: str) -> Any:
+            lookups.append(path)
+            return real(path)
+
+        model.data_model.get_node = counting  # type: ignore[method-assign,assignment]
+
+        with pytest.raises(MethodPreconditionError):
+            model.method()
+
+        assert lookups == ["mode"]

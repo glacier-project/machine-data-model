@@ -83,11 +83,20 @@ class MethodPreconditionError(Exception):
             `INVALID_CONFIGURATION`.
         outcomes (list[ConditionOutcome]):
             The outcome of every condition that was evaluated.
+        variables (tuple[VariableNode, ...]):
+            The variables the conditions read, each once, resolved by the same
+            attempt that produced the error. A caller that wants to wait for
+            them to change subscribes to these, without resolving the paths a
+            second time. Empty for `INVALID_CONFIGURATION`: a misconfigured
+            condition is never waited on.
 
     """
 
     def __init__(
-        self, error: ExecutionError, outcomes: list[ConditionOutcome]
+        self,
+        error: ExecutionError,
+        outcomes: list[ConditionOutcome],
+        variables: Sequence[VariableNode] = (),
     ) -> None:
         """Initialize a new MethodPreconditionError.
 
@@ -96,11 +105,14 @@ class MethodPreconditionError(Exception):
                 The reason of the rejection.
             outcomes (list[ConditionOutcome]):
                 The outcome of every condition that was evaluated.
+            variables (Sequence[VariableNode]):
+                The variables the conditions read.
 
         """
         super().__init__(error.message)
         self.error = error
         self.outcomes = outcomes
+        self.variables = tuple(variables)
 
 
 class MethodNode(DataModelNode):
@@ -620,9 +632,19 @@ class MethodNode(DataModelNode):
         scope, resolve_node = self._requires_scope(kwargs)
 
         outcomes: list[ConditionOutcome] = []
+        variables: list[VariableNode] = []
         for condition in self._requires:
             try:
-                outcomes.append(condition.evaluate(resolve_node, scope))
+                # Resolve once: the same result feeds the evaluation and the
+                # variables a caller may subscribe to.
+                resolved = condition.resolve(resolve_node, scope)
+                outcomes.append(
+                    condition.evaluate_on(
+                        resolved.variable, resolved.rhs, path=resolved.path
+                    )
+                )
+                if not any(resolved.variable is v for v in variables):
+                    variables.append(resolved.variable)
             except ConditionError as exp:
                 raise MethodPreconditionError(
                     self._invalid_requires(condition, exp.message), outcomes
@@ -663,6 +685,7 @@ class MethodNode(DataModelNode):
                 else None,
             ),
             outcomes,
+            variables,
         )
 
     def _invalid_requires(
