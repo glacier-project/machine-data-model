@@ -242,6 +242,17 @@ class VariableNode(DataModelNode):
         # previous value.
         if success:
             self.notify_subscribers()
+        elif remote and not self.has_received_value():
+            # The snapshot is the default given to the constructor, which the
+            # machine never held: writing it back would be a spurious write.
+            # Only the cache is restored; the machine keeps the new value.
+            _logger.error(
+                "Cannot restore '%s' on the remote server after a rejected "
+                "update: the previous value is unknown (no value was ever "
+                "received)",
+                self.qualified_name,
+            )
+            self._restore(snapshot)
         elif remote and not self._write_remote(self._remote_value(snapshot)):
             # The restore is a second remote write and can fail too: the
             # machine keeps the new value, so does the cache.
@@ -692,8 +703,10 @@ class VariableNode(DataModelNode):
         to reject the update, which then restores the previous value. For a
         remote variable it runs AFTER the machine was written, so the restore
         is a second remote write that can fail (the failure is logged and the
-        cache keeps the new value). Validators belong in the pre-update
-        callback.
+        cache keeps the new value). If the variable never received a value from
+        the remote side the previous value is unknown: no restore write is
+        sent, an error is logged and only the cache is restored. Validators
+        belong in the pre-update callback.
 
         Args:
             callback (Callable[..., bool]):

@@ -114,7 +114,7 @@ class TestSubscriptionPerContext:
 
 
 def remote_variable(
-    write_result: bool | Exception, value: float = 1
+    write_result: bool | Exception, value: float = 1, received: bool = True
 ) -> tuple[NumericalVariableNode, MagicMock]:
     variable = NumericalVariableNode(
         id="v", name="v", value=value, connector_name="c"
@@ -124,6 +124,9 @@ def remote_variable(
     connector.read_node_value.return_value = value
     variable.set_connector(connector)
     variable._remote_resource = RemoteResource("ns=1")
+    if received:
+        # The machine already sent a value: the cache mirrors it.
+        variable._mark_received()
     return variable, connector
 
 
@@ -190,7 +193,7 @@ class TestRemoteWrite:
 
 
 def remote_unit_variable(
-    unit: Any, value: float, write_result: bool
+    unit: Any, value: float, write_result: bool, received: bool = True
 ) -> NumericalVariableNode:
     variable = NumericalVariableNode(
         id="v", name="v", value=value, measure_unit=unit, connector_name="c"
@@ -199,6 +202,8 @@ def remote_unit_variable(
     connector.write_node_value.return_value = write_result
     variable.set_connector(connector)
     variable._remote_resource = RemoteResource("ns=1")
+    if received:
+        variable._mark_received()
     return variable
 
 
@@ -286,6 +291,107 @@ class TestRejectedRemoteUpdate:
         assert variable.read(force_remote_read=False) == 5
         assert notified == []
         assert "Failed to restore" in caplog.text
+
+
+class TestRestoreOfNeverReceivedVariable:
+    """No restore write for a value the machine never held."""
+
+    def rejecting(
+        self, received: bool, write_result: bool = True
+    ) -> tuple[NumericalVariableNode, MagicMock]:
+        variable, connector = remote_variable(
+            write_result, value=0, received=received
+        )
+        variable.set_post_update_value_callback(lambda prev, curr: False)
+        return variable, connector
+
+    def test_never_received_sends_exactly_one_write(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        variable, connector = self.rejecting(received=False)
+
+        with caplog.at_level(logging.ERROR):
+            assert variable.write(5) is False
+
+        # Only the new value; the constructor default 0 is never sent.
+        assert [
+            c.args[1] for c in connector.write_node_value.call_args_list
+        ] == [5]
+        assert "previous value is unknown" in caplog.text
+        assert "Failed to restore" not in caplog.text
+
+    def test_never_received_restores_only_the_cache(self) -> None:
+        variable, _ = self.rejecting(received=False)
+
+        variable.write(5)
+
+        assert variable._read_internal_value() == 0
+
+    def test_never_received_does_not_notify(self) -> None:
+        variable, _ = self.rejecting(received=False)
+        notified: list[Any] = []
+        variable.subscribe(
+            VariableSubscription(
+                "s", subscription_callback=lambda s, n, v: notified.append(v)
+            )
+        )
+
+        variable.write(5)
+
+        assert notified == []
+
+    def test_received_variable_still_restores_on_the_machine(self) -> None:
+        variable, connector = self.rejecting(received=True)
+
+        assert variable.write(5) is False
+
+        assert [
+            c.args[1] for c in connector.write_node_value.call_args_list
+        ] == [
+            5,
+            0,
+        ]
+
+    def test_a_confirmed_write_does_not_make_it_received(self) -> None:
+        variable, connector = remote_variable(True, value=0, received=False)
+
+        assert variable.write(5)
+        variable.set_post_update_value_callback(lambda prev, curr: False)
+        connector.write_node_value.reset_mock()
+        variable.write(7)
+
+        assert [
+            c.args[1] for c in connector.write_node_value.call_args_list
+        ] == [7]
+
+    def test_local_variable_is_unaffected(self) -> None:
+        variable = NumericalVariableNode(name="v", value=1)
+        variable.set_post_update_value_callback(lambda prev, curr: False)
+
+        assert variable.write(5) is False
+
+        assert variable._read_internal_value() == 1
+
+    def test_object_with_a_property_never_received_skips_the_restore(
+        self,
+    ) -> None:
+        a = remote_unit_variable(LengthUnits.Millimeter, 1, True, received=True)
+        a._name = "a"
+        b = remote_unit_variable(
+            LengthUnits.Millimeter, 2, True, received=False
+        )
+        b._name = "b"
+        obj = ObjectVariableNode(
+            name="o", properties={"a": a, "b": b}, connector_name="c"
+        )
+        obj.set_connector(MagicMock())
+        obj._remote_resource = RemoteResource("ns=1")
+        obj.set_post_update_value_callback(lambda prev, curr: False)
+
+        assert obj.write({"a": 10, "b": 20}) is False
+
+        assert sent_values(a) == [10]
+        assert sent_values(b) == [20]
 
 
 class TestWaitNits:
@@ -520,6 +626,7 @@ class TestSnapshotRestore:
         flag_connector.write_node_value.return_value = True
         flag.set_connector(flag_connector)
         flag._remote_resource = RemoteResource("ns=2")
+        flag._mark_received()
         obj = ObjectVariableNode(
             name="o",
             properties={"len": length, "flag": flag},
