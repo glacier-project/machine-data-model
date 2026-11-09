@@ -47,6 +47,10 @@ from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.tracing import trace_wait_end, trace_wait_start
 from machine_data_model.tracing.events import trace_control_flow_step
 
+# Most times a call is tried again in one step because the values changed
+# between the check that rejected it and the subscription.
+_MAX_WAIT_CYCLES = 5
+
 # Longest message of a `TIMEOUT` error, in characters.
 _MAX_TIMEOUT_MESSAGE = 768
 
@@ -737,6 +741,51 @@ class CallMethodNode(LocalExecutionNode):
         context.set_value(key, kept)
         return added
 
+    def _would_pass(
+        self,
+        ref_method: MethodNode,
+        args: list[Any],
+        kwargs: dict[str, Any],
+    ) -> bool:
+        """Tell whether the `requires` of the callee hold now, without calling.
+
+        Args:
+            ref_method (MethodNode):
+                The callee.
+            args (list[Any]):
+                The resolved positional arguments of the call.
+            kwargs (dict[str, Any]):
+                The resolved keyword arguments of the call.
+
+        Returns:
+            bool:
+                True if a call made now would pass the check.
+
+        """
+        try:
+            ref_method._check_requires(
+                ref_method._resolve_arguments(*args, **kwargs)
+            )
+        except MethodPreconditionError:
+            return False
+        return True
+
+    def _unwatch(self, context: ExecutionContext) -> None:
+        """Unsubscribe from the watched variables, keeping the deadline.
+
+        Args:
+            context (ExecutionContext):
+                The context of the control flow graph.
+
+        """
+        key = self._wait_key(context)
+        if not context.has_value(key):
+            return
+        watched = context.get_value(key)
+        context.delete_value(key)
+        for variable, subscription in watched:
+            variable.unsubscribe(subscription)
+
     def _clear_wait(self, context: ExecutionContext) -> None:
         """Unsubscribe from the watched variables and forget the wait.
 
@@ -750,13 +799,7 @@ class CallMethodNode(LocalExecutionNode):
         deadline_key = self._deadline_key(context)
         if context.has_value(deadline_key):
             context.delete_value(deadline_key)
-        key = self._wait_key(context)
-        if not context.has_value(key):
-            return
-        watched = context.get_value(key)
-        context.delete_value(key)
-        for variable, subscription in watched:
-            variable.unsubscribe(subscription)
+        self._unwatch(context)
 
     @staticmethod
     def _wrap_error(error: ExecutionError, callee: str) -> ExecutionError:
@@ -893,7 +936,11 @@ class CallMethodNode(LocalExecutionNode):
                 )
             )
         res = None
-        for attempt in (1, 2):
+        for _ in range(_MAX_WAIT_CYCLES):
+            # The wait is dropped while the callee runs: a callee that writes
+            # a variable it watches would otherwise wake this very context in
+            # the middle of its own call and be called again.
+            self._unwatch(context)
             try:
                 res = ref_method(*args, **kwargs)
                 break
@@ -919,14 +966,16 @@ class CallMethodNode(LocalExecutionNode):
                     return execution_error(
                         self._timeout_error(ref_method, exp.error)
                     )
-                newly_subscribed = self._watch(context, exp.variables)
-                if newly_subscribed and attempt == 1:
-                    # The values could have changed between the check that
-                    # rejected the call and the subscription: look once more,
-                    # now that a change would wake the context.
-                    continue
-                return execution_failure()
-        assert res is not None
+                self._watch(context, exp.variables)
+                if not self._would_pass(ref_method, args, kwargs):
+                    return execution_failure()
+                # The values changed between the check that rejected the call
+                # and the subscription (no event reached us): try again, with
+                # the wait dropped as for any call.
+        if res is None:
+            # Kept changing under us: stay subscribed, the next change wakes
+            # the context.
+            return execution_failure()
         self._clear_wait(context)
 
         if res.error is not None:

@@ -754,3 +754,125 @@ class TestNestedRelease:
         assert setup.parent._contexts == {}
         assert grandparent._contexts == {}
         assert setup.data_model._contexts == {}
+
+
+@kinds
+class TestCalleeThatWritesWatchedVariables:
+    """The wait is dropped while the callee runs: no re-entrant resume."""
+
+    @staticmethod
+    def build(composite_callee: bool, writes: str) -> Setup:
+        setup = Setup(
+            composite_callee,
+            requires=[
+                Condition("mode", GE, 1),
+                Condition("level", GE, 0),
+            ],
+            mode=0,
+            level=0,
+        )
+        target = setup.mode if writes == "mode" else setup.level
+        value = 5
+
+        def write() -> None:
+            target.write(value)
+
+        if composite_callee:
+
+            def make() -> Any:
+                write()
+                return execution_success()
+
+            setup.callee_stub._make = make
+        else:
+            real = setup.callee._callback
+
+            def callback(**kwargs: Any) -> int:
+                write()
+                return real(**kwargs)  # type: ignore[no-any-return]
+
+            setup.callee._callback = callback
+        return setup
+
+    @staticmethod
+    def resume_synchronously(setup: Setup) -> list[str]:
+        resumed: list[str] = []
+
+        def on_change(subscription: Any, node: Any, value: Any) -> None:
+            resumed.append(subscription.subscriber_id)
+            setup.parent.resume_execution(subscription.subscriber_id)
+
+        for variable in (setup.mode, setup.level):
+            variable.set_subscription_callback(on_change)
+        return resumed
+
+    @pytest.mark.parametrize("writes", ["mode", "level"])
+    def test_the_callee_is_called_exactly_once(
+        self, composite_callee: bool, writes: str
+    ) -> None:
+        setup = self.build(composite_callee, writes)
+        resumed = self.resume_synchronously(setup)
+        context_id = setup.start()
+        assert setup.subscribers(setup.mode) == [context_id]
+
+        setup.mode.write(1)
+
+        assert setup.callee_runs() == 1
+        assert setup.after.runs == 1
+        # Only the write that made the requires true woke the context.
+        assert resumed == [context_id]
+        assert setup.subscribers(setup.mode) == []
+        assert setup.subscribers(setup.level) == []
+        assert setup.wait_keys(context_id) == []
+
+    def test_the_wait_is_not_installed_during_the_call(
+        self, composite_callee: bool
+    ) -> None:
+        setup = self.build(composite_callee, "level")
+        context_id = setup.start()
+        seen: list[list[str]] = []
+        real_write = setup.level.write
+
+        def spy(value: Any) -> bool:
+            seen.append(setup.subscribers(setup.mode))
+            return real_write(value)
+
+        setup.level.write = spy  # type: ignore[method-assign]
+        setup.mode.write(1)
+        setup.resume(context_id)
+
+        assert seen
+        assert all(subscribers == [] for subscribers in seen)
+
+    def test_a_rejection_after_the_resume_subscribes_again(
+        self, composite_callee: bool
+    ) -> None:
+        setup = self.build(composite_callee, "level")
+        context_id = setup.start()
+
+        # Woken, but still unmet: the node must be waiting again.
+        setup.level.write(3)
+        setup.resume(context_id)
+
+        assert setup.callee_runs() == 0
+        assert setup.subscribers(setup.mode) == [context_id]
+        assert setup.subscribers(setup.level) == [context_id]
+
+    def test_the_deadline_survives_the_resubscription(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(
+            composite_callee,
+            requires=[Condition("mode", GE, 1)],
+            mode=0,
+            timeout=30,
+        )
+        context_id = setup.start()
+        (key,) = deadline_keys(setup, context_id)
+        context = setup.parent._contexts[context_id]
+        deadline = context.get_value(key)
+
+        setup.level.write(3)
+        setup.resume(context_id)
+
+        assert context.get_value(key) == deadline
