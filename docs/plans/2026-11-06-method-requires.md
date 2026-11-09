@@ -272,11 +272,14 @@ successors=None)`; `on_unmet: OnUnmet | None`, `OnUnmet(str, Enum)` =
      subscription (same keys pattern as `WaitConditionNode`), return RUNNING.
 3. On a later resume the same node re-attempts at the same pc. On success the
    subscriptions and keys are removed (same cleanup as the wait branch).
-4. Deadline: first `wait` stores `call_method_deadline_<pc>` (epoch seconds from
-   `time.monotonic()` is not serialisable across processes, use
-   `time.time()`); each re-execution compares and returns
-   `execution_error(TIMEOUT)`. Nothing wakes the context by itself (known
-   limit, 9.1).
+4. Deadline: first `wait` stores `call_method_deadline_<pc>` (a
+   `time.monotonic()` value: contexts are never serialized across processes,
+   so the monotonic clock is safe and clock changes do not move it; decision 3
+   of the phase 5 split); each re-execution first tries the call again (one
+   last attempt, decision 2) and returns `execution_error(TIMEOUT)` only if it
+   is still rejected after the deadline, with the callee's last unmet message
+   (decision 9; the observed value is left out). Nothing wakes the context by
+   itself (known limit, 9.1).
 
 ### 4.5 YAML
 
@@ -835,7 +838,7 @@ Acceptance: every earlier test green; the TOCTOU test proves there is no
 separate wait-then-call sequence; no composite in `examples/` or `resource/`
 changes behavior (none has `requires`).
 Risks: `timeout` only fires when something resumes the context (9.1);
-`time.time()` jumps can shorten/extend a timeout; subscribing to variables
+the timeout uses `time.monotonic()`, so clock jumps do not move it; subscribing to variables
 read by a callee uses `VariableNode.subscribe` identity dedup, so the
 subscription object must be stored in the context exactly like
 `WaitConditionNode` does.
