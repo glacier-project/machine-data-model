@@ -558,6 +558,46 @@ class TestResolveAndEvaluateOn:
         )
 
 
+class TestNoConnectorAgrees:
+    """resolve, variables and evaluate raise the same error."""
+
+    @staticmethod
+    def setup() -> tuple[Condition, NumericalVariableNode]:
+        var = NumericalVariableNode(
+            name="mode", value=2, connector_name="missing"
+        )
+        assert var.is_remote() and not var.has_connector()
+        return Condition("mode", WaitConditionOperator.EQ, 2), var
+
+    @pytest.mark.parametrize("method", ["resolve", "variables", "evaluate"])
+    def test_same_condition_error(self, method: str) -> None:
+        cond, var = self.setup()
+
+        with pytest.raises(ConditionError) as info:
+            getattr(cond, method)(resolver_for(var), None)
+
+        assert info.value.variable == "mode"
+        assert info.value.message == (
+            "variable 'mode' is remote but has no connector"
+        )
+
+    def test_templated_path_reports_the_resolved_path(self) -> None:
+        _, var = self.setup()
+        cond = Condition("${which}", WaitConditionOperator.EQ, 2)
+
+        with pytest.raises(ConditionError) as info:
+            cond.resolve(resolver_for(var), scope(which="mode"))
+
+        assert info.value.variable == "mode"
+
+    def test_remote_variable_with_connector_still_resolves(self) -> None:
+        cond, var = self.setup()
+        var.set_connector(MagicMock())
+
+        assert cond.resolve(resolver_for(var), None).variable is var
+        assert cond.variables(resolver_for(var), None) == [var]
+
+
 class TestDataclasses:
     def test_condition_is_frozen_and_comparable(self) -> None:
         cond = Condition("mode", WaitConditionOperator.EQ, 2)

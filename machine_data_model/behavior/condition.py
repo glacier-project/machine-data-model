@@ -134,6 +134,29 @@ class ConditionError(ValueError):
         self.message = message
 
 
+def _require_connector(path: str, variable: "VariableNode") -> None:
+    """Fail if a remote variable has no connector.
+
+    This is a configuration problem, not a transient lack of data: there is
+    nothing to wait for.
+
+    Args:
+        path (str):
+            The resolved path of the variable.
+        variable (VariableNode):
+            The variable.
+
+    Raises:
+        ConditionError:
+            If the variable is remote and has no connector.
+
+    """
+    if variable.is_remote() and not variable.has_connector():
+        raise ConditionError(
+            path, f"variable '{path}' is remote but has no connector"
+        )
+
+
 class ConditionResult(str, Enum):
     """Enumeration of the results of evaluating a condition.
 
@@ -262,7 +285,8 @@ class Condition:
 
         Raises:
             ConditionError:
-                If the path does not resolve to a variable node.
+                If the path does not resolve to a variable node, or the
+                variable is remote and has no connector.
 
         """
         from machine_data_model.nodes.variable_node import VariableNode
@@ -273,6 +297,7 @@ class Condition:
             raise ConditionError(path, f"variable '{path}' not found")
         if not isinstance(node, VariableNode):
             raise ConditionError(path, f"node '{path}' is not a variable")
+        _require_connector(path, node)
         return path, node
 
     def resolve(
@@ -297,8 +322,9 @@ class Condition:
 
         Raises:
             ConditionError:
-                If the variable is missing or is not a variable, or if a
-                template is used without a scope.
+                If the variable is missing, is not a variable or is remote
+                without a connector, or if a template is used without a
+                scope.
             KeyError:
                 If a template refers to a name missing in the scope.
 
@@ -329,8 +355,9 @@ class Condition:
 
         Raises:
             ConditionError:
-                If the variable is missing or is not a variable, or if a
-                template is used without a scope.
+                If the variable is missing, is not a variable or is remote
+                without a connector, or if a template is used without a
+                scope.
             KeyError:
                 If a template refers to a name missing in the scope.
 
@@ -381,12 +408,7 @@ class Condition:
             path = variable.qualified_name
         text = f"{path} {self.operator.value} {rhs}"
 
-        if variable.is_remote() and not variable.has_connector():
-            # A configuration problem, not a transient lack of data: there is
-            # nothing to wait for.
-            raise ConditionError(
-                path, f"variable '{path}' is remote but has no connector"
-            )
+        _require_connector(path, variable)
 
         try:
             lhs = variable.read(force_remote_read=force_remote_read)
@@ -448,8 +470,9 @@ class Condition:
 
         Raises:
             ConditionError:
-                If the variable is missing or is not a variable, or if a
-                template is used without a scope.
+                If the variable is missing, is not a variable or is remote
+                without a connector, or if a template is used without a
+                scope.
 
         """
         _, variable = self._resolve_variable(resolve_node, scope)
