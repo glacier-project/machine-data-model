@@ -506,7 +506,7 @@ at the end of its group; group C depends on A and B.
     error text (11.3) and the bounded `observed` text.
   - A2 `Condition.resolve()` / `evaluate_on()` (4.A).
   - A3 observed value out of the message into `observed` fields (4.H).
-  - A4 `OSError` around `read()` gives `NO_DATA` (4.G).
+  - A4 `ConnectionError`/`TimeoutError` around `read()` give `NO_DATA` (4.G).
   - A5 remote variable without a connector gives `ConditionError`
     (`INVALID_CONFIGURATION`) (4.I).
   - **Next review: end of group A.**
@@ -694,8 +694,8 @@ never had; writing it is a spurious write (probe: a rejected update sent
 never-received variable with a rejecting post hook -> exactly one remote write;
 a received variable still restores.
 
-4.G **Exceptions raised by `variable.read()` (DECIDED by the user: `OSError` ->
-`NO_DATA`, every other exception propagates, connector exception audit
+4.G **Exceptions raised by `variable.read()` (DECIDED by the user: connection and
+timeout errors -> `NO_DATA`, every other exception propagates, connector exception audit
 included).** `Condition.evaluate`
 catches `ConnectionError` and `TimeoutError` around the read (narrowed from
 `OSError` in revision 7, group A review finding 6: `FileNotFoundError`,
@@ -708,8 +708,9 @@ cached reads of P3 this is rare; it matters for `force_remote_read=True`
 own types (asyncua, aiomqtt); I did not audit them. Audit
 `AbstractConnector.read_node_value` implementations and wrap connection/timeout
 failures into `ConnectionError`/`TimeoutError` at the connector boundary, so
-the `OSError` catch is sufficient. Tests: stub variable whose read raises
-`ConnectionError`/`TimeoutError`/`RuntimeError` -> `NO_DATA`/`NO_DATA`/raises.
+the `ConnectionError`/`TimeoutError` catch is sufficient. Tests: stub variable
+whose read raises `ConnectionError`/`TimeoutError` -> `NO_DATA`;
+`RuntimeError`/`FileNotFoundError`/`PermissionError` -> raises.
 
 4.H **Frost boundary: detail text, observed values, size (REPLACED in
 revision 5; user approved).** Since phase 3 the Frost error text is
@@ -988,8 +989,8 @@ Decided by the user for phase 4 (revision 5 changes marked):
 
 8. "Has received a value": option B, a timestamp in the `VariableNode` base
    class, **renamed `received_at`, three origin sites, no write site** (4.F).
-9. `read()` exceptions: `OSError` (so `ConnectionError`, `TimeoutError`) ->
-   `NO_DATA`; all other exceptions propagate; audit of connector exceptions is
+9. `read()` exceptions: `ConnectionError` and `TimeoutError` (narrowed from
+   `OSError` in revision 7) -> `NO_DATA`; all other exceptions propagate; audit of connector exceptions is
    part of phase 4 (4.G).
 10. The `DataModel` validation pass of static `requires` paths starts in phase 4
     (4.C), phase 5 extends it.
