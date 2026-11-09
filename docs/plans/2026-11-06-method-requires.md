@@ -775,16 +775,22 @@ Goal: CFG chooses wait or fail; atomic attempt-call; optional timeout.
 
 Note (limits 9.11, 9.12): a wait on a remote variable that never received a
 value (a confirmed write does not count) gives `NO_DATA` until the connector
-delivers a value, so with a connector that does not echo changes the wait only
-ends through `timeout`; document this next to `on_unmet: wait`. The connector
+delivers a value, so with a connector that does not echo changes nothing resumes
+the context and the wait does not end by itself (the `timeout` is only checked
+on a resume, limit 9.1); document this next to `on_unmet: wait`. The connector
 error mapping it relies on is tested with mocks only.
 
 Files / changes:
 
 1. `behavior/local_execution_node.py`: `OnUnmet` enum; `CallMethodNode` new
-   arguments `on_unmet`, `timeout`; `execute` per 4.4; cleanup helper shared
-   with `WaitConditionNode` for the per-context subscription (key pattern
-   unchanged so `test_wait_subscription_bug` keeps its meaning); `__eq__` and
+   arguments `on_unmet`, `timeout`; `execute` per 4.4. As built, `CallMethodNode`
+   has its own helpers instead of one shared with `WaitConditionNode`: `_watch`
+   (one `VariableSubscription` per context shared by all watched variables, key
+   `call_method_wait_<pc>`), `_unwatch` (dropped before every call, so a callee
+   that writes a watched variable cannot wake its own context), `_clear_wait`
+   (also deletes the deadline key `call_method_deadline_<pc>` and ends the wait
+   trace) and `_would_pass` (check-only re-check after subscribing; the last of
+   at most five cycles is a real call); `__eq__` and
    properties updated.
 2. `data_model.py`: after `_register_nodes` and `_setup_inheritable_specs`
    (all nodes registered), a validation pass over every `CompositeMethodNode`
@@ -982,8 +988,10 @@ the existing, clear failure mode.
     value still gives `NO_DATA` ("no value received yet") on a cached read
     until the subscription echoes it. Every variable of a `DataModel`
     subscribes at construction, so the echo normally comes; with a connector
-    that does not echo changes, an `on_unmet: wait` on such a variable waits
-    forever (use `timeout`). Kept on purpose: the cache after a write is what
+    that does not echo changes, nothing resumes the context, so an
+    `on_unmet: wait` on such a variable does not end by itself: the `timeout`
+    is only checked when something resumes the context (limit 9.1), so it does
+    not help either. Kept on purpose: the cache after a write is what
     we sent, not what the machine holds.
 
 12. **Connector failure mapping is tested with mocks only** (B3 and H2: OPC UA
