@@ -394,7 +394,7 @@ class TestFrost:
             (
                 ExecutionErrorCode.INVALID_CONFIGURATION,
                 ErrorCode.UNKNOWN,
-                ErrorMessages.BAD_REQUEST,
+                ErrorMessages.INVALID_CONFIGURATION,
             ),
             (
                 ExecutionErrorCode.REMOTE_ERROR,

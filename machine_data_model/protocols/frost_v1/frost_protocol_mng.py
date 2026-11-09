@@ -73,7 +73,7 @@ _EXECUTION_ERROR_RESPONSES: dict[
     # caller: the code is UNKNOWN, not BAD_REQUEST.
     ExecutionErrorCode.INVALID_CONFIGURATION: (
         ErrorCode.UNKNOWN,
-        ErrorMessages.BAD_REQUEST,
+        ErrorMessages.INVALID_CONFIGURATION,
     ),
     ExecutionErrorCode.REMOTE_ERROR: (
         ErrorCode.UNKNOWN,

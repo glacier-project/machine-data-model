@@ -153,7 +153,7 @@ class TestRejections:
 
         assert payload.error_code is ErrorCode.UNKNOWN
         assert str(payload.error_message).startswith(
-            f"{ErrorMessages.BAD_REQUEST.value}: "
+            f"{ErrorMessages.INVALID_CONFIGURATION.value}: "
         )
         assert not setup.ran()
 
