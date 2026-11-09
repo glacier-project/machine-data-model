@@ -104,6 +104,28 @@ def _sanitize_detail(detail: str) -> str:
     return sanitize_detail(detail, _MAX_ERROR_DETAIL)
 
 
+# Longest identifier written to a log line, in characters.
+_MAX_LOGGED_ID = 64
+
+
+def _log_id(value: object) -> str:
+    """Make an identifier safe to write to a log line.
+
+    Correlation and context ids come from the peer: a newline or an escape
+    sequence in one would forge or hide log lines.
+
+    Args:
+        value (object):
+            The identifier (any type, as found in a message).
+
+    Returns:
+        str:
+            The identifier on one line, without control characters, bounded.
+
+    """
+    return sanitize_detail(str(value), _MAX_LOGGED_ID)
+
+
 # Codes whose detail is never sent to the peer (it may carry paths, values or
 # internals); the detail goes to the log instead.
 _ERRORS_WITHOUT_DETAIL = frozenset(
@@ -309,7 +331,7 @@ class FrostProtocolMng(ProtocolMng):
         if owner is None:
             _logger.debug(
                 "Ignoring a response for unknown context '%s'",
-                msg.correlation_id,
+                _log_id(msg.correlation_id),
             )
             return None
         if owner.handle_message(msg.correlation_id, msg):
@@ -366,7 +388,8 @@ class FrostProtocolMng(ProtocolMng):
         owner = self._owner_of_context(context_id)
         if owner is None:
             _logger.debug(
-                "Ignoring an error for unknown context '%s'", context_id
+                "Ignoring an error for unknown context '%s'",
+                _log_id(context_id),
             )
             return None
         root_id = self._root_context_id(context_id)
@@ -381,7 +404,7 @@ class FrostProtocolMng(ProtocolMng):
             _logger.debug(
                 "Ignoring an error that does not answer a request of context "
                 "'%s'",
-                context_id,
+                _log_id(context_id),
             )
             return None
         if ret.messages:
@@ -532,7 +555,7 @@ class FrostProtocolMng(ProtocolMng):
             # `_EXECUTION_ERROR_RESPONSES`). The observed value is not sent.
             _logger.info(
                 "Request %s rejected, requires of '%s' not satisfied (%s)",
-                msg.correlation_id,
+                _log_id(msg.correlation_id),
                 method_node.qualified_name,
                 exp.error.code.value,
             )
@@ -852,8 +875,8 @@ class FrostProtocolMng(ProtocolMng):
             _logger.debug(
                 "The walk up from context '%s' ended on '%s', which is not a "
                 "running request",
-                context_id,
-                current,
+                _log_id(context_id),
+                _log_id(current),
             )
         return current
 
@@ -876,7 +899,7 @@ class FrostProtocolMng(ProtocolMng):
         """
         owner = self._owner_of_context(context_id)
         if owner is None:
-            _logger.debug("Ignoring unknown context '%s'", context_id)
+            _logger.debug("Ignoring unknown context '%s'", _log_id(context_id))
             return None
 
         root_id = self._root_context_id(context_id)
@@ -954,7 +977,7 @@ class FrostProtocolMng(ProtocolMng):
             _logger.warning(
                 "The context of request %s was released before the request "
                 "ended; answering with an error",
-                msg.correlation_id,
+                _log_id(msg.correlation_id),
             )
             return self._create_execution_error_message(
                 msg,
@@ -1051,7 +1074,7 @@ class FrostProtocolMng(ProtocolMng):
         if error.code in _ERRORS_WITHOUT_DETAIL:
             _logger.error(
                 "Request %s failed with %s: %s",
-                msg.correlation_id,
+                _log_id(msg.correlation_id),
                 error.code.value,
                 error.message,
             )
