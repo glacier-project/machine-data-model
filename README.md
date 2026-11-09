@@ -345,8 +345,12 @@ Neither of them calls the callbacks or changes a variable.
 
 Through the Frost protocol, an `INVOKE` of a method whose requires are not
 satisfied is answered with an error message (see the table); the method is not
-invoked. In a control flow graph, a `CallMethodNode` whose callee rejects the
-call fails with the same error code (`on_unmet: fail` behavior).
+invoked. In a control flow graph, a `CallMethodNode` that calls a method with
+`requires` must set `on_unmet`; without it the node fails with
+`INVALID_CONFIGURATION` before the call, whether the requires hold or not.
+With `on_unmet: fail` a callee that rejects the call fails the node with the
+error code of the rejection. `on_unmet: wait` is accepted but does not wait
+yet: until it is implemented it ends the call like `fail`.
 
 Limits to keep in mind:
 

@@ -18,7 +18,10 @@ from machine_data_model.nodes.composite_method.composite_method_node import (
     CompositeMethodNode,
 )
 from machine_data_model.nodes.method_node import MethodNode
-from machine_data_model.nodes.variable_node import NumericalVariableNode
+from machine_data_model.nodes.variable_node import (
+    NumericalVariableNode,
+    StringVariableNode,
+)
 from machine_data_model.protocols.frost_v1.frost_header import MsgType
 from machine_data_model.protocols.frost_v1.frost_message import FrostMessage
 from machine_data_model.protocols.frost_v1.frost_payload import (
@@ -36,19 +39,25 @@ EQ = WaitConditionOperator.EQ
 class Setup:
     """A parent composite that calls a callee guarded by `requires`."""
 
-    def __init__(self, composite_callee: bool, mode: float = 1) -> None:
+    def __init__(
+        self,
+        composite_callee: bool,
+        mode: float = 1,
+        on_unmet: str | None = "fail",
+        requires: bool = True,
+    ) -> None:
         self.calls: list[dict[str, Any]] = []
         self.callee_stub = StubNode(lambda: execution_success())
         self.after = StubNode(lambda: execution_success())
         self.mode = NumericalVariableNode(id="mode", name="mode", value=mode)
-        requires = [Condition("mode", EQ, 2)]
+        conditions = [Condition("mode", EQ, 2)] if requires else []
         self.callee: MethodNode
         if composite_callee:
             self.callee = CompositeMethodNode(
                 id="callee",
                 name="callee",
                 cfg=ControlFlow(nodes=[self.callee_stub]),
-                requires=requires,
+                requires=conditions,
             )
         else:
             self.callee = MethodNode(
@@ -56,9 +65,11 @@ class Setup:
                 name="callee",
                 returns=[NumericalVariableNode(id="r", name="r", value=0)],
                 callback=self.record,
-                requires=requires,
+                requires=conditions,
             )
-        call = CallMethodNode(method_node="callee", args=[], kwargs={})
+        call = CallMethodNode(
+            method_node="callee", args=[], kwargs={}, on_unmet=on_unmet
+        )
         call.set_ref_node(self.callee)
         self.parent = CompositeMethodNode(
             id="parent",
@@ -203,3 +214,106 @@ class TestOverFrost:
         assert "987654" not in str(response.payload.error_message)
         assert manager._running_methods == {}
         assert not setup.callee_ran()
+
+
+@kinds
+class TestOnUnmetMissing:
+    """A callee with `requires` needs a call node that says what to do."""
+
+    def test_fails_before_the_call_even_when_the_requires_hold(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(composite_callee, mode=2, on_unmet=None)
+
+        result = setup.parent()
+
+        assert result.error is not None
+        assert result.error.code is ExecutionErrorCode.INVALID_CONFIGURATION
+        assert result.error.node == setup.callee.qualified_name
+        assert "on_unmet" in result.error.message
+        assert setup.callee.qualified_name in result.error.message
+        assert not setup.callee_ran()
+        assert setup.after.runs == 0
+
+    def test_fails_the_same_way_when_the_requires_do_not_hold(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(composite_callee, mode=1, on_unmet=None)
+
+        result = setup.parent()
+
+        assert result.error is not None
+        assert result.error.code is ExecutionErrorCode.INVALID_CONFIGURATION
+        assert not setup.callee_ran()
+
+    def test_no_error_log_and_no_context_left(
+        self, composite_callee: bool, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        setup = Setup(composite_callee, on_unmet=None)
+
+        with caplog.at_level(logging.DEBUG):
+            setup.parent()
+
+        assert not [r for r in caplog.records if r.exc_info]
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert_no_contexts(setup.parent)
+        assert setup.data_model._contexts == {}
+
+    def test_explicit_fail_with_holding_requires_calls(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(composite_callee, mode=2, on_unmet="fail")
+
+        assert setup.parent().error is None
+        assert setup.callee_ran()
+
+    def test_over_frost_it_is_a_server_fault(
+        self, composite_callee: bool
+    ) -> None:
+        setup = Setup(composite_callee, mode=2, on_unmet=None)
+        manager = FrostProtocolMng(setup.data_model)
+
+        response = manager.handle_request(frost_request("dm", "parent"))
+
+        assert isinstance(response, FrostMessage)
+        assert isinstance(response.payload, ErrorPayload)
+        assert response.payload.error_code is ErrorCode.UNKNOWN
+        assert manager._running_methods == {}
+        assert not setup.callee_ran()
+
+
+@kinds
+class TestCalleeWithoutRequires:
+    def test_no_on_unmet_is_fine(self, composite_callee: bool) -> None:
+        setup = Setup(composite_callee, on_unmet=None, requires=False)
+
+        assert setup.parent().error is None
+        assert setup.callee_ran()
+
+    @pytest.mark.parametrize("on_unmet", ["fail", "wait"])
+    def test_on_unmet_is_ignored(
+        self, composite_callee: bool, on_unmet: str
+    ) -> None:
+        setup = Setup(composite_callee, on_unmet=on_unmet, requires=False)
+
+        assert setup.parent().error is None
+        assert setup.callee_ran()
+
+
+def test_templated_callee_path_follows_the_same_rule() -> None:
+    setup = Setup(composite_callee=False, mode=2, on_unmet=None)
+    templated = CallMethodNode(method_node="${callee}", args=[], kwargs={})
+    parent = CompositeMethodNode(
+        id="templated_parent",
+        name="templated_parent",
+        parameters=[StringVariableNode(id="callee", name="callee", value="")],
+        cfg=ControlFlow(nodes=[templated]),
+    )
+    setup.data_model.root.add_child(parent)
+    setup.data_model._register_nodes(setup.data_model.root)
+
+    result = parent(callee=setup.callee.id)
+
+    assert result.error is not None
+    assert result.error.code is ExecutionErrorCode.INVALID_CONFIGURATION
+    assert not setup.callee_ran()

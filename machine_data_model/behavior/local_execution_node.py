@@ -30,6 +30,7 @@ from machine_data_model.behavior.execution_context import (
 )
 from machine_data_model.behavior.execution_error import (
     ExecutionError,
+    ExecutionErrorCode,
     sanitize_detail,
 )
 from machine_data_model.nodes.data_model_node import DataModelNode
@@ -714,12 +715,28 @@ class CallMethodNode(LocalExecutionNode):
         # resolve variables in the context
         args = [resolve_value(arg, context) for arg in self._args]
         kwargs = {k: resolve_value(v, context) for k, v in self._kwargs.items()}
+        if ref_method.requires and self._on_unmet is None:
+            # A callee with `requires` must be called by a node that says what
+            # to do when they do not hold. Failing here, before the call and
+            # whether they hold or not, keeps the result independent of the
+            # data: a model that is wrong fails every time, not only when a
+            # condition happens to be unmet.
+            return execution_error(
+                ExecutionError(
+                    ExecutionErrorCode.INVALID_CONFIGURATION,
+                    f"call of '{ref_method.qualified_name}': the method has "
+                    "requires, so the call node must set on_unmet to 'wait' "
+                    "or 'fail'",
+                    node=ref_method.qualified_name,
+                )
+            )
         try:
             res = ref_method(*args, **kwargs)
         except MethodPreconditionError as exp:
             # The callee's `requires` do not hold: nothing started. This is the
-            # behavior of `on_unmet = fail` (a wait mode is a later addition).
-            # It is an ordinary failure of the call, not an unexpected one.
+            # behavior of `on_unmet = fail`. The `wait` mode is added in a later
+            # step and, until then, ends the call the same way. It is an
+            # ordinary failure of the call, not an unexpected one.
             return execution_error(
                 self._wrap_error(exp.error, ref_method.qualified_name)
             )
