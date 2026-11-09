@@ -144,14 +144,14 @@ class TestRejections:
         )
         assert not setup.ran()
 
-    def test_invalid_configuration_is_bad_request(
+    def test_invalid_configuration_is_a_server_fault(
         self, composite: bool
     ) -> None:
         setup = Setup([cond("nope", 1)], composite)
 
         payload = error_of(setup.answer())
 
-        assert payload.error_code is ErrorCode.BAD_REQUEST
+        assert payload.error_code is ErrorCode.UNKNOWN
         assert str(payload.error_message).startswith(
             f"{ErrorMessages.BAD_REQUEST.value}: "
         )

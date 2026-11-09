@@ -69,8 +69,10 @@ _EXECUTION_ERROR_RESPONSES: dict[
         ErrorCode.UNKNOWN,
         ErrorMessages.TIMEOUT,
     ),
+    # A server-side fault (the model is misconfigured), not a mistake of the
+    # caller: the code is UNKNOWN, not BAD_REQUEST.
     ExecutionErrorCode.INVALID_CONFIGURATION: (
-        ErrorCode.BAD_REQUEST,
+        ErrorCode.UNKNOWN,
         ErrorMessages.BAD_REQUEST,
     ),
     ExecutionErrorCode.REMOTE_ERROR: (
@@ -551,7 +553,7 @@ class FrostProtocolMng(ProtocolMng):
             # The `requires` of the method (plain or composite) do not hold:
             # nothing ran and nothing is registered. Answer the request:
             # PRECONDITION_NOT_MET and NO_DATA map to NOT_ALLOWED and
-            # INVALID_CONFIGURATION to BAD_REQUEST (see
+            # INVALID_CONFIGURATION to UNKNOWN (see
             # `_EXECUTION_ERROR_RESPONSES`). The observed value is not sent.
             _logger.info(
                 "Request %s rejected, requires of '%s' not satisfied (%s)",

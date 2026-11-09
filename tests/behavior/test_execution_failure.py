@@ -393,7 +393,7 @@ class TestFrost:
             ),
             (
                 ExecutionErrorCode.INVALID_CONFIGURATION,
-                ErrorCode.BAD_REQUEST,
+                ErrorCode.UNKNOWN,
                 ErrorMessages.BAD_REQUEST,
             ),
             (

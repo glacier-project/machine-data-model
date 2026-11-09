@@ -299,7 +299,7 @@ every condition that was evaluated:
 | --- | --- | --- |
 | `PRECONDITION_NOT_MET` | at least one condition does not hold | `NOT_ALLOWED` |
 | `NO_DATA` | no condition fails, but one cannot be evaluated: the variable has no value, a remote variable has not received a value yet, or the value cannot be compared | `NOT_ALLOWED` |
-| `INVALID_CONFIGURATION` | a condition can never be evaluated: the variable does not exist, is not a variable, is remote without a connector, or a `${name}` is missing from the call | `BAD_REQUEST` |
+| `INVALID_CONFIGURATION` | a condition can never be evaluated: the variable does not exist, is not a variable, is remote without a connector, or a `${name}` is missing from the call | `UNKNOWN` (a server-side fault, not a mistake of the caller) |
 
 When several conditions are unmet, the message names the first five and the
 number of the others, and the code is chosen over all of them
