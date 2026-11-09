@@ -44,7 +44,10 @@ def make(kind: str, requires: list[Condition] | None) -> Any:
 
 def model_with(method: Any) -> DataModel:
     root = FolderNode(id="root", name="root")
-    root.add_child(NumericalVariableNode(id="mode", name="mode", value=1))
+    # Every variable the conditions of these tests name must exist: the data
+    # model checks static requires paths when it is built.
+    for name in ("mode", "a", "b", "x", "other"):
+        root.add_child(NumericalVariableNode(id=name, name=name, value=1))
     root.add_child(method)
     return DataModel(name="dm", root=root)
 

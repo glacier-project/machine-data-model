@@ -3,7 +3,10 @@ import logging
 from typing import Any
 import weakref
 
-from machine_data_model.behavior.execution_context import ExecutionContext
+from machine_data_model.behavior.execution_context import (
+    ExecutionContext,
+    contains_template_variables,
+)
 from machine_data_model.behavior.local_execution_node import LocalExecutionNode
 from machine_data_model.behavior.remote_execution_node import (
     RemoteExecutionNode,
@@ -100,6 +103,9 @@ class DataModel:
             self._nodes: dict[str, DataModelNode] = {}
             self._register_nodes(self._root)
 
+            # fail at load on a requires condition that can never be evaluated
+            self._validate_requires()
+
             # set up the connector and resolved remote resource for each node
             self._setup_inheritable_specs(self._root)
             for node in self._nodes.values():
@@ -114,6 +120,37 @@ class DataModel:
         except Exception:
             self._cleanup_connectors(self._connectors.values())
             raise
+
+    def _validate_requires(self) -> None:
+        """Check the static variable paths of the `requires` of every method.
+
+        A condition whose `variable` has no `${...}` template must name a
+        variable of this data model. A templated path depends on the arguments
+        of the call and is checked when the method is called.
+
+        Raises:
+            ValueError:
+                If a method has a condition whose path is not found or is not
+                a variable.
+
+        """
+        for node in list(self._nodes.values()):
+            if not isinstance(node, MethodNode):
+                continue
+            for condition in node.requires:
+                if contains_template_variables(condition.variable):
+                    continue
+                target = self.get_node(condition.variable)
+                if target is None:
+                    raise ValueError(
+                        f"requires of method '{node.qualified_name}': "
+                        f"variable '{condition.variable}' not found"
+                    )
+                if not isinstance(target, VariableNode):
+                    raise ValueError(
+                        f"requires of method '{node.qualified_name}': "
+                        f"node '{condition.variable}' is not a variable"
+                    )
 
     def _initialize_connectors(
         self, connectors: list[AbstractConnector] | None
