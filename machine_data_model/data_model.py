@@ -117,6 +117,10 @@ class DataModel:
                     node, ObjectVariableNode
                 ):
                     node.subscribe_to_remote_changes()
+
+            # connectors are set now: a requires variable that is remote but
+            # has none could never be evaluated
+            self._validate_requires_connectors()
         except Exception:
             self._cleanup_connectors(self._connectors.values())
             raise
@@ -150,6 +154,37 @@ class DataModel:
                     raise ValueError(
                         f"requires of method '{node.qualified_name}': "
                         f"node '{condition.variable}' is not a variable"
+                    )
+
+    def _validate_requires_connectors(self) -> None:
+        """Check that the static `requires` variables have their connector.
+
+        Run after the connectors were set up on the nodes. A condition on a
+        remote variable without a connector can never be evaluated (it would
+        fail at every call with `INVALID_CONFIGURATION`), so the load fails.
+
+        Raises:
+            ValueError:
+                If a static `requires` path names a remote variable that has
+                no connector.
+
+        """
+        for node in list(self._nodes.values()):
+            if not isinstance(node, MethodNode):
+                continue
+            for condition in node.requires:
+                if contains_template_variables(condition.variable):
+                    continue
+                target = self.get_node(condition.variable)
+                if (
+                    isinstance(target, VariableNode)
+                    and target.is_remote()
+                    and not target.has_connector()
+                ):
+                    raise ValueError(
+                        f"requires of method '{node.qualified_name}': "
+                        f"variable '{condition.variable}' is remote but has "
+                        f"no connector"
                     )
 
     def _initialize_connectors(

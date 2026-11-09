@@ -170,3 +170,84 @@ class TestFromYaml:
     def test_bad_path_fails_at_load(self) -> None:
         with pytest.raises(ValueError, match="/root/start.*/root/modee"):
             DataModelBuilder().from_string(self.text("/root/modee"))
+
+
+class TestRemoteVariableWithoutConnector:
+    @staticmethod
+    def remote_model() -> FolderNode:
+        root = FolderNode(id="root", name="root")
+        remote = NumericalVariableNode(
+            id="remote", name="remote", value=1, connector_name="c"
+        )
+        root.add_child(remote)
+        root.add_child(
+            MethodNode(id="m", name="m", requires=[cond("/root/remote")])
+        )
+        return root
+
+    @staticmethod
+    def connector() -> MagicMock:
+        connector = MagicMock()
+        connector.name = "c"
+        connector.connect.return_value = True
+        connector.read_node_value.return_value = None
+        return connector
+
+    def test_remote_variable_with_its_connector_loads(self) -> None:
+        DataModel(
+            name="dm",
+            root=self.remote_model(),
+            connectors=[self.connector()],
+        )
+
+    def test_unknown_connector_already_fails_the_load(self) -> None:
+        # Without the check: DataModel itself rejects a remote node whose
+        # connector does not exist.
+        with pytest.raises(KeyError, match="not found"):
+            DataModel(name="dm", root=self.remote_model())
+
+    def test_remote_variable_left_without_a_connector_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Defensive check: if the connector setup leaves a remote variable
+        # without a connector, the load fails naming method and variable.
+        monkeypatch.setattr(
+            DataModel, "_set_node_connector", lambda self, node: None
+        )
+        connector = self.connector()
+
+        with pytest.raises(ValueError) as info:
+            DataModel(
+                name="dm",
+                root=self.remote_model(),
+                connectors=[connector],
+            )
+
+        message = str(info.value)
+        assert "/root/m" in message
+        assert "/root/remote" in message
+        assert "no connector" in message
+        connector.disconnect.assert_called()
+
+    def test_templated_path_is_not_checked(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            DataModel, "_set_node_connector", lambda self, node: None
+        )
+        root = FolderNode(id="root", name="root")
+        root.add_child(
+            NumericalVariableNode(
+                id="remote", name="remote", value=1, connector_name="c"
+            )
+        )
+        root.add_child(
+            MethodNode(
+                id="m",
+                name="m",
+                parameters=[StringVariableNode(id="p", name="p")],
+                requires=[cond("${p}")],
+            )
+        )
+
+        DataModel(name="dm", root=root, connectors=[self.connector()])
