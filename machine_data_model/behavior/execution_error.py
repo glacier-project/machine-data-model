@@ -24,13 +24,19 @@ def sanitize_detail(text: str, max_length: int) -> str:
     """Make a text safe and bounded to be shown to a peer or written to a log.
 
     Lone surrogates and format characters (bidi controls, zero-width
-    characters) are removed. Runs of whitespace and control characters
-    (newlines, carriage returns, escape sequences, ...) become one space and
-    the text is stripped. If it is longer than `max_length` characters it is
-    cut on the string, never in the middle of a character or between a
-    character and its combining marks, and "..." is appended: the ellipsis is
-    part of the budget, so the result is never longer than `max_length` (for
-    `max_length` below 3 the text is cut without an ellipsis).
+    characters) are removed. Removing the format category (Cf) also strips the
+    zero-width joiner and non-joiner, so emoji sequences are split into their
+    parts and some Persian and Indic text loses its joining hints; this is
+    acceptable for text shown to a peer or written to a log, where hidden or
+    reordering characters are the bigger risk.
+
+    Runs of whitespace and control characters (newlines, carriage returns,
+    escape sequences, ...) become one space and the text is stripped. If it is
+    longer than `max_length` characters it is cut on the string, never in the
+    middle of a character or between a character and its combining marks, and
+    "..." is appended: the ellipsis is part of the budget, so the result is
+    never longer than `max_length` (for `max_length` below 3 the text is cut
+    without an ellipsis).
 
     Args:
         text (str):
