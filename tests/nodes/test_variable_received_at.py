@@ -265,3 +265,106 @@ class TestWalkUp:
         ObjectVariableNode(name="obj", properties={"prop": prop})
 
         assert prop.has_received_value()
+
+
+class TestLocalObjectWithRemoteProperties:
+    @staticmethod
+    def build() -> tuple[ObjectVariableNode, NumericalVariableNode]:
+        remote_prop = NumericalVariableNode(
+            name="r", value=0, connector_name="c"
+        )
+        remote_prop.set_connector(MagicMock())
+        obj = ObjectVariableNode(
+            name="o",
+            properties={
+                "r": remote_prop,
+                "l": NumericalVariableNode(name="l", value=1),
+            },
+        )
+        return obj, remote_prop
+
+    def test_unreceived_remote_property_makes_the_object_unreceived(
+        self,
+    ) -> None:
+        obj, remote_prop = self.build()
+
+        assert not obj.is_remote()
+        assert not obj.has_received_value()
+
+        remote_prop._remote_subscription_callback(3, MagicMock())
+
+        assert obj.has_received_value()
+
+    def test_nested_local_object_follows_its_remote_property(self) -> None:
+        inner, remote_prop = self.build()
+        outer = ObjectVariableNode(name="outer", properties={"inner": inner})
+
+        assert not outer.has_received_value()
+
+        remote_prop._mark_received()
+
+        assert outer.has_received_value()
+
+    def test_condition_on_such_an_object_is_no_data(self) -> None:
+        from machine_data_model.behavior.condition import (
+            Condition,
+            ConditionResult,
+            WaitConditionOperator,
+        )
+
+        obj, remote_prop = self.build()
+        cond = Condition("o", WaitConditionOperator.EQ, {"r": 0, "l": 1})
+
+        before = cond.evaluate(lambda path: obj, None)
+        remote_prop._mark_received()
+        after = cond.evaluate(lambda path: obj, None)
+
+        assert before.result is ConditionResult.NO_DATA
+        assert after.result is ConditionResult.OK
+
+
+class TestObjectUpdateValidation:
+    @staticmethod
+    def build() -> ObjectVariableNode:
+        return ObjectVariableNode(
+            name="o",
+            properties={
+                "a": NumericalVariableNode(name="a", value=1),
+                "b": NumericalVariableNode(name="b", value=2),
+            },
+        )
+
+    def test_missing_property_raises_value_error(self) -> None:
+        obj = self.build()
+
+        with pytest.raises(ValueError, match="missing \\['b'\\]"):
+            obj._update_internal_value({"a": 5})
+
+        assert obj._read_internal_value() == {"a": 1, "b": 2}
+
+    def test_unknown_property_raises_value_error(self) -> None:
+        obj = self.build()
+
+        with pytest.raises(ValueError, match="unknown \\['c'\\]"):
+            obj._update_internal_value({"a": 5, "b": 6, "c": 7})
+
+        assert obj._read_internal_value() == {"a": 1, "b": 2}
+
+    def test_same_count_wrong_names_raises_value_error(self) -> None:
+        obj = self.build()
+
+        with pytest.raises(ValueError):
+            obj._update_internal_value({"a": 5, "x": 6})
+
+        assert obj._read_internal_value() == {"a": 1, "b": 2}
+
+    def test_valid_value_updates_all_properties(self) -> None:
+        obj = self.build()
+
+        assert obj._update_internal_value({"a": 5, "b": 6}) == {"a": 5, "b": 6}
+
+    def test_remote_message_with_wrong_shape_is_a_value_error(self) -> None:
+        obj = self.build()
+
+        with pytest.raises(ValueError):
+            obj._remote_subscription_callback({"a": 5}, MagicMock())

@@ -1453,15 +1453,21 @@ class ObjectVariableNode(VariableNode):
 
         Returns:
             bool:
-                True for a local object (and for a remote one without
-                properties), otherwise True only if every property received a
-                value.
+                For an object that is remote, or inside a remote variable: True
+                only if every property received a value (an object without
+                properties is True). For a local object: True only if every
+                property has a value of its own, so a local object with a
+                remote property that never received a value is False.
 
         """
-        if not self._is_remote_or_in_remote_variable():
-            return True
+        if self._is_remote_or_in_remote_variable():
+            return all(
+                node.received_at is not None
+                for node in self._properties.values()
+                if isinstance(node, VariableNode)
+            )
         return all(
-            node.received_at is not None
+            node.has_received_value()
             for node in self._properties.values()
             if isinstance(node, VariableNode)
         )
@@ -1485,10 +1491,22 @@ class ObjectVariableNode(VariableNode):
             dict[str, Any]:
                 The updated value of the object variable.
 
+        Raises:
+            ValueError:
+                If the value does not contain exactly the properties of the
+                object. Nothing is updated in that case. (This is a check of
+                data that can come from a remote party, so it is not an
+                `assert`, which `python -O` removes.)
+
         """
-        assert len(value) == len(self._properties) and all(
-            prop in self._properties for prop in value
-        ), "The value must contain all properties of the object variable"
+        if set(value) != set(self._properties):
+            missing = sorted(set(self._properties) - set(value))
+            unknown = sorted(set(value) - set(self._properties))
+            raise ValueError(
+                f"The value of '{self.qualified_name}' must contain all the "
+                f"properties of the object variable: missing {missing}, "
+                f"unknown {unknown}"
+            )
         for property_name, property_value in value.items():
             self._properties[property_name]._update_internal_value(
                 property_value
