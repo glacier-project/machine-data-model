@@ -397,10 +397,9 @@ class Condition:
         Returns:
             ConditionOutcome:
                 `NO_DATA` if the variable has no value, a remote variable never
-                received one, the variable cannot
-                be read (`OSError`, including `ConnectionError` and
-                `TimeoutError`) or cannot be compared with the right-hand
-                side. Otherwise `OK` or `FAILED`.
+                received one, the read failed with a `ConnectionError` or a
+                `TimeoutError`, or the value cannot be compared with the
+                right-hand side. Otherwise `OK` or `FAILED`.
 
         Raises:
             ConditionError:
@@ -420,9 +419,10 @@ class Condition:
 
         try:
             lhs = variable.read(force_remote_read=force_remote_read)
-        except OSError as error:
-            # Covers ConnectionError and TimeoutError: a transient lack of
-            # data. Any other exception is a programming error and propagates.
+        except (ConnectionError, TimeoutError) as error:
+            # A transient lack of data. Any other exception (including other
+            # OSError, such as FileNotFoundError or PermissionError) is a
+            # fault and propagates.
             return ConditionOutcome(
                 ConditionResult.NO_DATA,
                 f"{text}: read failed ({type(error).__name__})",

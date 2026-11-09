@@ -352,10 +352,12 @@ class TestReadFailures:
             ConnectionError("down"),
             TimeoutError("slow"),
             ConnectionResetError("reset"),
-            OSError("io"),
+            BrokenPipeError("pipe"),
         ],
     )
-    def test_os_errors_give_no_data(self, error: OSError) -> None:
+    def test_connection_and_timeout_errors_give_no_data(
+        self, error: OSError
+    ) -> None:
         var = self.failing_variable(error)
         cond = Condition("mode", WaitConditionOperator.EQ, 1)
 
@@ -370,7 +372,15 @@ class TestReadFailures:
         assert str(error) not in outcome.message
 
     @pytest.mark.parametrize(
-        "error", [RuntimeError("bug"), AssertionError("bug"), KeyError("k")]
+        "error",
+        [
+            RuntimeError("bug"),
+            AssertionError("bug"),
+            KeyError("k"),
+            OSError("io"),
+            FileNotFoundError("missing"),
+            PermissionError("denied"),
+        ],
     )
     def test_other_errors_propagate(self, error: Exception) -> None:
         var = self.failing_variable(error)
@@ -379,7 +389,7 @@ class TestReadFailures:
         with pytest.raises(type(error)):
             cond.evaluate(resolver_for(var), None)
 
-    def test_evaluate_on_also_catches_os_errors(self) -> None:
+    def test_evaluate_on_also_catches_timeouts(self) -> None:
         var = self.failing_variable(TimeoutError("slow"))
 
         outcome = Condition("mode", WaitConditionOperator.EQ, 1).evaluate_on(
