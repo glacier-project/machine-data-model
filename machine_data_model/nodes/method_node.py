@@ -785,6 +785,7 @@ class MethodNode(DataModelNode):
         return (
             self._parameters == other._parameters
             and self._returns == other._returns
+            and self._requires == other._requires
         )
 
 

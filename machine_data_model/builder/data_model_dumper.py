@@ -340,8 +340,33 @@ def _object_node_representer(
     )
 
 
+def _get_requires_data(node: Any) -> list[dict[str, Any]]:
+    """Get the `requires` of a method node as plain mappings.
+
+    Args:
+        node (Any):
+            The method node instance.
+
+    Returns:
+        list[dict[str, Any]]:
+            One mapping with the keys `variable`, `operator` and `rhs` per
+            condition, the operator as its text (for example "==").
+    """
+    return [
+        {
+            "variable": condition.variable,
+            "operator": condition.operator.value,
+            "rhs": condition.rhs,
+        }
+        for condition in node.requires
+    ]
+
+
 def _get_method_node_common_fields(node: Any) -> dict[str, Any]:
     """Get common fields for method nodes.
+
+    The `requires` field is only emitted when the method has conditions, so a
+    model without them dumps exactly as it did before.
 
     Args:
         node (Any):
@@ -352,11 +377,14 @@ def _get_method_node_common_fields(node: Any) -> dict[str, Any]:
             A dictionary containing common fields.
     """
     data_model_node_common_fields = _get_data_model_node_common_fields(node)
-    return {
+    fields = {
         **data_model_node_common_fields,
         "parameters": node.parameters,
         "returns": node.returns,
     }
+    if node.requires:
+        fields["requires"] = _get_requires_data(node)
+    return fields
 
 
 def _method_node_representer(
